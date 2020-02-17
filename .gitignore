@@ -1,0 +1,7 @@
+# Created by .ignore support plugin (hsz.mobi)
+.idea/
+.gradle
+*.iws
+out/
+/build/
+!gradle-wrapper.jar
