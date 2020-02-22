@@ -6,9 +6,9 @@ import hep.dataforge.meta.scheme.SchemeSpec
 /**
  * A descriptor for property
  */
-class PropertyDescriptor : Scheme() {
+class RequestDescriptor : Scheme() {
     //var name by string { error("Property name is mandatory") }
     //var descriptor by spec(ItemDescriptor)
 
-    companion object : SchemeSpec<PropertyDescriptor>(::PropertyDescriptor)
+    companion object : SchemeSpec<RequestDescriptor>(::RequestDescriptor)
 }

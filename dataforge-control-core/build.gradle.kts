@@ -10,7 +10,7 @@ kotlin {
     sourceSets {
         commonMain{
             dependencies {
-                api("hep.dataforge:dataforge-meta:$dataforgeVersion")
+                api("hep.dataforge:dataforge-context:$dataforgeVersion")
             }
         }
     }
