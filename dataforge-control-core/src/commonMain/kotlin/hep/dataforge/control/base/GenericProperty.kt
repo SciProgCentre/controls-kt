@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-open class GenericReadOnlyProperty<D: DeviceBase, T : Any>(
+open class GenericReadOnlyProperty<D : DeviceBase, T : Any>(
     override val name: String,
     override val descriptor: PropertyDescriptor,
     override val owner: D,
@@ -26,26 +26,32 @@ open class GenericReadOnlyProperty<D: DeviceBase, T : Any>(
         owner.propertyChanged(name, converter.objectToMetaItem(value))
     }
 
-    suspend fun readValue(): T =
-        value ?: withContext(owner.scope.coroutineContext) {
+    override suspend fun invalidate() {
+        mutex.withLock { value = null }
+    }
+
+    suspend fun readValue(force: Boolean = false): T {
+        if (force) invalidate()
+        return value ?: withContext(owner.scope.coroutineContext) {
             //all device operations should be run on device context
             owner.getter().also { updateValue(it) }
         }
+    }
 
     fun peekValue(): T? = value
 
-    suspend fun update(item: MetaItem<*>) {
+    override suspend fun update(item: MetaItem<*>) {
         updateValue(converter.itemToObject(item))
     }
 
-    override suspend fun read(): MetaItem<*> = converter.objectToMetaItem(readValue())
+    override suspend fun read(force: Boolean): MetaItem<*> = converter.objectToMetaItem(readValue(force))
 
     override fun peek(): MetaItem<*>? = value?.let { converter.objectToMetaItem(it) }
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): T? = peekValue()
 }
 
-class GenericProperty<D: DeviceBase, T : Any>(
+class GenericProperty<D : DeviceBase, T : Any>(
     name: String,
     descriptor: PropertyDescriptor,
     owner: D,
@@ -61,10 +67,6 @@ class GenericProperty<D: DeviceBase, T : Any>(
             invalidate()
             owner.setter(oldValue, newValue)
         }
-    }
-
-    override suspend fun invalidate() {
-        mutex.withLock { value = null }
     }
 
     override suspend fun write(item: MetaItem<*>) {

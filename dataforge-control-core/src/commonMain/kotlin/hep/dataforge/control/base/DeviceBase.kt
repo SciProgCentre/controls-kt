@@ -1,59 +1,66 @@
 package hep.dataforge.control.base
 
+import hep.dataforge.control.api.ActionDescriptor
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.PropertyChangeListener
 import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.control.api.RequestDescriptor
+import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
 import kotlin.jvm.JvmStatic
 import kotlin.reflect.KProperty
 
 abstract class DeviceBase : Device, PropertyChangeListener {
     private val properties = HashMap<String, ReadOnlyProperty>()
-    private val requests = HashMap<String, Request>()
+    private val actions = HashMap<String, Action>()
 
-    override var controller: PropertyChangeListener? = null
+    override var listener: PropertyChangeListener? = null
 
     override fun propertyChanged(propertyName: String, value: MetaItem<*>) {
-        controller?.propertyChanged(propertyName, value)
+        listener?.propertyChanged(propertyName, value)
     }
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
         get() = properties.values.map { it.descriptor }
 
-    override val requestDescriptors: Collection<RequestDescriptor>
-        get() = requests.values.map { it.descriptor }
+    override val actionDescriptors: Collection<ActionDescriptor>
+        get() = actions.values.map { it.descriptor }
 
     fun <P : ReadOnlyProperty> initProperty(prop: P): P {
         properties[prop.name] = prop
         return prop
     }
 
-    fun initRequest(request: Request): Request {
-        requests[request.name] = request
-        return request
+    fun initRequest(Action: Action): Action {
+        actions[Action.name] = Action
+        return Action
     }
 
     protected fun initRequest(
         name: String,
-        descriptor: RequestDescriptor = RequestDescriptor.empty(),
+        descriptor: ActionDescriptor = ActionDescriptor.empty(),
         block: suspend (MetaItem<*>?) -> MetaItem<*>?
-    ): Request {
-        val request = SimpleRequest(name, descriptor, block)
+    ): Action {
+        val request = SimpleAction(name, descriptor, block)
         return initRequest(request)
     }
 
     override suspend fun getProperty(propertyName: String): MetaItem<*> =
         (properties[propertyName] ?: error("Property with name $propertyName not defined")).read()
 
+    override suspend fun invalidateProperty(propertyName: String) {
+        (properties[propertyName] ?: error("Property with name $propertyName not defined")).invalidate()
+    }
+
     override suspend fun setProperty(propertyName: String, value: MetaItem<*>) {
         (properties[propertyName] as? Property ?: error("Property with name $propertyName not defined")).write(value)
     }
 
-    override suspend fun request(name: String, argument: MetaItem<*>?): MetaItem<*>? =
-        (requests[name] ?: error("Request with name $name not defined")).invoke(argument)
+    override suspend fun action(name: String, argument: Meta?): Meta? =
+        (actions[name] ?: error("Request with name $name not defined")).invoke(argument)
+
 
     companion object {
+
         @JvmStatic
         protected fun <D : DeviceBase, P : ReadOnlyProperty> D.initProperty(
             name: String,
@@ -82,6 +89,7 @@ fun <D : DeviceBase, T : Any> D.property(
     return PropertyDelegateProvider(this, builder)
 }
 
+//TODO try to use 'property' with new inference
 fun <D : DeviceBase, T : Any> D.mutableProperty(
     builder: PropertyBuilder<D>.() -> GenericProperty<D, T>
 ): PropertyDelegateProvider<D, T, GenericProperty<D, T>> {

@@ -21,20 +21,9 @@ interface ReadOnlyProperty {
     val descriptor: PropertyDescriptor
 
     /**
-     *  Get cached value and return null if value is invalid
+     * Erase logical value and force re-read from device on next [read]
      */
-    fun peek(): MetaItem<*>?
-
-    /**
-     * Read value either from cache if cache is valid or directly from physical device
-     */
-    suspend fun read(): MetaItem<*>
-}
-
-/**
- *  A single writeable property handler
- */
-interface Property : ReadOnlyProperty {
+    suspend fun invalidate()
 
     /**
      * Update property logical value and notify listener without writing it to device
@@ -42,9 +31,20 @@ interface Property : ReadOnlyProperty {
     suspend fun update(item: MetaItem<*>)
 
     /**
-     * Erase logical value and force re-read from device on next [read]
+     *  Get cached value and return null if value is invalid
      */
-    suspend fun invalidate()
+    fun peek(): MetaItem<*>?
+
+    /**
+     * Read value either from cache if cache is valid or directly from physical device
+     */
+    suspend fun read(force: Boolean = false): MetaItem<*>
+}
+
+/**
+ *  A single writeable property handler
+ */
+interface Property : ReadOnlyProperty {
 
     /**
      * Write value to physical device. Invalidates logical value, but does not update it automatically

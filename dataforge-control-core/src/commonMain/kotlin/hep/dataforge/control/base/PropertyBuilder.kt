@@ -29,17 +29,27 @@ class PropertyBuilder<D : DeviceBase>(val name: String, val owner: D) {
     /**
      * Convert this read-only property to read-write property
      */
-    infix fun <T: Any> GenericReadOnlyProperty<D, T>.set(setter: (suspend D.(oldValue: T?, newValue: T) -> Unit)): GenericProperty<D,T> {
+    infix fun <T : Any> GenericReadOnlyProperty<D, T>.set(setter: (suspend D.(oldValue: T?, newValue: T) -> Unit)): GenericProperty<D, T> {
         return GenericProperty(name, descriptor, owner, converter, getter, setter)
     }
 
     /**
      * Create read-write property with synchronized setter which updates value after set
      */
-    fun <T: Any> GenericReadOnlyProperty<D, T>.set(synchronousSetter: (suspend D.(oldValue: T?, newValue: T) -> T)): GenericProperty<D,T> {
+    fun <T : Any> GenericReadOnlyProperty<D, T>.set(synchronousSetter: (suspend D.(oldValue: T?, newValue: T) -> T)): GenericProperty<D, T> {
         val setter: suspend D.(oldValue: T?, newValue: T) -> Unit = { oldValue, newValue ->
             val result = synchronousSetter(oldValue, newValue)
             updateValue(result)
+        }
+        return GenericProperty(name, descriptor, owner, converter, getter, setter)
+    }
+
+    /**
+     * Define a setter that does nothing for virtual property
+     */
+    fun <T : Any> GenericReadOnlyProperty<D, T>.virtualSet(): GenericProperty<D, T> {
+        val setter: suspend D.(oldValue: T?, newValue: T) -> Unit =  { oldValue, newValue ->
+            updateValue(newValue)
         }
         return GenericProperty(name, descriptor, owner, converter, getter, setter)
     }

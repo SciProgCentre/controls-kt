@@ -20,4 +20,4 @@ suspend fun DeviceHub.setProperty(deviceName: String, propertyName: String, valu
 
 suspend fun DeviceHub.request(deviceName: String, command: String, argument: MetaItem<*>?): MetaItem<*>? =
     (getDevice(deviceName) ?: error("Device with name $deviceName not found in the hub"))
-        .request(command, argument)
+        .action(command, argument)

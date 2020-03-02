@@ -14,9 +14,7 @@ class VirtualDevice(val meta: Meta, override val scope: CoroutineScope) : Device
     var scale by mutableProperty {
         getDouble {
             200.0
-        } set { _, _ ->
-
-        }
+        }.virtualSet()
     }
 
     val sin by property {

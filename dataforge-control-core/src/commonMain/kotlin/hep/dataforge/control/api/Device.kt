@@ -1,5 +1,6 @@
 package hep.dataforge.control.api
 
+import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
 import kotlinx.coroutines.CoroutineScope
 
@@ -12,19 +13,24 @@ interface Device {
     /**
      * List of supported requests descriptors
      */
-    val requestDescriptors: Collection<RequestDescriptor>
+    val actionDescriptors: Collection<ActionDescriptor>
 
     /**
      * The scope encompassing all operations on a device. When canceled, cancels all running processes
      */
     val scope: CoroutineScope
 
-    var controller: PropertyChangeListener?
+    var listener: PropertyChangeListener?
 
     /**
      * Get the value of the property or throw error if property in not defined. Suspend if property value is not available
      */
     suspend fun getProperty(propertyName: String): MetaItem<*>
+
+    /**
+     * Invalidate property and force recalculate
+     */
+    suspend fun invalidateProperty(propertyName: String)
 
     /**
      * Set property [value] for a property with name [propertyName].
@@ -36,5 +42,10 @@ interface Device {
      * Send a request and suspend caller while request is being processed.
      * Could return null if request does not return meaningful answer.
      */
-    suspend fun request(name: String, argument: MetaItem<*>? = null): MetaItem<*>?
+    suspend fun action(name: String, argument: Meta? = null): Meta?
+
+    companion object {
+        const val GET_PROPERTY_ACTION = "@getProperty"
+        const val SET_PROPERTY_ACTION = "@setProperty"
+    }
 }
