@@ -1,6 +1,6 @@
 pluginManagement {
-    val kotlinVersion = "1.3.61"
-    val toolsVersion = "0.3.2"
+    val kotlinVersion = "1.3.72"
+    val toolsVersion = "0.5.0"
 
     repositories {
         mavenLocal()
@@ -27,6 +27,7 @@ pluginManagement {
         eachPlugin {
             when (requested.id.id) {
                 "scientifik.publish", "scientifik.mpp", "scientifik.jvm", "scientifik.js" -> useModule("scientifik:gradle-tools:${toolsVersion}")
+                "kotlinx-atomicfu" -> useModule("org.jetbrains.kotlinx:atomicfu-gradle-plugin:${requested.version}")
             }
         }
     }
@@ -35,7 +36,9 @@ pluginManagement {
 rootProject.name = "dataforge-control"
 
 include(
-    ":dataforge-control-core"
+    ":dataforge-control-core",
+    ":demo"
 )
 
-includeBuild("../dataforge-core")
+//includeBuild("../dataforge-core")
+//includeBuild("../plotly.kt")

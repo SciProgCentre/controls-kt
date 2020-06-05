@@ -4,19 +4,24 @@ import hep.dataforge.control.api.ActionDescriptor
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.PropertyChangeListener
 import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
-import kotlin.jvm.JvmStatic
-import kotlin.reflect.KProperty
 
-abstract class DeviceBase : Device, PropertyChangeListener {
-    private val properties = HashMap<String, ReadOnlyProperty>()
+abstract class DeviceBase : Device {
+    private val properties = HashMap<String, ReadOnlyDeviceProperty>()
     private val actions = HashMap<String, Action>()
 
-    override var listener: PropertyChangeListener? = null
+    private val listeners = ArrayList<Pair<Any?, PropertyChangeListener>>(4)
 
-    override fun propertyChanged(propertyName: String, value: MetaItem<*>) {
-        listener?.propertyChanged(propertyName, value)
+    override fun registerListener(listener: PropertyChangeListener, owner: Any?) {
+        listeners.add(owner to listener)
+    }
+
+    override fun removeListener(owner: Any?) {
+        listeners.removeAll { it.first == owner }
+    }
+
+    internal fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
+        listeners.forEach { it.second.propertyChanged(propertyName, value) }
     }
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
@@ -25,23 +30,12 @@ abstract class DeviceBase : Device, PropertyChangeListener {
     override val actionDescriptors: Collection<ActionDescriptor>
         get() = actions.values.map { it.descriptor }
 
-    fun <P : ReadOnlyProperty> initProperty(prop: P): P {
-        properties[prop.name] = prop
-        return prop
+    internal fun resolveProperty(name: String, builder: () -> ReadOnlyDeviceProperty): ReadOnlyDeviceProperty {
+        return properties.getOrPut(name, builder)
     }
 
-    fun initRequest(Action: Action): Action {
-        actions[Action.name] = Action
-        return Action
-    }
-
-    protected fun initRequest(
-        name: String,
-        descriptor: ActionDescriptor = ActionDescriptor.empty(),
-        block: suspend (MetaItem<*>?) -> MetaItem<*>?
-    ): Action {
-        val request = SimpleAction(name, descriptor, block)
-        return initRequest(request)
+    internal fun resolveAction(name: String, builder: () -> Action): Action {
+        return actions.getOrPut(name, builder)
     }
 
     override suspend fun getProperty(propertyName: String): MetaItem<*> =
@@ -52,48 +46,19 @@ abstract class DeviceBase : Device, PropertyChangeListener {
     }
 
     override suspend fun setProperty(propertyName: String, value: MetaItem<*>) {
-        (properties[propertyName] as? Property ?: error("Property with name $propertyName not defined")).write(value)
+        (properties[propertyName] as? DeviceProperty ?: error("Property with name $propertyName not defined")).write(
+            value
+        )
     }
 
-    override suspend fun action(name: String, argument: Meta?): Meta? =
-        (actions[name] ?: error("Request with name $name not defined")).invoke(argument)
+    override suspend fun call(action: String, argument: MetaItem<*>?): MetaItem<*>? =
+        (actions[action] ?: error("Request with name $action not defined")).invoke(argument)
 
 
     companion object {
 
-        @JvmStatic
-        protected fun <D : DeviceBase, P : ReadOnlyProperty> D.initProperty(
-            name: String,
-            builder: PropertyBuilder<D>.() -> P
-        ): P {
-            val property = PropertyBuilder(name, this).run(builder)
-            initProperty(property)
-            return property
-        }
     }
 }
 
-class PropertyDelegateProvider<D : DeviceBase, T : Any, P : GenericReadOnlyProperty<D, T>>(
-    val owner: D,
-    val builder: PropertyBuilder<D>.() -> P
-) {
-    operator fun provideDelegate(thisRef: D, property: KProperty<*>): P {
-        val name = property.name
-        return owner.initProperty(PropertyBuilder(name, owner).run(builder))
-    }
-}
-
-fun <D : DeviceBase, T : Any> D.property(
-    builder: PropertyBuilder<D>.() -> GenericReadOnlyProperty<D, T>
-): PropertyDelegateProvider<D, T, GenericReadOnlyProperty<D, T>> {
-    return PropertyDelegateProvider(this, builder)
-}
-
-//TODO try to use 'property' with new inference
-fun <D : DeviceBase, T : Any> D.mutableProperty(
-    builder: PropertyBuilder<D>.() -> GenericProperty<D, T>
-): PropertyDelegateProvider<D, T, GenericProperty<D, T>> {
-    return PropertyDelegateProvider(this, builder)
-}
 
 

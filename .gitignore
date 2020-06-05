@@ -3,5 +3,5 @@
 .gradle
 *.iws
 out/
-/build/
+build/
 !gradle-wrapper.jar

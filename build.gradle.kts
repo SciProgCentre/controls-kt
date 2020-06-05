@@ -1,4 +1,6 @@
-val dataforgeVersion by extra("0.1.5-dev-9")
+val dataforgeVersion by extra("0.1.8-dev-4")
+val plotlyVersion by extra("0.2.0-dev-4")
+
 
 allprojects {
     repositories {
@@ -9,7 +11,7 @@ allprojects {
     }
 
     group = "hep.dataforge"
-    version = "0.1.0-dev"
+    version = "0.0.1"
 }
 
 val githubProject by extra("dataforge-control")

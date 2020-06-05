@@ -1,7 +1,7 @@
 package hep.dataforge.control.api
 
-import hep.dataforge.meta.scheme.Scheme
-import hep.dataforge.meta.scheme.SchemeSpec
+import hep.dataforge.meta.Scheme
+import hep.dataforge.meta.SchemeSpec
 
 /**
  * A descriptor for property
