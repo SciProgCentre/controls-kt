@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 
 @ExperimentalCoroutinesApi
-suspend fun Device.valueFlow(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
+suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
     val listener = object : PropertyChangeListener {
         override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
             if (value != null) {

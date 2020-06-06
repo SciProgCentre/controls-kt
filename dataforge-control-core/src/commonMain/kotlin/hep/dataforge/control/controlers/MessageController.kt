@@ -12,7 +12,6 @@ import hep.dataforge.meta.string
 import hep.dataforge.meta.wrap
 import kotlinx.io.Binary
 
-
 interface MessageConsumer {
     fun consume(message: Envelope): Unit
 }

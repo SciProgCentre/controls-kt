@@ -35,7 +35,7 @@ open class SimpleReadOnlyDeviceProperty(
         state.value = null
     }
 
-    private fun update(item: MetaItem<*>) {
+    protected fun update(item: MetaItem<*>) {
         state.value = item
         updateCallback(name, item)
     }
@@ -102,7 +102,7 @@ fun <D : DeviceBase> D.readingValue(
     this,
     default?.let { MetaItem.ValueItem(it) },
     PropertyDescriptor.invoke(descriptorBuilder),
-    { MetaItem.ValueItem(Value.of(getter())) }
+    getter = { MetaItem.ValueItem(Value.of(getter())) }
 )
 
 fun <D : DeviceBase> D.readingNumber(
@@ -113,7 +113,7 @@ fun <D : DeviceBase> D.readingNumber(
     this,
     default?.let { MetaItem.ValueItem(it.asValue()) },
     PropertyDescriptor.invoke(descriptorBuilder),
-    {
+    getter = {
         val number = getter()
         MetaItem.ValueItem(number.asValue())
     }
@@ -127,7 +127,9 @@ fun <D : DeviceBase> D.readingMeta(
     this,
     default?.let { MetaItem.NodeItem(it) },
     PropertyDescriptor.invoke(descriptorBuilder),
-    { MetaItem.NodeItem(MetaBuilder().apply { getter() }) }
+    getter = {
+        MetaItem.NodeItem(MetaBuilder().apply { getter() })
+    }
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -138,7 +140,7 @@ class SimpleDeviceProperty(
     scope: CoroutineScope,
     updateCallback: (name: String, item: MetaItem<*>?) -> Unit,
     getter: suspend (MetaItem<*>?) -> MetaItem<*>,
-    private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> Unit
+    private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
 ) : SimpleReadOnlyDeviceProperty(name, default, descriptor, scope, updateCallback, getter), DeviceProperty {
 
     override var value: MetaItem<*>?
@@ -163,7 +165,9 @@ class SimpleDeviceProperty(
             //all device operations should be run on device context
             withContext(scope.coroutineContext) {
                 //TODO add error catching
-                setter(oldValue, item)
+                setter(oldValue, item)?.let {
+                    update(it)
+                }
             }
         }
     }
@@ -174,7 +178,7 @@ private class DevicePropertyDelegate<D : DeviceBase>(
     val default: MetaItem<*>?,
     val descriptor: PropertyDescriptor = PropertyDescriptor.empty(),
     private val getter: suspend (MetaItem<*>?) -> MetaItem<*>,
-    private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> Unit
+    private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
 ) : ReadOnlyProperty<D, SimpleDeviceProperty> {
 
     override fun getValue(thisRef: D, property: KProperty<*>): SimpleDeviceProperty {
@@ -198,7 +202,7 @@ fun <D : DeviceBase> D.writing(
     default: MetaItem<*>? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (MetaItem<*>?) -> MetaItem<*>,
-    setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> Unit
+    setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
 ): ReadOnlyProperty<D, SimpleDeviceProperty> = DevicePropertyDelegate(
     this,
     default,
@@ -214,7 +218,7 @@ fun <D : DeviceBase> D.writingVirtual(
     default,
     descriptorBuilder,
     getter = { it ?: default },
-    setter = { _, _ -> }
+    setter = { _, newItem -> newItem }
 )
 
 fun <D : DeviceBase> D.writingVirtual(
@@ -224,20 +228,20 @@ fun <D : DeviceBase> D.writingVirtual(
     MetaItem.ValueItem(default),
     descriptorBuilder,
     getter = { it ?: MetaItem.ValueItem(default) },
-    setter = { _, _ -> }
+    setter = { _, newItem -> newItem }
 )
 
 fun <D : DeviceBase> D.writingDouble(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (Double) -> Double,
-    setter: suspend (oldValue: Double?, newValue: Double) -> Unit
+    setter: suspend (oldValue: Double?, newValue: Double) -> Double?
 ): ReadOnlyProperty<D, SimpleDeviceProperty> {
     val innerGetter: suspend (MetaItem<*>?) -> MetaItem<*> = {
         MetaItem.ValueItem(getter(it.double ?: Double.NaN).asValue())
     }
 
-    val innerSetter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> Unit = { oldValue, newValue ->
-        setter(oldValue.double, newValue.double ?: Double.NaN)
+    val innerSetter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>? = { oldValue, newValue ->
+        setter(oldValue.double, newValue.double ?: Double.NaN)?.asMetaItem()
     }
 
     return DevicePropertyDelegate(

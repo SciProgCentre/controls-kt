@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "1.3.72"
+    id("org.openjfx.javafxplugin") version "0.0.8"
 }
 
 val plotlyVersion: String by rootProject.extra
@@ -14,11 +15,17 @@ repositories{
 }
 
 dependencies{
-    implementation(kotlin("stdlib-jdk8"))
     implementation(project(":dataforge-control-core"))
+    implementation("no.tornado:tornadofx:1.7.20")
+    implementation(kotlin("stdlib-jdk8"))
     implementation("scientifik:plotlykt-server:$plotlyVersion")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions.jvmTarget = "11"
+}
+
+javafx{
+    version = "14"
+    modules("javafx.controls")
 }

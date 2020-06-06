@@ -22,34 +22,38 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
         parentScope.coroutineContext + executor.asCoroutineDispatcher()
     )
 
-    val scaleProperty: SimpleDeviceProperty by writingVirtual(5000.0.asValue())
-    var scale by scaleProperty.double()
+    val timeScale: SimpleDeviceProperty by writingVirtual(5000.0.asValue())
+    var timeScaleValue by timeScale.double()
 
     val resetScale: Action by action {
-        scale = 5000.0
+        timeScaleValue = 5000.0
     }
 
+    val sinScale by writingVirtual(1.0.asValue())
+    var sinScaleValue by sinScale.double()
     val sin by readingNumber {
         val time = Instant.now()
-        sin(time.toEpochMilli().toDouble() / scale)
+        sin(time.toEpochMilli().toDouble() / timeScaleValue)*sinScaleValue
     }
 
+    val cosScale by writingVirtual(1.0.asValue())
+    var cosScaleValue by cosScale.double()
     val cos by readingNumber {
         val time = Instant.now()
-        cos(time.toEpochMilli().toDouble() / scale)
+        cos(time.toEpochMilli().toDouble() / timeScaleValue)*cosScaleValue
     }
 
     val coordinates by readingMeta {
         val time = Instant.now()
         "time" put time.toEpochMilli()
-        "x" put sin(time.toEpochMilli().toDouble() / scale)
-        "y" put cos(time.toEpochMilli().toDouble() / scale)
+        "x" put sin(time.toEpochMilli().toDouble() / timeScaleValue)*sinScaleValue
+        "y" put cos(time.toEpochMilli().toDouble() / timeScaleValue)*cosScaleValue
     }
 
     init {
         sin.readEvery(0.2.seconds)
         cos.readEvery(0.2.seconds)
-        coordinates.readEvery(0.2.seconds)
+        coordinates.readEvery(0.3.seconds)
     }
 
     override fun close() {
