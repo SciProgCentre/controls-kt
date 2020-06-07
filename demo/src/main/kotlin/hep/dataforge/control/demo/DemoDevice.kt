@@ -22,7 +22,7 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
         parentScope.coroutineContext + executor.asCoroutineDispatcher()
     )
 
-    val timeScale: SimpleDeviceProperty by writingVirtual(5000.0.asValue())
+    val timeScale: IsolatedDeviceProperty by writingVirtual(5000.0.asValue())
     var timeScaleValue by timeScale.double()
 
     val resetScale: Action by action {
