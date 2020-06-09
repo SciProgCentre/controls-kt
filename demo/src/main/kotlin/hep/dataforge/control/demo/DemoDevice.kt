@@ -25,10 +25,6 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
     val timeScale: IsolatedDeviceProperty by writingVirtual(5000.0.asValue())
     var timeScaleValue by timeScale.double()
 
-    val resetScale: Action by action {
-        timeScaleValue = 5000.0
-    }
-
     val sinScale by writingVirtual(1.0.asValue())
     var sinScaleValue by sinScale.double()
     val sin by readingNumber {
@@ -48,6 +44,13 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
         "time" put time.toEpochMilli()
         "x" put sin(time.toEpochMilli().toDouble() / timeScaleValue)*sinScaleValue
         "y" put cos(time.toEpochMilli().toDouble() / timeScaleValue)*cosScaleValue
+    }
+
+
+    val resetScale: Action by action {
+        timeScaleValue = 5000.0
+        sinScaleValue = 1.0
+        cosScaleValue = 1.0
     }
 
     init {
