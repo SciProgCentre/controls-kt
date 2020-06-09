@@ -1,0 +1,9 @@
+@startuml
+title Simple call with callback
+Main -> Async: call
+activate Async
+
+Async -> Main: result
+deactivate Async
+
+@enduml

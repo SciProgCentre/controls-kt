@@ -1,0 +1,16 @@
+@startuml
+title Unidirectional event bus
+Node1 -> Bus: send
+activate Bus
+
+Bus -> Node2: consume
+Node2 -> Bus: send
+Bus -> Node1: consume
+Node1 -> Bus: send
+Bus -> Node2: consume
+Node2 -> Bus: send
+Bus -> Node1: consume
+
+deactivate Bus
+
+@enduml
