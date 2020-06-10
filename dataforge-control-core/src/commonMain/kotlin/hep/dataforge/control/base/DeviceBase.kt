@@ -6,6 +6,9 @@ import hep.dataforge.control.api.PropertyChangeListener
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
 
+/**
+ * Baseline implementation of [Device] interface
+ */
 abstract class DeviceBase : Device {
     private val properties = HashMap<String, ReadOnlyDeviceProperty>()
     private val actions = HashMap<String, Action>()

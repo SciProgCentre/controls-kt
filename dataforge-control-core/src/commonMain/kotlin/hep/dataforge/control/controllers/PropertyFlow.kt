@@ -1,4 +1,4 @@
-package hep.dataforge.control.controlers
+package hep.dataforge.control.controllers
 
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.PropertyChangeListener
