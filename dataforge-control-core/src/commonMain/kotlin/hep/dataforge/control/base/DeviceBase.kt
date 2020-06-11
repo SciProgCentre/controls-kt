@@ -6,6 +6,9 @@ import hep.dataforge.control.api.PropertyChangeListener
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
 
+/**
+ * Baseline implementation of [Device] interface
+ */
 abstract class DeviceBase : Device {
     private val properties = HashMap<String, ReadOnlyDeviceProperty>()
     private val actions = HashMap<String, Action>()
@@ -16,7 +19,7 @@ abstract class DeviceBase : Device {
         listeners.add(owner to listener)
     }
 
-    override fun removeListener(owner: Any?) {
+    override fun removeListeners(owner: Any?) {
         listeners.removeAll { it.first == owner }
     }
 

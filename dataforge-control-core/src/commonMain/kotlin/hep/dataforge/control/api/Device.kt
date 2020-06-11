@@ -6,6 +6,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.io.Closeable
 
+/**
+ *  General interface describing a managed Device
+ */
 interface Device: Closeable {
     /**
      * List of supported property descriptors
@@ -13,7 +16,8 @@ interface Device: Closeable {
     val propertyDescriptors: Collection<PropertyDescriptor>
 
     /**
-     * List of supported requests descriptors
+     * List of supported action descriptors. Action is a request to the device that
+     * may or may not change the properties
      */
     val actionDescriptors: Collection<ActionDescriptor>
 
@@ -30,12 +34,13 @@ interface Device: Closeable {
     fun registerListener(listener: PropertyChangeListener, owner: Any? = listener)
 
     /**
-     * Remove all listeners belonging to specified owner
+     * Remove all listeners belonging to the specified owner
      */
-    fun removeListener(owner: Any?)
+    fun removeListeners(owner: Any?)
 
     /**
-     * Get the value of the property or throw error if property in not defined. Suspend if property value is not available
+     * Get the value of the property or throw error if property in not defined.
+     * Suspend if property value is not available
      */
     suspend fun getProperty(propertyName: String): MetaItem<*>
 
@@ -51,8 +56,8 @@ interface Device: Closeable {
     suspend fun setProperty(propertyName: String, value: MetaItem<*>)
 
     /**
-     * Send a request and suspend caller while request is being processed.
-     * Could return null if request does not return meaningful answer.
+     * Send an action request and suspend caller while request is being processed.
+     * Could return null if request does not return a meaningful answer.
      */
     suspend fun call(action: String, argument: MetaItem<*>? = null): MetaItem<*>?
 

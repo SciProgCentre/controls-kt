@@ -1,7 +1,7 @@
 package hep.dataforge.control.demo
 
 import hep.dataforge.control.base.*
-import hep.dataforge.control.controlers.double
+import hep.dataforge.control.controllers.double
 import hep.dataforge.values.asValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
