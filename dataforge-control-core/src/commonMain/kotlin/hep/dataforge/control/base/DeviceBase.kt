@@ -19,7 +19,7 @@ abstract class DeviceBase : Device {
         listeners.add(owner to listener)
     }
 
-    override fun removeListener(owner: Any?) {
+    override fun removeListeners(owner: Any?) {
         listeners.removeAll { it.first == owner }
     }
 

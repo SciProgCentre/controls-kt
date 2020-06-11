@@ -36,7 +36,7 @@ interface Device: Closeable {
     /**
      * Remove all listeners belonging to the specified owner
      */
-    fun removeListener(owner: Any?)
+    fun removeListeners(owner: Any?)
 
     /**
      * Get the value of the property or throw error if property in not defined.

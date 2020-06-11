@@ -23,6 +23,6 @@ suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow 
     }
     registerListener(listener)
     awaitClose {
-        removeListener(listener)
+        removeListeners(listener)
     }
 }
