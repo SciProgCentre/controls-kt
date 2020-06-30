@@ -1,4 +1,4 @@
-package hep.dataforge.control.controlers
+package hep.dataforge.control.controllers
 
 import hep.dataforge.control.base.DeviceProperty
 import hep.dataforge.control.base.ReadOnlyDeviceProperty

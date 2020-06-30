@@ -1,4 +1,4 @@
-package hep.dataforge.control.controlers
+package hep.dataforge.control.controllers
 
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
@@ -21,8 +21,8 @@ suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow 
             }
         }
     }
-    registerListener(listener, listener)
+    registerListener(listener)
     awaitClose {
-        removeListener(listener)
+        removeListeners(listener)
     }
 }

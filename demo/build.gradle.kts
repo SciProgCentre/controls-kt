@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "1.3.72"
     id("org.openjfx.javafxplugin") version "0.0.8"
+    `application`
 }
 
 val plotlyVersion: String by rootProject.extra
@@ -31,4 +32,8 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 javafx{
     version = "14"
     modules("javafx.controls")
+}
+
+application{
+    mainClassName = "hep.dataforge.control.demo.DemoControllerViewKt"
 }

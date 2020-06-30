@@ -1,4 +1,4 @@
-package hep.dataforge.control.controlers
+package hep.dataforge.control.controllers
 
 import hep.dataforge.control.controlers.DeviceMessage.Companion.PAYLOAD_VALUE_KEY
 import hep.dataforge.meta.*
