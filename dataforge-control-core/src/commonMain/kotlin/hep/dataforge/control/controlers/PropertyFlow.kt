@@ -1,7 +1,7 @@
 package hep.dataforge.control.controlers
 
 import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.PropertyChangeListener
+import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.meta.MetaItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 @ExperimentalCoroutinesApi
 suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
-    val listener = object : PropertyChangeListener {
+    val listener = object : DeviceListener {
         override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
             if (value != null) {
                 launch {

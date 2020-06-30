@@ -16,6 +16,7 @@ repositories{
 
 dependencies{
     implementation(project(":dataforge-control-core"))
+    implementation(project(":dataforge-control-server"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
     implementation("scientifik:plotlykt-server:$plotlyVersion")

@@ -1,4 +1,5 @@
 import scientifik.useCoroutines
+import scientifik.useSerialization
 
 plugins {
     id("scientifik.mpp")
@@ -9,6 +10,7 @@ plugins {
 val dataforgeVersion: String by rootProject.extra
 
 useCoroutines(version = "1.3.7")
+useSerialization()
 
 kotlin {
     sourceSets {

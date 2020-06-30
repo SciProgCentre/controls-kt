@@ -5,6 +5,7 @@ import hep.dataforge.control.controlers.double
 import hep.dataforge.values.asValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.time.Instant
 import java.util.concurrent.Executors
@@ -19,7 +20,7 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
     private val executor = Executors.newSingleThreadExecutor()
 
     override val scope: CoroutineScope = CoroutineScope(
-        parentScope.coroutineContext + executor.asCoroutineDispatcher()
+        parentScope.coroutineContext + executor.asCoroutineDispatcher() + Job(parentScope.coroutineContext[Job])
     )
 
     val timeScale: IsolatedDeviceProperty by writingVirtual(5000.0.asValue())

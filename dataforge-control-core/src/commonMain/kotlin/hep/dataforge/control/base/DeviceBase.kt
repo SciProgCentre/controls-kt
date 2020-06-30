@@ -2,7 +2,7 @@ package hep.dataforge.control.base
 
 import hep.dataforge.control.api.ActionDescriptor
 import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.PropertyChangeListener
+import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
 
@@ -10,9 +10,9 @@ abstract class DeviceBase : Device {
     private val properties = HashMap<String, ReadOnlyDeviceProperty>()
     private val actions = HashMap<String, Action>()
 
-    private val listeners = ArrayList<Pair<Any?, PropertyChangeListener>>(4)
+    private val listeners = ArrayList<Pair<Any?, DeviceListener>>(4)
 
-    override fun registerListener(listener: PropertyChangeListener, owner: Any?) {
+    override fun registerListener(listener: DeviceListener, owner: Any?) {
         listeners.add(owner to listener)
     }
 

@@ -27,7 +27,7 @@ interface Device: Closeable {
      * [owner] is provided optionally in order for listener to be
      * easily removable
      */
-    fun registerListener(listener: PropertyChangeListener, owner: Any? = listener)
+    fun registerListener(listener: DeviceListener, owner: Any? = listener)
 
     /**
      * Remove all listeners belonging to specified owner
@@ -61,9 +61,8 @@ interface Device: Closeable {
     }
 
     companion object {
-        const val GET_PROPERTY_ACTION = "@getProperty"
-        const val SET_PROPERTY_ACTION = "@setProperty"
-        const val CALL_ACTION ="@call"
+        const val GET_PROPERTY_ACTION = "@get"
+        const val SET_PROPERTY_ACTION = "@set"
     }
 }
 

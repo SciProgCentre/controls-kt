@@ -65,7 +65,7 @@ open class IsolatedReadOnlyDeviceProperty(
 private class ReadOnlyDevicePropertyDelegate<D : DeviceBase>(
     val owner: D,
     val default: MetaItem<*>?,
-    val descriptor: PropertyDescriptor = PropertyDescriptor.empty(),
+    val descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     private val getter: suspend (MetaItem<*>?) -> MetaItem<*>
 ) : ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> {
 
@@ -77,7 +77,7 @@ private class ReadOnlyDevicePropertyDelegate<D : DeviceBase>(
             IsolatedReadOnlyDeviceProperty(
                 name,
                 default,
-                descriptor,
+                PropertyDescriptor(name).apply(descriptorBuilder),
                 owner.scope,
                 owner::propertyChanged,
                 getter
@@ -93,7 +93,7 @@ fun <D : DeviceBase> D.reading(
 ): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default,
-    PropertyDescriptor.invoke(descriptorBuilder),
+    descriptorBuilder,
     getter
 )
 
@@ -104,7 +104,7 @@ fun <D : DeviceBase> D.readingValue(
 ): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default?.let { MetaItem.ValueItem(it) },
-    PropertyDescriptor.invoke(descriptorBuilder),
+    descriptorBuilder,
     getter = { MetaItem.ValueItem(Value.of(getter())) }
 )
 
@@ -115,7 +115,7 @@ fun <D : DeviceBase> D.readingNumber(
 ): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default?.let { MetaItem.ValueItem(it.asValue()) },
-    PropertyDescriptor.invoke(descriptorBuilder),
+    descriptorBuilder,
     getter = {
         val number = getter()
         MetaItem.ValueItem(number.asValue())
@@ -129,7 +129,7 @@ fun <D : DeviceBase> D.readingMeta(
 ): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default?.let { MetaItem.NodeItem(it) },
-    PropertyDescriptor.invoke(descriptorBuilder),
+    descriptorBuilder,
     getter = {
         MetaItem.NodeItem(MetaBuilder().apply { getter() })
     }
@@ -179,7 +179,7 @@ class IsolatedDeviceProperty(
 private class DevicePropertyDelegate<D : DeviceBase>(
     val owner: D,
     val default: MetaItem<*>?,
-    val descriptor: PropertyDescriptor = PropertyDescriptor.empty(),
+    val descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     private val getter: suspend (MetaItem<*>?) -> MetaItem<*>,
     private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
 ) : ReadOnlyProperty<D, IsolatedDeviceProperty> {
@@ -191,7 +191,7 @@ private class DevicePropertyDelegate<D : DeviceBase>(
             IsolatedDeviceProperty(
                 name,
                 default,
-                descriptor,
+                PropertyDescriptor(name).apply(descriptorBuilder),
                 owner.scope,
                 owner::propertyChanged,
                 getter,
@@ -209,7 +209,7 @@ fun <D : DeviceBase> D.writing(
 ): ReadOnlyProperty<D, IsolatedDeviceProperty> = DevicePropertyDelegate(
     this,
     default,
-    PropertyDescriptor.invoke(descriptorBuilder),
+    descriptorBuilder,
     getter,
     setter
 )
@@ -250,7 +250,7 @@ fun <D : DeviceBase> D.writingDouble(
     return DevicePropertyDelegate(
         this,
         MetaItem.ValueItem(Double.NaN.asValue()),
-        PropertyDescriptor.invoke(descriptorBuilder),
+        descriptorBuilder,
         innerGetter,
         innerSetter
     )

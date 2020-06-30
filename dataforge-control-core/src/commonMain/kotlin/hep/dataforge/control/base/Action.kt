@@ -23,42 +23,42 @@ class SimpleAction(
 
 class ActionDelegate<D : DeviceBase>(
     val owner: D,
-    val descriptor: ActionDescriptor = ActionDescriptor.empty(),
+    val descriptorBuilder: ActionDescriptor.()->Unit = {},
     val block: suspend (MetaItem<*>?) -> MetaItem<*>?
 ) : ReadOnlyProperty<D, Action> {
     override fun getValue(thisRef: D, property: KProperty<*>): Action {
         val name = property.name
         return owner.resolveAction(name) {
-            SimpleAction(name, descriptor, block)
+            SimpleAction(name, ActionDescriptor(name).apply(descriptorBuilder), block)
         }
     }
 }
 
 fun <D : DeviceBase> D.request(
-    descriptor: ActionDescriptor = ActionDescriptor.empty(),
+    descriptorBuilder: ActionDescriptor.()->Unit = {},
     block: suspend (MetaItem<*>?) -> MetaItem<*>?
-): ActionDelegate<D> = ActionDelegate(this, descriptor, block)
+): ActionDelegate<D> = ActionDelegate(this, descriptorBuilder, block)
 
 fun <D : DeviceBase> D.requestValue(
-    descriptor: ActionDescriptor = ActionDescriptor.empty(),
+    descriptorBuilder: ActionDescriptor.()->Unit = {},
     block: suspend (MetaItem<*>?) -> Any?
-): ActionDelegate<D> = ActionDelegate(this, descriptor){
+): ActionDelegate<D> = ActionDelegate(this, descriptorBuilder){
     val res = block(it)
     MetaItem.ValueItem(Value.of(res))
 }
 
 fun <D : DeviceBase> D.requestMeta(
-    descriptor: ActionDescriptor = ActionDescriptor.empty(),
+    descriptorBuilder: ActionDescriptor.()->Unit = {},
     block: suspend MetaBuilder.(MetaItem<*>?) -> Unit
-): ActionDelegate<D> = ActionDelegate(this, descriptor){
+): ActionDelegate<D> = ActionDelegate(this, descriptorBuilder){
     val res = MetaBuilder().apply { block(it)}
     MetaItem.NodeItem(res)
 }
 
 fun <D : DeviceBase> D.action(
-    descriptor: ActionDescriptor = ActionDescriptor.empty(),
+    descriptorBuilder: ActionDescriptor.()->Unit = {},
     block: suspend (MetaItem<*>?) -> Unit
-): ActionDelegate<D> = ActionDelegate(this, descriptor) {
+): ActionDelegate<D> = ActionDelegate(this, descriptorBuilder) {
     block(it)
     null
 }

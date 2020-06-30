@@ -37,6 +37,7 @@ rootProject.name = "dataforge-control"
 
 include(
     ":dataforge-control-core",
+    ":dataforge-control-server",
     ":demo"
 )
 
