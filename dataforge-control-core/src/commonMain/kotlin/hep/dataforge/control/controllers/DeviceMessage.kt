@@ -1,11 +1,9 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.controlers.DeviceMessage.Companion.PAYLOAD_VALUE_KEY
+import hep.dataforge.control.controllers.DeviceMessage.Companion.PAYLOAD_VALUE_KEY
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName
 import hep.dataforge.names.plus
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
 
 class DeviceMessage : Scheme() {
     var id by item()

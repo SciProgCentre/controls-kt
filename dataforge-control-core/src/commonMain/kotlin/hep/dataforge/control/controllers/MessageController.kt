@@ -2,9 +2,7 @@ package hep.dataforge.control.controllers
 
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
-import hep.dataforge.control.controlers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
-import hep.dataforge.control.api.PropertyChangeListener
-import hep.dataforge.control.controllers.DevicePropertyMessage.Companion.PROPERTY_CHANGED_ACTION
+import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope

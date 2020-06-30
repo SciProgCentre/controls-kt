@@ -3,9 +3,9 @@
 package hep.dataforge.control.server
 
 import hep.dataforge.control.api.Device
-import hep.dataforge.control.controlers.DeviceMessage
-import hep.dataforge.control.controlers.MessageController
-import hep.dataforge.control.controlers.property
+import hep.dataforge.control.controllers.DeviceMessage
+import hep.dataforge.control.controllers.MessageController
+import hep.dataforge.control.controllers.property
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.toMetaItem

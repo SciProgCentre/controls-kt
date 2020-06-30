@@ -1,10 +1,9 @@
 package hep.dataforge.control.server
 
-import hep.dataforge.control.controlers.DeviceMessage
+import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.io.Envelope
 import io.ktor.application.ApplicationCall
 import io.ktor.http.cio.websocket.Frame
-import io.ktor.response.ApplicationResponse
 
 fun Frame.toEnvelope(): Envelope {
     TODO()
