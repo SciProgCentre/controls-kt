@@ -50,6 +50,7 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
+
 fun CoroutineScope.startDemoDeviceServer(device: DemoDevice): ApplicationEngine {
     val server = startDeviceServer(mapOf("demo" to device))
     server.whenStarted {

@@ -14,7 +14,6 @@ import hep.dataforge.meta.toMetaItem
 import hep.dataforge.meta.wrap
 import io.ktor.application.*
 import io.ktor.features.CORS
-import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
 import io.ktor.html.respondHtml
 import io.ktor.http.HttpStatusCode
@@ -22,7 +21,6 @@ import io.ktor.request.receiveText
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.routing.*
-import io.ktor.serialization.json
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
@@ -63,9 +61,9 @@ fun CoroutineScope.startDeviceServer(
         install(CORS) {
             anyHost()
         }
-        install(ContentNegotiation) {
-            json()
-        }
+//        install(ContentNegotiation) {
+//            json()
+//        }
         install(StatusPages) {
             exception<IllegalArgumentException> { cause ->
                 call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
@@ -96,7 +94,7 @@ private suspend fun ApplicationCall.message(target: MessageController) {
     val request = DeviceMessage.wrap(meta)
 
     val response = target.respondMessage(request)
-    respond(response.toMeta())
+    respondMessage(response)
 }
 
 private suspend fun ApplicationCall.getProperty(target: MessageController) {
@@ -111,7 +109,7 @@ private suspend fun ApplicationCall.getProperty(target: MessageController) {
     }
 
     val response = target.respondMessage(request)
-    respond(response.toMeta())
+    respondMessage(response)
 }
 
 private suspend fun ApplicationCall.setProperty(target: MessageController) {

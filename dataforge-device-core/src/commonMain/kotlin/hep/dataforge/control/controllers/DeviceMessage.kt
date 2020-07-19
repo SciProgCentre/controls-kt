@@ -3,10 +3,11 @@ package hep.dataforge.control.controllers
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PAYLOAD_VALUE_KEY
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName
+import kotlinx.serialization.*
 
-
+@Serializable
 class DeviceMessage : Scheme() {
-    var id by string { error("The message id must not be empty") }
+    var id by string()
     var parent by string()
     var origin by string()
     var target by string()
@@ -25,7 +26,7 @@ class DeviceMessage : Scheme() {
     fun <T : Configurable> append(spec: Specification<T>, block: T.() -> Unit): T =
         spec.invoke(block).also { config.append(MESSAGE_PAYLOAD_KEY, it) }
 
-    companion object : SchemeSpec<DeviceMessage>(::DeviceMessage) {
+    companion object : SchemeSpec<DeviceMessage>(::DeviceMessage), KSerializer<DeviceMessage> {
         val MESSAGE_ACTION_KEY = "action".asName()
         val MESSAGE_PAYLOAD_KEY = "payload".asName()
         val PAYLOAD_VALUE_KEY = "value".asName()
@@ -47,6 +48,17 @@ class DeviceMessage : Scheme() {
             parent = request?.id
             status = RESPONSE_FAIL_STATUS
         }.apply(block)
+
+        override val descriptor: SerialDescriptor = MetaSerializer.descriptor
+
+        override fun deserialize(decoder: Decoder): DeviceMessage {
+            val meta = MetaSerializer.deserialize(decoder)
+            return wrap(meta)
+        }
+
+        override fun serialize(encoder: Encoder, value: DeviceMessage) {
+            MetaSerializer.serialize(encoder, value.toMeta())
+        }
     }
 }
 
