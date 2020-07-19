@@ -33,11 +33,12 @@ pluginManagement {
     }
 }
 
-rootProject.name = "dataforge-control"
+rootProject.name = "dataforge-device"
 
 include(
-    ":dataforge-control-core",
-    ":dataforge-control-server",
+    ":dataforge-device-core",
+    ":dataforge-device-server",
+    ":dataforge-device-client",
     ":demo"
 )
 

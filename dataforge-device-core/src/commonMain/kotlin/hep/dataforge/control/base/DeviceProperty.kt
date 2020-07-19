@@ -4,15 +4,12 @@ import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
-import kotlin.properties.ReadOnlyProperty
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
 import kotlin.time.Duration
 
 /**
  * Read-only device property
  */
-interface ReadOnlyDeviceProperty : ReadOnlyProperty<Any?, MetaItem<*>?> {
+interface ReadOnlyDeviceProperty {
     /**
      * Property name, should be unique in device
      */
@@ -51,9 +48,8 @@ interface ReadOnlyDeviceProperty : ReadOnlyProperty<Any?, MetaItem<*>?> {
      * Produces null when the state is invalidated
      */
     fun flow(): Flow<MetaItem<*>?>
-
-    override fun getValue(thisRef: Any?, property: KProperty<*>): MetaItem<*>? = value
 }
+
 
 /**
  * Launch recurring force re-read job on a property scope with given [duration] between reads.
@@ -68,18 +64,11 @@ fun ReadOnlyDeviceProperty.readEvery(duration: Duration): Job = scope.launch {
 /**
  * A writeable device property with non-suspended write
  */
-interface DeviceProperty : ReadOnlyDeviceProperty, ReadWriteProperty<Any?, MetaItem<*>?> {
+interface DeviceProperty : ReadOnlyDeviceProperty {
     override var value: MetaItem<*>?
 
     /**
      * Write value to physical device. Invalidates logical value, but does not update it automatically
      */
     suspend fun write(item: MetaItem<*>)
-
-    override fun setValue(thisRef: Any?, property: KProperty<*>, value: MetaItem<*>?) {
-        this.value = value
-    }
-
-    override fun getValue(thisRef: Any?, property: KProperty<*>): MetaItem<*>? = value
 }
-

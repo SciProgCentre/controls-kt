@@ -54,7 +54,7 @@ abstract class DeviceBase : Device {
         )
     }
 
-    override suspend fun call(action: String, argument: MetaItem<*>?): MetaItem<*>? =
+    override suspend fun exec(action: String, argument: MetaItem<*>?): MetaItem<*>? =
         (actions[action] ?: error("Request with name $action not defined")).invoke(argument)
 
 

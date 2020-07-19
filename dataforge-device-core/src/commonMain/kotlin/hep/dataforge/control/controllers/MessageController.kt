@@ -40,47 +40,65 @@ class MessageController(
             comment = "Wrong target name $deviceTarget expected but ${request.target} found"
         }
     } else try {
-        when (val action = request.action ?: error("Action is not defined in message")) {
-            Device.GET_PROPERTY_ACTION -> {
-                val property = request.property ?: error("Payload is not defined or not a property")
-                val propertyName: String = property.name
-                val result = device.getProperty(propertyName)
+        val result: List<MessagePayload> = when (val action = request.action) {
+            GET_PROPERTY_ACTION -> {
+                request.payload.map { property ->
+                    MessagePayload {
+                        name = property.name
+                        value = device.getProperty(name)
+                    }
+                }
+            }
+            SET_PROPERTY_ACTION -> {
+                request.payload.map { property ->
+                    val propertyName: String = property.name
+                    val propertyValue = property.value
+                    if (propertyValue == null) {
+                        device.invalidateProperty(propertyName)
+                    } else {
+                        device.setProperty(propertyName, propertyValue)
+                    }
+                    MessagePayload {
+                        name = propertyName
+                        value = device.getProperty(propertyName)
+                    }
+                }
+            }
+            EXECUTE_ACTION -> {
+                request.payload.map { payload ->
+                    MessagePayload {
+                        name = payload.name
+                        value = device.exec(payload.name, payload.value)
+                    }
+                }
+            }
+            PROPERTY_LIST_ACTION -> {
+                device.propertyDescriptors.map { descriptor ->
+                    MessagePayload {
+                        name = descriptor.name
+                        value = MetaItem.NodeItem(descriptor.config)
+                    }
+                }
+            }
 
-                DeviceMessage.ok {
-                    this.source = deviceTarget
-                    this.target = request.source
-                    property {
-                        name = propertyName
-                        value = result
+            ACTION_LIST_ACTION -> {
+                device.actionDescriptors.map { descriptor ->
+                    MessagePayload {
+                        name = descriptor.name
+                        value = MetaItem.NodeItem(descriptor.config)
                     }
                 }
             }
-            Device.SET_PROPERTY_ACTION -> {
-                val property = request.property ?: error("Payload is not defined or not a property")
-                val propertyName: String = property.name
-                val propertyValue = property.value
-                if (propertyValue == null) {
-                    device.invalidateProperty(propertyName)
-                } else {
-                    device.setProperty(propertyName, propertyValue)
-                }
-                DeviceMessage.ok {
-                    this.source = deviceTarget
-                    this.target = request.source
-                    property {
-                        name = propertyName
-                    }
-                }
-            }
+
             else -> {
-                val value = request.value
-                val result = device.call(action, value)
-                DeviceMessage.ok {
-                    this.source = deviceTarget
-                    this.action = action
-                    this.value = result
-                }
+                error("Unrecognized action $action")
             }
+        }
+        DeviceMessage.ok {
+            this.parent = request.id
+            this.origin = deviceTarget
+            this.target = request.origin
+            this.payload = result
         }
     } catch (ex: Exception) {
         DeviceMessage.fail {
@@ -105,7 +123,7 @@ class MessageController(
         if (value == null) return
         scope.launch {
             val change = DeviceMessage.ok {
-                this.source = deviceTarget
+                this.origin = deviceTarget
                 action = PROPERTY_CHANGED_ACTION
                 property {
                     name = propertyName
@@ -122,5 +140,10 @@ class MessageController(
 
 
     companion object {
+        const val GET_PROPERTY_ACTION = "read"
+        const val SET_PROPERTY_ACTION = "write"
+        const val EXECUTE_ACTION = "execute"
+        const val PROPERTY_LIST_ACTION = "propertyList"
+        const val ACTION_LIST_ACTION = "actionList"
     }
 }

@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "1.3.72"
     id("org.openjfx.javafxplugin") version "0.0.8"
-    `application`
+    application
 }
 
 val plotlyVersion: String by rootProject.extra
@@ -16,8 +16,8 @@ repositories{
 }
 
 dependencies{
-    implementation(project(":dataforge-control-core"))
-    implementation(project(":dataforge-control-server"))
+    implementation(project(":dataforge-device-core"))
+    implementation(project(":dataforge-device-server"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
     implementation("scientifik:plotlykt-server:$plotlyVersion")

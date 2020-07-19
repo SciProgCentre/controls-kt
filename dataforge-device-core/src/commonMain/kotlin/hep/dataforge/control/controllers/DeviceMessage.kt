@@ -3,26 +3,29 @@ package hep.dataforge.control.controllers
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PAYLOAD_VALUE_KEY
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName
-import hep.dataforge.names.plus
+
 
 class DeviceMessage : Scheme() {
-    var id by item()
-    var source by string()//TODO consider replacing by item
+    var id by string { error("The message id must not be empty") }
+    var parent by string()
+    var origin by string()
     var target by string()
+    var action by string(default = MessageController.GET_PROPERTY_ACTION, key = MESSAGE_ACTION_KEY)
     var comment by string()
-    var action by string(key = MESSAGE_ACTION_KEY)
     var status by string(RESPONSE_OK_STATUS)
-    var payload by config(key = MESSAGE_PAYLOAD_KEY)
-
-    var value by item(key = (MESSAGE_PAYLOAD_KEY + PAYLOAD_VALUE_KEY))
+    var payload: List<MessagePayload>
+        get() = config.getIndexed(MESSAGE_PAYLOAD_KEY).values.map { MessagePayload.wrap(it.node!!) }
+        set(value) {
+            config[MESSAGE_PAYLOAD_KEY] = value.map { it.config }
+        }
 
     /**
-     * Set a payload for this message according to the given scheme
+     * Append a payload to this message according to the given scheme
      */
-    inline fun <T : Scheme> payload(spec: Specification<T>, block: T.() -> Unit): T =
-        (payload?.let { spec.wrap(it) } ?: spec.empty().also { payload = it.config }).apply(block)
+    fun <T : Configurable> append(spec: Specification<T>, block: T.() -> Unit): T =
+        spec.invoke(block).also { config.append(MESSAGE_PAYLOAD_KEY, it) }
 
-    companion object : SchemeSpec<DeviceMessage>(::DeviceMessage){
+    companion object : SchemeSpec<DeviceMessage>(::DeviceMessage) {
         val MESSAGE_ACTION_KEY = "action".asName()
         val MESSAGE_PAYLOAD_KEY = "payload".asName()
         val PAYLOAD_VALUE_KEY = "value".asName()
@@ -34,32 +37,25 @@ class DeviceMessage : Scheme() {
             request: DeviceMessage? = null,
             block: DeviceMessage.() -> Unit = {}
         ): DeviceMessage = DeviceMessage {
-            id = request?.id
+            parent = request?.id
         }.apply(block)
 
         inline fun fail(
             request: DeviceMessage? = null,
             block: DeviceMessage.() -> Unit = {}
         ): DeviceMessage = DeviceMessage {
-            id = request?.id
+            parent = request?.id
             status = RESPONSE_FAIL_STATUS
         }.apply(block)
     }
 }
 
-class PropertyPayload : Scheme() {
+class MessagePayload : Scheme() {
     var name by string { error("Property name could not be empty") }
     var value by item(key = PAYLOAD_VALUE_KEY)
 
-    companion object : SchemeSpec<PropertyPayload>(::PropertyPayload)
+    companion object : SchemeSpec<MessagePayload>(::MessagePayload)
 }
 
 @DFBuilder
-inline fun DeviceMessage.property(block: PropertyPayload.() -> Unit): PropertyPayload = payload(PropertyPayload, block)
-
-var DeviceMessage.property: PropertyPayload?
-    get() = payload?.let { PropertyPayload.wrap(it) }
-    set(value) {
-        payload = value?.config
-    }
-
+fun DeviceMessage.property(block: MessagePayload.() -> Unit): MessagePayload = append(MessagePayload, block)

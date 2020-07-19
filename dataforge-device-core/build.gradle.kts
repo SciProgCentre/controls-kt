@@ -4,7 +4,6 @@ import scientifik.useSerialization
 plugins {
     id("scientifik.mpp")
     id("scientifik.publish")
-    id("kotlinx-atomicfu") version "0.14.3"
 }
 
 val dataforgeVersion: String by rootProject.extra
@@ -21,8 +20,4 @@ kotlin {
             }
         }
     }
-}
-
-atomicfu {
-    variant = "VH"
 }

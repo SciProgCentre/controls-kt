@@ -59,16 +59,11 @@ interface Device: Closeable {
      * Send an action request and suspend caller while request is being processed.
      * Could return null if request does not return a meaningful answer.
      */
-    suspend fun call(action: String, argument: MetaItem<*>? = null): MetaItem<*>?
+    suspend fun exec(action: String, argument: MetaItem<*>? = null): MetaItem<*>?
 
     override fun close() {
         scope.cancel("The device is closed")
     }
-
-    companion object {
-        const val GET_PROPERTY_ACTION = "@get"
-        const val SET_PROPERTY_ACTION = "@set"
-    }
 }
 
-suspend fun Device.call(name: String, meta: Meta?) = call(name, meta?.let { MetaItem.NodeItem(it) })
+suspend fun Device.exec(name: String, meta: Meta?) = exec(name, meta?.let { MetaItem.NodeItem(it) })

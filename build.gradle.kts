@@ -1,5 +1,5 @@
-val dataforgeVersion by extra("0.1.8-dev-4")
-val plotlyVersion by extra("0.2.0-dev-4")
+val dataforgeVersion by extra("0.1.8")
+val plotlyVersion by extra("0.2.0-dev-12")
 
 
 allprojects {

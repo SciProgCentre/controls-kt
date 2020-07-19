@@ -1,12 +1,12 @@
 package hep.dataforge.control.demo
 
+import io.ktor.server.engine.ApplicationEngine
 import javafx.scene.Parent
 import javafx.scene.control.Slider
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
-import scientifik.plotly.server.PlotlyServer
 import tornadofx.*
 import java.awt.Desktop
 import java.net.URI
@@ -17,19 +17,19 @@ val logger = LoggerFactory.getLogger("Demo")
 class DemoController : Controller(), CoroutineScope {
 
     var device: DemoDevice? = null
-    var server: PlotlyServer? = null
+    var server: ApplicationEngine? = null
     override val coroutineContext: CoroutineContext = GlobalScope.newCoroutineContext(Dispatchers.Default) + Job()
 
     fun init() {
         launch {
             device = DemoDevice(this)
-            server = device?.let { servePlots(it) }
+            server = device?.let { this.startDemoDeviceServer(it) }
         }
     }
 
     fun shutdown() {
         logger.info("Shutting down...")
-        server?.stop()
+        server?.stop(1000, 5000)
         logger.info("Visualization server stopped")
         device?.close()
         logger.info("Device server stopped")
@@ -89,7 +89,9 @@ class DemoControllerView : View(title = " Demo controller remote") {
             useMaxWidth = true
             action {
                 controller.server?.run {
-                    val uri = URI("http", null, host, port, null, null, null)
+                    val host = "localhost"//environment.connectors.first().host
+                    val port = environment.connectors.first().port
+                    val uri = URI("http", null, host, port, "/plots", null, null)
                     Desktop.getDesktop().browse(uri)
                 }
             }
