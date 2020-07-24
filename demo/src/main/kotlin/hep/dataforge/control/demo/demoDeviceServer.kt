@@ -3,18 +3,15 @@ package hep.dataforge.control.demo
 import hep.dataforge.control.server.startDeviceServer
 import hep.dataforge.control.server.whenStarted
 import hep.dataforge.meta.double
-import io.ktor.application.uninstall
+import hep.dataforge.meta.invoke
 import io.ktor.server.engine.ApplicationEngine
-import io.ktor.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
-import scientifik.plotly.layout
 import scientifik.plotly.models.Trace
 import scientifik.plotly.plot
-import scientifik.plotly.server.PlotlyServerConfig
 import scientifik.plotly.server.PlotlyUpdateMode
 import scientifik.plotly.server.plotlyModule
 import scientifik.plotly.trace
@@ -50,15 +47,13 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
-
 fun CoroutineScope.startDemoDeviceServer(device: DemoDevice): ApplicationEngine {
     val server = startDeviceServer(mapOf("demo" to device))
     server.whenStarted {
-        uninstall(WebSockets)
-        plotlyModule(
-            "plots",
-            PlotlyServerConfig { updateMode = PlotlyUpdateMode.PUSH; updateInterval = 50 }
-        ) { container ->
+        plotlyModule("plots").apply {
+            updateMode = PlotlyUpdateMode.PUSH
+            updateInterval = 50
+        }.page { container ->
             val sinFlow = device.sin.flow()
             val cosFlow = device.cos.flow()
             val sinCosFlow = sinFlow.zip(cosFlow) { sin, cos ->

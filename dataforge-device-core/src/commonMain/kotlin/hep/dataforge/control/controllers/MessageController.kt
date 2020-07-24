@@ -40,17 +40,17 @@ class MessageController(
             comment = "Wrong target name $deviceTarget expected but ${request.target} found"
         }
     } else try {
-        val result: List<MessagePayload> = when (val action = request.action) {
+        val result: List<MessageData> = when (val action = request.type) {
             GET_PROPERTY_ACTION -> {
-                request.payload.map { property ->
-                    MessagePayload {
+                request.data.map { property ->
+                    MessageData {
                         name = property.name
                         value = device.getProperty(name)
                     }
                 }
             }
             SET_PROPERTY_ACTION -> {
-                request.payload.map { property ->
+                request.data.map { property ->
                     val propertyName: String = property.name
                     val propertyValue = property.value
                     if (propertyValue == null) {
@@ -58,15 +58,15 @@ class MessageController(
                     } else {
                         device.setProperty(propertyName, propertyValue)
                     }
-                    MessagePayload {
+                    MessageData {
                         name = propertyName
                         value = device.getProperty(propertyName)
                     }
                 }
             }
             EXECUTE_ACTION -> {
-                request.payload.map { payload ->
-                    MessagePayload {
+                request.data.map { payload ->
+                    MessageData {
                         name = payload.name
                         value = device.exec(payload.name, payload.value)
                     }
@@ -74,7 +74,7 @@ class MessageController(
             }
             PROPERTY_LIST_ACTION -> {
                 device.propertyDescriptors.map { descriptor ->
-                    MessagePayload {
+                    MessageData {
                         name = descriptor.name
                         value = MetaItem.NodeItem(descriptor.config)
                     }
@@ -83,7 +83,7 @@ class MessageController(
 
             ACTION_LIST_ACTION -> {
                 device.actionDescriptors.map { descriptor ->
-                    MessagePayload {
+                    MessageData {
                         name = descriptor.name
                         value = MetaItem.NodeItem(descriptor.config)
                     }
@@ -95,10 +95,9 @@ class MessageController(
             }
         }
         DeviceMessage.ok {
-            this.parent = request.id
-            this.origin = deviceTarget
-            this.target = request.origin
-            this.payload = result
+            source = deviceTarget
+            target = request.source
+            data = result
         }
     } catch (ex: Exception) {
         DeviceMessage.fail {
@@ -123,8 +122,8 @@ class MessageController(
         if (value == null) return
         scope.launch {
             val change = DeviceMessage.ok {
-                this.origin = deviceTarget
-                action = PROPERTY_CHANGED_ACTION
+                this.source = deviceTarget
+                type = PROPERTY_CHANGED_ACTION
                 property {
                     name = propertyName
                     this.value = value

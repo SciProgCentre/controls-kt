@@ -100,8 +100,8 @@ private suspend fun ApplicationCall.message(target: MessageController) {
 private suspend fun ApplicationCall.getProperty(target: MessageController) {
     val property: String by parameters
     val request = DeviceMessage {
-        action = GET_PROPERTY_ACTION
-        origin = WEB_SERVER_TARGET
+        type = GET_PROPERTY_ACTION
+        source = WEB_SERVER_TARGET
         this.target = target.deviceTarget
         property {
             name = property
@@ -118,8 +118,8 @@ private suspend fun ApplicationCall.setProperty(target: MessageController) {
     val json = Json.parseJson(body)
 
     val request = DeviceMessage {
-        action = SET_PROPERTY_ACTION
-        origin = WEB_SERVER_TARGET
+        type = SET_PROPERTY_ACTION
+        source = WEB_SERVER_TARGET
         this.target = target.deviceTarget
         property {
             name = property

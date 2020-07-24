@@ -1,10 +1,10 @@
 plugins {
     kotlin("jvm") version "1.3.72"
-    id("org.openjfx.javafxplugin") version "0.0.8"
+    id("org.openjfx.javafxplugin") version "0.0.9"
     application
 }
 
-val plotlyVersion: String by rootProject.extra
+val plotlyVersion by extra("0.2.0-dev-13")
 
 repositories{
     jcenter()
