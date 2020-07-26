@@ -1,15 +1,23 @@
 package hep.dataforge.control.api
 
+import hep.dataforge.control.controllers.DeviceMessage
+import hep.dataforge.control.controllers.MessageController
+import hep.dataforge.control.controllers.MessageData
+import hep.dataforge.io.Envelope
+import hep.dataforge.io.Responder
+import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
+import hep.dataforge.meta.wrap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.io.Binary
 import kotlinx.io.Closeable
 
 /**
  *  General interface describing a managed Device
  */
-interface Device: Closeable {
+interface Device: Closeable, Responder {
     /**
      * List of supported property descriptors
      */
@@ -61,8 +69,81 @@ interface Device: Closeable {
      */
     suspend fun exec(action: String, argument: MetaItem<*>? = null): MetaItem<*>?
 
+    override suspend fun respond(request: Envelope): Envelope {
+        val requestMessage = DeviceMessage.wrap(request.meta)
+        val responseMessage = respondMessage(requestMessage)
+        return SimpleEnvelope(responseMessage.toMeta(), Binary.EMPTY)
+    }
+
     override fun close() {
         scope.cancel("The device is closed")
+    }
+
+    companion object{
+
+    }
+}
+
+suspend fun Device.respondMessage(
+    request: DeviceMessage
+): DeviceMessage {
+    val result: List<MessageData> = when (val action = request.type) {
+        MessageController.GET_PROPERTY_ACTION -> {
+            request.data.map { property ->
+                MessageData {
+                    name = property.name
+                    value = getProperty(name)
+                }
+            }
+        }
+        MessageController.SET_PROPERTY_ACTION -> {
+            request.data.map { property ->
+                val propertyName: String = property.name
+                val propertyValue = property.value
+                if (propertyValue == null) {
+                    invalidateProperty(propertyName)
+                } else {
+                    setProperty(propertyName, propertyValue)
+                }
+                MessageData {
+                    name = propertyName
+                    value = getProperty(propertyName)
+                }
+            }
+        }
+        MessageController.EXECUTE_ACTION -> {
+            request.data.map { payload ->
+                MessageData {
+                    name = payload.name
+                    value = exec(payload.name, payload.value)
+                }
+            }
+        }
+        MessageController.PROPERTY_LIST_ACTION -> {
+            propertyDescriptors.map { descriptor ->
+                MessageData {
+                    name = descriptor.name
+                    value = MetaItem.NodeItem(descriptor.config)
+                }
+            }
+        }
+
+        MessageController.ACTION_LIST_ACTION -> {
+            actionDescriptors.map { descriptor ->
+                MessageData {
+                    name = descriptor.name
+                    value = MetaItem.NodeItem(descriptor.config)
+                }
+            }
+        }
+
+        else -> {
+            error("Unrecognized action $action")
+        }
+    }
+    return DeviceMessage.ok {
+        target = request.source
+        data = result
     }
 }
 

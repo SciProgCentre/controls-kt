@@ -7,7 +7,7 @@ import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.MessageController
 import hep.dataforge.control.controllers.MessageController.Companion.GET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.MessageController.Companion.SET_PROPERTY_ACTION
-import hep.dataforge.control.controllers.property
+import hep.dataforge.control.controllers.data
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.toMetaItem
@@ -103,7 +103,7 @@ private suspend fun ApplicationCall.getProperty(target: MessageController) {
         type = GET_PROPERTY_ACTION
         source = WEB_SERVER_TARGET
         this.target = target.deviceTarget
-        property {
+        data {
             name = property
         }
     }
@@ -121,7 +121,7 @@ private suspend fun ApplicationCall.setProperty(target: MessageController) {
         type = SET_PROPERTY_ACTION
         source = WEB_SERVER_TARGET
         this.target = target.deviceTarget
-        property {
+        data {
             name = property
             value = json.toMetaItem()
         }

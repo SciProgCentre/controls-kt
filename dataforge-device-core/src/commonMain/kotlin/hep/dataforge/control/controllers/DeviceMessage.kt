@@ -1,11 +1,14 @@
 package hep.dataforge.control.controllers
 
 import hep.dataforge.control.controllers.DeviceMessage.Companion.DATA_VALUE_KEY
+import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName
-import kotlinx.serialization.*
+import kotlinx.serialization.Decoder
+import kotlinx.serialization.Encoder
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialDescriptor
 
-@Serializable
 class DeviceMessage : Scheme() {
     var source by string()
     var target by string()
@@ -68,4 +71,6 @@ class MessageData : Scheme() {
 }
 
 @DFBuilder
-fun DeviceMessage.property(block: MessageData.() -> Unit): MessageData = append(MessageData, block)
+fun DeviceMessage.data(block: MessageData.() -> Unit): MessageData = append(MessageData, block)
+
+fun DeviceMessage.wrap() = SimpleEnvelope(this.config, null)

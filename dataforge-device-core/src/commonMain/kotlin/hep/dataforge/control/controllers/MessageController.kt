@@ -2,12 +2,12 @@ package hep.dataforge.control.controllers
 
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
+import hep.dataforge.control.api.respondMessage
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.wrap
+import hep.dataforge.meta.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -33,78 +33,6 @@ class MessageController(
 
     private val outputChannel = Channel<Envelope>(Channel.CONFLATED)
 
-    suspend fun respondMessage(
-        request: DeviceMessage
-    ): DeviceMessage = if (request.target != null && request.target != deviceTarget) {
-        DeviceMessage.fail {
-            comment = "Wrong target name $deviceTarget expected but ${request.target} found"
-        }
-    } else try {
-        val result: List<MessageData> = when (val action = request.type) {
-            GET_PROPERTY_ACTION -> {
-                request.data.map { property ->
-                    MessageData {
-                        name = property.name
-                        value = device.getProperty(name)
-                    }
-                }
-            }
-            SET_PROPERTY_ACTION -> {
-                request.data.map { property ->
-                    val propertyName: String = property.name
-                    val propertyValue = property.value
-                    if (propertyValue == null) {
-                        device.invalidateProperty(propertyName)
-                    } else {
-                        device.setProperty(propertyName, propertyValue)
-                    }
-                    MessageData {
-                        name = propertyName
-                        value = device.getProperty(propertyName)
-                    }
-                }
-            }
-            EXECUTE_ACTION -> {
-                request.data.map { payload ->
-                    MessageData {
-                        name = payload.name
-                        value = device.exec(payload.name, payload.value)
-                    }
-                }
-            }
-            PROPERTY_LIST_ACTION -> {
-                device.propertyDescriptors.map { descriptor ->
-                    MessageData {
-                        name = descriptor.name
-                        value = MetaItem.NodeItem(descriptor.config)
-                    }
-                }
-            }
-
-            ACTION_LIST_ACTION -> {
-                device.actionDescriptors.map { descriptor ->
-                    MessageData {
-                        name = descriptor.name
-                        value = MetaItem.NodeItem(descriptor.config)
-                    }
-                }
-            }
-
-            else -> {
-                error("Unrecognized action $action")
-            }
-        }
-        DeviceMessage.ok {
-            source = deviceTarget
-            target = request.source
-            data = result
-        }
-    } catch (ex: Exception) {
-        DeviceMessage.fail {
-            comment = ex.message
-        }
-    }
-
     override fun consume(message: Envelope) {
         // Fire the respond procedure and forget about the result
         scope.launch {
@@ -112,10 +40,38 @@ class MessageController(
         }
     }
 
+    suspend fun respondMessage(message: DeviceMessage): DeviceMessage {
+        return try {
+            device.respondMessage(message).apply {
+                target = message.source
+                source = deviceTarget
+            }
+        } catch (ex: Exception) {
+            DeviceMessage.fail {
+                comment = ex.message
+            }
+        }
+    }
+
     override suspend fun respond(request: Envelope): Envelope {
-        val requestMessage = DeviceMessage.wrap(request.meta)
-        val responseMessage = respondMessage(requestMessage)
-        return SimpleEnvelope(responseMessage.toMeta(), Binary.EMPTY)
+        val target = request.meta["target"].string
+        return try {
+            if (request.data == null) {
+                respondMessage(DeviceMessage.wrap(request.meta)).wrap()
+            }else if(target != null && target != deviceTarget) {
+                error("Wrong target name $deviceTarget expected but ${target} found")
+            } else {
+                val response = device.respond(request)
+                return SimpleEnvelope(response.meta.edit {
+                    "target" put request.meta["source"].string
+                    "source" put deviceTarget
+                }, response.data)
+            }
+        } catch (ex: Exception) {
+            DeviceMessage.fail {
+                comment = ex.message
+            }.wrap()
+        }
     }
 
     override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
@@ -124,7 +80,7 @@ class MessageController(
             val change = DeviceMessage.ok {
                 this.source = deviceTarget
                 type = PROPERTY_CHANGED_ACTION
-                property {
+                data {
                     name = propertyName
                     this.value = value
                 }
