@@ -1,10 +1,12 @@
 package hep.dataforge.control.demo
 
+import hep.dataforge.context.Context
+import hep.dataforge.context.Factory
 import hep.dataforge.control.base.*
 import hep.dataforge.control.controllers.double
+import hep.dataforge.meta.Meta
 import hep.dataforge.values.asValue
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.time.Instant
@@ -15,7 +17,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.seconds
 
 @OptIn(ExperimentalTime::class)
-class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
+class DemoDevice(parentScope: CoroutineScope) : DeviceBase() {
 
     private val executor = Executors.newSingleThreadExecutor()
 
@@ -30,21 +32,21 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
     var sinScaleValue by sinScale.double()
     val sin by readingNumber {
         val time = Instant.now()
-        sin(time.toEpochMilli().toDouble() / timeScaleValue)*sinScaleValue
+        sin(time.toEpochMilli().toDouble() / timeScaleValue) * sinScaleValue
     }
 
     val cosScale by writingVirtual(1.0.asValue())
     var cosScaleValue by cosScale.double()
     val cos by readingNumber {
         val time = Instant.now()
-        cos(time.toEpochMilli().toDouble() / timeScaleValue)*cosScaleValue
+        cos(time.toEpochMilli().toDouble() / timeScaleValue) * cosScaleValue
     }
 
     val coordinates by readingMeta {
         val time = Instant.now()
         "time" put time.toEpochMilli()
-        "x" put sin(time.toEpochMilli().toDouble() / timeScaleValue)*sinScaleValue
-        "y" put cos(time.toEpochMilli().toDouble() / timeScaleValue)*cosScaleValue
+        "x" put sin(time.toEpochMilli().toDouble() / timeScaleValue) * sinScaleValue
+        "y" put cos(time.toEpochMilli().toDouble() / timeScaleValue) * cosScaleValue
     }
 
 
@@ -63,5 +65,9 @@ class DemoDevice(parentScope: CoroutineScope = GlobalScope) : DeviceBase() {
     override fun close() {
         super.close()
         executor.shutdown()
+    }
+
+    companion object : Factory<DemoDevice> {
+        override fun invoke(meta: Meta, context: Context): DemoDevice = DemoDevice(context)
     }
 }

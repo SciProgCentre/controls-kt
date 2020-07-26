@@ -2,7 +2,8 @@
 
 package hep.dataforge.control.server
 
-import hep.dataforge.control.api.Device
+import hep.dataforge.control.api.getDevice
+import hep.dataforge.control.controllers.DeviceManager
 import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.MessageController
 import hep.dataforge.control.controllers.MessageController.Companion.GET_PROPERTY_ACTION
@@ -34,10 +35,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flatMapMerge
-import kotlinx.html.body
-import kotlinx.html.h1
-import kotlinx.html.head
-import kotlinx.html.title
+import kotlinx.html.*
 import kotlinx.serialization.UnstableDefault
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -47,14 +45,10 @@ import kotlinx.serialization.json.jsonArray
  * Create and start a web server for several devices
  */
 fun CoroutineScope.startDeviceServer(
-    devices: Map<String, Device>,
+    manager: DeviceManager,
     port: Int = 8111,
     host: String = "localhost"
 ): ApplicationEngine {
-
-    val controllers = devices.mapValues {
-        MessageController(it.value, it.key, this)
-    }
 
     return this.embeddedServer(CIO, port, host) {
         install(WebSockets)
@@ -69,7 +63,7 @@ fun CoroutineScope.startDeviceServer(
                 call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
             }
         }
-        deviceModule(controllers)
+        deviceModule(manager)
         routing {
             get("/") {
                 call.respondRedirect("/dashboard")
@@ -78,7 +72,7 @@ fun CoroutineScope.startDeviceServer(
     }.start()
 }
 
-fun ApplicationEngine.whenStarted(callback: Application.() -> Unit){
+fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
     environment.monitor.subscribe(ApplicationStarted, callback)
 }
 
@@ -132,20 +126,32 @@ private suspend fun ApplicationCall.setProperty(target: MessageController) {
 }
 
 @OptIn(KtorExperimentalAPI::class)
-fun Application.deviceModule(targets: Map<String, MessageController>, route: String = "/") {
-    if(featureOrNull(WebSockets) == null) {
+fun Application.deviceModule(
+    manager: DeviceManager,
+    deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
+    route: String = "/"
+) {
+    val controllers = deviceNames.associateWith { name ->
+        val device = manager.getDevice(name)
+        MessageController(device, name, manager.context)
+    }
+
+    fun generateFlow(target: String?) = if (target == null) {
+        controllers.values.asFlow().flatMapMerge { it.output() }
+    } else {
+        controllers[target]?.output() ?: error("The device with target $target not found")
+    }
+
+    if (featureOrNull(WebSockets) == null) {
         install(WebSockets)
     }
-    if(featureOrNull(CORS)==null){
+
+    if (featureOrNull(CORS) == null) {
         install(CORS) {
             anyHost()
         }
     }
-    fun generateFlow(target: String?) = if (target == null) {
-        targets.values.asFlow().flatMapMerge { it.output() }
-    } else {
-        targets[target]?.output() ?: error("The device with target $target not found")
-    }
+
     routing {
         route(route) {
             get("dashboard") {
@@ -155,7 +161,36 @@ fun Application.deviceModule(targets: Map<String, MessageController>, route: Str
                     }
                     body {
                         h1 {
-                            +"Under construction"
+                            +"Device server dashboard"
+                        }
+                        deviceNames.forEach { deviceName ->
+                            val device = controllers[deviceName]!!.device
+                            div {
+                                id = deviceName
+                                h2 { +deviceName }
+                                h3 { +"Properties" }
+                                ul {
+                                    device.propertyDescriptors.forEach { property ->
+                                        li {
+                                            a(href = "../$deviceName/${property.name}/get") { +"${property.name}: " }
+                                            code {
+                                                +property.config.toJson().toString()
+                                            }
+                                        }
+                                    }
+                                }
+                                h3 { +"Actions" }
+                                ul {
+                                    device.actionDescriptors.forEach { action ->
+                                        li {
+                                            +("${action.name}: ")
+                                            code {
+                                                +action.config.toJson().toString()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -163,7 +198,7 @@ fun Application.deviceModule(targets: Map<String, MessageController>, route: Str
 
             get("list") {
                 call.respondJson {
-                    targets.values.forEach { controller ->
+                    controllers.values.forEach { controller ->
                         "target" to controller.deviceTarget
                         val device = controller.device
                         "properties" to jsonArray {
@@ -201,7 +236,7 @@ fun Application.deviceModule(targets: Map<String, MessageController>, route: Str
             post("message") {
                 val target: String by call.request.queryParameters
                 val controller =
-                    targets[target] ?: throw IllegalArgumentException("Target $target not found in $targets")
+                    controllers[target] ?: throw IllegalArgumentException("Target $target not found in $controllers")
                 call.message(controller)
             }
 
@@ -211,15 +246,16 @@ fun Application.deviceModule(targets: Map<String, MessageController>, route: Str
                 route("{property}") {
                     get("get") {
                         val target: String by call.parameters
-                        val controller = targets[target]
-                            ?: throw IllegalArgumentException("Target $target not found in $targets")
+                        val controller = controllers[target]
+                            ?: throw IllegalArgumentException("Target $target not found in $controllers")
 
                         call.getProperty(controller)
                     }
                     post("set") {
                         val target: String by call.parameters
                         val controller =
-                            targets[target] ?: throw IllegalArgumentException("Target $target not found in $targets")
+                            controllers[target]
+                                ?: throw IllegalArgumentException("Target $target not found in $controllers")
 
                         call.setProperty(controller)
                     }

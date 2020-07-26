@@ -1,29 +1,28 @@
 package hep.dataforge.control.demo
 
+import hep.dataforge.context.ContextAware
+import hep.dataforge.context.Global
 import io.ktor.server.engine.ApplicationEngine
 import javafx.scene.Parent
 import javafx.scene.control.Slider
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
-import kotlinx.coroutines.*
-import org.slf4j.LoggerFactory
+import kotlinx.coroutines.launch
 import tornadofx.*
 import java.awt.Desktop
 import java.net.URI
-import kotlin.coroutines.CoroutineContext
 
-val logger = LoggerFactory.getLogger("Demo")
-
-class DemoController : Controller(), CoroutineScope {
+class DemoController : Controller(), ContextAware {
 
     var device: DemoDevice? = null
     var server: ApplicationEngine? = null
-    override val coroutineContext: CoroutineContext = GlobalScope.newCoroutineContext(Dispatchers.Default) + Job()
+    override val context = Global.context("demoDevice")
 
     fun init() {
-        launch {
-            device = DemoDevice(this)
-            server = device?.let { this.startDemoDeviceServer(it) }
+        context.launch {
+            val demo = DemoDevice(context)
+            device = demo
+            server = startDemoDeviceServer(context, demo)
         }
     }
 
@@ -33,7 +32,7 @@ class DemoController : Controller(), CoroutineScope {
         logger.info("Visualization server stopped")
         device?.close()
         logger.info("Device server stopped")
-        cancel("Application context closed")
+        context.close()
     }
 }
 

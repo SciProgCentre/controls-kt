@@ -1,5 +1,6 @@
 package hep.dataforge.control.api
 
+import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
 import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.MessageController
 import hep.dataforge.control.controllers.MessageData
@@ -9,6 +10,7 @@ import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
 import hep.dataforge.meta.wrap
+import hep.dataforge.provider.Type
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.io.Binary
@@ -17,6 +19,7 @@ import kotlinx.io.Closeable
 /**
  *  General interface describing a managed Device
  */
+@Type(DEVICE_TARGET)
 interface Device: Closeable, Responder {
     /**
      * List of supported property descriptors
@@ -80,7 +83,7 @@ interface Device: Closeable, Responder {
     }
 
     companion object{
-
+        const val DEVICE_TARGET = "device"
     }
 }
 

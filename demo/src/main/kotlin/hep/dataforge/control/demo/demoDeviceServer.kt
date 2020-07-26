@@ -1,11 +1,12 @@
 package hep.dataforge.control.demo
 
+import hep.dataforge.context.Context
+import hep.dataforge.control.controllers.devices
 import hep.dataforge.control.server.startDeviceServer
 import hep.dataforge.control.server.whenStarted
 import hep.dataforge.meta.double
 import hep.dataforge.meta.invoke
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
@@ -47,8 +48,9 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
-fun CoroutineScope.startDemoDeviceServer(device: DemoDevice): ApplicationEngine {
-    val server = startDeviceServer(mapOf("demo" to device))
+fun startDemoDeviceServer(context: Context, device: DemoDevice): ApplicationEngine {
+    context.devices.registerDevice("demo", device)
+    val server = context.startDeviceServer(context.devices)
     server.whenStarted {
         plotlyModule("plots").apply {
             updateMode = PlotlyUpdateMode.PUSH
@@ -74,7 +76,7 @@ fun CoroutineScope.startDemoDeviceServer(device: DemoDevice): ApplicationEngine 
                             yaxis.title = "sin"
                         }
                         trace {
-                            launch {
+                            context.launch {
                                 val flow: Flow<Iterable<Double>> = sinFlow.mapNotNull { it.double }.windowed(100)
                                 updateFrom(Trace.Y_AXIS, flow)
                             }
@@ -89,7 +91,7 @@ fun CoroutineScope.startDemoDeviceServer(device: DemoDevice): ApplicationEngine 
                             yaxis.title = "cos"
                         }
                         trace {
-                            launch {
+                            context.launch {
                                 val flow: Flow<Iterable<Double>> = cosFlow.mapNotNull { it.double }.windowed(100)
                                 updateFrom(Trace.Y_AXIS, flow)
                             }
@@ -107,7 +109,7 @@ fun CoroutineScope.startDemoDeviceServer(device: DemoDevice): ApplicationEngine 
                         }
                         trace {
                             name = "non-synchronized"
-                            launch {
+                            context.launch {
                                 val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.windowed(30)
                                 updateXYFrom(flow)
                             }
