@@ -18,6 +18,7 @@ repositories{
 dependencies{
     implementation(project(":dataforge-device-core"))
     implementation(project(":dataforge-device-server"))
+    implementation(project(":dataforge-device-client"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
     implementation("scientifik:plotlykt-server:$plotlyVersion")

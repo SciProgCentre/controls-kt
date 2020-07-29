@@ -1,8 +1,12 @@
 package hep.dataforge.control.api
 
+import hep.dataforge.control.api.Device.Companion.ACTION_LIST_ACTION
 import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
+import hep.dataforge.control.api.Device.Companion.EXECUTE_ACTION
+import hep.dataforge.control.api.Device.Companion.GET_PROPERTY_ACTION
+import hep.dataforge.control.api.Device.Companion.PROPERTY_LIST_ACTION
+import hep.dataforge.control.api.Device.Companion.SET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.DeviceMessage
-import hep.dataforge.control.controllers.MessageController
 import hep.dataforge.control.controllers.MessageData
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
@@ -84,6 +88,11 @@ interface Device: Closeable, Responder {
 
     companion object{
         const val DEVICE_TARGET = "device"
+        const val GET_PROPERTY_ACTION = "read"
+        const val SET_PROPERTY_ACTION = "write"
+        const val EXECUTE_ACTION = "execute"
+        const val PROPERTY_LIST_ACTION = "propertyList"
+        const val ACTION_LIST_ACTION = "actionList"
     }
 }
 
@@ -91,7 +100,7 @@ suspend fun Device.respondMessage(
     request: DeviceMessage
 ): DeviceMessage {
     val result: List<MessageData> = when (val action = request.type) {
-        MessageController.GET_PROPERTY_ACTION -> {
+        GET_PROPERTY_ACTION -> {
             request.data.map { property ->
                 MessageData {
                     name = property.name
@@ -99,7 +108,7 @@ suspend fun Device.respondMessage(
                 }
             }
         }
-        MessageController.SET_PROPERTY_ACTION -> {
+        SET_PROPERTY_ACTION -> {
             request.data.map { property ->
                 val propertyName: String = property.name
                 val propertyValue = property.value
@@ -114,7 +123,7 @@ suspend fun Device.respondMessage(
                 }
             }
         }
-        MessageController.EXECUTE_ACTION -> {
+        EXECUTE_ACTION -> {
             request.data.map { payload ->
                 MessageData {
                     name = payload.name
@@ -122,7 +131,7 @@ suspend fun Device.respondMessage(
                 }
             }
         }
-        MessageController.PROPERTY_LIST_ACTION -> {
+        PROPERTY_LIST_ACTION -> {
             propertyDescriptors.map { descriptor ->
                 MessageData {
                     name = descriptor.name
@@ -131,7 +140,7 @@ suspend fun Device.respondMessage(
             }
         }
 
-        MessageController.ACTION_LIST_ACTION -> {
+        ACTION_LIST_ACTION -> {
             actionDescriptors.map { descriptor ->
                 MessageData {
                     name = descriptor.name

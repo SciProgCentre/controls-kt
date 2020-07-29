@@ -4,6 +4,7 @@ import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.respondMessage
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
+import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope
@@ -14,14 +15,7 @@ import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.io.Binary
 
-/**
- * A consumer of envelopes
- */
-interface Consumer {
-    fun consume(message: Envelope): Unit
-}
-
-class MessageController(
+class DeviceController(
     val device: Device,
     val deviceTarget: String,
     val scope: CoroutineScope = device.scope
@@ -95,10 +89,6 @@ class MessageController(
 
 
     companion object {
-        const val GET_PROPERTY_ACTION = "read"
-        const val SET_PROPERTY_ACTION = "write"
-        const val EXECUTE_ACTION = "execute"
-        const val PROPERTY_LIST_ACTION = "propertyList"
-        const val ACTION_LIST_ACTION = "actionList"
+
     }
 }

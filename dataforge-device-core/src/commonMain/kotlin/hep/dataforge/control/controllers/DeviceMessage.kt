@@ -1,6 +1,6 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.controllers.DeviceMessage.Companion.DATA_VALUE_KEY
+import hep.dataforge.control.api.Device.Companion.GET_PROPERTY_ACTION
 import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName
@@ -10,9 +10,9 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialDescriptor
 
 class DeviceMessage : Scheme() {
-    var source by string()
-    var target by string()
-    var type by string(default = MessageController.GET_PROPERTY_ACTION, key = MESSAGE_TYPE_KEY)
+    var source by string(key = SOURCE_KEY)
+    var target by string(key = TARGET_KEY)
+    var type by string(default = GET_PROPERTY_ACTION, key = MESSAGE_TYPE_KEY)
     var comment by string()
     var status by string(RESPONSE_OK_STATUS)
     var data: List<MessageData>
@@ -28,9 +28,11 @@ class DeviceMessage : Scheme() {
         spec.invoke(block).also { config.append(MESSAGE_DATA_KEY, it) }
 
     companion object : SchemeSpec<DeviceMessage>(::DeviceMessage), KSerializer<DeviceMessage> {
-        val MESSAGE_TYPE_KEY = "action".asName()
+        val SOURCE_KEY = "source".asName()
+        val TARGET_KEY = "target".asName()
+        val MESSAGE_TYPE_KEY = "type".asName()
         val MESSAGE_DATA_KEY = "data".asName()
-        val DATA_VALUE_KEY = "value".asName()
+
         const val RESPONSE_OK_STATUS = "response.OK"
         const val RESPONSE_FAIL_STATUS = "response.FAIL"
         const val PROPERTY_CHANGED_ACTION = "event.propertyChange"
@@ -67,7 +69,9 @@ class MessageData : Scheme() {
     var name by string { error("Property name could not be empty") }
     var value by item(key = DATA_VALUE_KEY)
 
-    companion object : SchemeSpec<MessageData>(::MessageData)
+    companion object : SchemeSpec<MessageData>(::MessageData) {
+        val DATA_VALUE_KEY = "value".asName()
+    }
 }
 
 @DFBuilder

@@ -2,12 +2,12 @@
 
 package hep.dataforge.control.server
 
-import hep.dataforge.control.api.getDevice
+import hep.dataforge.control.api.Device.Companion.GET_PROPERTY_ACTION
+import hep.dataforge.control.api.Device.Companion.SET_PROPERTY_ACTION
+import hep.dataforge.control.api.get
+import hep.dataforge.control.api.respondMessage
 import hep.dataforge.control.controllers.DeviceManager
 import hep.dataforge.control.controllers.DeviceMessage
-import hep.dataforge.control.controllers.MessageController
-import hep.dataforge.control.controllers.MessageController.Companion.GET_PROPERTY_ACTION
-import hep.dataforge.control.controllers.MessageController.Companion.SET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.data
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
@@ -32,9 +32,7 @@ import io.ktor.websocket.webSocket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.html.*
 import kotlinx.serialization.UnstableDefault
 import kotlinx.serialization.json.Json
@@ -79,68 +77,22 @@ fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
 
 const val WEB_SERVER_TARGET = "@webServer"
 
-private suspend fun ApplicationCall.message(target: MessageController) {
-    val body = receiveText()
-    val json = Json.parseJson(body) as? JsonObject
-        ?: throw IllegalArgumentException("The body is not a json object")
-    val meta = json.toMeta()
-
-    val request = DeviceMessage.wrap(meta)
-
-    val response = target.respondMessage(request)
-    respondMessage(response)
-}
-
-private suspend fun ApplicationCall.getProperty(target: MessageController) {
-    val property: String by parameters
-    val request = DeviceMessage {
-        type = GET_PROPERTY_ACTION
-        source = WEB_SERVER_TARGET
-        this.target = target.deviceTarget
-        data {
-            name = property
-        }
-    }
-
-    val response = target.respondMessage(request)
-    respondMessage(response)
-}
-
-private suspend fun ApplicationCall.setProperty(target: MessageController) {
-    val property: String by parameters
-    val body = receiveText()
-    val json = Json.parseJson(body)
-
-    val request = DeviceMessage {
-        type = SET_PROPERTY_ACTION
-        source = WEB_SERVER_TARGET
-        this.target = target.deviceTarget
-        data {
-            name = property
-            value = json.toMetaItem()
-        }
-    }
-
-    val response = target.respondMessage(request)
-    respondMessage(response)
-}
-
 @OptIn(KtorExperimentalAPI::class)
 fun Application.deviceModule(
     manager: DeviceManager,
     deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
     route: String = "/"
 ) {
-    val controllers = deviceNames.associateWith { name ->
-        val device = manager.getDevice(name)
-        MessageController(device, name, manager.context)
-    }
-
-    fun generateFlow(target: String?) = if (target == null) {
-        controllers.values.asFlow().flatMapMerge { it.output() }
-    } else {
-        controllers[target]?.output() ?: error("The device with target $target not found")
-    }
+//    val controllers = deviceNames.associateWith { name ->
+//        val device = manager.devices[name.toName()]
+//        DeviceController(device, name, manager.context)
+//    }
+//
+//    fun generateFlow(target: String?) = if (target == null) {
+//        controllers.values.asFlow().flatMapMerge { it.output() }
+//    } else {
+//        controllers[target]?.output() ?: error("The device with target $target not found")
+//    }
 
     if (featureOrNull(WebSockets) == null) {
         install(WebSockets)
@@ -164,7 +116,7 @@ fun Application.deviceModule(
                             +"Device server dashboard"
                         }
                         deviceNames.forEach { deviceName ->
-                            val device = controllers[deviceName]!!.device
+                            val device = manager[deviceName]
                             div {
                                 id = deviceName
                                 h2 { +deviceName }
@@ -198,9 +150,8 @@ fun Application.deviceModule(
 
             get("list") {
                 call.respondJson {
-                    controllers.values.forEach { controller ->
-                        "target" to controller.deviceTarget
-                        val device = controller.device
+                    manager.devices.forEach { (name, device) ->
+                        "target" to name.toString()
                         "properties" to jsonArray {
                             device.propertyDescriptors.forEach { descriptor ->
                                 +descriptor.config.toJson()
@@ -223,7 +174,7 @@ fun Application.deviceModule(
                     try {
                         application.log.debug("Opened server socket for ${call.request.queryParameters}")
 
-                        generateFlow(target).collect {
+                        manager.controller.envelopeOutput().collect {
                             outgoing.send(it.toFrame())
                         }
 
@@ -235,9 +186,16 @@ fun Application.deviceModule(
 
             post("message") {
                 val target: String by call.request.queryParameters
-                val controller =
-                    controllers[target] ?: throw IllegalArgumentException("Target $target not found in $controllers")
-                call.message(controller)
+                val device = manager[target]
+                val body = call.receiveText()
+                val json = Json.parseJson(body) as? JsonObject
+                    ?: throw IllegalArgumentException("The body is not a json object")
+                val meta = json.toMeta()
+
+                val request = DeviceMessage.wrap(meta)
+
+                val response = device.respondMessage(request)
+                call.respondMessage(response)
             }
 
             route("{target}") {
@@ -246,18 +204,40 @@ fun Application.deviceModule(
                 route("{property}") {
                     get("get") {
                         val target: String by call.parameters
-                        val controller = controllers[target]
-                            ?: throw IllegalArgumentException("Target $target not found in $controllers")
+                        val device = manager[target]
+                        val property: String by call.parameters
+                        val request = DeviceMessage {
+                            type = GET_PROPERTY_ACTION
+                            source = WEB_SERVER_TARGET
+                            this.target = target
+                            data {
+                                name = property
+                            }
+                        }
 
-                        call.getProperty(controller)
+                        val response = device.respondMessage(request)
+                        call.respondMessage(response)
                     }
                     post("set") {
                         val target: String by call.parameters
-                        val controller =
-                            controllers[target]
-                                ?: throw IllegalArgumentException("Target $target not found in $controllers")
+                        val device = manager[target]
 
-                        call.setProperty(controller)
+                        val property: String by call.parameters
+                        val body = call.receiveText()
+                        val json = Json.parseJson(body)
+
+                        val request = DeviceMessage {
+                            type = SET_PROPERTY_ACTION
+                            source = WEB_SERVER_TARGET
+                            this.target = target
+                            data {
+                                name = property
+                                value = json.toMetaItem()
+                            }
+                        }
+
+                        val response = device.respondMessage(request)
+                        call.respondMessage(response)
                     }
                 }
             }

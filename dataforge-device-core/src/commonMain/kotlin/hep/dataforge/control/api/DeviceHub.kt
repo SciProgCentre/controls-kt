@@ -1,9 +1,11 @@
 package hep.dataforge.control.api
 
+import hep.dataforge.control.controllers.DeviceMessage
+import hep.dataforge.io.Envelope
 import hep.dataforge.meta.MetaItem
+import hep.dataforge.meta.get
+import hep.dataforge.meta.string
 import hep.dataforge.names.Name
-import hep.dataforge.names.NameToken
-import hep.dataforge.names.asName
 import hep.dataforge.names.toName
 import hep.dataforge.provider.Provider
 
@@ -11,13 +13,15 @@ import hep.dataforge.provider.Provider
  * A hub that could locate multiple devices and redirect actions to them
  */
 interface DeviceHub : Provider {
-    val devices: Map<NameToken, Device>
+    val devices: Map<Name, Device>
 
     override val defaultTarget: String get() = Device.DEVICE_TARGET
 
+    override val defaultChainTarget: String get() = Device.DEVICE_TARGET
+
     override fun provideTop(target: String): Map<Name, Any> {
         if (target == Device.DEVICE_TARGET) {
-            return devices.mapKeys { it.key.asName() }
+            return devices
         } else {
             throw IllegalArgumentException("Target $target is not supported for $this")
         }
@@ -28,31 +32,30 @@ interface DeviceHub : Provider {
     }
 }
 
-/**
- * Resolve the device by its full name if it is present. Hubs are resolved recursively.
- */
-fun DeviceHub.getDevice(name: Name): Device = when (name.length) {
-    0 -> (this as? Device) ?: error("The DeviceHub is resolved by name but it is not a Device")
-    1 -> {
-        val token = name.first()!!
-        devices[token] ?: error("Device with name $token not found in the hub $this")
-    }
-    else -> {
-        val hub = getDevice(name.cutLast()) as? DeviceHub
-            ?: error("The device with name ${name.cutLast()} does not exist or is not a hub")
-        hub.getDevice(name.last()!!.asName())
-    }
+operator fun DeviceHub.get(deviceName: Name) =
+    devices[deviceName] ?: error("Device with name $deviceName not found in $this")
+
+operator fun DeviceHub.get(deviceName: String) = get(deviceName.toName())
+
+suspend fun DeviceHub.getProperty(deviceName: Name, propertyName: String): MetaItem<*> =
+    this[deviceName].getProperty(propertyName)
+
+suspend fun DeviceHub.setProperty(deviceName: Name, propertyName: String, value: MetaItem<*>) {
+    this[deviceName].setProperty(propertyName, value)
 }
 
+suspend fun DeviceHub.exec(deviceName: Name, command: String, argument: MetaItem<*>?): MetaItem<*>? =
+    this[deviceName].exec(command, argument)
 
-fun DeviceHub.getDevice(deviceName: String) = getDevice(deviceName.toName())
+suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
+    val device = this[request.target?.toName() ?: Name.EMPTY]
 
-suspend fun DeviceHub.getProperty(deviceName: String, propertyName: String): MetaItem<*> =
-    getDevice(deviceName).getProperty(propertyName)
-
-suspend fun DeviceHub.setProperty(deviceName: String, propertyName: String, value: MetaItem<*>) {
-    getDevice(deviceName).setProperty(propertyName, value)
+    return device.respondMessage(request)
 }
 
-suspend fun DeviceHub.exec(deviceName: String, command: String, argument: MetaItem<*>?): MetaItem<*>? =
-    getDevice(deviceName).exec(command, argument)
+suspend fun DeviceHub.respond(request: Envelope): Envelope {
+    val target = request.meta[DeviceMessage.TARGET_KEY].string
+    val device = this[target?.toName() ?: Name.EMPTY]
+
+    return device.respond(request)
+}
