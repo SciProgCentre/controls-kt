@@ -2,8 +2,7 @@
 
 # DataForge-control
 
-DataForge-control is a data acquisition framework (work in progress). It is
-based on DataForge, a software framework for automated data processing. 
+DataForge-control is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
 This repository contains a prototype of API and simple implementation 
 of a slow control system, including a demo.
 
@@ -37,7 +36,7 @@ Generally, a Device has Properties that can be read and written. Also, some Acti
 can optionally be applied on a device (may or may not affect properties). 
 
 - `base` - contains baseline `Device` implementation 
-[`DeviceBase`](dataforge-control-core/src/commonMain/kotlin/hep/dataforge/control/base/DeviceBase.kt) 
+[`DeviceBase`](dataforge-device-core/src/commonMain/kotlin/hep/dataforge/control/base/DeviceBase.kt)
 and property implementation, including property asynchronous flows.
 
 - `controllers` - implements Message Controller that can be attached to the event bus, Message 
