@@ -1,6 +1,6 @@
 pluginManagement {
     val kotlinVersion = "1.3.72"
-    val toolsVersion = "0.5.0"
+    val toolsVersion = "0.5.2"
 
     repositories {
         mavenLocal()
