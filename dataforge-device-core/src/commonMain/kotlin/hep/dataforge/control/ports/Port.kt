@@ -1,5 +1,6 @@
 package hep.dataforge.control.ports
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -13,7 +14,7 @@ import kotlinx.io.ByteArrayOutput
 import kotlinx.io.Closeable
 import mu.KLogger
 
-abstract class Port : Closeable, CoroutineScope {
+abstract class Port(val scope: CoroutineScope) : Closeable {
 
     abstract val logger: KLogger
 
@@ -24,25 +25,27 @@ abstract class Port : Closeable, CoroutineScope {
     /**
      * Internal method to synchronously send data
      */
-    protected abstract fun sendInternal(data: ByteArray)
+    protected abstract suspend fun write(data: ByteArray)
 
     /**
      * Internal method to receive data synchronously
      */
     protected fun receive(data: ByteArray) {
-        launch {
+        scope.launch {
+            logger.debug { "RECEIVE: ${data.decodeToString()}" }
             incoming.send(data)
         }
     }
 
-    private val sendJob = launch {
-        //using special dispatcher to avoid threading problems
+    private val sendJob = scope.launch {
+        //The port scope should be organized in order to avoid threading problems
         for (data in outgoing) {
             try {
-                sendInternal(data)
+                write(data)
                 logger.debug { "SEND: ${data.decodeToString()}" }
             } catch (ex: Exception) {
-                logger.error(ex) { "Error while sending data" }
+                if(ex is CancellationException) throw ex
+                logger.error(ex) { "Error while writing data to the port" }
             }
         }
     }
@@ -56,7 +59,7 @@ abstract class Port : Closeable, CoroutineScope {
     }
 
     override fun close() {
-        cancel("The port is closed")
+        scope.cancel("The port is closed")
     }
 }
 

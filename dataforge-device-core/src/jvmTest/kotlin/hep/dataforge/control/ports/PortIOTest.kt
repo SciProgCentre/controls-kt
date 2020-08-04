@@ -16,6 +16,7 @@ internal class PortIOTest{
         val chunked = flow.withDelimiter("?:".encodeToByteArray())
         runBlocking {
             val result = chunked.toList()
+            assertEquals(3, result.size)
             assertEquals("bb?bddd?:",result[0].decodeToString())
             assertEquals("defgb?:", result[1].decodeToString())
             assertEquals("ddf34fb?:", result[2].decodeToString())
