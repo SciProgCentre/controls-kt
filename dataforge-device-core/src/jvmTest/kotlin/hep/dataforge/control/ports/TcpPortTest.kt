@@ -18,25 +18,30 @@ fun CoroutineScope.launchEchoServer(port: Int): Job = launch {
     println("Started echo telnet server at ${server.localAddress}")
 
     while (isActive) {
-        val socket = server.accept()
+        val socket = try {
+            server.accept()
+        } catch (ex: Exception) {
+            server.close()
+            return@launch
+        }
 
         launch {
             println("Socket accepted: ${socket.remoteAddress}")
 
-            val input = socket.openReadChannel()
-            val output = socket.openWriteChannel(autoFlush = true)
-
             try {
-                while (true) {
+                val input = socket.openReadChannel()
+                val output = socket.openWriteChannel(autoFlush = true)
+
+
+                while (isActive) {
                     val line = input.readUTF8Line()
 
-                    println("${socket.remoteAddress}: $line")
-                    output.write("$line\r\n")
+                    //println("${socket.remoteAddress}: $line")
+                    output.write("[response] $line")
                 }
-            } catch (e: Throwable) {
-                if (e !is CancellationException) {
-                    e.printStackTrace()
-                }
+            } catch (ex: Exception) {
+                cancel()
+            } finally {
                 socket.close()
             }
         }
@@ -47,27 +52,27 @@ fun CoroutineScope.launchEchoServer(port: Int): Job = launch {
 class TcpPortTest {
     @Test
     fun testWithEchoServer() {
-        runBlocking {
-            coroutineScope {
+        try {
+            runBlocking{
                 val server = launchEchoServer(22188)
                 val port = openTcpPort("localhost", 22188)
-                launch {
+
+                val logJob = launch {
                     port.flow().collect {
                         println("Flow: ${it.decodeToString()}")
                     }
                 }
-                delay(100)
+                port.startJob.join()
                 port.send("aaa\n")
-                delay(10)
+//                delay(20)
                 port.send("ddd\n")
 
                 delay(200)
+
                 cancel()
             }
-//            port.close()
-//            server.cancel()
+        } catch (ex: Exception) {
+            if (ex !is CancellationException) throw ex
         }
-
-
     }
 }

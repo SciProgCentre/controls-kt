@@ -1,16 +1,19 @@
 package hep.dataforge.control.ports
 
-import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
-import io.ktor.utils.io.consumeEachBufferRange
-import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
 import java.net.InetSocketAddress
-import java.util.concurrent.Executors
+import java.nio.ByteBuffer
+import java.nio.channels.SocketChannel
+
+internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
+    rewind()
+    val response = ByteArray(limit)
+    get(response)
+    rewind()
+    return response
+}
 
 class TcpPort internal constructor(
     scope: CoroutineScope,
@@ -20,41 +23,39 @@ class TcpPort internal constructor(
 
     override val logger: KLogger = KotlinLogging.logger("port[tcp:$host:$port]")
 
-    private val socket = scope.async {
-        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(InetSocketAddress(host, port))
+    private val futureChannel: Deferred<SocketChannel> = this.scope.async(Dispatchers.IO) {
+        SocketChannel.open(InetSocketAddress(host, port))
     }
 
-    private val writeChannel = scope.async {
-        socket.await().openWriteChannel(true)
-    }
+    /**
+     * A handler to await port connection
+     */
+    val startJob: Job get() = futureChannel
 
-    private val listenerJob = scope.launch {
-        val input = socket.await().openReadChannel()
-        input.consumeEachBufferRange { buffer, last ->
-            val array = ByteArray(buffer.remaining())
-            buffer.get(array)
-            receive(array)
-            isActive
+    private val listenerJob = this.scope.launch {
+        val channel = futureChannel.await()
+        val buffer = ByteBuffer.allocate(1024)
+        while (isActive) {
+            try {
+                val num = channel.read(buffer)
+                if (num > 0) {
+                    receive(buffer.readArray(num))
+                }
+                if (num < 0) cancel("The input channel is exhausted")
+            } catch (ex: Exception) {
+                logger.error("Channel read error", ex)
+                delay(1000)
+            }
         }
     }
 
     override suspend fun write(data: ByteArray) {
-        writeChannel.await().writeAvailable(data)
+        futureChannel.await().write(ByteBuffer.wrap(data))
     }
-
 }
 
 fun CoroutineScope.openTcpPort(host: String, port: Int): TcpPort {
-    val executor = Executors.newSingleThreadExecutor { r ->
-        Thread(r).apply {
-            name = "port[tcp:$host:$port]"
-            priority = Thread.MAX_PRIORITY
-        }
-    }
-    val job = SupervisorJob(coroutineContext[Job])
-    val scope = CoroutineScope(coroutineContext + executor.asCoroutineDispatcher() + job)
-    job.invokeOnCompletion {
-        executor.shutdown()
-    }
+    val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
     return TcpPort(scope, host, port)
+
 }

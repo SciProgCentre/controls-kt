@@ -32,17 +32,16 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
      */
     protected fun receive(data: ByteArray) {
         scope.launch {
-            logger.debug { "RECEIVE: ${data.decodeToString()}" }
+            logger.debug { "RECEIVED: ${data.decodeToString()}" }
             incoming.send(data)
         }
     }
 
     private val sendJob = scope.launch {
-        //The port scope should be organized in order to avoid threading problems
         for (data in outgoing) {
             try {
                 write(data)
-                logger.debug { "SEND: ${data.decodeToString()}" }
+                logger.debug { "SENT: ${data.decodeToString()}" }
             } catch (ex: Exception) {
                 if(ex is CancellationException) throw ex
                 logger.error(ex) { "Error while writing data to the port" }
@@ -60,6 +59,8 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
 
     override fun close() {
         scope.cancel("The port is closed")
+        outgoing.close()
+        incoming.close()
     }
 }
 
