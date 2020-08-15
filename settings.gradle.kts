@@ -14,8 +14,6 @@ pluginManagement {
     }
 
     plugins {
-
-
         kotlin("jvm") version kotlinVersion
         id("scientifik.mpp") version toolsVersion
         id("scientifik.jvm") version toolsVersion
@@ -37,6 +35,7 @@ rootProject.name = "dataforge-control"
 
 include(
     ":dataforge-device-core",
+    ":dataforge-device-serial",
     ":dataforge-device-server",
     ":dataforge-device-client",
     ":demo"

@@ -43,7 +43,7 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
                 write(data)
                 logger.debug { "SENT: ${data.decodeToString()}" }
             } catch (ex: Exception) {
-                if(ex is CancellationException) throw ex
+                if (ex is CancellationException) throw ex
                 logger.error(ex) { "Error while writing data to the port" }
             }
         }
@@ -53,7 +53,12 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
         outgoing.send(data)
     }
 
-    fun flow(): Flow<ByteArray> {
+    /**
+     * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
+     * In order to form phrases some condition should used on top of it.
+     * For example [delimitedInput] generates phrases with fixed delimiter.
+     */
+    fun input(): Flow<ByteArray> {
         return incoming.receiveAsFlow()
     }
 
@@ -94,3 +99,6 @@ fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int
         }
     }
 }
+
+fun Port.delimitedInput(delimiter: ByteArray, expectedMessageSize: Int = 32) =
+    input().withDelimiter(delimiter, expectedMessageSize)

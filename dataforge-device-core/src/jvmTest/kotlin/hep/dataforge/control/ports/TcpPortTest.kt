@@ -55,16 +55,39 @@ class TcpPortTest {
         try {
             runBlocking{
                 val server = launchEchoServer(22188)
-                val port = openTcpPort("localhost", 22188)
+                val port = TcpPort.open("localhost", 22188)
 
                 val logJob = launch {
-                    port.flow().collect {
+                    port.input().collect {
                         println("Flow: ${it.decodeToString()}")
                     }
                 }
                 port.startJob.join()
                 port.send("aaa\n")
-//                delay(20)
+                port.send("ddd\n")
+
+                delay(200)
+
+                cancel()
+            }
+        } catch (ex: Exception) {
+            if (ex !is CancellationException) throw ex
+        }
+    }
+
+    @Test
+    fun testKtorWithEchoServer() {
+        try {
+            runBlocking{
+                val server = launchEchoServer(22188)
+                val port = KtorTcpPort.open("localhost", 22188)
+
+                val logJob = launch {
+                    port.input().collect {
+                        println("Flow: ${it.decodeToString()}")
+                    }
+                }
+                port.send("aaa\n")
                 port.send("ddd\n")
 
                 delay(200)

@@ -6,6 +6,7 @@ import mu.KotlinLogging
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
+import kotlin.coroutines.coroutineContext
 
 internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
     rewind()
@@ -15,7 +16,7 @@ internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
     return response
 }
 
-class TcpPort internal constructor(
+class TcpPort private constructor(
     scope: CoroutineScope,
     val host: String,
     val port: Int
@@ -24,7 +25,9 @@ class TcpPort internal constructor(
     override val logger: KLogger = KotlinLogging.logger("port[tcp:$host:$port]")
 
     private val futureChannel: Deferred<SocketChannel> = this.scope.async(Dispatchers.IO) {
-        SocketChannel.open(InetSocketAddress(host, port))
+        SocketChannel.open(InetSocketAddress(host, port)).apply {
+            configureBlocking(false)
+        }
     }
 
     /**
@@ -52,10 +55,17 @@ class TcpPort internal constructor(
     override suspend fun write(data: ByteArray) {
         futureChannel.await().write(ByteBuffer.wrap(data))
     }
-}
 
-fun CoroutineScope.openTcpPort(host: String, port: Int): TcpPort {
-    val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
-    return TcpPort(scope, host, port)
+    override fun close() {
+        listenerJob.cancel()
+        futureChannel.cancel()
+        super.close()
+    }
 
+    companion object{
+        suspend fun open(host: String, port: Int): TcpPort{
+            val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
+            return TcpPort(scope, host, port)
+        }
+    }
 }

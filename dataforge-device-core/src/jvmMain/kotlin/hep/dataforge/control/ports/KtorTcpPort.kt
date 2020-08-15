@@ -10,6 +10,7 @@ import kotlinx.coroutines.*
 import mu.KLogger
 import mu.KotlinLogging
 import java.net.InetSocketAddress
+import kotlin.coroutines.coroutineContext
 
 class KtorTcpPort internal constructor(
     scope: CoroutineScope,
@@ -19,16 +20,16 @@ class KtorTcpPort internal constructor(
 
     override val logger: KLogger = KotlinLogging.logger("port[tcp:$host:$port]")
 
-    private val socket = scope.async {
+    private val futureSocket = scope.async {
         aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(InetSocketAddress(host, port))
     }
 
     private val writeChannel = scope.async {
-        socket.await().openWriteChannel(true)
+        futureSocket.await().openWriteChannel(true)
     }
 
     private val listenerJob = scope.launch {
-        val input = socket.await().openReadChannel()
+        val input = futureSocket.await().openReadChannel()
         input.consumeEachBufferRange { buffer, last ->
             val array = ByteArray(buffer.remaining())
             buffer.get(array)
@@ -41,9 +42,16 @@ class KtorTcpPort internal constructor(
         writeChannel.await().writeAvailable(data)
     }
 
-}
+    override fun close() {
+        listenerJob.cancel()
+        futureSocket.cancel()
+        super.close()
+    }
 
-fun CoroutineScope.openKtorTcpPort(host: String, port: Int): TcpPort {
-    val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
-    return TcpPort(scope, host, port)
+    companion object{
+        suspend fun open(host: String, port: Int): KtorTcpPort{
+            val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
+            return KtorTcpPort(scope, host, port)
+        }
+    }
 }

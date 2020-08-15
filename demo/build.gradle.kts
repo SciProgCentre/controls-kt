@@ -4,7 +4,6 @@ plugins {
     application
 }
 
-val plotlyVersion by extra("0.2.0-dev-13")
 
 repositories{
     jcenter()
@@ -12,6 +11,7 @@ repositories{
     maven("https://dl.bintray.com/kotlin/kotlin-eap")
     maven("https://dl.bintray.com/mipt-npm/dataforge")
     maven("https://dl.bintray.com/mipt-npm/scientifik")
+    maven("https://dl.bintray.com/mipt-npm/kscience")
     maven("https://dl.bintray.com/mipt-npm/dev")
 }
 
@@ -21,7 +21,7 @@ dependencies{
     implementation(project(":dataforge-device-client"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
-    implementation("scientifik:plotlykt-server:$plotlyVersion")
+    implementation("kscience.plotlykt:plotlykt-server:0.2.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

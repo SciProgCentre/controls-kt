@@ -5,18 +5,18 @@ import hep.dataforge.control.controllers.devices
 import hep.dataforge.control.server.startDeviceServer
 import hep.dataforge.control.server.whenStarted
 import hep.dataforge.meta.double
-import hep.dataforge.meta.invoke
 import hep.dataforge.names.asName
 import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
-import scientifik.plotly.models.Trace
-import scientifik.plotly.plot
-import scientifik.plotly.server.PlotlyUpdateMode
-import scientifik.plotly.server.plotlyModule
-import scientifik.plotly.trace
+import kscience.plotly.layout
+import kscience.plotly.models.Trace
+import kscience.plotly.plot
+import kscience.plotly.server.PlotlyUpdateMode
+import kscience.plotly.server.plotlyModule
+import kscience.plotly.trace
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -70,7 +70,7 @@ fun startDemoDeviceServer(context: Context, device: DemoDevice): ApplicationEngi
             }
             div("row") {
                 div("col-6") {
-                    plot(container = container) {
+                    plot(renderer = container) {
                         layout {
                             title = "sin property"
                             xaxis.title = "point index"
@@ -85,7 +85,7 @@ fun startDemoDeviceServer(context: Context, device: DemoDevice): ApplicationEngi
                     }
                 }
                 div("col-6") {
-                    plot(container = container) {
+                    plot(renderer = container) {
                         layout {
                             title = "cos property"
                             xaxis.title = "point index"
@@ -102,7 +102,7 @@ fun startDemoDeviceServer(context: Context, device: DemoDevice): ApplicationEngi
             }
             div("row") {
                 div("col-12") {
-                    plot(container = container) {
+                    plot(renderer = container) {
                         layout {
                             title = "cos vs sin"
                             xaxis.title = "sin"
