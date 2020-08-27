@@ -58,7 +58,7 @@ class TcpPortTest {
                 val port = TcpPort.open("localhost", 22188)
 
                 val logJob = launch {
-                    port.input().collect {
+                    port.incoming().collect {
                         println("Flow: ${it.decodeToString()}")
                     }
                 }
@@ -83,7 +83,7 @@ class TcpPortTest {
                 val port = KtorTcpPort.open("localhost", 22188)
 
                 val logJob = launch {
-                    port.input().collect {
+                    port.incoming().collect {
                         println("Flow: ${it.decodeToString()}")
                     }
                 }

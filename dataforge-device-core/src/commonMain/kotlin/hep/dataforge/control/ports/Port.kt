@@ -4,13 +4,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import kotlinx.io.ByteArrayOutput
 import kotlinx.io.Closeable
 import mu.KLogger
 
@@ -20,7 +16,7 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
 
     private val outgoing = Channel<ByteArray>(100)
     private val incoming = Channel<ByteArray>(Channel.CONFLATED)
-    val receiveChannel: ReceiveChannel<ByteArray> get() = incoming
+    //val receiveChannel: ReceiveChannel<ByteArray> get() = incoming
 
     /**
      * Internal method to synchronously send data
@@ -56,9 +52,9 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
     /**
      * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
      * In order to form phrases some condition should used on top of it.
-     * For example [delimitedInput] generates phrases with fixed delimiter.
+     * For example [delimitedIncoming] generates phrases with fixed delimiter.
      */
-    fun input(): Flow<ByteArray> {
+    fun incoming(): Flow<ByteArray> {
         return incoming.receiveAsFlow()
     }
 
@@ -73,32 +69,3 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
  * Send UTF-8 encoded string
  */
 suspend fun Port.send(string: String) = send(string.encodeToByteArray())
-
-fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> = flow {
-    require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
-
-    var output = ByteArrayOutput(expectedMessageSize)
-    var matcherPosition = 0
-
-    collect { chunk ->
-        chunk.forEach { byte ->
-            output.writeByte(byte)
-            //matching current symbol in delimiter
-            if (byte == delimiter[matcherPosition]) {
-                matcherPosition++
-                if (matcherPosition == delimiter.size) {
-                    //full match achieved, sending result
-                    emit(output.toByteArray())
-                    output = ByteArrayOutput(expectedMessageSize)
-                    matcherPosition = 0
-                }
-            } else if (matcherPosition > 0) {
-                //Reset matcher since full match not achieved
-                matcherPosition = 0
-            }
-        }
-    }
-}
-
-fun Port.delimitedInput(delimiter: ByteArray, expectedMessageSize: Int = 32) =
-    input().withDelimiter(delimiter, expectedMessageSize)
