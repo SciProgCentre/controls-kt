@@ -33,11 +33,11 @@ abstract class DeviceBase : Device {
     override val actionDescriptors: Collection<ActionDescriptor>
         get() = actions.values.map { it.descriptor }
 
-    internal fun resolveProperty(name: String, builder: () -> ReadOnlyDeviceProperty): ReadOnlyDeviceProperty {
+    internal fun registerProperty(name: String, builder: () -> ReadOnlyDeviceProperty): ReadOnlyDeviceProperty {
         return properties.getOrPut(name, builder)
     }
 
-    internal fun resolveAction(name: String, builder: () -> Action): Action {
+    internal fun registerAction(name: String, builder: () -> Action): Action {
         return actions.getOrPut(name, builder)
     }
 

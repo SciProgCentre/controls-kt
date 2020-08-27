@@ -28,5 +28,6 @@ kotlin {
             dependencies{
             }
         }
+        val nativeMain by getting{}
     }
 }

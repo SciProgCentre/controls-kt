@@ -72,7 +72,7 @@ private class ReadOnlyDevicePropertyDelegate<D : DeviceBase>(
     override fun getValue(thisRef: D, property: KProperty<*>): IsolatedReadOnlyDeviceProperty {
         val name = property.name
 
-        return owner.resolveProperty(name) {
+        return owner.registerProperty(name) {
             @OptIn(ExperimentalCoroutinesApi::class)
             IsolatedReadOnlyDeviceProperty(
                 name,
@@ -186,7 +186,7 @@ private class DevicePropertyDelegate<D : DeviceBase>(
 
     override fun getValue(thisRef: D, property: KProperty<*>): IsolatedDeviceProperty {
         val name = property.name
-        return owner.resolveProperty(name) {
+        return owner.registerProperty(name) {
             @OptIn(ExperimentalCoroutinesApi::class)
             IsolatedDeviceProperty(
                 name,

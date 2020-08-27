@@ -28,7 +28,7 @@ class ActionDelegate<D : DeviceBase>(
 ) : ReadOnlyProperty<D, Action> {
     override fun getValue(thisRef: D, property: KProperty<*>): Action {
         val name = property.name
-        return owner.resolveAction(name) {
+        return owner.registerAction(name) {
             SimpleAction(name, ActionDescriptor(name).apply(descriptorBuilder), block)
         }
     }
