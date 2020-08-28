@@ -185,8 +185,6 @@ fun Application.deviceModule(
             }
 
             post("message") {
-                val target: String by call.request.queryParameters
-                val device = manager[target]
                 val body = call.receiveText()
                 val json = Json.parseJson(body) as? JsonObject
                     ?: throw IllegalArgumentException("The body is not a json object")
@@ -194,7 +192,7 @@ fun Application.deviceModule(
 
                 val request = DeviceMessage.wrap(meta)
 
-                val response = device.respondMessage(request)
+                val response = manager.respondMessage(request)
                 call.respondMessage(response)
             }
 
@@ -204,7 +202,6 @@ fun Application.deviceModule(
                 route("{property}") {
                     get("get") {
                         val target: String by call.parameters
-                        val device = manager[target]
                         val property: String by call.parameters
                         val request = DeviceMessage {
                             type = GET_PROPERTY_ACTION
@@ -215,13 +212,11 @@ fun Application.deviceModule(
                             }
                         }
 
-                        val response = device.respondMessage(request)
+                        val response = manager.respondMessage(request)
                         call.respondMessage(response)
                     }
                     post("set") {
                         val target: String by call.parameters
-                        val device = manager[target]
-
                         val property: String by call.parameters
                         val body = call.receiveText()
                         val json = Json.parseJson(body)
@@ -236,7 +231,7 @@ fun Application.deviceModule(
                             }
                         }
 
-                        val response = device.respondMessage(request)
+                        val response = manager.respondMessage(request)
                         call.respondMessage(response)
                     }
                 }

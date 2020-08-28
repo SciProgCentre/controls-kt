@@ -13,7 +13,7 @@ import hep.dataforge.provider.Provider
  * A hub that could locate multiple devices and redirect actions to them
  */
 interface DeviceHub : Provider {
-    val devices: Map<Name, Device>
+    val devices: Map<Name, Device>//TODO use token instead of Names
 
     override val defaultTarget: String get() = Device.DEVICE_TARGET
 
@@ -44,18 +44,24 @@ suspend fun DeviceHub.setProperty(deviceName: Name, propertyName: String, value:
     this[deviceName].setProperty(propertyName, value)
 }
 
-suspend fun DeviceHub.exec(deviceName: Name, command: String, argument: MetaItem<*>?): MetaItem<*>? =
-    this[deviceName].exec(command, argument)
+suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: MetaItem<*>?): MetaItem<*>? =
+    this[deviceName].execute(command, argument)
 
 suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
-    val device = this[request.target?.toName() ?: Name.EMPTY]
-
-    return device.respondMessage(request)
+    return try {
+        val targetName = request.target?.toName() ?: Name.EMPTY
+        val device = this[targetName]
+        Device.respondMessage(device, targetName.toString(), request)
+    } catch (ex: Exception) {
+        DeviceMessage.fail {
+            comment = ex.message
+        }
+    }
 }
 
 suspend fun DeviceHub.respond(request: Envelope): Envelope {
-    val target = request.meta[DeviceMessage.TARGET_KEY].string
-    val device = this[target?.toName() ?: Name.EMPTY]
+    val target = request.meta[DeviceMessage.TARGET_KEY].string ?: defaultTarget
+    val device = this[target.toName()]
 
-    return device.respond(request)
+    return Device.respond(device, target, request)
 }

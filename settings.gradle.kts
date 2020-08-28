@@ -38,7 +38,8 @@ include(
     ":dataforge-device-serial",
     ":dataforge-device-server",
     ":dataforge-device-client",
-    ":demo"
+    ":demo",
+    ":motors"
 )
 
 //includeBuild("../dataforge-core")

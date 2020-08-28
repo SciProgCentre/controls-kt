@@ -8,7 +8,7 @@ plugins {
 
 val dataforgeVersion: String by rootProject.extra
 
-useCoroutines(version = "1.3.7")
+useCoroutines()
 useSerialization()
 
 kotlin {
@@ -28,6 +28,5 @@ kotlin {
             dependencies{
             }
         }
-        val nativeMain by getting{}
     }
 }

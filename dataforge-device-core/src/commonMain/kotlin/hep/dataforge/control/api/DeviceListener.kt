@@ -8,5 +8,7 @@ import hep.dataforge.meta.MetaItem
  */
 interface DeviceListener {
     fun propertyChanged(propertyName: String, value: MetaItem<*>?)
+    fun actionExecuted(action:String, argument: MetaItem<*>?, result: MetaItem<*>?)
+
     //TODO add general message listener method
 }

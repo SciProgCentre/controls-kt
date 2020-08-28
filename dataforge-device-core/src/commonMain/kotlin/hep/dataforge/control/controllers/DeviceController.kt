@@ -1,14 +1,13 @@
 package hep.dataforge.control.controllers
 
+import hep.dataforge.control.api.Consumer
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
-import hep.dataforge.control.api.respondMessage
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
-import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope
-import hep.dataforge.meta.*
+import hep.dataforge.meta.MetaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -19,7 +18,7 @@ class DeviceController(
     val device: Device,
     val deviceTarget: String,
     val scope: CoroutineScope = device.scope
-) : Consumer, Responder, DeviceListener {
+) : Responder, Consumer, DeviceListener {
 
     init {
         device.registerListener(this, this)
@@ -27,45 +26,12 @@ class DeviceController(
 
     private val outputChannel = Channel<Envelope>(Channel.CONFLATED)
 
-    override fun consume(message: Envelope) {
-        // Fire the respond procedure and forget about the result
-        scope.launch {
-            respond(message)
-        }
-    }
-
     suspend fun respondMessage(message: DeviceMessage): DeviceMessage {
-        return try {
-            device.respondMessage(message).apply {
-                target = message.source
-                source = deviceTarget
-            }
-        } catch (ex: Exception) {
-            DeviceMessage.fail {
-                comment = ex.message
-            }
-        }
+        return Device.respondMessage(device, deviceTarget, message)
     }
 
     override suspend fun respond(request: Envelope): Envelope {
-        val target = request.meta["target"].string
-        return try {
-            if (request.data == null) {
-                respondMessage(DeviceMessage.wrap(request.meta)).wrap()
-            }else if(target != null && target != deviceTarget) {
-                error("Wrong target name $deviceTarget expected but ${target} found")
-            } else {
-                val response = device.respond(request)
-                return SimpleEnvelope(response.meta.edit {
-                    "target" put request.meta["source"].string
-                    "source" put deviceTarget
-                }, response.data)
-            }
-        } catch (ex: Exception) {
-            DeviceMessage.fail {
-                comment = ex.message
-            }.wrap()
-        }
+        return Device.respond(device, deviceTarget, request)
     }
 
     override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
@@ -87,6 +53,12 @@ class DeviceController(
 
     fun output() = outputChannel.consumeAsFlow()
 
+    override fun consume(message: Envelope) {
+        // Fire the respond procedure and forget about the result
+        scope.launch {
+            respond(message)
+        }
+    }
 
     companion object {
 
