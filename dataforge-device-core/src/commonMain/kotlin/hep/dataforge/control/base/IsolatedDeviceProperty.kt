@@ -18,6 +18,10 @@ import kotlinx.coroutines.withContext
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
+private fun DeviceBase.propertyChanged(name: String, item: MetaItem<*>?){
+    notifyListeners { propertyChanged(name, item) }
+}
+
 /**
  * A stand-alone [ReadOnlyDeviceProperty] implementation not directly attached to a device
  */
@@ -27,7 +31,7 @@ open class IsolatedReadOnlyDeviceProperty(
     default: MetaItem<*>?,
     override val descriptor: PropertyDescriptor,
     override val scope: CoroutineScope,
-    private val updateCallback: (name: String, item: MetaItem<*>) -> Unit,
+    private val callback: (name: String, item: MetaItem<*>) -> Unit,
     private val getter: suspend (before: MetaItem<*>?) -> MetaItem<*>
 ) : ReadOnlyDeviceProperty {
 
@@ -40,7 +44,7 @@ open class IsolatedReadOnlyDeviceProperty(
 
     protected fun update(item: MetaItem<*>) {
         state.value = item
-        updateCallback(name, item)
+        callback(name, item)
     }
 
     override suspend fun read(force: Boolean): MetaItem<*> {
@@ -60,6 +64,22 @@ open class IsolatedReadOnlyDeviceProperty(
     }
 
     override fun flow(): StateFlow<MetaItem<*>?> = state
+}
+
+fun DeviceBase.readOnlyProperty(
+    name: String,
+    default: MetaItem<*>?,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    getter: suspend (MetaItem<*>?) -> MetaItem<*>
+): ReadOnlyDeviceProperty = registerProperty(name) {
+    IsolatedReadOnlyDeviceProperty(
+        name,
+        default,
+        PropertyDescriptor(name).apply(descriptorBuilder),
+        scope,
+        ::propertyChanged,
+        getter
+    )
 }
 
 private class ReadOnlyDevicePropertyDelegate<D : DeviceBase>(
@@ -174,6 +194,24 @@ class IsolatedDeviceProperty(
             }
         }
     }
+}
+
+fun DeviceBase.mutableProperty(
+    name: String,
+    default: MetaItem<*>?,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    getter: suspend (MetaItem<*>?) -> MetaItem<*>,
+    setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
+): ReadOnlyDeviceProperty = registerProperty(name) {
+    IsolatedDeviceProperty(
+        name,
+        default,
+        PropertyDescriptor(name).apply(descriptorBuilder),
+        scope,
+        ::propertyChanged,
+        getter,
+        setter
+    )
 }
 
 private class DevicePropertyDelegate<D : DeviceBase>(

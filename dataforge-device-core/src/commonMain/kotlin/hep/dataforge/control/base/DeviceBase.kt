@@ -5,6 +5,7 @@ import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
+import kotlinx.coroutines.launch
 
 /**
  * Baseline implementation of [Device] interface
@@ -23,8 +24,15 @@ abstract class DeviceBase : Device {
         listeners.removeAll { it.first == owner }
     }
 
-    internal fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
-        listeners.forEach { it.second.propertyChanged(propertyName, value) }
+    fun notifyListeners(block: DeviceListener.() -> Unit) {
+        listeners.forEach { it.second.block() }
+    }
+
+    fun notifyPropertyChanged(propertyName: String) {
+        scope.launch {
+            val value = getProperty(propertyName)
+            notifyListeners { propertyChanged(propertyName, value) }
+        }
     }
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
@@ -54,8 +62,8 @@ abstract class DeviceBase : Device {
         )
     }
 
-    override suspend fun execute(action: String, argument: MetaItem<*>?): MetaItem<*>? =
-        (actions[action] ?: error("Request with name $action not defined")).invoke(argument)
+    override suspend fun execute(command: String, argument: MetaItem<*>?): MetaItem<*>? =
+        (actions[command] ?: error("Request with name $command not defined")).invoke(argument)
 
 
     companion object {

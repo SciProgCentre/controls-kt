@@ -1,6 +1,6 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.Device.Companion.GET_PROPERTY_ACTION
+import hep.dataforge.control.controllers.DeviceController.Companion.GET_PROPERTY_ACTION
 import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName

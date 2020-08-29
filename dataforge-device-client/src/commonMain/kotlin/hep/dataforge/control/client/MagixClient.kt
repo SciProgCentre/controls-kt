@@ -1,8 +1,8 @@
 package hep.dataforge.control.client
 
-import hep.dataforge.control.api.respondMessage
 import hep.dataforge.control.controllers.DeviceManager
 import hep.dataforge.control.controllers.DeviceMessage
+import hep.dataforge.control.controllers.respondMessage
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.wrap

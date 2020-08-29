@@ -1,6 +1,9 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.*
+import hep.dataforge.control.api.Consumer
+import hep.dataforge.control.api.DeviceHub
+import hep.dataforge.control.api.DeviceListener
+import hep.dataforge.control.api.get
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.meta.MetaItem
@@ -60,7 +63,7 @@ class HubController(
     suspend fun respondMessage(message: DeviceMessage): DeviceMessage = try {
         val targetName = message.target?.toName() ?: Name.EMPTY
         val device = hub[targetName]
-        Device.respondMessage(device, targetName.toString(), message)
+        DeviceController.respondMessage(device, targetName.toString(), message)
     } catch (ex: Exception) {
         DeviceMessage.fail {
             comment = ex.message
@@ -71,9 +74,9 @@ class HubController(
         val targetName = request.meta[DeviceMessage.TARGET_KEY].string?.toName() ?: Name.EMPTY
         val device = hub[targetName]
         if (request.data == null) {
-            Device.respondMessage(device, targetName.toString(), DeviceMessage.wrap(request.meta)).wrap()
+            DeviceController.respondMessage(device, targetName.toString(), DeviceMessage.wrap(request.meta)).wrap()
         } else {
-            Device.respond(device, targetName.toString(), request)
+            DeviceController.respond(device, targetName.toString(), request)
         }
     } catch (ex: Exception) {
         DeviceMessage.fail {

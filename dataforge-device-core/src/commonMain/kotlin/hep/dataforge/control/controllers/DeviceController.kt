@@ -1,13 +1,16 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.Consumer
-import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.DeviceListener
+import hep.dataforge.control.api.*
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.MetaItem
+import hep.dataforge.meta.get
+import hep.dataforge.meta.string
+import hep.dataforge.meta.wrap
+import hep.dataforge.names.Name
+import hep.dataforge.names.toName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -26,13 +29,9 @@ class DeviceController(
 
     private val outputChannel = Channel<Envelope>(Channel.CONFLATED)
 
-    suspend fun respondMessage(message: DeviceMessage): DeviceMessage {
-        return Device.respondMessage(device, deviceTarget, message)
-    }
+    suspend fun respondMessage(message: DeviceMessage): DeviceMessage = respondMessage(device, deviceTarget, message)
 
-    override suspend fun respond(request: Envelope): Envelope {
-        return Device.respond(device, deviceTarget, request)
-    }
+    override suspend fun respond(request: Envelope): Envelope = respond(device, deviceTarget, request)
 
     override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
         if (value == null) return
@@ -61,6 +60,116 @@ class DeviceController(
     }
 
     companion object {
+        const val GET_PROPERTY_ACTION = "read"
+        const val SET_PROPERTY_ACTION = "write"
+        const val EXECUTE_ACTION = "execute"
+        const val PROPERTY_LIST_ACTION = "propertyList"
+        const val ACTION_LIST_ACTION = "actionList"
 
+        internal suspend fun respond(device: Device, deviceTarget: String, request: Envelope): Envelope {
+            val target = request.meta["target"].string
+            return try {
+                if (request.data == null) {
+                    respondMessage(device, deviceTarget, DeviceMessage.wrap(request.meta)).wrap()
+                } else if (target != null && target != deviceTarget) {
+                    error("Wrong target name $deviceTarget expected but $target found")
+                } else {
+                    val response = device.respond(request).apply {
+                        meta {
+                            "target" put request.meta["source"].string
+                            "source" put deviceTarget
+                        }
+                    }
+                    return response.build()
+                }
+            } catch (ex: Exception) {
+                DeviceMessage.fail {
+                    comment = ex.message
+                }.wrap()
+            }
+        }
+
+        internal suspend fun respondMessage(
+            device: Device,
+            deviceTarget: String,
+            request: DeviceMessage
+        ): DeviceMessage {
+            return try {
+                val result: List<MessageData> = when (val action = request.type) {
+                    GET_PROPERTY_ACTION -> {
+                        request.data.map { property ->
+                            MessageData {
+                                name = property.name
+                                value = device.getProperty(name)
+                            }
+                        }
+                    }
+                    SET_PROPERTY_ACTION -> {
+                        request.data.map { property ->
+                            val propertyName: String = property.name
+                            val propertyValue = property.value
+                            if (propertyValue == null) {
+                                device.invalidateProperty(propertyName)
+                            } else {
+                                device.setProperty(propertyName, propertyValue)
+                            }
+                            MessageData {
+                                name = propertyName
+                                value = device.getProperty(propertyName)
+                            }
+                        }
+                    }
+                    EXECUTE_ACTION -> {
+                        request.data.map { payload ->
+                            MessageData {
+                                name = payload.name
+                                value = device.execute(payload.name, payload.value)
+                            }
+                        }
+                    }
+                    PROPERTY_LIST_ACTION -> {
+                        device.propertyDescriptors.map { descriptor ->
+                            MessageData {
+                                name = descriptor.name
+                                value = MetaItem.NodeItem(descriptor.config)
+                            }
+                        }
+                    }
+                    ACTION_LIST_ACTION -> {
+                        device.actionDescriptors.map { descriptor ->
+                            MessageData {
+                                name = descriptor.name
+                                value = MetaItem.NodeItem(descriptor.config)
+                            }
+                        }
+                    }
+                    else -> {
+                        error("Unrecognized action $action")
+                    }
+                }
+                DeviceMessage.ok {
+                    target = request.source
+                    source = deviceTarget
+                    data = result
+                }
+            } catch (ex: Exception) {
+                DeviceMessage.fail {
+                    comment = ex.message
+                }
+            }
+        }
+    }
+}
+
+
+suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
+    return try {
+        val targetName = request.target?.toName() ?: Name.EMPTY
+        val device = this[targetName]
+        DeviceController.respondMessage(device, targetName.toString(), request)
+    } catch (ex: Exception) {
+        DeviceMessage.fail {
+            comment = ex.message
+        }
     }
 }

@@ -1,12 +1,10 @@
 package hep.dataforge.control.api
 
 import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
-import hep.dataforge.control.controllers.DeviceMessage
-import hep.dataforge.control.controllers.MessageData
-import hep.dataforge.control.controllers.wrap
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.EnvelopeBuilder
-import hep.dataforge.meta.*
+import hep.dataforge.meta.Meta
+import hep.dataforge.meta.MetaItem
 import hep.dataforge.provider.Type
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -20,7 +18,7 @@ interface Consumer {
  *  General interface describing a managed Device
  */
 @Type(DEVICE_TARGET)
-interface Device: Closeable{
+interface Device : Closeable {
     /**
      * List of supported property descriptors
      */
@@ -70,119 +68,23 @@ interface Device: Closeable{
      * Send an action request and suspend caller while request is being processed.
      * Could return null if request does not return a meaningful answer.
      */
-    suspend fun execute(action: String, argument: MetaItem<*>? = null): MetaItem<*>?
+    suspend fun execute(command: String, argument: MetaItem<*>? = null): MetaItem<*>?
 
     /**
      *
+     * A request with binary data or for binary response (or both). This request does not cover basic functionality like
+     * [setProperty], [getProperty] or [execute] and not defined for a generic device.
+     *
+     * TODO implement Responder after DF 0.1.9
      */
-    suspend fun respondWithData(request: Envelope): EnvelopeBuilder = error("Respond with data not implemented")
+    suspend fun respond(request: Envelope): EnvelopeBuilder = error("No binary response defined")
 
     override fun close() {
         scope.cancel("The device is closed")
     }
 
-    companion object{
+    companion object {
         const val DEVICE_TARGET = "device"
-        const val GET_PROPERTY_ACTION = "read"
-        const val SET_PROPERTY_ACTION = "write"
-        const val EXECUTE_ACTION = "execute"
-        const val PROPERTY_LIST_ACTION = "propertyList"
-        const val ACTION_LIST_ACTION = "actionList"
-
-        internal suspend fun respond(device: Device, deviceTarget: String, request: Envelope): Envelope {
-            val target = request.meta["target"].string
-            return try {
-                if (request.data == null) {
-                    respondMessage(device, deviceTarget, DeviceMessage.wrap(request.meta)).wrap()
-                } else if (target != null && target != deviceTarget) {
-                    error("Wrong target name $deviceTarget expected but $target found")
-                } else {
-                    val response = device.respondWithData(request).apply {
-                        meta {
-                            "target" put request.meta["source"].string
-                            "source" put deviceTarget
-                        }
-                    }
-                    return response.build()
-                }
-            } catch (ex: Exception) {
-                DeviceMessage.fail {
-                    comment = ex.message
-                }.wrap()
-            }
-        }
-
-        internal suspend fun respondMessage(
-            device: Device,
-            deviceTarget: String,
-            request: DeviceMessage
-        ): DeviceMessage {
-            return try {
-                val result: List<MessageData> = when (val action = request.type) {
-                    GET_PROPERTY_ACTION -> {
-                        request.data.map { property ->
-                            MessageData {
-                                name = property.name
-                                value = device.getProperty(name)
-                            }
-                        }
-                    }
-                    SET_PROPERTY_ACTION -> {
-                        request.data.map { property ->
-                            val propertyName: String = property.name
-                            val propertyValue = property.value
-                            if (propertyValue == null) {
-                                device.invalidateProperty(propertyName)
-                            } else {
-                                device.setProperty(propertyName, propertyValue)
-                            }
-                            MessageData {
-                                name = propertyName
-                                value =  device.getProperty(propertyName)
-                            }
-                        }
-                    }
-                    EXECUTE_ACTION -> {
-                        request.data.map { payload ->
-                            MessageData {
-                                name = payload.name
-                                value =  device.execute(payload.name, payload.value)
-                            }
-                        }
-                    }
-                    PROPERTY_LIST_ACTION -> {
-                        device.propertyDescriptors.map { descriptor ->
-                            MessageData {
-                                name = descriptor.name
-                                value = MetaItem.NodeItem(descriptor.config)
-                            }
-                        }
-                    }
-
-                    ACTION_LIST_ACTION -> {
-                        device.actionDescriptors.map { descriptor ->
-                            MessageData {
-                                name = descriptor.name
-                                value = MetaItem.NodeItem(descriptor.config)
-                            }
-                        }
-                    }
-
-                    else -> {
-                        error("Unrecognized action $action")
-                    }
-                }
-                DeviceMessage.ok {
-                    target = request.source
-                    source = deviceTarget
-                    data = result
-                }
-            } catch (ex: Exception) {
-                DeviceMessage.fail {
-                    comment = ex.message
-                }
-            }
-        }
     }
 }
 

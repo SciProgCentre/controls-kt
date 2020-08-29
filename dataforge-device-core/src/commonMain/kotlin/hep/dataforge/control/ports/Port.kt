@@ -2,7 +2,7 @@ package hep.dataforge.control.ports
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -16,7 +16,12 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
 
     private val outgoing = Channel<ByteArray>(100)
     private val incoming = Channel<ByteArray>(Channel.CONFLATED)
-    //val receiveChannel: ReceiveChannel<ByteArray> get() = incoming
+
+    init {
+        scope.coroutineContext[Job]?.invokeOnCompletion {
+            close()
+        }
+    }
 
     /**
      * Internal method to synchronously send data
@@ -45,6 +50,9 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
         }
     }
 
+    /**
+     * Send a data packet via the port
+     */
     suspend fun send(data: ByteArray) {
         outgoing.send(data)
     }
@@ -59,9 +67,9 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
     }
 
     override fun close() {
-        scope.cancel("The port is closed")
         outgoing.close()
         incoming.close()
+        sendJob.cancel()
     }
 }
 
