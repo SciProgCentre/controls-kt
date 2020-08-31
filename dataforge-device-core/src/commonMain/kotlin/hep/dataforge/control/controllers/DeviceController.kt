@@ -1,6 +1,9 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.*
+import hep.dataforge.control.api.Device
+import hep.dataforge.control.api.DeviceHub
+import hep.dataforge.control.api.DeviceListener
+import hep.dataforge.control.api.get
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
@@ -80,7 +83,7 @@ class DeviceController(
                             "source" put deviceTarget
                         }
                     }
-                    return response.build()
+                    return response.seal()
                 }
             } catch (ex: Exception) {
                 DeviceMessage.fail {

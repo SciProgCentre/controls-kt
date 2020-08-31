@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.collect
 /**
  * The data class representing a SSE Event that will be sent to the client.
  */
-data class SseEvent(val data: String, val event: String? = null, val id: String? = null)
+public data class SseEvent(val data: String, val event: String? = null, val id: String? = null)
 
 /**
  * Method that responds an [ApplicationCall] by reading all the [SseEvent]s from the specified [events] [ReceiveChannel]
@@ -21,7 +21,7 @@ data class SseEvent(val data: String, val event: String? = null, val id: String?
  * You can read more about it here: https://www.html5rocks.com/en/tutorials/eventsource/basics/
  */
 @Suppress("BlockingMethodInNonBlockingContext")
-suspend fun ApplicationCall.respondSse(events: Flow<SseEvent>) {
+public suspend fun ApplicationCall.respondSse(events: Flow<SseEvent>) {
     response.cacheControl(CacheControl.NoCache(null))
     respondTextWriter(contentType = ContentType.Text.EventStream) {
         events.collect {  event->

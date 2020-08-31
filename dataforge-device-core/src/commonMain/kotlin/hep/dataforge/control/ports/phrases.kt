@@ -3,9 +3,13 @@ package hep.dataforge.control.ports
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.io.ByteArrayOutput
 
-fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> = flow {
+/**
+ * Transform byte fragments into complete phrases using given delimiter
+ */
+public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> = flow {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
 
     var output = ByteArrayOutput(expectedMessageSize)
@@ -32,7 +36,14 @@ fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int
 }
 
 /**
+ * Transform byte fragments into utf-8 phrases using utf-8 delimiter
+ */
+public fun Flow<ByteArray>.withDelimiter(delimiter: String, expectedMessageSize: Int = 32): Flow<String> {
+    return withDelimiter(delimiter.encodeToByteArray()).map { it.decodeToString() }
+}
+
+/**
  * A flow of delimited phrases
  */
-fun Port.delimitedIncoming(delimiter: ByteArray, expectedMessageSize: Int = 32) =
-    incoming().withDelimiter(delimiter, expectedMessageSize)
+public suspend fun Port.delimitedIncoming(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> =
+    receiving().withDelimiter(delimiter, expectedMessageSize)

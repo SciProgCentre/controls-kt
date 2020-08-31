@@ -1,6 +1,6 @@
 pluginManagement {
-    val kotlinVersion = "1.3.72"
-    val toolsVersion = "0.5.2"
+    val kotlinVersion = "1.4.0"
+    val toolsVersion = "0.6.0"
 
     repositories {
         mavenLocal()
@@ -24,7 +24,7 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             when (requested.id.id) {
-                "scientifik.publish", "scientifik.mpp", "scientifik.jvm", "scientifik.js" -> useModule("scientifik:gradle-tools:${toolsVersion}")
+                "kscience.publish", "kscience.mpp", "kscience.jvm", "kscience.js" -> useModule("ru.mipt.npm:gradle-tools:${toolsVersion}")
                 "kotlinx-atomicfu" -> useModule("org.jetbrains.kotlinx:atomicfu-gradle-plugin:${requested.version}")
             }
         }

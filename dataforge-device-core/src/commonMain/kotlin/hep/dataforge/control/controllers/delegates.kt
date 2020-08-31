@@ -38,3 +38,9 @@ fun <T : Any> DeviceProperty.convert(metaConverter: MetaConverter<T>): ReadWrite
 
 fun ReadOnlyDeviceProperty.double() = convert(MetaConverter.double)
 fun DeviceProperty.double() = convert(MetaConverter.double)
+
+fun ReadOnlyDeviceProperty.int() = convert(MetaConverter.int)
+fun DeviceProperty.int() = convert(MetaConverter.int)
+
+fun ReadOnlyDeviceProperty.string() = convert(MetaConverter.string)
+fun DeviceProperty.string() = convert(MetaConverter.string)

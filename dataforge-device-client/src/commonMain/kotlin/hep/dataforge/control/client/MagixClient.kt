@@ -16,8 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.json
+import kotlinx.serialization.json.*
 import kotlin.coroutines.CoroutineContext
 
 /*
@@ -61,14 +60,14 @@ class MagixClient(
         }
     }
 
-    private fun wrapMessage(message: DeviceMessage, requestId: String? = null): JsonObject = json {
-        "id" to generateId(message, requestId)
+    private fun wrapMessage(message: DeviceMessage, requestId: String? = null): JsonObject = buildJsonObject {
+        put("id", generateId(message, requestId))
         if (requestId != null) {
-            "parentId" to requestId
+            put("parentId", requestId)
         }
-        "target" to "magix"
-        "origin" to "df"
-        "payload" to message.config.toJson()
+        put("target", "magix")
+        put("origin", "df")
+        put("payload", message.config.toJson())
     }
 
 
@@ -81,7 +80,7 @@ class MagixClient(
 
     private val respondJob = launch {
         inbox.collect { json ->
-            val requestId = json["id"]?.primitive?.content
+            val requestId = json["id"]?.jsonPrimitive?.content
             val payload = json["payload"]?.jsonObject
             //TODO analyze action
 

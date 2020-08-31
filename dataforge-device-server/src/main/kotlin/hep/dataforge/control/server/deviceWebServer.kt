@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class, FlowPreview::class, UnstableDefault::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class, FlowPreview::class)
 
 package hep.dataforge.control.server
 
@@ -35,15 +35,16 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collect
 import kotlinx.html.*
-import kotlinx.serialization.UnstableDefault
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
 
 /**
  * Create and start a web server for several devices
  */
-fun CoroutineScope.startDeviceServer(
+@OptIn(KtorExperimentalAPI::class)
+public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = 8111,
     host: String = "localhost"
@@ -54,9 +55,6 @@ fun CoroutineScope.startDeviceServer(
         install(CORS) {
             anyHost()
         }
-//        install(ContentNegotiation) {
-//            json()
-//        }
         install(StatusPages) {
             exception<IllegalArgumentException> { cause ->
                 call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
@@ -71,15 +69,15 @@ fun CoroutineScope.startDeviceServer(
     }.start()
 }
 
-fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
+public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
     environment.monitor.subscribe(ApplicationStarted, callback)
 }
 
 
-const val WEB_SERVER_TARGET = "@webServer"
+public const val WEB_SERVER_TARGET: String = "@webServer"
 
 @OptIn(KtorExperimentalAPI::class)
-fun Application.deviceModule(
+public fun Application.deviceModule(
     manager: DeviceManager,
     deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
     route: String = "/"
@@ -152,17 +150,17 @@ fun Application.deviceModule(
             get("list") {
                 call.respondJson {
                     manager.devices.forEach { (name, device) ->
-                        "target" to name.toString()
-                        "properties" to jsonArray {
+                        put("target", name.toString())
+                        put("properties", buildJsonArray {
                             device.propertyDescriptors.forEach { descriptor ->
-                                +descriptor.config.toJson()
+                                add(descriptor.config.toJson())
                             }
-                        }
-                        "actions" to jsonArray {
+                        })
+                        put("actions", buildJsonArray {
                             device.actionDescriptors.forEach { actionDescriptor ->
-                                +actionDescriptor.config.toJson()
+                                add(actionDescriptor.config.toJson())
                             }
-                        }
+                        })
                     }
                 }
             }
@@ -187,7 +185,7 @@ fun Application.deviceModule(
 
             post("message") {
                 val body = call.receiveText()
-                val json = Json.parseJson(body) as? JsonObject
+                val json = Json.parseToJsonElement(body) as? JsonObject
                     ?: throw IllegalArgumentException("The body is not a json object")
                 val meta = json.toMeta()
 
@@ -220,7 +218,7 @@ fun Application.deviceModule(
                         val target: String by call.parameters
                         val property: String by call.parameters
                         val body = call.receiveText()
-                        val json = Json.parseJson(body)
+                        val json = Json.parseToJsonElement(body)
 
                         val request = DeviceMessage {
                             type = SET_PROPERTY_ACTION

@@ -1,11 +1,10 @@
 package hep.dataforge.control.ports
 
 import kotlinx.coroutines.*
-import mu.KLogger
-import mu.KotlinLogging
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
@@ -17,12 +16,12 @@ internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
 }
 
 class TcpPort private constructor(
-    scope: CoroutineScope,
+    parentContext: CoroutineContext,
     val host: String,
     val port: Int
-) : Port(scope), AutoCloseable {
+) : AbstractPort(parentContext), AutoCloseable {
 
-    override val logger: KLogger = KotlinLogging.logger("port[tcp:$host:$port]")
+    override fun toString(): String  = "port[tcp:$host:$port]"
 
     private val futureChannel: Deferred<SocketChannel> = this.scope.async(Dispatchers.IO) {
         SocketChannel.open(InetSocketAddress(host, port)).apply {
@@ -64,8 +63,7 @@ class TcpPort private constructor(
 
     companion object{
         suspend fun open(host: String, port: Int): TcpPort{
-            val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
-            return TcpPort(scope, host, port)
+            return TcpPort(coroutineContext, host, port)
         }
     }
 }

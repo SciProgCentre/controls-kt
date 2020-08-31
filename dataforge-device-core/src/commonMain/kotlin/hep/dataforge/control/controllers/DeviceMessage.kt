@@ -4,10 +4,10 @@ import hep.dataforge.control.controllers.DeviceController.Companion.GET_PROPERTY
 import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.*
 import hep.dataforge.names.asName
-import kotlinx.serialization.Decoder
-import kotlinx.serialization.Encoder
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 class DeviceMessage : Scheme() {
     var source by string(key = SOURCE_KEY)

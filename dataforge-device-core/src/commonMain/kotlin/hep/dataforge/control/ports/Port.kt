@@ -1,18 +1,26 @@
 package hep.dataforge.control.ports
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.launch
 import kotlinx.io.Closeable
 import mu.KLogger
+import mu.KotlinLogging
+import kotlin.coroutines.CoroutineContext
 
-abstract class Port(val scope: CoroutineScope) : Closeable {
+interface Port: Closeable {
+    suspend fun send(data: ByteArray)
+    suspend fun receiving(): Flow<ByteArray>
+    fun isOpen(): Boolean
+}
 
-    abstract val logger: KLogger
+
+abstract class AbstractPort(parentContext: CoroutineContext) : Port {
+
+    protected val scope = CoroutineScope(SupervisorJob(parentContext[Job]))
+
+    protected val logger: KLogger by lazy { KotlinLogging.logger(toString()) }
 
     private val outgoing = Channel<ByteArray>(100)
     private val incoming = Channel<ByteArray>(Channel.CONFLATED)
@@ -53,7 +61,7 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
     /**
      * Send a data packet via the port
      */
-    suspend fun send(data: ByteArray) {
+    override suspend fun send(data: ByteArray) {
         outgoing.send(data)
     }
 
@@ -62,7 +70,7 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
      * In order to form phrases some condition should used on top of it.
      * For example [delimitedIncoming] generates phrases with fixed delimiter.
      */
-    fun incoming(): Flow<ByteArray> {
+    override suspend fun receiving(): Flow<ByteArray> {
         return incoming.receiveAsFlow()
     }
 
@@ -70,7 +78,10 @@ abstract class Port(val scope: CoroutineScope) : Closeable {
         outgoing.close()
         incoming.close()
         sendJob.cancel()
+        scope.cancel()
     }
+
+    override fun isOpen(): Boolean = scope.isActive
 }
 
 /**

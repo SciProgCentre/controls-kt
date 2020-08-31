@@ -1,6 +1,6 @@
 plugins {
-    id("scientifik.jvm")
-    id("scientifik.publish")
+    id("kscience.jvm")
+    id("kscience.publish")
 }
 
 //TODO to be moved to a separate project

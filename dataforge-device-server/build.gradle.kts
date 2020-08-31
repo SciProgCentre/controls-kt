@@ -1,11 +1,11 @@
-import scientifik.useSerialization
-
 plugins {
-    id("scientifik.jvm")
-    id("scientifik.publish")
+    id("kscience.jvm")
+    id("kscience.publish")
 }
 
-useSerialization()
+kscience {
+    useSerialization()
+}
 
 val dataforgeVersion: String by rootProject.extra
 val ktorVersion: String by extra("1.3.2")

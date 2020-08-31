@@ -1,15 +1,14 @@
-import scientifik.useCoroutines
-import scientifik.useSerialization
-
 plugins {
-    id("scientifik.mpp")
-    id("scientifik.publish")
+    id("kscience.mpp")
+    id("kscience.publish")
 }
 
 val dataforgeVersion: String by rootProject.extra
 
-useCoroutines()
-useSerialization()
+kscience {
+    useCoroutines()
+    useSerialization()
+}
 
 kotlin {
     sourceSets {

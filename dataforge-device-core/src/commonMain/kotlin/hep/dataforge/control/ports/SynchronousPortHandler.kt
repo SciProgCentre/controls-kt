@@ -19,7 +19,7 @@ class SynchronousPortHandler(val port: Port) {
     suspend fun <R> respond(data: ByteArray, transform: suspend Flow<ByteArray>.() -> R): R {
         return mutex.withLock {
             port.send(data)
-            transform(port.incoming())
+            transform(port.receiving())
         }
     }
 }

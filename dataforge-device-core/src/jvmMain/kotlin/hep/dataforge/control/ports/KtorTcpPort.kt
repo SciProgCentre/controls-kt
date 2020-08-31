@@ -6,19 +6,21 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.consumeEachBufferRange
 import io.ktor.utils.io.writeAvailable
-import kotlinx.coroutines.*
-import mu.KLogger
-import mu.KotlinLogging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 class KtorTcpPort internal constructor(
-    scope: CoroutineScope,
+    parentContext: CoroutineContext,
     val host: String,
     val port: Int
-) : Port(scope), AutoCloseable {
+) : AbstractPort(parentContext), AutoCloseable {
 
-    override val logger: KLogger = KotlinLogging.logger("port[tcp:$host:$port]")
+    override fun toString() = "port[tcp:$host:$port]"
 
     private val futureSocket = scope.async {
         aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(InetSocketAddress(host, port))
@@ -48,10 +50,9 @@ class KtorTcpPort internal constructor(
         super.close()
     }
 
-    companion object{
-        suspend fun open(host: String, port: Int): KtorTcpPort{
-            val scope = CoroutineScope(SupervisorJob(coroutineContext[Job]))
-            return KtorTcpPort(scope, host, port)
+    companion object {
+        suspend fun open(host: String, port: Int): KtorTcpPort {
+            return KtorTcpPort(coroutineContext, host, port)
         }
     }
 }

@@ -1,19 +1,18 @@
 plugins {
-    id("scientifik.mpp")
-    id("scientifik.publish")
+    id("kscience.mpp")
+    id("kscience.publish")
 }
 
-val ktorVersion: String by extra("1.3.2")
-
+val ktorVersion: String by extra("1.4.0")
 
 kotlin {
-    js {
-        browser {
-            dceTask {
-                keep("ktor-ktor-io.\$\$importsForInline\$\$.ktor-ktor-io.io.ktor.utils.io")
-            }
-        }
-    }
+//    js {
+//        browser {
+//            dceTask {
+//                keep("ktor-ktor-io.\$\$importsForInline\$\$.ktor-ktor-io.io.ktor.utils.io")
+//            }
+//        }
+//    }
 
     sourceSets {
         commonMain {

@@ -8,6 +8,7 @@ import hep.dataforge.meta.string
  */
 class PropertyDescriptor(name: String) : Scheme() {
     val name by string(name)
+    var info by string()
 }
 
 /**
@@ -15,6 +16,7 @@ class PropertyDescriptor(name: String) : Scheme() {
  */
 class ActionDescriptor(name: String) : Scheme() {
     val name by string(name)
+    var info by string()
     //var descriptor by spec(ItemDescriptor)
 }
 
