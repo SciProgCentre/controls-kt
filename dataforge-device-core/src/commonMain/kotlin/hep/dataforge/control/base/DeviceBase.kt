@@ -45,6 +45,10 @@ abstract class DeviceBase : Device {
         return properties.getOrPut(name, builder)
     }
 
+    internal fun registerMutableProperty(name: String, builder: () -> DeviceProperty): DeviceProperty {
+        return properties.getOrPut(name, builder) as DeviceProperty
+    }
+
     internal fun registerAction(name: String, builder: () -> Action): Action {
         return actions.getOrPut(name, builder)
     }

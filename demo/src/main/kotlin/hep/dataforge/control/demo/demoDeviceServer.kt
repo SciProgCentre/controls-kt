@@ -5,7 +5,7 @@ import hep.dataforge.control.controllers.devices
 import hep.dataforge.control.server.startDeviceServer
 import hep.dataforge.control.server.whenStarted
 import hep.dataforge.meta.double
-import hep.dataforge.names.asName
+import hep.dataforge.names.NameToken
 import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -50,7 +50,7 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 
 
 fun startDemoDeviceServer(context: Context, device: DemoDevice): ApplicationEngine {
-    context.devices.registerDevice("demo".asName(), device)
+    context.devices.registerDevice(NameToken("demo"), device)
     val server = context.startDeviceServer(context.devices)
     server.whenStarted {
         plotlyModule("plots").apply {

@@ -25,7 +25,7 @@ class DemoDevice(parentScope: CoroutineScope) : DeviceBase() {
         parentScope.coroutineContext + executor.asCoroutineDispatcher() + Job(parentScope.coroutineContext[Job])
     )
 
-    val timeScale: IsolatedDeviceProperty by writingVirtual(5000.0.asValue())
+    val timeScale: DeviceProperty by writingVirtual(5000.0.asValue())
     var timeScaleValue by timeScale.double()
 
     val sinScale by writingVirtual(1.0.asValue())

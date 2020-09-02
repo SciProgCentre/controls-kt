@@ -5,6 +5,7 @@ import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.get
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
+import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope
@@ -168,7 +169,7 @@ class DeviceController(
 suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
     return try {
         val targetName = request.target?.toName() ?: Name.EMPTY
-        val device = this[targetName]
+        val device = this[targetName] ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {
         DeviceMessage.fail {

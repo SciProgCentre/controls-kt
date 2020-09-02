@@ -5,7 +5,6 @@ plugins {
 
 //TODO to be moved to a separate project
 
-
 dependencies {
     implementation(project(":dataforge-device-core"))
 }

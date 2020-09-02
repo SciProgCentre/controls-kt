@@ -1,10 +1,8 @@
 package hep.dataforge.control.base
 
 import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.MetaBuilder
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.double
+import hep.dataforge.meta.*
+import hep.dataforge.values.Null
 import hep.dataforge.values.Value
 import hep.dataforge.values.asValue
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +24,7 @@ private fun DeviceBase.propertyChanged(name: String, item: MetaItem<*>?){
  * A stand-alone [ReadOnlyDeviceProperty] implementation not directly attached to a device
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-open class IsolatedReadOnlyDeviceProperty(
+public open class IsolatedReadOnlyDeviceProperty(
     override val name: String,
     default: MetaItem<*>?,
     override val descriptor: PropertyDescriptor,
@@ -42,7 +40,7 @@ open class IsolatedReadOnlyDeviceProperty(
         state.value = null
     }
 
-    protected fun update(item: MetaItem<*>) {
+    override fun updateLogical(item: MetaItem<*>) {
         state.value = item
         callback(name, item)
     }
@@ -56,7 +54,7 @@ open class IsolatedReadOnlyDeviceProperty(
                 //TODO add error catching
                 getter(currentValue)
             }
-            update(res)
+            updateLogical(res)
             res
         } else {
             currentValue
@@ -66,7 +64,7 @@ open class IsolatedReadOnlyDeviceProperty(
     override fun flow(): StateFlow<MetaItem<*>?> = state
 }
 
-fun DeviceBase.readOnlyProperty(
+public fun DeviceBase.readOnlyProperty(
     name: String,
     default: MetaItem<*>?,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -87,9 +85,9 @@ private class ReadOnlyDevicePropertyDelegate<D : DeviceBase>(
     val default: MetaItem<*>?,
     val descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     private val getter: suspend (MetaItem<*>?) -> MetaItem<*>
-) : ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> {
+) : ReadOnlyProperty<D, ReadOnlyDeviceProperty> {
 
-    override fun getValue(thisRef: D, property: KProperty<*>): IsolatedReadOnlyDeviceProperty {
+    override fun getValue(thisRef: D, property: KProperty<*>): ReadOnlyDeviceProperty {
         val name = property.name
 
         return owner.registerProperty(name) {
@@ -102,37 +100,37 @@ private class ReadOnlyDevicePropertyDelegate<D : DeviceBase>(
                 owner::propertyChanged,
                 getter
             )
-        } as IsolatedReadOnlyDeviceProperty
+        }
     }
 }
 
-fun <D : DeviceBase> D.reading(
+public fun <D : DeviceBase> D.reading(
     default: MetaItem<*>? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (MetaItem<*>?) -> MetaItem<*>
-): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
+): ReadOnlyProperty<D, ReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default,
     descriptorBuilder,
     getter
 )
 
-fun <D : DeviceBase> D.readingValue(
+public fun <D : DeviceBase> D.readingValue(
     default: Value? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    getter: suspend () -> Any
-): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
+    getter: suspend () -> Any?
+): ReadOnlyProperty<D, ReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default?.let { MetaItem.ValueItem(it) },
     descriptorBuilder,
     getter = { MetaItem.ValueItem(Value.of(getter())) }
 )
 
-fun <D : DeviceBase> D.readingNumber(
+public fun <D : DeviceBase> D.readingNumber(
     default: Number? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend () -> Number
-): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
+): ReadOnlyProperty<D, ReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default?.let { MetaItem.ValueItem(it.asValue()) },
     descriptorBuilder,
@@ -142,11 +140,25 @@ fun <D : DeviceBase> D.readingNumber(
     }
 )
 
-fun <D : DeviceBase> D.readingMeta(
+public fun <D : DeviceBase> D.readingString(
+    default: Number? = null,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    getter: suspend () -> String
+): ReadOnlyProperty<D, ReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
+    this,
+    default?.let { MetaItem.ValueItem(it.asValue()) },
+    descriptorBuilder,
+    getter = {
+        val number = getter()
+        MetaItem.ValueItem(number.asValue())
+    }
+)
+
+public fun <D : DeviceBase> D.readingMeta(
     default: Meta? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend MetaBuilder.() -> Unit
-): ReadOnlyProperty<D, IsolatedReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
+): ReadOnlyProperty<D, ReadOnlyDeviceProperty> = ReadOnlyDevicePropertyDelegate(
     this,
     default?.let { MetaItem.NodeItem(it) },
     descriptorBuilder,
@@ -156,7 +168,7 @@ fun <D : DeviceBase> D.readingMeta(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class IsolatedDeviceProperty(
+public class IsolatedDeviceProperty(
     name: String,
     default: MetaItem<*>?,
     descriptor: PropertyDescriptor,
@@ -189,20 +201,20 @@ class IsolatedDeviceProperty(
             withContext(scope.coroutineContext) {
                 //TODO add error catching
                 setter(oldValue, item)?.let {
-                    update(it)
+                    updateLogical(it)
                 }
             }
         }
     }
 }
 
-fun DeviceBase.mutableProperty(
+public fun DeviceBase.mutableProperty(
     name: String,
     default: MetaItem<*>?,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (MetaItem<*>?) -> MetaItem<*>,
     setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
-): ReadOnlyDeviceProperty = registerProperty(name) {
+): DeviceProperty = registerMutableProperty(name) {
     IsolatedDeviceProperty(
         name,
         default,
@@ -220,11 +232,11 @@ private class DevicePropertyDelegate<D : DeviceBase>(
     val descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     private val getter: suspend (MetaItem<*>?) -> MetaItem<*>,
     private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
-) : ReadOnlyProperty<D, IsolatedDeviceProperty> {
+) : ReadOnlyProperty<D, DeviceProperty> {
 
     override fun getValue(thisRef: D, property: KProperty<*>): IsolatedDeviceProperty {
         val name = property.name
-        return owner.registerProperty(name) {
+        return owner.registerMutableProperty(name) {
             @OptIn(ExperimentalCoroutinesApi::class)
             IsolatedDeviceProperty(
                 name,
@@ -239,12 +251,12 @@ private class DevicePropertyDelegate<D : DeviceBase>(
     }
 }
 
-fun <D : DeviceBase> D.writing(
+public fun <D : DeviceBase> D.writing(
     default: MetaItem<*>? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (MetaItem<*>?) -> MetaItem<*>,
     setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?
-): ReadOnlyProperty<D, IsolatedDeviceProperty> = DevicePropertyDelegate(
+): ReadOnlyProperty<D, DeviceProperty> = DevicePropertyDelegate(
     this,
     default,
     descriptorBuilder,
@@ -252,31 +264,31 @@ fun <D : DeviceBase> D.writing(
     setter
 )
 
-fun <D : DeviceBase> D.writingVirtual(
+public fun <D : DeviceBase> D.writingVirtual(
     default: MetaItem<*>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {}
-): ReadOnlyProperty<D, IsolatedDeviceProperty> = writing(
+): ReadOnlyProperty<D, DeviceProperty> = writing(
     default,
     descriptorBuilder,
     getter = { it ?: default },
     setter = { _, newItem -> newItem }
 )
 
-fun <D : DeviceBase> D.writingVirtual(
+public fun <D : DeviceBase> D.writingVirtual(
     default: Value,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {}
-): ReadOnlyProperty<D, IsolatedDeviceProperty> = writing(
+): ReadOnlyProperty<D, DeviceProperty> = writing(
     MetaItem.ValueItem(default),
     descriptorBuilder,
     getter = { it ?: MetaItem.ValueItem(default) },
     setter = { _, newItem -> newItem }
 )
 
-fun <D : DeviceBase> D.writingDouble(
+public fun <D : DeviceBase> D.writingDouble(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (Double) -> Double,
     setter: suspend (oldValue: Double?, newValue: Double) -> Double?
-): ReadOnlyProperty<D, IsolatedDeviceProperty> {
+): ReadOnlyProperty<D, DeviceProperty> {
     val innerGetter: suspend (MetaItem<*>?) -> MetaItem<*> = {
         MetaItem.ValueItem(getter(it.double ?: Double.NaN).asValue())
     }
@@ -288,6 +300,28 @@ fun <D : DeviceBase> D.writingDouble(
     return DevicePropertyDelegate(
         this,
         MetaItem.ValueItem(Double.NaN.asValue()),
+        descriptorBuilder,
+        innerGetter,
+        innerSetter
+    )
+}
+
+public fun <D : DeviceBase> D.writingBoolean(
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    getter: suspend (Boolean?) -> Boolean,
+    setter: suspend (oldValue: Boolean?, newValue: Boolean) -> Boolean?
+): ReadOnlyProperty<D, DeviceProperty> {
+    val innerGetter: suspend (MetaItem<*>?) -> MetaItem<*> = {
+        MetaItem.ValueItem(getter(it.boolean).asValue())
+    }
+
+    val innerSetter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>? = { oldValue, newValue ->
+        setter(oldValue.boolean, newValue.boolean?: error("Can't convert $newValue to boolean"))?.asValue()?.asMetaItem()
+    }
+
+    return DevicePropertyDelegate(
+        this,
+        MetaItem.ValueItem(Null),
         descriptorBuilder,
         innerGetter,
         innerSetter

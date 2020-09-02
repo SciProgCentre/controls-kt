@@ -9,52 +9,52 @@ import kotlin.time.Duration
 /**
  * Read-only device property
  */
-interface ReadOnlyDeviceProperty {
+public interface ReadOnlyDeviceProperty {
     /**
      * Property name, should be unique in device
      */
-    val name: String
+    public val name: String
 
     /**
      * Property descriptor
      */
-    val descriptor: PropertyDescriptor
+    public val descriptor: PropertyDescriptor
 
-    val scope: CoroutineScope
+    public val scope: CoroutineScope
 
     /**
      * Erase logical value and force re-read from device on next [read]
      */
-    suspend fun invalidate()
+    public suspend fun invalidate()
 
-//    /**
-//     * Update property logical value and notify listener without writing it to device
-//     */
-//    suspend fun update(item: MetaItem<*>)
-//
+    /**
+     * Directly update property logical value and notify listener without writing it to device
+     */
+    public fun updateLogical(item: MetaItem<*>)
+
     /**
      *  Get cached value and return null if value is invalid or not initialized
      */
-    val value: MetaItem<*>?
+    public val value: MetaItem<*>?
 
     /**
      * Read value either from cache if cache is valid or directly from physical device.
-     * If [force], reread
+     * If [force], reread from physical state even if the logical state is set.
      */
-    suspend fun read(force: Boolean = false): MetaItem<*>
+    public suspend fun read(force: Boolean = false): MetaItem<*>
 
     /**
      * The [Flow] representing future logical states of the property.
      * Produces null when the state is invalidated
      */
-    fun flow(): Flow<MetaItem<*>?>
+    public fun flow(): Flow<MetaItem<*>?>
 }
 
 
 /**
  * Launch recurring force re-read job on a property scope with given [duration] between reads.
  */
-fun ReadOnlyDeviceProperty.readEvery(duration: Duration): Job = scope.launch {
+public fun ReadOnlyDeviceProperty.readEvery(duration: Duration): Job = scope.launch {
     while (isActive) {
         read(true)
         delay(duration)
@@ -64,11 +64,11 @@ fun ReadOnlyDeviceProperty.readEvery(duration: Duration): Job = scope.launch {
 /**
  * A writeable device property with non-suspended write
  */
-interface DeviceProperty : ReadOnlyDeviceProperty {
+public interface DeviceProperty : ReadOnlyDeviceProperty {
     override var value: MetaItem<*>?
 
     /**
      * Write value to physical device. Invalidates logical value, but does not update it automatically
      */
-    suspend fun write(item: MetaItem<*>)
+    public suspend fun write(item: MetaItem<*>)
 }

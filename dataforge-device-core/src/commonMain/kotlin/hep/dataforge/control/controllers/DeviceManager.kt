@@ -8,6 +8,7 @@ import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.meta.Meta
 import hep.dataforge.names.Name
+import hep.dataforge.names.NameToken
 import kotlin.reflect.KClass
 
 class DeviceManager : AbstractPlugin(), DeviceHub {
@@ -16,14 +17,14 @@ class DeviceManager : AbstractPlugin(), DeviceHub {
     /**
      * Actual list of connected devices
      */
-    private val top = HashMap<Name, Device>()
-    override val devices: Map<Name, Device> get() = top
+    private val top = HashMap<NameToken, Device>()
+    override val devices: Map<NameToken, Device> get() = top
 
     val controller by lazy {
         HubController(this, context)
     }
 
-    fun registerDevice(name: Name, device: Device) {
+    fun registerDevice(name: NameToken, device: Device) {
         top[name] = device
     }
 

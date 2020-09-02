@@ -115,7 +115,7 @@ public fun Application.deviceModule(
                             +"Device server dashboard"
                         }
                         deviceNames.forEach { deviceName ->
-                            val device = manager[deviceName]
+                            val device = manager[deviceName] ?: error("The device with name $deviceName not found in $manager")
                             div {
                                 id = deviceName
                                 h2 { +deviceName }
