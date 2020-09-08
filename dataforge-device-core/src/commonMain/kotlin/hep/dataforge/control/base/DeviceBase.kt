@@ -5,14 +5,11 @@ import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /**
  * Baseline implementation of [Device] interface
@@ -104,9 +101,9 @@ public abstract class DeviceBase : Device {
             //backup current value
             val currentValue = value
             return if (force || currentValue == null) {
-                val res = withContext(scope.coroutineContext) {
-                    //all device operations should be run on device context
-                    //TODO add error catching
+                //all device operations should be run on device context
+                //propagate error, but do not fail scope
+                val res = withContext(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job])) {
                     getter(currentValue)
                 }
                 updateLogical(res)
@@ -167,8 +164,7 @@ public abstract class DeviceBase : Device {
                 if (item == value) return@withLock
                 val oldValue = value
                 //all device operations should be run on device context
-                withContext(scope.coroutineContext) {
-                    //TODO add error catching
+                withContext(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job])) {
                     setter(oldValue, item)?.let {
                         updateLogical(it)
                     }
@@ -206,11 +202,14 @@ public abstract class DeviceBase : Device {
         override val descriptor: ActionDescriptor,
         private val block: suspend (MetaItem<*>?) -> MetaItem<*>?,
     ) : Action {
-        override suspend fun invoke(arg: MetaItem<*>?): MetaItem<*>? = block(arg).also {
-            notifyListeners {
-                actionExecuted(name, arg, it)
+        override suspend fun invoke(arg: MetaItem<*>?): MetaItem<*>? =
+            withContext(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job])) {
+                block(arg).also {
+                    notifyListeners {
+                        actionExecuted(name, arg, it)
+                    }
+                }
             }
-        }
     }
 
     /**
