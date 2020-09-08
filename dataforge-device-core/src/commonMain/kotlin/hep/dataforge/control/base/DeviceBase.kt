@@ -5,14 +5,23 @@ import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.MetaItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Baseline implementation of [Device] interface
  */
-abstract class DeviceBase : Device {
-    private val properties = HashMap<String, ReadOnlyDeviceProperty>()
-    private val actions = HashMap<String, Action>()
+public abstract class DeviceBase : Device {
+    private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
+    public val properties: Map<String, ReadOnlyDeviceProperty> get() = _properties
+    private val _actions = HashMap<String, Action>()
+    public val actions: Map<String, Action> get() = _actions
 
     private val listeners = ArrayList<Pair<Any?, DeviceListener>>(4)
 
@@ -24,11 +33,11 @@ abstract class DeviceBase : Device {
         listeners.removeAll { it.first == owner }
     }
 
-    fun notifyListeners(block: DeviceListener.() -> Unit) {
+    internal fun notifyListeners(block: DeviceListener.() -> Unit) {
         listeners.forEach { it.second.block() }
     }
 
-    fun notifyPropertyChanged(propertyName: String) {
+    public fun notifyPropertyChanged(propertyName: String) {
         scope.launch {
             val value = getProperty(propertyName)
             notifyListeners { propertyChanged(propertyName, value) }
@@ -36,41 +45,188 @@ abstract class DeviceBase : Device {
     }
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
-        get() = properties.values.map { it.descriptor }
+        get() = _properties.values.map { it.descriptor }
 
     override val actionDescriptors: Collection<ActionDescriptor>
-        get() = actions.values.map { it.descriptor }
+        get() = _actions.values.map { it.descriptor }
 
-    internal fun registerProperty(name: String, builder: () -> ReadOnlyDeviceProperty): ReadOnlyDeviceProperty {
-        return properties.getOrPut(name, builder)
+    internal fun <P : ReadOnlyDeviceProperty> registerProperty(name: String, property: P) {
+        if (_properties.contains(name)) error("Property with name $name already registered")
+        _properties[name] = property
     }
 
-    internal fun registerMutableProperty(name: String, builder: () -> DeviceProperty): DeviceProperty {
-        return properties.getOrPut(name, builder) as DeviceProperty
-    }
-
-    internal fun registerAction(name: String, builder: () -> Action): Action {
-        return actions.getOrPut(name, builder)
+    internal fun registerAction(name: String, action: Action) {
+        if (_actions.contains(name)) error("Action with name $name already registered")
+        _actions[name] = action
     }
 
     override suspend fun getProperty(propertyName: String): MetaItem<*> =
-        (properties[propertyName] ?: error("Property with name $propertyName not defined")).read()
+        (_properties[propertyName] ?: error("Property with name $propertyName not defined")).read()
 
     override suspend fun invalidateProperty(propertyName: String) {
-        (properties[propertyName] ?: error("Property with name $propertyName not defined")).invalidate()
+        (_properties[propertyName] ?: error("Property with name $propertyName not defined")).invalidate()
     }
 
     override suspend fun setProperty(propertyName: String, value: MetaItem<*>) {
-        (properties[propertyName] as? DeviceProperty ?: error("Property with name $propertyName not defined")).write(
+        (_properties[propertyName] as? DeviceProperty ?: error("Property with name $propertyName not defined")).write(
             value
         )
     }
 
     override suspend fun execute(command: String, argument: MetaItem<*>?): MetaItem<*>? =
-        (actions[command] ?: error("Request with name $command not defined")).invoke(argument)
+        (_actions[command] ?: error("Request with name $command not defined")).invoke(argument)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private open inner class BasicReadOnlyDeviceProperty(
+        override val name: String,
+        default: MetaItem<*>?,
+        override val descriptor: PropertyDescriptor,
+        private val getter: suspend (before: MetaItem<*>?) -> MetaItem<*>,
+    ) : ReadOnlyDeviceProperty {
 
-    companion object {
+        override val scope: CoroutineScope get() = this@DeviceBase.scope
+
+        private val state: MutableStateFlow<MetaItem<*>?> = MutableStateFlow(default)
+        override val value: MetaItem<*>? get() = state.value
+
+        override suspend fun invalidate() {
+            state.value = null
+        }
+
+        override fun updateLogical(item: MetaItem<*>) {
+            state.value = item
+            notifyListeners {
+                propertyChanged(name, item)
+            }
+        }
+
+        override suspend fun read(force: Boolean): MetaItem<*> {
+            //backup current value
+            val currentValue = value
+            return if (force || currentValue == null) {
+                val res = withContext(scope.coroutineContext) {
+                    //all device operations should be run on device context
+                    //TODO add error catching
+                    getter(currentValue)
+                }
+                updateLogical(res)
+                res
+            } else {
+                currentValue
+            }
+        }
+
+        override fun flow(): StateFlow<MetaItem<*>?> = state
+    }
+
+    /**
+     * Create a bound read-only property with given [getter]
+     */
+    public fun newReadOnlyProperty(
+        name: String,
+        default: MetaItem<*>?,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        getter: suspend (MetaItem<*>?) -> MetaItem<*>,
+    ): ReadOnlyDeviceProperty {
+        val property = BasicReadOnlyDeviceProperty(
+            name,
+            default,
+            PropertyDescriptor(name).apply(descriptorBuilder),
+            getter
+        )
+        registerProperty(name, property)
+        return property
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private inner class BasicDeviceProperty(
+        name: String,
+        default: MetaItem<*>?,
+        descriptor: PropertyDescriptor,
+        getter: suspend (MetaItem<*>?) -> MetaItem<*>,
+        private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?,
+    ) : BasicReadOnlyDeviceProperty(name, default, descriptor, getter), DeviceProperty {
+
+        override var value: MetaItem<*>?
+            get() = super.value
+            set(value) {
+                scope.launch {
+                    if (value == null) {
+                        invalidate()
+                    } else {
+                        write(value)
+                    }
+                }
+            }
+
+        private val writeLock = Mutex()
+
+        override suspend fun write(item: MetaItem<*>) {
+            writeLock.withLock {
+                //fast return if value is not changed
+                if (item == value) return@withLock
+                val oldValue = value
+                //all device operations should be run on device context
+                withContext(scope.coroutineContext) {
+                    //TODO add error catching
+                    setter(oldValue, item)?.let {
+                        updateLogical(it)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Create a bound mutable property with given [getter] and [setter]
+     */
+    public fun newMutableProperty(
+        name: String,
+        default: MetaItem<*>?,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        getter: suspend (MetaItem<*>?) -> MetaItem<*>,
+        setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?,
+    ): DeviceProperty {
+        val property = BasicDeviceProperty(
+            name,
+            default,
+            PropertyDescriptor(name).apply(descriptorBuilder),
+            getter,
+            setter
+        )
+        registerProperty(name, property)
+        return property
+    }
+
+    /**
+     * A stand-alone action
+     */
+    private inner class BasicAction(
+        override val name: String,
+        override val descriptor: ActionDescriptor,
+        private val block: suspend (MetaItem<*>?) -> MetaItem<*>?,
+    ) : Action {
+        override suspend fun invoke(arg: MetaItem<*>?): MetaItem<*>? = block(arg).also {
+            notifyListeners {
+                actionExecuted(name, arg, it)
+            }
+        }
+    }
+
+    /**
+     * Create a new bound action
+     */
+    public fun newAction(
+        name: String,
+        descriptorBuilder: ActionDescriptor.() -> Unit = {},
+        block: suspend (MetaItem<*>?) -> MetaItem<*>?,
+    ): Action {
+        val action = BasicAction(name, ActionDescriptor(name).apply(descriptorBuilder), block)
+        registerAction(name, action)
+        return action
+    }
+
+    public companion object {
 
     }
 }

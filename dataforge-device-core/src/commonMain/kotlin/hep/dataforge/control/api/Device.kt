@@ -3,7 +3,6 @@ package hep.dataforge.control.api
 import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.EnvelopeBuilder
-import hep.dataforge.io.Responder
 import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
 import hep.dataforge.provider.Type
@@ -15,7 +14,7 @@ import kotlinx.io.Closeable
  *  General interface describing a managed Device
  */
 @Type(DEVICE_TARGET)
-public interface Device : Responder, Closeable {
+public interface Device : Closeable {
     /**
      * List of supported property descriptors
      */
@@ -73,7 +72,7 @@ public interface Device : Responder, Closeable {
      * [setProperty], [getProperty] or [execute] and not defined for a generic device.
      *
      */
-    override suspend fun respond(request: Envelope): EnvelopeBuilder = error("No binary response defined")
+    public suspend fun respondWithData(request: Envelope): EnvelopeBuilder = error("No binary response defined")
 
     override fun close() {
         scope.cancel("The device is closed")

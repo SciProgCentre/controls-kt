@@ -1,19 +1,11 @@
 plugins {
-    id("kscience.mpp")
-    id("kscience.publish")
+    id("ru.mipt.npm.mpp")
+    id("ru.mipt.npm.publish")
 }
 
 val ktorVersion: String by extra("1.4.0")
 
 kotlin {
-//    js {
-//        browser {
-//            dceTask {
-//                keep("ktor-ktor-io.\$\$importsForInline\$\$.ktor-ktor-io.io.ktor.utils.io")
-//            }
-//        }
-//    }
-
     sourceSets {
         commonMain {
             dependencies {

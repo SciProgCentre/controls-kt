@@ -1,6 +1,6 @@
 plugins {
-    id("kscience.mpp")
-    id("kscience.publish")
+    id("ru.mipt.npm.mpp")
+    id("ru.mipt.npm.publish")
 }
 
 val dataforgeVersion: String by rootProject.extra
@@ -15,7 +15,6 @@ kotlin {
         commonMain{
             dependencies {
                 api("hep.dataforge:dataforge-io:$dataforgeVersion")
-                //implementation("org.jetbrains.kotlinx:atomicfu-common:0.14.3")
             }
         }
         jvmMain{

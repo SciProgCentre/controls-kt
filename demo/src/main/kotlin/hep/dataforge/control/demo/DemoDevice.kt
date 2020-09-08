@@ -50,7 +50,7 @@ class DemoDevice(parentScope: CoroutineScope) : DeviceBase() {
     }
 
 
-    val resetScale: Action by action {
+    val resetScale: Action by acting {
         timeScaleValue = 5000.0
         sinScaleValue = 1.0
         cosScaleValue = 1.0

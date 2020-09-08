@@ -1,6 +1,6 @@
 plugins {
-    id("kscience.jvm")
-    id("kscience.publish")
+    id("ru.mipt.npm.jvm")
+    id("ru.mipt.npm.publish")
 }
 
 //TODO to be moved to a separate project

@@ -1,6 +1,6 @@
 plugins {
-    id("kscience.jvm")
-    id("kscience.publish")
+    id("ru.mipt.npm.jvm")
+    id("ru.mipt.npm.publish")
 }
 
 kscience {
@@ -8,7 +8,7 @@ kscience {
 }
 
 val dataforgeVersion: String by rootProject.extra
-val ktorVersion: String by extra("1.3.2")
+val ktorVersion: String by extra("1.4.0")
 
 dependencies{
     implementation(project(":dataforge-device-core"))

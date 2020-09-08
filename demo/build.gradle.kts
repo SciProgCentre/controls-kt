@@ -6,6 +6,7 @@ plugins {
 
 
 repositories{
+    mavenLocal()
     jcenter()
     maven("https://kotlin.bintray.com/kotlinx")
     maven("https://dl.bintray.com/kotlin/kotlin-eap")
@@ -21,7 +22,7 @@ dependencies{
     implementation(project(":dataforge-device-client"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
-    implementation("kscience.plotlykt:plotlykt-server:0.2.0")
+    implementation("kscience.plotlykt:plotlykt-server:0.3.0-dev-2")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

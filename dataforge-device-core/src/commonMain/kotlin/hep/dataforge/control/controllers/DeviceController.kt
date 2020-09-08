@@ -78,7 +78,7 @@ class DeviceController(
                 } else if (target != null && target != deviceTarget) {
                     error("Wrong target name $deviceTarget expected but $target found")
                 } else {
-                    val response = device.respond(request).apply {
+                    val response = device.respondWithData(request).apply {
                         meta {
                             "target" put request.meta["source"].string
                             "source" put deviceTarget

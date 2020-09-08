@@ -1,11 +1,14 @@
 package ru.mipt.npm.devices.pimotionmaster
 
+import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.control.base.*
+import hep.dataforge.control.controllers.duration
 import hep.dataforge.control.ports.Port
 import hep.dataforge.control.ports.PortProxy
 import hep.dataforge.control.ports.send
 import hep.dataforge.control.ports.withDelimiter
 import hep.dataforge.meta.MetaItem
+import hep.dataforge.names.NameToken
 import hep.dataforge.values.Null
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -14,11 +17,15 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration
+
 
 public class PiMotionMasterDevice(
     parentScope: CoroutineScope,
+    axes: List<String>,
     private val portFactory: suspend (MetaItem<*>?) -> Port,
-) : DeviceBase() {
+) : DeviceBase(), DeviceHub {
 
     override val scope: CoroutineScope = CoroutineScope(
         parentScope.coroutineContext + Job(parentScope.coroutineContext[Job])
@@ -28,11 +35,17 @@ public class PiMotionMasterDevice(
         info = "The port for TCP connector"
     }
 
+    public val timeout: DeviceProperty by writingVirtual(Null) {
+        info = "Timeout"
+    }
+
+    public var timeoutValue: Duration by timeout.duration()
+
     private val connector = PortProxy { portFactory(port.value) }
 
     private val mutex = Mutex()
 
-    private suspend fun sendCommand(command: String, vararg arguments: String) {
+    private suspend fun sendCommandInternal(command: String, vararg arguments: String) {
         val joinedArguments = if (arguments.isEmpty()) {
             ""
         } else {
@@ -46,9 +59,11 @@ public class PiMotionMasterDevice(
      * Send a synchronous request and receive a list of lines as a response
      */
     private suspend fun request(command: String, vararg arguments: String): List<String> = mutex.withLock {
-        sendCommand(command, *arguments)
-        val phrases = connector.receiving().withDelimiter("\n")
-        return@withLock phrases.takeWhile { it.endsWith(" \n") }.toList() + phrases.first()
+        withTimeout(timeoutValue) {
+            sendCommandInternal(command, *arguments)
+            val phrases = connector.receiving().withDelimiter("\n")
+            phrases.takeWhile { it.endsWith(" \n") }.toList() + phrases.first()
+        }
     }
 
     private suspend fun requestAndParse(command: String, vararg arguments: String): Map<String, String> = buildMap {
@@ -63,11 +78,13 @@ public class PiMotionMasterDevice(
      */
     private suspend fun send(command: String, vararg arguments: String) {
         mutex.withLock {
-            sendCommand(command, *arguments)
+            withTimeout(timeoutValue) {
+                sendCommandInternal(command, *arguments)
+            }
         }
     }
 
-    public val initialize: Action by action {
+    public val initialize: Action by acting {
         send("INI")
     }
 
@@ -79,32 +96,37 @@ public class PiMotionMasterDevice(
         override val scope: CoroutineScope get() = this@PiMotionMasterDevice.scope
         public val enabled: DeviceProperty by writingBoolean<Axis>(
             getter = {
-                val result = requestAndParse("EAX?", axisId)[axisId]?.toIntOrNull()
-                    ?: error("Malformed response. Should include integer value for $axisId")
-                result != 0
+                val eax = requestAndParse("EAX?", axisId)[axisId]?.toIntOrNull()
+                    ?: error("Malformed EAX response. Should include integer value for $axisId")
+                eax != 0
             },
-            setter = { oldValue, newValue ->
-                val value = if(newValue){
+            setter = { _, newValue ->
+                val value = if (newValue) {
                     "1"
                 } else {
                     "0"
                 }
                 send("EAX", axisId, value)
-                oldValue
+                newValue
             }
         )
 
-        public val halt: Action by action {
+        public val halt: Action by acting {
             send("HLT", axisId)
         }
+
+        public val targetPosition: DeviceProperty by writingDouble<Axis>(
+            getter = {
+                requestAndParse("MOV?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed MOV response. Should include float value for $axisId")
+            },
+            setter = { _, newValue ->
+                send("MOV", axisId, newValue.toString())
+                newValue
+            }
+        )
     }
 
-    init {
-        //list everything here to ensure it is initialized
-        initialize
-        firmwareVersion
-
-    }
-
+    override val devices: Map<NameToken, Axis> = axes.associate { NameToken(it) to Axis(it) }
 
 }

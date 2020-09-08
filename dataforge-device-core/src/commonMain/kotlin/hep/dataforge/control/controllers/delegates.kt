@@ -8,6 +8,7 @@ import hep.dataforge.values.Null
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
+import kotlin.time.Duration
 
 operator fun ReadOnlyDeviceProperty.getValue(thisRef: Any?, property: KProperty<*>): MetaItem<*> =
     value ?: MetaItem.ValueItem(Null)
@@ -17,10 +18,8 @@ operator fun DeviceProperty.setValue(thisRef: Any?, property: KProperty<*>, valu
 }
 
 fun <T : Any> ReadOnlyDeviceProperty.convert(metaConverter: MetaConverter<T>): ReadOnlyProperty<Any?, T> {
-    return object : ReadOnlyProperty<Any?, T> {
-        override fun getValue(thisRef: Any?, property: KProperty<*>): T {
-            return this@convert.getValue(thisRef, property).let { metaConverter.itemToObject(it) }
-        }
+    return ReadOnlyProperty { thisRef, property ->
+        getValue(thisRef, property).let { metaConverter.itemToObject(it) }
     }
 }
 
@@ -44,3 +43,6 @@ fun DeviceProperty.int() = convert(MetaConverter.int)
 
 fun ReadOnlyDeviceProperty.string() = convert(MetaConverter.string)
 fun DeviceProperty.string() = convert(MetaConverter.string)
+
+fun ReadOnlyDeviceProperty.duration(): ReadOnlyProperty<Any?, Duration> = TODO()
+fun DeviceProperty.duration(): ReadWriteProperty<Any?, Duration> = TODO()

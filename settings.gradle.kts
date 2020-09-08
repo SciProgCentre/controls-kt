@@ -1,6 +1,6 @@
 pluginManagement {
     val kotlinVersion = "1.4.0"
-    val toolsVersion = "0.6.0-dev-1"
+    val toolsVersion = "0.6.0-dev-4"
 
     repositories {
         mavenLocal()
@@ -9,25 +9,17 @@ pluginManagement {
         maven("https://kotlin.bintray.com/kotlinx")
         maven("https://dl.bintray.com/kotlin/kotlin-eap")
         maven("https://dl.bintray.com/mipt-npm/dataforge")
-        maven("https://dl.bintray.com/mipt-npm/scientifik")
+        maven("https://dl.bintray.com/mipt-npm/kscience")
         maven("https://dl.bintray.com/mipt-npm/dev")
     }
 
     plugins {
+        id("ru.mipt.npm.mpp") version toolsVersion
+        id("ru.mipt.npm.jvm") version toolsVersion
+        id("ru.mipt.npm.js") version toolsVersion
+        id("ru.mipt.npm.publish") version toolsVersion
         kotlin("jvm") version kotlinVersion
-        id("scientifik.mpp") version toolsVersion
-        id("scientifik.jvm") version toolsVersion
-        id("scientifik.js") version toolsVersion
-        id("scientifik.publish") version toolsVersion
-    }
-
-    resolutionStrategy {
-        eachPlugin {
-            when (requested.id.id) {
-                "kscience.publish", "kscience.mpp", "kscience.jvm", "kscience.js" -> useModule("ru.mipt.npm:gradle-tools:${toolsVersion}")
-                "kotlinx-atomicfu" -> useModule("org.jetbrains.kotlinx:atomicfu-gradle-plugin:${requested.version}")
-            }
-        }
+        kotlin("js") version kotlinVersion
     }
 }
 

@@ -6,17 +6,17 @@ import hep.dataforge.meta.string
 /**
  * A descriptor for property
  */
-class PropertyDescriptor(name: String) : Scheme() {
-    val name by string(name)
-    var info by string()
+public class PropertyDescriptor(name: String) : Scheme() {
+    public val name: String by string(name)
+    public var info: String? by string()
 }
 
 /**
  * A descriptor for property
  */
-class ActionDescriptor(name: String) : Scheme() {
-    val name by string(name)
-    var info by string()
+public class ActionDescriptor(name: String) : Scheme() {
+    public val name: String by string(name)
+    public var info: String? by string()
     //var descriptor by spec(ItemDescriptor)
 }
 
