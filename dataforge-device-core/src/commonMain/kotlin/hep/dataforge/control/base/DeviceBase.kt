@@ -1,5 +1,6 @@
 package hep.dataforge.control.base
 
+import hep.dataforge.context.Context
 import hep.dataforge.control.api.ActionDescriptor
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceListener
@@ -14,7 +15,8 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Baseline implementation of [Device] interface
  */
-public abstract class DeviceBase : Device {
+public abstract class DeviceBase(override val context: Context) : Device {
+
     private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
     public val properties: Map<String, ReadOnlyDeviceProperty> get() = _properties
     private val _actions = HashMap<String, Action>()

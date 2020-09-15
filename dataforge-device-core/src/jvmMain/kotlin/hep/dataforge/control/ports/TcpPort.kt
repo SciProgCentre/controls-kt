@@ -1,11 +1,15 @@
 package hep.dataforge.control.ports
 
+import hep.dataforge.context.Context
+import hep.dataforge.meta.Meta
+import hep.dataforge.meta.get
+import hep.dataforge.meta.int
+import hep.dataforge.meta.string
 import kotlinx.coroutines.*
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 
 internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
     rewind()
@@ -15,13 +19,14 @@ internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
     return response
 }
 
-class TcpPort private constructor(
-    parentContext: CoroutineContext,
-    val host: String,
-    val port: Int
-) : AbstractPort(parentContext), AutoCloseable {
+public class TcpPort private constructor(
+    context: Context,
+    public val host: String,
+    public val port: Int,
+    parentContext: CoroutineContext = context.coroutineContext,
+) : AbstractPort(context, parentContext), AutoCloseable {
 
-    override fun toString(): String  = "port[tcp:$host:$port]"
+    override fun toString(): String = "port[tcp:$host:$port]"
 
     private val futureChannel: Deferred<SocketChannel> = this.scope.async(Dispatchers.IO) {
         SocketChannel.open(InetSocketAddress(host, port)).apply {
@@ -32,7 +37,7 @@ class TcpPort private constructor(
     /**
      * A handler to await port connection
      */
-    val startJob: Job get() = futureChannel
+    public val startJob: Job get() = futureChannel
 
     private val listenerJob = this.scope.launch {
         val channel = futureChannel.await()
@@ -61,9 +66,20 @@ class TcpPort private constructor(
         super.close()
     }
 
-    companion object{
-        suspend fun open(host: String, port: Int): TcpPort{
-            return TcpPort(coroutineContext, host, port)
+    public companion object : PortFactory {
+        public fun open(
+            context: Context,
+            host: String,
+            port: Int,
+            coroutineContext: CoroutineContext = context.coroutineContext,
+        ): TcpPort {
+            return TcpPort(context, host, port, coroutineContext)
+        }
+
+        override fun invoke(meta: Meta, context: Context): Port {
+            val host = meta["host"].string ?: "localhost"
+            val port = meta["port"].int ?: error("Port value for TCP port is not defined in $meta")
+            return open(context, host, port)
         }
     }
 }

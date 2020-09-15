@@ -17,12 +17,12 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.seconds
 
 @OptIn(ExperimentalTime::class)
-class DemoDevice(parentScope: CoroutineScope) : DeviceBase() {
+class DemoDevice(context: Context) : DeviceBase(context) {
 
     private val executor = Executors.newSingleThreadExecutor()
 
     override val scope: CoroutineScope = CoroutineScope(
-        parentScope.coroutineContext + executor.asCoroutineDispatcher() + Job(parentScope.coroutineContext[Job])
+        context.coroutineContext + executor.asCoroutineDispatcher() + Job(context.coroutineContext[Job])
     )
 
     val timeScale: DeviceProperty by writingVirtual(5000.0.asValue())

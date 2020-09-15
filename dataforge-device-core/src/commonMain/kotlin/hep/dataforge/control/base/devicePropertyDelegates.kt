@@ -68,7 +68,7 @@ public fun DeviceBase.readingNumber(
 )
 
 public fun DeviceBase.readingString(
-    default: Number? = null,
+    default: String? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend () -> String,
 ): PropertyDelegateProvider<DeviceBase, ReadOnlyPropertyDelegate> = ReadOnlyDevicePropertyProvider(
@@ -78,6 +78,20 @@ public fun DeviceBase.readingString(
     getter = {
         val number = getter()
         MetaItem.ValueItem(number.asValue())
+    }
+)
+
+public fun DeviceBase.readingBoolean(
+    default: Boolean? = null,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    getter: suspend () -> Boolean,
+): PropertyDelegateProvider<DeviceBase, ReadOnlyPropertyDelegate> = ReadOnlyDevicePropertyProvider(
+    this,
+    default?.let { MetaItem.ValueItem(it.asValue()) },
+    descriptorBuilder,
+    getter = {
+        val boolean = getter()
+        MetaItem.ValueItem(boolean.asValue())
     }
 )
 

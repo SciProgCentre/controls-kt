@@ -9,22 +9,21 @@ import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
 import hep.dataforge.io.SimpleEnvelope
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.get
-import hep.dataforge.meta.string
-import hep.dataforge.meta.wrap
+import hep.dataforge.meta.*
 import hep.dataforge.names.Name
 import hep.dataforge.names.toName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.io.Binary
 
-class DeviceController(
-    val device: Device,
-    val deviceTarget: String,
-    val scope: CoroutineScope = device.scope
+@OptIn(DFExperimental::class)
+public class DeviceController(
+    public val device: Device,
+    public val deviceTarget: String,
+    public val scope: CoroutineScope = device.scope
 ) : Responder, Consumer, DeviceListener {
 
     init {
@@ -33,7 +32,7 @@ class DeviceController(
 
     private val outputChannel = Channel<Envelope>(Channel.CONFLATED)
 
-    suspend fun respondMessage(message: DeviceMessage): DeviceMessage = respondMessage(device, deviceTarget, message)
+    public suspend fun respondMessage(message: DeviceMessage): DeviceMessage = respondMessage(device, deviceTarget, message)
 
     override suspend fun respond(request: Envelope): Envelope = respond(device, deviceTarget, request)
 
@@ -54,8 +53,9 @@ class DeviceController(
         }
     }
 
-    fun output() = outputChannel.consumeAsFlow()
+    public fun recieving(): Flow<Envelope> = outputChannel.consumeAsFlow()
 
+    @DFExperimental
     override fun consume(message: Envelope) {
         // Fire the respond procedure and forget about the result
         scope.launch {
@@ -63,12 +63,12 @@ class DeviceController(
         }
     }
 
-    companion object {
-        const val GET_PROPERTY_ACTION = "read"
-        const val SET_PROPERTY_ACTION = "write"
-        const val EXECUTE_ACTION = "execute"
-        const val PROPERTY_LIST_ACTION = "propertyList"
-        const val ACTION_LIST_ACTION = "actionList"
+    public companion object {
+        public const val GET_PROPERTY_ACTION: String = "read"
+        public const val SET_PROPERTY_ACTION: String = "write"
+        public const val EXECUTE_ACTION: String = "execute"
+        public const val PROPERTY_LIST_ACTION: String = "propertyList"
+        public const val ACTION_LIST_ACTION: String = "actionList"
 
         internal suspend fun respond(device: Device, deviceTarget: String, request: Envelope): Envelope {
             val target = request.meta["target"].string
@@ -166,7 +166,7 @@ class DeviceController(
 }
 
 
-suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
+public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
     return try {
         val targetName = request.target?.toName() ?: Name.EMPTY
         val device = this[targetName] ?: error("The device with name $targetName not found in $this")

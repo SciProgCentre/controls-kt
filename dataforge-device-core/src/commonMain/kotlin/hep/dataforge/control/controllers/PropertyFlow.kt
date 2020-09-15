@@ -9,9 +9,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
-
-@ExperimentalCoroutinesApi
-suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
+@OptIn(ExperimentalCoroutinesApi::class)
+public suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
     val listener = object : DeviceListener {
         override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
             if (value != null) {

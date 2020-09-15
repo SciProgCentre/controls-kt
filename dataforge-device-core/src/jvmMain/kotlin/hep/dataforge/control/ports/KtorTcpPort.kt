@@ -1,9 +1,15 @@
 package hep.dataforge.control.ports
 
+import hep.dataforge.context.Context
+import hep.dataforge.meta.Meta
+import hep.dataforge.meta.get
+import hep.dataforge.meta.int
+import hep.dataforge.meta.string
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
+import io.ktor.util.KtorExperimentalAPI
 import io.ktor.utils.io.consumeEachBufferRange
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.Dispatchers
@@ -12,16 +18,17 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 
-class KtorTcpPort internal constructor(
-    parentContext: CoroutineContext,
-    val host: String,
-    val port: Int
-) : AbstractPort(parentContext), AutoCloseable {
+public class KtorTcpPort internal constructor(
+    context: Context,
+    public val host: String,
+    public val port: Int,
+    parentContext: CoroutineContext = context.coroutineContext,
+) : AbstractPort(context, parentContext), AutoCloseable {
 
-    override fun toString() = "port[tcp:$host:$port]"
+    override fun toString(): String = "port[tcp:$host:$port]"
 
+    @OptIn(KtorExperimentalAPI::class)
     private val futureSocket = scope.async {
         aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(InetSocketAddress(host, port))
     }
@@ -50,9 +57,20 @@ class KtorTcpPort internal constructor(
         super.close()
     }
 
-    companion object {
-        suspend fun open(host: String, port: Int): KtorTcpPort {
-            return KtorTcpPort(coroutineContext, host, port)
+    public companion object: PortFactory {
+        public fun open(
+            context: Context,
+            host: String,
+            port: Int,
+            coroutineContext: CoroutineContext = context.coroutineContext,
+        ): KtorTcpPort {
+            return KtorTcpPort(context, host, port, coroutineContext)
+        }
+
+        override fun invoke(meta: Meta, context: Context): Port {
+            val host = meta["host"].string ?: "localhost"
+            val port = meta["port"].int ?: error("Port value for TCP port is not defined in $meta")
+            return open(context, host, port)
         }
     }
 }

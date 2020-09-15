@@ -31,29 +31,29 @@ private class ActionProvider<D : DeviceBase>(
 
 public fun DeviceBase.requesting(
     descriptorBuilder: ActionDescriptor.() -> Unit = {},
-    block: suspend (MetaItem<*>?) -> MetaItem<*>?,
-): PropertyDelegateProvider<DeviceBase, ActionDelegate> = ActionProvider(this, descriptorBuilder, block)
+    action: suspend (MetaItem<*>?) -> MetaItem<*>?,
+): PropertyDelegateProvider<DeviceBase, ActionDelegate> = ActionProvider(this, descriptorBuilder, action)
 
 public fun <D : DeviceBase> D.requestingValue(
     descriptorBuilder: ActionDescriptor.() -> Unit = {},
-    block: suspend (MetaItem<*>?) -> Any?,
+    action: suspend (MetaItem<*>?) -> Any?,
 ): PropertyDelegateProvider<D, ActionDelegate> = ActionProvider(this, descriptorBuilder) {
-    val res = block(it)
+    val res = action(it)
     MetaItem.ValueItem(Value.of(res))
 }
 
 public fun <D : DeviceBase> D.requestingMeta(
     descriptorBuilder: ActionDescriptor.() -> Unit = {},
-    block: suspend MetaBuilder.(MetaItem<*>?) -> Unit,
+    action: suspend MetaBuilder.(MetaItem<*>?) -> Unit,
 ): PropertyDelegateProvider<D, ActionDelegate> = ActionProvider(this, descriptorBuilder) {
-    val res = MetaBuilder().apply { block(it) }
+    val res = MetaBuilder().apply { action(it) }
     MetaItem.NodeItem(res)
 }
 
 public fun DeviceBase.acting(
     descriptorBuilder: ActionDescriptor.() -> Unit = {},
-    block: suspend (MetaItem<*>?) -> Unit,
+    action: suspend (MetaItem<*>?) -> Unit,
 ): PropertyDelegateProvider<DeviceBase, ActionDelegate> = ActionProvider(this, descriptorBuilder) {
-    block(it)
+    action(it)
     null
 }

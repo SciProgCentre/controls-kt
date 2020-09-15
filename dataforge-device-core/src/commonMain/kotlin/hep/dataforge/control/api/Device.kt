@@ -1,5 +1,6 @@
 package hep.dataforge.control.api
 
+import hep.dataforge.context.ContextAware
 import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.EnvelopeBuilder
@@ -14,7 +15,7 @@ import kotlinx.io.Closeable
  *  General interface describing a managed Device
  */
 @Type(DEVICE_TARGET)
-public interface Device : Closeable {
+public interface Device : Closeable, ContextAware {
     /**
      * List of supported property descriptors
      */
@@ -27,7 +28,7 @@ public interface Device : Closeable {
     public val actionDescriptors: Collection<ActionDescriptor>
 
     /**
-     * The scope encompassing all operations on a device. When canceled, cancels all running processes
+     * The supervisor scope encompassing all operations on a device. When canceled, cancels all running processes
      */
     public val scope: CoroutineScope
 

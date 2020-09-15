@@ -1,6 +1,8 @@
 package ru.mipt.npm.devices.pimotionmaster
 
+import hep.dataforge.context.Context
 import hep.dataforge.control.api.DeviceHub
+import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.control.base.*
 import hep.dataforge.control.controllers.duration
 import hep.dataforge.control.ports.Port
@@ -12,6 +14,7 @@ import hep.dataforge.names.NameToken
 import hep.dataforge.values.Null
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -22,13 +25,13 @@ import kotlin.time.Duration
 
 
 public class PiMotionMasterDevice(
-    parentScope: CoroutineScope,
+    context: Context,
     axes: List<String>,
     private val portFactory: suspend (MetaItem<*>?) -> Port,
-) : DeviceBase(), DeviceHub {
+) : DeviceBase(context), DeviceHub {
 
     override val scope: CoroutineScope = CoroutineScope(
-        parentScope.coroutineContext + Job(parentScope.coroutineContext[Job])
+        context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
     )
 
     public val port: DeviceProperty by writingVirtual(Null) {
@@ -92,39 +95,90 @@ public class PiMotionMasterDevice(
         request("VER?").first()
     }
 
-    public inner class Axis(public val axisId: String) : DeviceBase() {
+    public val stop: Action by acting(
+        descriptorBuilder = {
+            info = "Stop all axis"
+        },
+        action = { send("STP") }
+    )
+
+    public inner class Axis(public val axisId: String) : DeviceBase(context) {
         override val scope: CoroutineScope get() = this@PiMotionMasterDevice.scope
-        public val enabled: DeviceProperty by writingBoolean<Axis>(
-            getter = {
-                val eax = requestAndParse("EAX?", axisId)[axisId]?.toIntOrNull()
-                    ?: error("Malformed EAX response. Should include integer value for $axisId")
-                eax != 0
-            },
-            setter = { _, newValue ->
-                val value = if (newValue) {
-                    "1"
-                } else {
-                    "0"
-                }
-                send("EAX", axisId, value)
-                newValue
+
+        private suspend fun readAxisBoolean(command: String): Boolean =
+            requestAndParse(command, axisId)[axisId]?.toIntOrNull()
+                    ?: error("Malformed $command response. Should include integer value for $axisId") != 0
+
+        private suspend fun writeAxisBoolean(command: String, value: Boolean): Boolean {
+            val boolean = if (value) {
+                "1"
+            } else {
+                "0"
             }
-        )
+            send(command, axisId, boolean)
+            return value
+        }
+
+        private fun axisBooleanProperty(command: String, descriptorBuilder: PropertyDescriptor.() -> Unit = {}) =
+            writingBoolean<Axis>(
+                getter = { readAxisBoolean("$command?") },
+                setter = { _, newValue -> writeAxisBoolean(command, newValue) },
+                descriptorBuilder = descriptorBuilder
+            )
+
+        private fun axisNumberProperty(command: String, descriptorBuilder: PropertyDescriptor.() -> Unit = {}) =
+            writingDouble<Axis>(
+                getter = {
+                    requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
+                        ?: error("Malformed $command response. Should include float value for $axisId")
+                },
+                setter = { _, newValue ->
+                    send(command, axisId, newValue.toString())
+                    newValue
+                },
+                descriptorBuilder = descriptorBuilder
+            )
+
+        public val enabled: DeviceProperty by axisBooleanProperty("EAX") {
+            info = "Motor enable state."
+        }
 
         public val halt: Action by acting {
             send("HLT", axisId)
         }
 
-        public val targetPosition: DeviceProperty by writingDouble<Axis>(
-            getter = {
-                requestAndParse("MOV?", axisId)[axisId]?.toDoubleOrNull()
-                    ?: error("Malformed MOV response. Should include float value for $axisId")
+        public val targetPosition: DeviceProperty by axisNumberProperty("MOV") {
+            info = """
+                Sets a new absolute target position for the specified axis.
+                Servo mode must be switched on for the commanded axis prior to using this command (closed-loop operation).
+            """.trimIndent()
+        }
+
+        public val onTarget: ReadOnlyDeviceProperty by readingBoolean(
+            descriptorBuilder = {
+                info = "Queries the on-target state of the specified axis."
             },
-            setter = { _, newValue ->
-                send("MOV", axisId, newValue.toString())
-                newValue
+            getter = {
+                readAxisBoolean("ONT?")
             }
         )
+
+        public val position: DeviceProperty by axisNumberProperty("POS") {
+            info = "The current axis position."
+        }
+
+        public val openLoopTarget: DeviceProperty by axisNumberProperty("OMA") {
+            info = "Position for open-loop operation."
+        }
+
+        public val closedLoop: DeviceProperty by axisBooleanProperty("SVO") {
+            info = "Servo closed loop mode"
+        }
+
+        public val velocity: DeviceProperty by axisNumberProperty("VEL") {
+            info = "Velocity value for closed-loop operation"
+        }
+
     }
 
     override val devices: Map<NameToken, Axis> = axes.associate { NameToken(it) to Axis(it) }

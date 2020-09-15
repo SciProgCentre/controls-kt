@@ -10,13 +10,13 @@ import kotlinx.coroutines.sync.withLock
  * The handler does not guarantee exclusive access to the port so the user mush ensure that no other controller handles port at the moment.
  *
  */
-class SynchronousPortHandler(val port: Port) {
+public class SynchronousPortHandler(public val port: Port) {
     private val mutex = Mutex()
 
     /**
      * Send a single message and wait for the flow of respond messages.
      */
-    suspend fun <R> respond(data: ByteArray, transform: suspend Flow<ByteArray>.() -> R): R {
+    public suspend fun <R> respond(data: ByteArray, transform: suspend Flow<ByteArray>.() -> R): R {
         return mutex.withLock {
             port.send(data)
             transform(port.receiving())
@@ -27,7 +27,7 @@ class SynchronousPortHandler(val port: Port) {
 /**
  * Send request and read incoming data blocks until the delimiter is encountered
  */
-suspend fun SynchronousPortHandler.respondWithDelimiter(data: ByteArray, delimiter: ByteArray): ByteArray {
+public suspend fun SynchronousPortHandler.respondWithDelimiter(data: ByteArray, delimiter: ByteArray): ByteArray {
     return respond(data) {
         withDelimiter(delimiter).first()
     }

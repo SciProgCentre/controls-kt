@@ -11,7 +11,7 @@ import hep.dataforge.names.Name
 import hep.dataforge.names.NameToken
 import kotlin.reflect.KClass
 
-class DeviceManager : AbstractPlugin(), DeviceHub {
+public class DeviceManager : AbstractPlugin(), DeviceHub {
     override val tag: PluginTag get() = Companion.tag
 
     /**
@@ -20,17 +20,17 @@ class DeviceManager : AbstractPlugin(), DeviceHub {
     private val top = HashMap<NameToken, Device>()
     override val devices: Map<NameToken, Device> get() = top
 
-    val controller by lazy {
+    public val controller: HubController by lazy {
         HubController(this, context)
     }
 
-    fun registerDevice(name: NameToken, device: Device) {
+    public fun registerDevice(name: NameToken, device: Device) {
         top[name] = device
     }
 
     override fun provideTop(target: String): Map<Name, Any> = super<DeviceHub>.provideTop(target)
 
-    companion object : PluginFactory<DeviceManager> {
+    public companion object : PluginFactory<DeviceManager> {
         override val tag: PluginTag = PluginTag("devices", group = PluginTag.DATAFORGE_GROUP)
         override val type: KClass<out DeviceManager> = DeviceManager::class
 
@@ -39,5 +39,5 @@ class DeviceManager : AbstractPlugin(), DeviceHub {
 }
 
 
-val Context.devices: DeviceManager get() = plugins.fetch(DeviceManager)
+public val Context.devices: DeviceManager get() = plugins.fetch(DeviceManager)
 

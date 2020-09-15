@@ -1,5 +1,6 @@
 package hep.dataforge.control.ports
 
+import hep.dataforge.context.Global
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -53,9 +54,9 @@ class TcpPortTest {
     @Test
     fun testWithEchoServer() {
         try {
-            runBlocking{
+            runBlocking {
                 val server = launchEchoServer(22188)
-                val port = TcpPort.open("localhost", 22188)
+                val port = TcpPort.open(Global, "localhost", 22188)
 
                 val logJob = launch {
                     port.receiving().collect {
@@ -78,9 +79,9 @@ class TcpPortTest {
     @Test
     fun testKtorWithEchoServer() {
         try {
-            runBlocking{
+            runBlocking {
                 val server = launchEchoServer(22188)
-                val port = KtorTcpPort.open("localhost", 22188)
+                val port = KtorTcpPort.open(Global,"localhost", 22188)
 
                 val logJob = launch {
                     port.receiving().collect {

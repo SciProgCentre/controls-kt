@@ -6,31 +6,31 @@ import hep.dataforge.control.api.get
 import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.get
-import hep.dataforge.meta.string
-import hep.dataforge.meta.wrap
+import hep.dataforge.meta.*
 import hep.dataforge.names.Name
 import hep.dataforge.names.NameToken
 import hep.dataforge.names.toName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class HubController(
-    val hub: DeviceHub,
-    val scope: CoroutineScope
+
+@OptIn(DFExperimental::class)
+public class HubController(
+    public val hub: DeviceHub,
+    public val scope: CoroutineScope
 ) : Consumer, Responder {
 
     private val messageOutbox = Channel<DeviceMessage>(Channel.CONFLATED)
 
     private val envelopeOutbox = Channel<Envelope>(Channel.CONFLATED)
 
-    fun messageOutput() = messageOutbox.consumeAsFlow()
+    public fun messageOutput(): Flow<DeviceMessage> = messageOutbox.consumeAsFlow()
 
-    fun envelopeOutput() = envelopeOutbox.consumeAsFlow()
+    public fun envelopeOutput(): Flow<Envelope> = envelopeOutbox.consumeAsFlow()
 
     private val packJob = scope.launch {
         while (isActive) {
@@ -61,7 +61,7 @@ class HubController(
         }
     }
 
-    suspend fun respondMessage(message: DeviceMessage): DeviceMessage = try {
+    public suspend fun respondMessage(message: DeviceMessage): DeviceMessage = try {
         val targetName = message.target?.toName() ?: Name.EMPTY
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         DeviceController.respondMessage(device, targetName.toString(), message)

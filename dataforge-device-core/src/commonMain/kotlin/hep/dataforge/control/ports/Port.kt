@@ -1,26 +1,26 @@
 package hep.dataforge.control.ports
 
+import hep.dataforge.context.Context
+import hep.dataforge.context.ContextAware
+import hep.dataforge.context.Factory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.io.Closeable
-import mu.KLogger
-import mu.KotlinLogging
 import kotlin.coroutines.CoroutineContext
 
-interface Port: Closeable {
-    suspend fun send(data: ByteArray)
-    suspend fun receiving(): Flow<ByteArray>
-    fun isOpen(): Boolean
+public interface Port: Closeable, ContextAware {
+    public suspend fun send(data: ByteArray)
+    public suspend fun receiving(): Flow<ByteArray>
+    public fun isOpen(): Boolean
 }
 
+public typealias PortFactory = Factory<Port>
 
-abstract class AbstractPort(parentContext: CoroutineContext) : Port {
+public abstract class AbstractPort(override val context: Context, parentContext: CoroutineContext = context.coroutineContext) : Port {
 
-    protected val scope = CoroutineScope(SupervisorJob(parentContext[Job]))
-
-    protected val logger: KLogger by lazy { KotlinLogging.logger(toString()) }
+    protected val scope: CoroutineScope = CoroutineScope(parentContext + SupervisorJob(parentContext[Job]))
 
     private val outgoing = Channel<ByteArray>(100)
     private val incoming = Channel<ByteArray>(Channel.CONFLATED)
@@ -87,4 +87,4 @@ abstract class AbstractPort(parentContext: CoroutineContext) : Port {
 /**
  * Send UTF-8 encoded string
  */
-suspend fun Port.send(string: String) = send(string.encodeToByteArray())
+public suspend fun Port.send(string: String): Unit = send(string.encodeToByteArray())

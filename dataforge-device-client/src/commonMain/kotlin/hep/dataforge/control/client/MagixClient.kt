@@ -35,10 +35,10 @@ import kotlin.coroutines.CoroutineContext
 /**
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
-class MagixClient(
-    val manager: DeviceManager,
-    val postUrl: Url,
-    val inbox: Flow<JsonObject>
+public class MagixClient(
+    private val manager: DeviceManager,
+    private val postUrl: Url,
+    private val inbox: Flow<JsonObject>
 ): CoroutineScope {
 
     override val coroutineContext: CoroutineContext = manager.context.coroutineContext + Job(manager.context.coroutineContext[Job])
