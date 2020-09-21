@@ -3,7 +3,7 @@ plugins {
     id("ru.mipt.npm.publish")
 }
 
-val ktorVersion: String by extra("1.4.0")
+val ktorVersion: String by rootProject.extra
 
 kotlin {
     sourceSets {
@@ -15,14 +15,12 @@ kotlin {
         }
         jvmMain {
             dependencies {
-                implementation("io.ktor:ktor-client-cio:$ktorVersion")
+
             }
         }
         jsMain {
             dependencies {
-                implementation("io.ktor:ktor-client-js:$ktorVersion")
-                implementation(npm("text-encoding", "0.7.0"))
-                implementation(npm("abort-controller", "3.0.0"))
+
             }
         }
     }

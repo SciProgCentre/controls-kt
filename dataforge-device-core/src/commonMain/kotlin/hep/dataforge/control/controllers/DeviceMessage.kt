@@ -47,11 +47,21 @@ public class DeviceMessage : Scheme() {
 
         public inline fun fail(
             request: DeviceMessage? = null,
+            cause: Throwable? = null,
             block: DeviceMessage.() -> Unit = {}
         ): DeviceMessage = DeviceMessage {
             target = request?.source
             status = RESPONSE_FAIL_STATUS
+            if(cause!=null){
+                configure {
+                    set("error.type", cause::class.simpleName)
+                    set("error.message", cause.message)
+                    //set("error.trace", ex.stackTraceToString())
+                }
+                comment = cause.message
+            }
         }.apply(block)
+
 
         override val descriptor: SerialDescriptor = MetaSerializer.descriptor
 

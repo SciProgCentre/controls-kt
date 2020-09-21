@@ -26,6 +26,7 @@ pluginManagement {
 rootProject.name = "dataforge-control"
 
 include(
+    ":ktor-sse",
     ":dataforge-device-core",
     ":dataforge-device-serial",
     ":dataforge-device-server",

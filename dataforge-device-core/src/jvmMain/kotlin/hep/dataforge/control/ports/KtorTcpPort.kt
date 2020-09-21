@@ -23,8 +23,8 @@ public class KtorTcpPort internal constructor(
     context: Context,
     public val host: String,
     public val port: Int,
-    parentContext: CoroutineContext = context.coroutineContext,
-) : AbstractPort(context, parentContext), AutoCloseable {
+    coroutineContext: CoroutineContext = context.coroutineContext,
+) : AbstractPort(context, coroutineContext), AutoCloseable {
 
     override fun toString(): String = "port[tcp:$host:$port]"
 

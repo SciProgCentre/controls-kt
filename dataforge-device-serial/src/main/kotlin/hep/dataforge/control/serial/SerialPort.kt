@@ -18,8 +18,8 @@ import jssc.SerialPort as JSSCPort
 public class SerialPort private constructor(
     context: Context,
     private val jssc: JSSCPort,
-    parentContext: CoroutineContext = context.coroutineContext,
-) : AbstractPort(context, parentContext) {
+    coroutineContext: CoroutineContext = context.coroutineContext,
+) : AbstractPort(context, coroutineContext) {
 
     override fun toString(): String = "port[${jssc.portName}]"
 

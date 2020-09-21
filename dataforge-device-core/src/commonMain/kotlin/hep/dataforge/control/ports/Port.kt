@@ -18,9 +18,9 @@ public interface Port: Closeable, ContextAware {
 
 public typealias PortFactory = Factory<Port>
 
-public abstract class AbstractPort(override val context: Context, parentContext: CoroutineContext = context.coroutineContext) : Port {
+public abstract class AbstractPort(override val context: Context, coroutineContext: CoroutineContext = context.coroutineContext) : Port {
 
-    protected val scope: CoroutineScope = CoroutineScope(parentContext + SupervisorJob(parentContext[Job]))
+    protected val scope: CoroutineScope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext[Job]))
 
     private val outgoing = Channel<ByteArray>(100)
     private val incoming = Channel<ByteArray>(Channel.CONFLATED)
@@ -41,7 +41,7 @@ public abstract class AbstractPort(override val context: Context, parentContext:
      */
     protected fun receive(data: ByteArray) {
         scope.launch {
-            logger.debug { "RECEIVED: ${data.decodeToString()}" }
+            logger.debug { "[${this@AbstractPort}] RECEIVED: ${data.decodeToString()}" }
             incoming.send(data)
         }
     }
@@ -50,7 +50,7 @@ public abstract class AbstractPort(override val context: Context, parentContext:
         for (data in outgoing) {
             try {
                 write(data)
-                logger.debug { "SENT: ${data.decodeToString()}" }
+                logger.debug { "[${this@AbstractPort}] SENT: ${data.decodeToString()}" }
             } catch (ex: Exception) {
                 if (ex is CancellationException) throw ex
                 logger.error(ex) { "Error while writing data to the port" }

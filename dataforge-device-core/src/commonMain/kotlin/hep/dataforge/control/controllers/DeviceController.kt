@@ -23,7 +23,7 @@ import kotlinx.io.Binary
 public class DeviceController(
     public val device: Device,
     public val deviceTarget: String,
-    public val scope: CoroutineScope = device.scope
+    public val scope: CoroutineScope = device.scope,
 ) : Responder, Consumer, DeviceListener {
 
     init {
@@ -32,7 +32,8 @@ public class DeviceController(
 
     private val outputChannel = Channel<Envelope>(Channel.CONFLATED)
 
-    public suspend fun respondMessage(message: DeviceMessage): DeviceMessage = respondMessage(device, deviceTarget, message)
+    public suspend fun respondMessage(message: DeviceMessage): DeviceMessage =
+        respondMessage(device, deviceTarget, message)
 
     override suspend fun respond(request: Envelope): Envelope = respond(device, deviceTarget, request)
 
@@ -87,16 +88,14 @@ public class DeviceController(
                     return response.seal()
                 }
             } catch (ex: Exception) {
-                DeviceMessage.fail {
-                    comment = ex.message
-                }.wrap()
+                DeviceMessage.fail(cause = ex).wrap()
             }
         }
 
         internal suspend fun respondMessage(
             device: Device,
             deviceTarget: String,
-            request: DeviceMessage
+            request: DeviceMessage,
         ): DeviceMessage {
             return try {
                 val result: List<MessageData> = when (val action = request.type) {
@@ -157,9 +156,7 @@ public class DeviceController(
                     data = result
                 }
             } catch (ex: Exception) {
-                DeviceMessage.fail {
-                    comment = ex.message
-                }
+                DeviceMessage.fail(request, cause = ex)
             }
         }
     }
@@ -172,8 +169,6 @@ public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessa
         val device = this[targetName] ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {
-        DeviceMessage.fail {
-            comment = ex.message
-        }
+        DeviceMessage.fail(request, cause = ex)
     }
 }

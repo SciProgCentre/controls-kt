@@ -3,7 +3,8 @@ plugins{
     kotlin("js") version "1.4.0" apply false
 }
 
-val dataforgeVersion by extra("0.1.9-dev-2")
+val dataforgeVersion: String by extra("0.1.9-dev-2")
+val ktorVersion: String by extra("1.4.0")
 
 allprojects {
     repositories {

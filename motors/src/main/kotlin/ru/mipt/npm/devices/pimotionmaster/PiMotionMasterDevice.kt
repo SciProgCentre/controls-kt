@@ -48,6 +48,10 @@ public class PiMotionMasterDevice(
 
     private val mutex = Mutex()
 
+    private suspend fun dispatchError(errorCode: Int){
+
+    }
+
     private suspend fun sendCommandInternal(command: String, vararg arguments: String) {
         val joinedArguments = if (arguments.isEmpty()) {
             ""
@@ -58,14 +62,31 @@ public class PiMotionMasterDevice(
         connector.send(stringToSend)
     }
 
+    public suspend fun getErrorCode(): Int = mutex.withLock{
+        withTimeout(timeoutValue) {
+            sendCommandInternal("ERR?")
+            val errorString = connector.receiving().withDelimiter("\n").first()
+            errorString.toInt()
+        }
+    }
+
+
     /**
      * Send a synchronous request and receive a list of lines as a response
      */
     private suspend fun request(command: String, vararg arguments: String): List<String> = mutex.withLock {
-        withTimeout(timeoutValue) {
-            sendCommandInternal(command, *arguments)
-            val phrases = connector.receiving().withDelimiter("\n")
-            phrases.takeWhile { it.endsWith(" \n") }.toList() + phrases.first()
+        try {
+            withTimeout(timeoutValue) {
+                sendCommandInternal(command, *arguments)
+                val phrases = connector.receiving().withDelimiter("\n")
+                phrases.takeWhile { it.endsWith(" \n") }.toList() + phrases.first()
+            }
+        } catch (ex: Throwable){
+            logger.warn { "Error during PIMotionMaster request. Requesting error code." }
+            val errorCode = getErrorCode()
+            dispatchError(errorCode)
+            logger.warn { "Error code $errorCode" }
+            error("Error code $errorCode")
         }
     }
 
@@ -86,6 +107,7 @@ public class PiMotionMasterDevice(
             }
         }
     }
+
 
     public val initialize: Action by acting {
         send("INI")
