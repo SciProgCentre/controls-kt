@@ -14,7 +14,7 @@ public interface DeviceHub : Provider {
 
     override val defaultChainTarget: String get() = Device.DEVICE_TARGET
 
-    override fun provideTop(target: String): Map<Name, Any> {
+    override fun content(target: String): Map<Name, Any> {
         if (target == Device.DEVICE_TARGET) {
             return buildMap {
                 fun putAll(prefix: Name, hub: DeviceHub) {

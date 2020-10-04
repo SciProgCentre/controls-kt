@@ -39,5 +39,5 @@ public suspend fun ApplicationCall.respondMessage(builder: DeviceMessage.() -> U
 }
 
 public suspend fun ApplicationCall.respondFail(builder: DeviceMessage.() -> Unit) {
-    respondMessage(DeviceMessage.fail(null, builder))
+    respondMessage(DeviceMessage.fail(null, block = builder))
 }

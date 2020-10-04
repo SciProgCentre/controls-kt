@@ -28,7 +28,7 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
         top[name] = device
     }
 
-    override fun provideTop(target: String): Map<Name, Any> = super<DeviceHub>.provideTop(target)
+    override fun content(target: String): Map<Name, Any> = super<DeviceHub>.content(target)
 
     public companion object : PluginFactory<DeviceManager> {
         override val tag: PluginTag = PluginTag("devices", group = PluginTag.DATAFORGE_GROUP)

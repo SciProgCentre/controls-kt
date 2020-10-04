@@ -66,7 +66,8 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
 
 fun main() {
     val port = 10024
-    val virtualPort = PiMotionMasterVirtualPort(Global)
+    val virtualDevice = PiMotionMasterVirtualDevice(Global, listOf("1","2"))
+    val virtualPort = VirtualPort(virtualDevice, Global)
     runBlocking(Dispatchers.Default) {
         val serverJob = launchPiDebugServer(port, virtualPort)
         readLine()

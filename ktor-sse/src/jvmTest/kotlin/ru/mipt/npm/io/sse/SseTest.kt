@@ -17,12 +17,11 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.utils.io.ByteReadChannel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
 @OptIn(KtorExperimentalAPI::class)
@@ -33,19 +32,20 @@ suspend fun ApplicationCall.respondSse(events: Flow<SseEvent>) {
     }
 }
 
-suspend fun HttpClient.readSse(address: String, block: suspend (SseEvent) -> Unit): Unit =
+suspend fun HttpClient.readSse(address: String, block: suspend (SseEvent) -> Unit): Job = launch {
     get<HttpStatement>(address).execute { response: HttpResponse ->
         // Response is not downloaded here.
         val channel = response.receive<ByteReadChannel>()
         val flow = channel.readSseFlow()
         flow.collect(block)
     }
+}
 
 class SseTest {
     @OptIn(KtorExperimentalAPI::class)
     @Test
     fun testSseIntegration() {
-        runBlocking {
+        runBlocking(Dispatchers.Default) {
             val server = embeddedServer(CIO, 12080) {
                 routing {
                     get("/") {
@@ -67,6 +67,8 @@ class SseTest {
             client.readSse("http://localhost:12080") {
                 println(it)
             }
+            delay(2000)
+            println("Closing the client after waiting")
             client.close()
             server.stop(1000, 1000)
         }

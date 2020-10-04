@@ -5,6 +5,10 @@ plugins {
 
 //TODO to be moved to a separate project
 
+kotlin{
+    explicitApi = null
+}
+
 dependencies {
     implementation(project(":dataforge-device-core"))
 }

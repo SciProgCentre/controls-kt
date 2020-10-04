@@ -1,10 +1,11 @@
-plugins{
-    kotlin("jvm") version "1.4.0" apply false
-    kotlin("js") version "1.4.0" apply false
+plugins {
+    id("ru.mipt.npm.project")
+    kotlin("jvm") apply false
+    kotlin("js") apply false
 }
 
-val dataforgeVersion: String by extra("0.1.9-dev-2")
-val ktorVersion: String by extra("1.4.0")
+val dataforgeVersion: String by extra("0.2.0-dev-3")
+val ktorVersion: String by extra("1.4.1")
 
 allprojects {
     repositories {
@@ -19,5 +20,11 @@ allprojects {
     version = "0.0.1"
 }
 
-val githubProject by extra("dataforge-control")
-val bintrayRepo by extra("dataforge")
+ksciencePublish {
+    githubProject = "dataforge-control"
+    bintrayRepo = "dataforge"
+}
+
+apiValidation {
+    validationDisabled = true
+}
