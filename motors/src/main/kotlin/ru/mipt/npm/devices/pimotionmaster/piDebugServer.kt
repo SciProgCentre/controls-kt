@@ -9,55 +9,52 @@ import io.ktor.network.sockets.openWriteChannel
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.moveToByteArray
-import io.ktor.utils.io.readUntilDelimiter
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import java.net.InetSocketAddress
-import java.nio.ByteBuffer
 
-private val delimeter = ByteBuffer.wrap("\n".encodeToByteArray())
+val exceptionHandler = CoroutineExceptionHandler { coroutineContext, throwable ->
+    throwable.printStackTrace()
+}
 
 @OptIn(KtorExperimentalAPI::class, InternalAPI::class)
-fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = launch {
+fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = launch(exceptionHandler) {
     val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind(InetSocketAddress("localhost", port))
     println("Started virtual port server at ${server.localAddress}")
 
     while (isActive) {
-        val socket = try {
-            server.accept()
-        } catch (ex: Exception) {
-            server.close()
-            ex.printStackTrace()
-            return@launch
-        }
+        val socket = server.accept()
+        launch(SupervisorJob(coroutineContext[Job])) {
+            println("Socket accepted: ${socket.remoteAddress}")
+            val input = socket.openReadChannel()
+            val output = socket.openWriteChannel()
 
-
-        println("Socket accepted: ${socket.remoteAddress}")
-        supervisorScope {
-            socket.use { socket ->
-                val input = socket.openReadChannel()
-                val output = socket.openWriteChannel(autoFlush = true)
-
-                val buffer = ByteBuffer.allocate(1024)
-                launch {
-                    virtualPort.receiving().collect {
-                        //println("Sending: ${it.decodeToString()}")
-                        output.writeAvailable(it)
-                        output.flush()
-                    }
-                }
-                while (isActive) {
-                    buffer.rewind()
-                    val read = input.readUntilDelimiter(delimeter, buffer)
-                    if (read > 0) {
-                        buffer.flip()
-                        val array = buffer.moveToByteArray()
-                        //println("Received: ${array.decodeToString()}")
-                        virtualPort.send(array)
-                    }
+            val sendJob = launch {
+                virtualPort.receiving().collect {
+                    //println("Sending: ${it.decodeToString()}")
+                    output.writeAvailable(it)
+                    output.flush()
                 }
             }
+
+            try {
+                while (isActive) {
+                    input.read { buffer ->
+                        val array = buffer.moveToByteArray()
+                        launch {
+                            virtualPort.send(array)
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                sendJob.cancel()
+                socket.close()
+            } finally {
+                println("Socket closed")
+            }
+
         }
     }
 }

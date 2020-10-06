@@ -11,7 +11,7 @@ import kotlinx.serialization.encoding.Encoder
 
 public class DeviceMessage : Scheme() {
     public var action: String by string { error("Action not defined") }
-    public var status: String by string(default = RESPONSE_OK_STATUS)
+    public var status: String by string(default = OK_STATUS)
     public var sourceName: String? by string()
     public var targetName: String? by string()
     public var comment: String? by string()
@@ -25,9 +25,9 @@ public class DeviceMessage : Scheme() {
         public val MESSAGE_KEY_KEY: Name = DeviceMessage::key.name.asName()
         public val MESSAGE_VALUE_KEY: Name = DeviceMessage::value.name.asName()
 
-        public const val RESPONSE_OK_STATUS: String = "response.OK"
-        public const val RESPONSE_FAIL_STATUS: String = "response.FAIL"
-        public const val PROPERTY_CHANGED_ACTION: String = "event.propertyChange"
+        public const val OK_STATUS: String = "OK"
+        public const val FAIL_STATUS: String = "FAIL"
+        public const val PROPERTY_CHANGED_ACTION: String = "event.propertyChanged"
 
         public inline fun ok(
             request: DeviceMessage? = null,
@@ -42,7 +42,7 @@ public class DeviceMessage : Scheme() {
             block: DeviceMessage.() -> Unit = {},
         ): DeviceMessage = DeviceMessage {
             targetName = request?.sourceName
-            status = RESPONSE_FAIL_STATUS
+            status = FAIL_STATUS
             if (cause != null) {
                 configure {
                     set("error.type", cause::class.simpleName)

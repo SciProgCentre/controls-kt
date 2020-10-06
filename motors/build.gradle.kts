@@ -9,6 +9,8 @@ kotlin{
     explicitApi = null
 }
 
+val ktorVersion: String by rootProject.extra
+
 dependencies {
     implementation(project(":dataforge-device-core"))
 }

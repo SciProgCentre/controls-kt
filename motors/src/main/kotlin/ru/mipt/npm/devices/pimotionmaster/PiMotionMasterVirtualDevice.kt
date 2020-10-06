@@ -19,7 +19,7 @@ abstract class VirtualDevice(val scope: CoroutineScope) : Socket<ByteArray> {
     private val toReceive = Channel<ByteArray>(100)
     private val toRespond = Channel<ByteArray>(100)
 
-    private val receiveJob: Job = toReceive.consumeAsFlow().onEach {
+    private val receiveJob: Job = toReceive.consumeAsFlow().transformRequests().onEach {
         evaluateRequest(it)
     }.catch {
         it.printStackTrace()
@@ -48,7 +48,9 @@ abstract class VirtualDevice(val scope: CoroutineScope) : Socket<ByteArray> {
 
 class VirtualPort(private val device: VirtualDevice, context: Context) : AbstractPort(context) {
 
-    private val respondJob = device.receiving().onEach(::receive).catch {
+    private val respondJob = device.receiving().onEach {
+        receive(it)
+    }.catch {
         it.printStackTrace()
     }.launchIn(scope)
 
@@ -129,7 +131,7 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
     }
 
     private fun respondForAllAxis(axisIds: List<String>, extract: VirtualAxisState.(index: String) -> Any) {
-        val selectedAxis = if (axisIds.isEmpty()) {
+        val selectedAxis = if (axisIds.isEmpty()|| axisIds[0] == "ALL") {
             axisState.keys
         } else {
             axisIds
@@ -149,9 +151,23 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
         val axisIds: List<String> = parts.drop(1)
 
         when (command) {
-            "XXX" -> respond("")
-            "IDN?" -> respond("DataForge-device demo")
-            "VER?" -> respond("test")
+            "XXX" -> {}//respond("WAT?")
+            "IDN?","*IDN?" -> respond("(c)2015 Physik Instrumente(PI) Karlsruhe, C-885.M1 TCP-IP Master,0,1.0.0.1")
+            "VER?" -> respond("""
+                2: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550039, 00.039 
+                3: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550040, 00.039 
+                4: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550041, 00.039 
+                5: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550042, 00.039 
+                6: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550043, 00.039 
+                7: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550044, 00.039 
+                8: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550046, 00.039 
+                9: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550045, 00.039 
+                10: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550047, 00.039 
+                11: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550048, 00.039 
+                12: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550049, 00.039 
+                13: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550051, 00.039 
+                FW_ARM: V1.0.0.1
+            """.trimIndent())
             "HLP?" -> respond("""
                 The following commands are valid: 
                 #4 Request Status Register 
@@ -192,7 +208,10 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
                 VER? Get Versions Of Firmware And Drivers 
                 end of help
             """.trimIndent())
-            "ERR?" -> respond(errorCode.toString())
+            "ERR?" -> {
+                respond(errorCode.toString())
+                errorCode = 0
+            }
             "SAI?" -> respondForAllAxis(axisIds) { it }
             "CST?" -> respond(WAT)
             "RON?" -> respondForAllAxis(axisIds) { referenceMode }
