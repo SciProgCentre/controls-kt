@@ -3,22 +3,21 @@ package hep.dataforge.control.ports
 import hep.dataforge.context.Context
 import hep.dataforge.context.ContextAware
 import hep.dataforge.context.Factory
+import hep.dataforge.control.api.Socket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.io.Closeable
 import kotlin.coroutines.CoroutineContext
 
-public interface Port: Closeable, ContextAware {
-    public suspend fun send(data: ByteArray)
-    public suspend fun receiving(): Flow<ByteArray>
-    public fun isOpen(): Boolean
-}
+public interface Port : ContextAware, Socket<ByteArray>
 
 public typealias PortFactory = Factory<Port>
 
-public abstract class AbstractPort(override val context: Context, coroutineContext: CoroutineContext = context.coroutineContext) : Port {
+public abstract class AbstractPort(
+    override val context: Context,
+    coroutineContext: CoroutineContext = context.coroutineContext,
+) : Port {
 
     protected val scope: CoroutineScope = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext[Job]))
 
@@ -70,7 +69,7 @@ public abstract class AbstractPort(override val context: Context, coroutineConte
      * In order to form phrases some condition should used on top of it.
      * For example [delimitedIncoming] generates phrases with fixed delimiter.
      */
-    override suspend fun receiving(): Flow<ByteArray> {
+    override fun receiving(): Flow<ByteArray> {
         return incoming.receiveAsFlow()
     }
 

@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 @OptIn(DFExperimental::class)
 public class HubController(
     public val hub: DeviceHub,
-    public val scope: CoroutineScope
+    public val scope: CoroutineScope,
 ) : Consumer, Responder {
 
     private val messageOutbox = Channel<DeviceMessage>(Channel.CONFLATED)
@@ -45,12 +45,10 @@ public class HubController(
                 if (value == null) return
                 scope.launch {
                     val change = DeviceMessage.ok {
-                        source = name.toString()
-                        type = DeviceMessage.PROPERTY_CHANGED_ACTION
-                        data {
-                            this.name = propertyName
-                            this.value = value
-                        }
+                        sourceName = name.toString()
+                        action = DeviceMessage.PROPERTY_CHANGED_ACTION
+                        this.key = propertyName
+                        this.value = value
                     }
 
                     messageOutbox.send(change)
@@ -62,7 +60,7 @@ public class HubController(
     }
 
     public suspend fun respondMessage(message: DeviceMessage): DeviceMessage = try {
-        val targetName = message.target?.toName() ?: Name.EMPTY
+        val targetName = message.targetName?.toName() ?: Name.EMPTY
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         DeviceController.respondMessage(device, targetName.toString(), message)
     } catch (ex: Exception) {

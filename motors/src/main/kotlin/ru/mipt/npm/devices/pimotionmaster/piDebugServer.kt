@@ -28,21 +28,23 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
             server.accept()
         } catch (ex: Exception) {
             server.close()
+            ex.printStackTrace()
             return@launch
         }
 
-        launch {
-            println("Socket accepted: ${socket.remoteAddress}")
 
-            try {
+        println("Socket accepted: ${socket.remoteAddress}")
+        supervisorScope {
+            socket.use { socket ->
                 val input = socket.openReadChannel()
                 val output = socket.openWriteChannel(autoFlush = true)
 
                 val buffer = ByteBuffer.allocate(1024)
                 launch {
                     virtualPort.receiving().collect {
-                        println("Sending: ${it.decodeToString()}")
+                        //println("Sending: ${it.decodeToString()}")
                         output.writeAvailable(it)
+                        output.flush()
                     }
                 }
                 while (isActive) {
@@ -51,14 +53,10 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
                     if (read > 0) {
                         buffer.flip()
                         val array = buffer.moveToByteArray()
-                        println("Received: ${array.decodeToString()}")
+                        //println("Received: ${array.decodeToString()}")
                         virtualPort.send(array)
                     }
                 }
-            } catch (ex: Exception) {
-                cancel()
-            } finally {
-                socket.close()
             }
         }
     }
@@ -66,7 +64,7 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
 
 fun main() {
     val port = 10024
-    val virtualDevice = PiMotionMasterVirtualDevice(Global, listOf("1","2"))
+    val virtualDevice = PiMotionMasterVirtualDevice(Global, listOf("1", "2"))
     val virtualPort = VirtualPort(virtualDevice, Global)
     runBlocking(Dispatchers.Default) {
         val serverJob = launchPiDebugServer(port, virtualPort)

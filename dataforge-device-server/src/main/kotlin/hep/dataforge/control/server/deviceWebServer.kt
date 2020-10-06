@@ -8,7 +8,6 @@ import hep.dataforge.control.controllers.DeviceController.Companion.GET_PROPERTY
 import hep.dataforge.control.controllers.DeviceController.Companion.SET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.DeviceManager
 import hep.dataforge.control.controllers.DeviceMessage
-import hep.dataforge.control.controllers.data
 import hep.dataforge.control.controllers.respondMessage
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
@@ -47,7 +46,7 @@ import kotlinx.serialization.json.put
 public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = 8111,
-    host: String = "localhost"
+    host: String = "localhost",
 ): ApplicationEngine {
 
     return this.embeddedServer(CIO, port, host) {
@@ -80,7 +79,7 @@ public const val WEB_SERVER_TARGET: String = "@webServer"
 public fun Application.deviceModule(
     manager: DeviceManager,
     deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
-    route: String = "/"
+    route: String = "/",
 ) {
 //    val controllers = deviceNames.associateWith { name ->
 //        val device = manager.devices[name.toName()]
@@ -115,7 +114,8 @@ public fun Application.deviceModule(
                             +"Device server dashboard"
                         }
                         deviceNames.forEach { deviceName ->
-                            val device = manager[deviceName] ?: error("The device with name $deviceName not found in $manager")
+                            val device =
+                                manager[deviceName] ?: error("The device with name $deviceName not found in $manager")
                             div {
                                 id = deviceName
                                 h2 { +deviceName }
@@ -203,12 +203,10 @@ public fun Application.deviceModule(
                         val target: String by call.parameters
                         val property: String by call.parameters
                         val request = DeviceMessage {
-                            type = GET_PROPERTY_ACTION
-                            source = WEB_SERVER_TARGET
-                            this.target = target
-                            data {
-                                name = property
-                            }
+                            action = GET_PROPERTY_ACTION
+                            sourceName = WEB_SERVER_TARGET
+                            this.targetName = target
+                            key = property
                         }
 
                         val response = manager.respondMessage(request)
@@ -221,13 +219,12 @@ public fun Application.deviceModule(
                         val json = Json.parseToJsonElement(body)
 
                         val request = DeviceMessage {
-                            type = SET_PROPERTY_ACTION
-                            source = WEB_SERVER_TARGET
-                            this.target = target
-                            data {
-                                name = property
-                                value = json.toMetaItem()
-                            }
+                            action = SET_PROPERTY_ACTION
+                            sourceName = WEB_SERVER_TARGET
+                            this.targetName = target
+                            key = property
+                            value = json.toMetaItem()
+
                         }
 
                         val response = manager.respondMessage(request)

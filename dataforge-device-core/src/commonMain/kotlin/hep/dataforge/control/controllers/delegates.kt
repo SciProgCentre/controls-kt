@@ -48,6 +48,9 @@ public fun DeviceProperty.int(): ReadWriteProperty<Any?, Int> = convert(MetaConv
 public fun ReadOnlyDeviceProperty.string(): ReadOnlyProperty<Any?, String> = convert(MetaConverter.string)
 public fun DeviceProperty.string(): ReadWriteProperty<Any?, String> = convert(MetaConverter.string)
 
+public fun ReadOnlyDeviceProperty.boolean(): ReadOnlyProperty<Any?, Boolean> = convert(MetaConverter.boolean)
+public fun DeviceProperty.boolean(): ReadWriteProperty<Any?, Boolean> = convert(MetaConverter.boolean)
+
 //TODO to be moved to DF
 private object DurationConverter : MetaConverter<Duration> {
     override fun itemToObject(item: MetaItem<*>): Duration = when (item) {

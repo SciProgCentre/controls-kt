@@ -43,7 +43,7 @@ public class PortProxy(override val context: Context = Global, public val factor
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun receiving(): Flow<ByteArray> = channelFlow {
+    override fun receiving(): Flow<ByteArray> = channelFlow {
         while (isActive) {
             try {
                 //recreate port and Flow on cancel

@@ -1,51 +1,60 @@
 package ru.mipt.npm.devices.pimotionmaster
 
 import hep.dataforge.context.Context
+import hep.dataforge.control.api.Socket
 import hep.dataforge.control.ports.AbstractPort
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
+import hep.dataforge.control.ports.withDelimiter
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.*
 import kotlin.math.abs
 import kotlin.time.Duration
 
-public abstract class VirtualDevice {
-    protected abstract val scope: CoroutineScope
+abstract class VirtualDevice(val scope: CoroutineScope) : Socket<ByteArray> {
 
-    public abstract suspend fun evaluateRequest(request: ByteArray)
+    protected abstract suspend fun evaluateRequest(request: ByteArray)
 
-    private val toSend = Channel<ByteArray>(100)
+    protected open fun Flow<ByteArray>.transformRequests(): Flow<ByteArray> = this
 
-    public val responses: Flow<ByteArray> get() = toSend.receiveAsFlow()
+    private val toReceive = Channel<ByteArray>(100)
+    private val toRespond = Channel<ByteArray>(100)
 
-    protected suspend fun send(response: ByteArray) {
-        toSend.send(response)
+    private val receiveJob: Job = toReceive.consumeAsFlow().onEach {
+        evaluateRequest(it)
+    }.catch {
+        it.printStackTrace()
+    }.launchIn(scope)
+
+
+    override suspend fun send(data: ByteArray) {
+        toReceive.send(data)
     }
-//
-//    protected suspend fun respond(response: String){
-//        respond(response.encodeToByteArray())
-//    }
+
+    protected suspend fun respond(response: ByteArray) {
+        toRespond.send(response)
+    }
+
+    override fun receiving(): Flow<ByteArray> = toRespond.receiveAsFlow()
 
     protected fun respondInFuture(delay: Duration, response: suspend () -> ByteArray): Job = scope.launch {
         delay(delay)
-        send(response())
+        respond(response())
     }
+
+    override fun isOpen(): Boolean = scope.isActive
+
+    override fun close() = scope.cancel()
 }
 
-public class VirtualPort(private val device: VirtualDevice, context: Context) : AbstractPort(context) {
+class VirtualPort(private val device: VirtualDevice, context: Context) : AbstractPort(context) {
 
-    private val respondJob = scope.launch {
-        device.responses.collect {
-            receive(it)
-        }
-    }
+    private val respondJob = device.receiving().onEach(::receive).catch {
+        it.printStackTrace()
+    }.launchIn(scope)
+
 
     override suspend fun write(data: ByteArray) {
-        device.evaluateRequest(data)
+        device.send(data)
     }
 
     override fun close() {
@@ -55,13 +64,13 @@ public class VirtualPort(private val device: VirtualDevice, context: Context) : 
 }
 
 
-class PiMotionMasterVirtualDevice(override val scope: CoroutineScope, axisIds: List<String>) : VirtualDevice() {
+class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) : VirtualDevice(scope) {
 
     init {
         //add asynchronous send logic here
     }
 
-    private val axisID = "0"
+    override fun Flow<ByteArray>.transformRequests(): Flow<ByteArray> = withDelimiter("\n".toByteArray())
 
     private var errorCode: Int = 0
 
@@ -116,7 +125,7 @@ class PiMotionMasterVirtualDevice(override val scope: CoroutineScope, axisIds: L
 
 
     private fun respond(str: String) = scope.launch {
-        send((str + "\n").encodeToByteArray())
+        respond((str + "\n").encodeToByteArray())
     }
 
     private fun respondForAllAxis(axisIds: List<String>, extract: VirtualAxisState.(index: String) -> Any) {

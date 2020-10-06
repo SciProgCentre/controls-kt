@@ -39,7 +39,7 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSi
  * Transform byte fragments into utf-8 phrases using utf-8 delimiter
  */
 public fun Flow<ByteArray>.withDelimiter(delimiter: String, expectedMessageSize: Int = 32): Flow<String> {
-    return withDelimiter(delimiter.encodeToByteArray()).map { it.decodeToString() }
+    return withDelimiter(delimiter.encodeToByteArray(),expectedMessageSize).map { it.decodeToString() }
 }
 
 /**

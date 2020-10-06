@@ -41,12 +41,10 @@ public class DeviceController(
         if (value == null) return
         scope.launch {
             val change = DeviceMessage.ok {
-                this.source = deviceTarget
-                type = PROPERTY_CHANGED_ACTION
-                data {
-                    name = propertyName
-                    this.value = value
-                }
+                this.sourceName = deviceTarget
+                this.action = PROPERTY_CHANGED_ACTION
+                this.key = propertyName
+                this.value = value
             }
             val envelope = SimpleEnvelope(change.toMeta(), Binary.EMPTY)
 
@@ -98,62 +96,52 @@ public class DeviceController(
             request: DeviceMessage,
         ): DeviceMessage {
             return try {
-                val result: List<MessageData> = when (val action = request.type) {
-                    GET_PROPERTY_ACTION -> {
-                        request.data.map { property ->
-                            MessageData {
-                                name = property.name
-                                value = device.getProperty(name)
-                            }
-                        }
-                    }
-                    SET_PROPERTY_ACTION -> {
-                        request.data.map { property ->
-                            val propertyName: String = property.name
-                            val propertyValue = property.value
-                            if (propertyValue == null) {
-                                device.invalidateProperty(propertyName)
-                            } else {
-                                device.setProperty(propertyName, propertyValue)
-                            }
-                            MessageData {
-                                name = propertyName
-                                value = device.getProperty(propertyName)
-                            }
-                        }
-                    }
-                    EXECUTE_ACTION -> {
-                        request.data.map { payload ->
-                            MessageData {
-                                name = payload.name
-                                value = device.execute(payload.name, payload.value)
-                            }
-                        }
-                    }
-                    PROPERTY_LIST_ACTION -> {
-                        device.propertyDescriptors.map { descriptor ->
-                            MessageData {
-                                name = descriptor.name
-                                value = MetaItem.NodeItem(descriptor.config)
-                            }
-                        }
-                    }
-                    ACTION_LIST_ACTION -> {
-                        device.actionDescriptors.map { descriptor ->
-                            MessageData {
-                                name = descriptor.name
-                                value = MetaItem.NodeItem(descriptor.config)
-                            }
-                        }
-                    }
-                    else -> {
-                        error("Unrecognized action $action")
-                    }
-                }
                 DeviceMessage.ok {
-                    target = request.source
-                    source = deviceTarget
-                    data = result
+                    targetName = request.sourceName
+                    sourceName = deviceTarget
+                    action ="response.${request.action}"
+                    val requestKey = request.key
+                    val requestValue = request.value
+
+                    when (val action = request.action) {
+                        GET_PROPERTY_ACTION -> {
+                            key = requestKey
+                            value = device.getProperty(requestKey ?: error("Key field is not defined in request"))
+                        }
+                        SET_PROPERTY_ACTION -> {
+                            require(requestKey != null) { "Key field is not defined in request" }
+                            if (requestValue == null) {
+                                device.invalidateProperty(requestKey)
+                            } else {
+                                device.setProperty(requestKey, requestValue)
+                            }
+                            key = requestKey
+                            value = device.getProperty(requestKey)
+                        }
+                        EXECUTE_ACTION -> {
+                            require(requestKey != null) { "Key field is not defined in request" }
+                            key = requestKey
+                            value = device.execute(requestKey, requestValue)
+
+                        }
+                        PROPERTY_LIST_ACTION -> {
+                            value = Meta {
+                                device.propertyDescriptors.map { descriptor ->
+                                    descriptor.name put descriptor.config
+                                }
+                            }.asMetaItem()
+                        }
+                        ACTION_LIST_ACTION -> {
+                            value = Meta {
+                                device.actionDescriptors.map { descriptor ->
+                                    descriptor.name put descriptor.config
+                                }
+                            }.asMetaItem()
+                        }
+                        else -> {
+                            error("Unrecognized action $action")
+                        }
+                    }
                 }
             } catch (ex: Exception) {
                 DeviceMessage.fail(request, cause = ex)
@@ -165,7 +153,7 @@ public class DeviceController(
 
 public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
     return try {
-        val targetName = request.target?.toName() ?: Name.EMPTY
+        val targetName = request.targetName?.toName() ?: Name.EMPTY
         val device = this[targetName] ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {

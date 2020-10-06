@@ -4,6 +4,8 @@ import hep.dataforge.context.Context
 import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.control.base.*
+import hep.dataforge.control.controllers.boolean
+import hep.dataforge.control.controllers.double
 import hep.dataforge.control.controllers.duration
 import hep.dataforge.control.ports.Port
 import hep.dataforge.control.ports.PortProxy
@@ -12,15 +14,12 @@ import hep.dataforge.control.ports.withDelimiter
 import hep.dataforge.meta.MetaItem
 import hep.dataforge.names.NameToken
 import hep.dataforge.values.Null
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 
 
@@ -48,7 +47,7 @@ public class PiMotionMasterDevice(
 
     private val mutex = Mutex()
 
-    private suspend fun dispatchError(errorCode: Int){
+    private suspend fun dispatchError(errorCode: Int) {
 
     }
 
@@ -62,7 +61,7 @@ public class PiMotionMasterDevice(
         connector.send(stringToSend)
     }
 
-    public suspend fun getErrorCode(): Int = mutex.withLock{
+    public suspend fun getErrorCode(): Int = mutex.withLock {
         withTimeout(timeoutValue) {
             sendCommandInternal("ERR?")
             val errorString = connector.receiving().withDelimiter("\n").first()
@@ -81,7 +80,7 @@ public class PiMotionMasterDevice(
                 val phrases = connector.receiving().withDelimiter("\n")
                 phrases.takeWhile { it.endsWith(" \n") }.toList() + phrases.first()
             }
-        } catch (ex: Throwable){
+        } catch (ex: Throwable) {
             logger.warn { "Error during PIMotionMaster request. Requesting error code." }
             val errorCode = getErrorCode()
             dispatchError(errorCode)
@@ -185,9 +184,24 @@ public class PiMotionMasterDevice(
             }
         )
 
+        public val reference: ReadOnlyDeviceProperty by readingBoolean(
+            descriptorBuilder = {
+                info = "Get Referencing Result"
+            },
+            getter = {
+                readAxisBoolean("FRF?")
+            }
+        )
+
+        val moveToReference by acting {
+            send("FRF", axisId)
+        }
+
         public val position: DeviceProperty by axisNumberProperty("POS") {
             info = "The current axis position."
         }
+
+        var positionValue by position.double()
 
         public val openLoopTarget: DeviceProperty by axisNumberProperty("OMA") {
             info = "Position for open-loop operation."
@@ -197,12 +211,18 @@ public class PiMotionMasterDevice(
             info = "Servo closed loop mode"
         }
 
+        var closedLoopValue by closedLoop.boolean()
+
         public val velocity: DeviceProperty by axisNumberProperty("VEL") {
             info = "Velocity value for closed-loop operation"
         }
-
     }
 
     override val devices: Map<NameToken, Axis> = axes.associate { NameToken(it) to Axis(it) }
+
+    /**
+     *
+     */
+    val axes: Map<String, Axis> get() = devices.mapKeys { it.toString() }
 
 }
