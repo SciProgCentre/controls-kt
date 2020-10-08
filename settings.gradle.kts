@@ -31,7 +31,7 @@ include(
     ":dataforge-device-core",
     ":dataforge-device-serial",
     ":dataforge-device-server",
-    ":dataforge-device-client",
+    ":dataforge-magix-client",
     ":demo",
     ":motors"
 )

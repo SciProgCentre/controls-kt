@@ -50,7 +50,7 @@ class DemoDevice(context: Context) : DeviceBase(context) {
     }
 
 
-    val resetScale: Action by acting {
+    val resetScale: DeviceAction by acting {
         timeScaleValue = 5000.0
         sinScaleValue = 1.0
         cosScaleValue = 1.0

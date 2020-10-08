@@ -19,8 +19,8 @@ public abstract class DeviceBase(override val context: Context) : Device {
 
     private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
     public val properties: Map<String, ReadOnlyDeviceProperty> get() = _properties
-    private val _actions = HashMap<String, Action>()
-    public val actions: Map<String, Action> get() = _actions
+    private val _actions = HashMap<String, DeviceAction>()
+    public val actions: Map<String, DeviceAction> get() = _actions
 
     private val listeners = ArrayList<Pair<Any?, DeviceListener>>(4)
 
@@ -54,7 +54,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
         _properties[name] = property
     }
 
-    internal fun registerAction(name: String, action: Action) {
+    internal fun registerAction(name: String, action: DeviceAction) {
         if (_actions.contains(name)) error("Action with name $name already registered")
         _actions[name] = action
     }
@@ -199,11 +199,11 @@ public abstract class DeviceBase(override val context: Context) : Device {
     /**
      * A stand-alone action
      */
-    private inner class BasicAction(
+    private inner class BasicDeviceAction(
         override val name: String,
         override val descriptor: ActionDescriptor,
         private val block: suspend (MetaItem<*>?) -> MetaItem<*>?,
-    ) : Action {
+    ) : DeviceAction {
         override suspend fun invoke(arg: MetaItem<*>?): MetaItem<*>? =
             withContext(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job])) {
                 block(arg).also {
@@ -221,8 +221,8 @@ public abstract class DeviceBase(override val context: Context) : Device {
         name: String,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         block: suspend (MetaItem<*>?) -> MetaItem<*>?,
-    ): Action {
-        val action = BasicAction(name, ActionDescriptor(name).apply(descriptorBuilder), block)
+    ): DeviceAction {
+        val action = BasicDeviceAction(name, ActionDescriptor(name).apply(descriptorBuilder), block)
         registerAction(name, action)
         return action
     }

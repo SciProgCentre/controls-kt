@@ -1,6 +1,7 @@
 package ru.mipt.npm.devices.pimotionmaster
 
 import hep.dataforge.context.Context
+import hep.dataforge.context.ContextAware
 import hep.dataforge.control.api.Socket
 import hep.dataforge.control.ports.AbstractPort
 import hep.dataforge.control.ports.withDelimiter
@@ -66,7 +67,11 @@ class VirtualPort(private val device: VirtualDevice, context: Context) : Abstrac
 }
 
 
-class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) : VirtualDevice(scope) {
+class PiMotionMasterVirtualDevice(
+    override val context: Context,
+    axisIds: List<String>,
+    scope: CoroutineScope = context,
+) : VirtualDevice(scope), ContextAware {
 
     init {
         //add asynchronous send logic here
@@ -131,13 +136,14 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
     }
 
     private fun respondForAllAxis(axisIds: List<String>, extract: VirtualAxisState.(index: String) -> Any) {
-        val selectedAxis = if (axisIds.isEmpty()|| axisIds[0] == "ALL") {
+        val selectedAxis = if (axisIds.isEmpty() || axisIds[0] == "ALL") {
             axisState.keys
         } else {
             axisIds
         }
-        val response = selectedAxis.joinToString(postfix = "\n", separator = " \n") {
-            axisState.getValue(it).extract(it).toString()
+        val response = selectedAxis.joinToString(separator = " \n") {
+            val state = axisState.getValue(it)
+            "$it=${state.extract(it)}"
         }
         respond(response)
     }
@@ -145,14 +151,18 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
     override suspend fun evaluateRequest(request: ByteArray) {
         assert(request.last() == '\n'.toByte())
         val string = request.decodeToString().substringBefore("\n")
+            .dropWhile { it != '*' && it != '#' && it !in 'A'..'Z' } //filter junk symbols at the beginning of the line
+
+        //logger.debug { "Received command: $string" }
         val parts = string.split(' ')
         val command = parts.firstOrNull() ?: error("Command not present")
 
         val axisIds: List<String> = parts.drop(1)
 
         when (command) {
-            "XXX" -> {}//respond("WAT?")
-            "IDN?","*IDN?" -> respond("(c)2015 Physik Instrumente(PI) Karlsruhe, C-885.M1 TCP-IP Master,0,1.0.0.1")
+            "XXX" -> {
+            }
+            "IDN?", "*IDN?" -> respond("(c)2015 Physik Instrumente(PI) Karlsruhe, C-885.M1 TCP-IP Master,0,1.0.0.1")
             "VER?" -> respond("""
                 2: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550039, 00.039 
                 3: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550040, 00.039 
@@ -212,12 +222,12 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
                 respond(errorCode.toString())
                 errorCode = 0
             }
-            "SAI?" -> respondForAllAxis(axisIds) { it }
-            "CST?" -> respond(WAT)
+            "SAI?" -> respond(axisIds.joinToString(separator = " \n"))
+            "CST?" -> respondForAllAxis(axisIds) { "L-220.20SG" }
             "RON?" -> respondForAllAxis(axisIds) { referenceMode }
             "FRF?" -> respondForAllAxis(axisIds) { "1" } // WAT?
             "SVO?" -> respondForAllAxis(axisIds) { servoMode }
-            "MVO?" -> respondForAllAxis(axisIds) { targetPosition }
+            "MOV?" -> respondForAllAxis(axisIds) { targetPosition }
             "POS?" -> respondForAllAxis(axisIds) { position }
             "TMN?" -> respondForAllAxis(axisIds) { minPosition }
             "TMX?" -> respondForAllAxis(axisIds) { maxPosition }
@@ -228,7 +238,10 @@ class PiMotionMasterVirtualDevice(scope: CoroutineScope, axisIds: List<String>) 
                 val servoMode = parts.last()
                 axisState[requestAxis]?.servoMode = servoMode.toInt()
             }
-            else -> errorCode = 2 // do not send anything. Ser error code
+            else -> {
+                logger.warn { "Unknown command: $command in message ${String(request)}" }
+                errorCode = 2
+            } // do not send anything. Ser error code
         }
     }
 

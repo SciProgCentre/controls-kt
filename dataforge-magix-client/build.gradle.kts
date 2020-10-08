@@ -10,12 +10,13 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(project(":dataforge-device-core"))
+                implementation(project(":ktor-sse"))
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
             }
         }
         jvmMain {
             dependencies {
-
+                implementation("io.ktor:ktor-client-cio:$ktorVersion")
             }
         }
         jsMain {

@@ -7,17 +7,33 @@ import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.wrap
 import io.ktor.client.HttpClient
+import io.ktor.client.call.receive
+import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.HttpStatement
 import io.ktor.http.ContentType
 import io.ktor.http.Url
 import io.ktor.http.contentType
+import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
+import ru.mipt.npm.io.sse.SseEvent
+import ru.mipt.npm.io.sse.readSseFlow
 import kotlin.coroutines.CoroutineContext
+
+
+private suspend fun HttpClient.readSse(address: String, block: suspend (SseEvent) -> Unit): Job = launch {
+    get<HttpStatement>(address).execute { response: HttpResponse ->
+        // Response is not downloaded here.
+        val channel = response.receive<ByteReadChannel>()
+        val flow = channel.readSseFlow()
+        flow.collect(block)
+    }
+}
 
 /*
 {
@@ -31,14 +47,14 @@ import kotlin.coroutines.CoroutineContext
 }
  */
 
-
 /**
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
 public class MagixClient(
     private val manager: DeviceManager,
     private val postUrl: Url,
-    private val inbox: Flow<JsonObject>
+    private val sseUrl: Url
+    //private val inbox: Flow<JsonObject>
 ): CoroutineScope {
 
     override val coroutineContext: CoroutineContext = manager.context.coroutineContext + Job(manager.context.coroutineContext[Job])
@@ -79,7 +95,9 @@ public class MagixClient(
     }
 
     private val respondJob = launch {
-        inbox.collect { json ->
+        client.readSse(sseUrl.toString()){
+            val json = Json.parseToJsonElement(it.data) as JsonObject
+
             val requestId = json["id"]?.jsonPrimitive?.content
             val payload = json["payload"]?.jsonObject
             //TODO analyze action

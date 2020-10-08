@@ -67,14 +67,6 @@ public interface Device : Closeable, ContextAware {
      */
     public suspend fun execute(command: String, argument: MetaItem<*>? = null): MetaItem<*>?
 
-    /**
-     *
-     * A request with binary data or for binary response (or both). This request does not cover basic functionality like
-     * [setProperty], [getProperty] or [execute] and not defined for a generic device.
-     *
-     */
-    public suspend fun respondWithData(request: Envelope): EnvelopeBuilder = error("No binary response defined")
-
     override fun close() {
         scope.cancel("The device is closed")
     }
@@ -82,6 +74,16 @@ public interface Device : Closeable, ContextAware {
     public companion object {
         public const val DEVICE_TARGET: String = "device"
     }
+}
+
+public interface ResponderDevice{
+    /**
+     *
+     * A request with binary data or for binary response (or both). This request does not cover basic functionality like
+     * [setProperty], [getProperty] or [execute] and not defined for a generic device.
+     *
+     */
+    public suspend fun respondWithData(request: Envelope): EnvelopeBuilder
 }
 
 public suspend fun Device.execute(name: String, meta: Meta?): MetaItem<*>? = execute(name, meta?.let { MetaItem.NodeItem(it) })

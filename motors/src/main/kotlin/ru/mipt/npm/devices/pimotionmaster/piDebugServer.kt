@@ -14,7 +14,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import java.net.InetSocketAddress
 
-val exceptionHandler = CoroutineExceptionHandler { coroutineContext, throwable ->
+val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
     throwable.printStackTrace()
 }
 

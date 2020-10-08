@@ -9,13 +9,13 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 
-private fun <D : DeviceBase> D.provideAction(): ReadOnlyProperty<D, Action> =
+private fun <D : DeviceBase> D.provideAction(): ReadOnlyProperty<D, DeviceAction> =
     ReadOnlyProperty { _: D, property: KProperty<*> ->
         val name = property.name
         return@ReadOnlyProperty actions[name]!!
     }
 
-public typealias ActionDelegate = ReadOnlyProperty<DeviceBase, Action>
+public typealias ActionDelegate = ReadOnlyProperty<DeviceBase, DeviceAction>
 
 private class ActionProvider<D : DeviceBase>(
     val owner: D,

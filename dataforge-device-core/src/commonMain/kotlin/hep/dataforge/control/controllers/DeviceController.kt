@@ -1,9 +1,6 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.DeviceHub
-import hep.dataforge.control.api.DeviceListener
-import hep.dataforge.control.api.get
+import hep.dataforge.control.api.*
 import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
 import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
@@ -77,13 +74,15 @@ public class DeviceController(
                 } else if (target != null && target != deviceTarget) {
                     error("Wrong target name $deviceTarget expected but $target found")
                 } else {
-                    val response = device.respondWithData(request).apply {
-                        meta {
-                            "target" put request.meta["source"].string
-                            "source" put deviceTarget
+                    if (device is ResponderDevice) {
+                        val response = device.respondWithData(request).apply {
+                            meta {
+                                "target" put request.meta["source"].string
+                                "source" put deviceTarget
+                            }
                         }
-                    }
-                    return response.seal()
+                        response.seal()
+                    } else error("Device does not support binary response")
                 }
             } catch (ex: Exception) {
                 DeviceMessage.fail(cause = ex).wrap()
@@ -99,7 +98,7 @@ public class DeviceController(
                 DeviceMessage.ok {
                     targetName = request.sourceName
                     sourceName = deviceTarget
-                    action ="response.${request.action}"
+                    action = "response.${request.action}"
                     val requestKey = request.key
                     val requestValue = request.value
 

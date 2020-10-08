@@ -39,7 +39,7 @@ public suspend fun ByteReadChannel.readSseFlow(): Flow<SseEvent> = channelFlow {
 
         do{
             val line = readUTF8Line()
-            if (line != null && !line.isBlank()) {
+            if (line != null && line.isNotBlank()) {
                 val key = line.substringBefore(":")
                 val value = line.substringAfter(": ")
                 when (key) {

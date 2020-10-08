@@ -13,4 +13,5 @@ val ktorVersion: String by rootProject.extra
 
 dependencies {
     implementation(project(":dataforge-device-core"))
+    implementation(project(":dataforge-magix-client"))
 }

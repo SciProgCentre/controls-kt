@@ -12,8 +12,10 @@ import hep.dataforge.control.ports.PortProxy
 import hep.dataforge.control.ports.send
 import hep.dataforge.control.ports.withDelimiter
 import hep.dataforge.meta.MetaItem
+import hep.dataforge.meta.asMetaItem
 import hep.dataforge.names.NameToken
 import hep.dataforge.values.Null
+import hep.dataforge.values.asValue
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
@@ -48,7 +50,8 @@ public class PiMotionMasterDevice(
     private val mutex = Mutex()
 
     private suspend fun dispatchError(errorCode: Int) {
-
+        logger.error { "Error code: $errorCode" }
+        //TODO add error handling
     }
 
     private suspend fun sendCommandInternal(command: String, vararg arguments: String) {
@@ -108,7 +111,7 @@ public class PiMotionMasterDevice(
     }
 
 
-    public val initialize: Action by acting {
+    public val initialize: DeviceAction by acting {
         send("INI")
     }
 
@@ -116,7 +119,7 @@ public class PiMotionMasterDevice(
         request("VER?").first()
     }
 
-    public val stop: Action by acting(
+    public val stop: DeviceAction by acting(
         descriptorBuilder = {
             info = "Stop all axis"
         },
@@ -164,7 +167,7 @@ public class PiMotionMasterDevice(
             info = "Motor enable state."
         }
 
-        public val halt: Action by acting {
+        public val halt: DeviceAction by acting {
             send("HLT", axisId)
         }
 
@@ -218,10 +221,14 @@ public class PiMotionMasterDevice(
         }
     }
 
+    val axisIds: ReadOnlyDeviceProperty by reading {
+        request("SAI?").map { it.asValue() }.asValue().asMetaItem()
+    }
+
     override val devices: Map<NameToken, Axis> = axes.associate { NameToken(it) to Axis(it) }
 
     /**
-     *
+     * Name-friendly accessor for axis
      */
     val axes: Map<String, Axis> get() = devices.mapKeys { it.toString() }
 
