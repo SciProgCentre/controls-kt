@@ -1,7 +1,7 @@
 package ru.mipt.npm.devices.pimotionmaster
 
+import hep.dataforge.context.Context
 import hep.dataforge.context.Global
-import hep.dataforge.control.ports.Port
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -19,7 +19,8 @@ val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
 }
 
 @OptIn(KtorExperimentalAPI::class, InternalAPI::class)
-fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = launch(exceptionHandler) {
+fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exceptionHandler) {
+    val virtualDevice = PiMotionMasterVirtualDevice(this@launchPiDebugServer, axes)
     val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind(InetSocketAddress("localhost", port))
     println("Started virtual port server at ${server.localAddress}")
 
@@ -31,7 +32,7 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
             val output = socket.openWriteChannel()
 
             val sendJob = launch {
-                virtualPort.receiving().collect {
+                virtualDevice.receiving().collect {
                     //println("Sending: ${it.decodeToString()}")
                     output.writeAvailable(it)
                     output.flush()
@@ -43,7 +44,7 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
                     input.read { buffer ->
                         val array = buffer.moveToByteArray()
                         launch {
-                            virtualPort.send(array)
+                            virtualDevice.send(array)
                         }
                     }
                 }
@@ -61,10 +62,8 @@ fun CoroutineScope.launchPiDebugServer(port: Int, virtualPort: Port): Job = laun
 
 fun main() {
     val port = 10024
-    val virtualDevice = PiMotionMasterVirtualDevice(Global, listOf("1", "2"))
-    val virtualPort = VirtualPort(virtualDevice, Global)
     runBlocking(Dispatchers.Default) {
-        val serverJob = launchPiDebugServer(port, virtualPort)
+        val serverJob = Global.launchPiDebugServer(port, listOf("1", "2"))
         readLine()
         serverJob.cancel()
     }

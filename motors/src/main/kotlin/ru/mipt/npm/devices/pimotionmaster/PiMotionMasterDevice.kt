@@ -10,12 +10,9 @@ import hep.dataforge.control.controllers.*
 import hep.dataforge.control.ports.*
 import hep.dataforge.meta.*
 import hep.dataforge.names.NameToken
-import hep.dataforge.values.Null
 import hep.dataforge.values.asValue
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import tornadofx.*
@@ -32,10 +29,13 @@ class PiMotionMasterDevice(
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
     )
 
-    val address: DeviceProperty by writingVirtual(Null) {
-        info = "The port for TCP connector"
-    }
+    private var address: Meta? = null
 
+    val connected by readingBoolean(false, descriptorBuilder = {
+        info = "True if the connection address is defined and the device is initialized"
+    }) {
+        address != null
+    }
 
     val timeout: DeviceProperty by writingVirtual(200.asValue()) {
         info = "Timeout"
@@ -43,8 +43,7 @@ class PiMotionMasterDevice(
 
     var timeoutValue: Duration by timeout.duration()
 
-    private val connector = PortProxy { portFactory(address.value.node ?: Meta.EMPTY, context) }
-
+    private val connector = PortProxy { portFactory(address ?: error("The device is not connected"), context) }
 
     /**
      * Name-friendly accessor for axis
@@ -63,11 +62,13 @@ class PiMotionMasterDevice(
         info = "Connect to specific port and initialize axis"
     }) { portSpec ->
         //Clear current actions if present
-        if (address.value != null) {
+        if (address != null) {
             stop()
         }
         //Update port
-        address.value = portSpec
+        address = portSpec.node
+        connected.invalidate()
+        connector.open()
         //Initialize axes
         if (portSpec != null) {
             val idn = identity.read()
@@ -82,6 +83,17 @@ class PiMotionMasterDevice(
             initialize()
             failIfError()
         }
+    }
+
+    val disconnect: DeviceAction by acting({
+        info = "Disconnect the program from the device if it is connected"
+    }) {
+        connector.close()
+        if (address != null) {
+            stop()
+        }
+        address = null
+        connected.invalidate()
     }
 
     fun connect(host: String, port: Int) {
@@ -126,7 +138,16 @@ class PiMotionMasterDevice(
             withTimeout(timeoutValue) {
                 sendCommandInternal(command, *arguments)
                 val phrases = connector.receiving().withDelimiter("\n")
-                phrases.takeWhile { it.endsWith(" \n") }.toList() + phrases.first()
+                var lastLineFlag = false
+                phrases.transformWhile { line ->
+                    if (lastLineFlag) {
+                        false
+                    } else {
+                        emit(line)
+                        lastLineFlag = !line.endsWith(" \n")
+                        true
+                    }
+                }.toList()
             }
         } catch (ex: Throwable) {
             logger.warn { "Error during PIMotionMaster request. Requesting error code." }

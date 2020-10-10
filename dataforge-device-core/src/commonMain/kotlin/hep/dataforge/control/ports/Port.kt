@@ -40,7 +40,7 @@ public abstract class AbstractPort(
      */
     protected fun receive(data: ByteArray) {
         scope.launch {
-            logger.debug { "[${this@AbstractPort}] RECEIVED: ${data.decodeToString()}" }
+            logger.debug { "${this@AbstractPort} RECEIVED: ${data.decodeToString()}" }
             incoming.send(data)
         }
     }
@@ -49,7 +49,7 @@ public abstract class AbstractPort(
         for (data in outgoing) {
             try {
                 write(data)
-                logger.debug { "[${this@AbstractPort}] SENT: ${data.decodeToString()}" }
+                logger.debug { "${this@AbstractPort} SENT: ${data.decodeToString()}" }
             } catch (ex: Exception) {
                 if (ex is CancellationException) throw ex
                 logger.error(ex) { "Error while writing data to the port" }

@@ -9,7 +9,7 @@ plugins {
 
 kotlin{
     explicitApi = null
-    useFx(ru.mipt.npm.gradle.FXModule.CONTROLS)
+    useFx(ru.mipt.npm.gradle.FXModule.CONTROLS, configuration = ru.mipt.npm.gradle.DependencyConfiguration.IMPLEMENTATION)
 }
 
 val ktorVersion: String by rootProject.extra

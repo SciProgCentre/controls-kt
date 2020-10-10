@@ -32,11 +32,11 @@ public class TypedDeviceProperty<T : Any>(
     converter: MetaConverter<T>,
 ) : TypedReadOnlyDeviceProperty<T>(property, converter), DeviceProperty {
 
-//    override var value: MetaItem<*>?
-//        get() = property.value
-//        set(arg) {
-//            property.value = arg
-//        }
+    override var value: MetaItem<*>?
+        get() = property.value
+        set(arg) {
+            property.value = arg
+        }
 
     public override var typedValue: T?
         get() = value?.let { converter.itemToObject(it) }
