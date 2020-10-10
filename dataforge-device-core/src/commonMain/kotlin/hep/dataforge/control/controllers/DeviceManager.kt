@@ -1,14 +1,13 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.context.AbstractPlugin
-import hep.dataforge.context.Context
-import hep.dataforge.context.PluginFactory
-import hep.dataforge.context.PluginTag
+import hep.dataforge.context.*
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.meta.Meta
+import hep.dataforge.meta.MetaBuilder
 import hep.dataforge.names.Name
 import hep.dataforge.names.NameToken
+import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 
 public class DeviceManager : AbstractPlugin(), DeviceHub {
@@ -38,6 +37,21 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
     }
 }
 
+public interface DeviceFactory<D : Device> : Factory<D>
 
 public val Context.devices: DeviceManager get() = plugins.fetch(DeviceManager)
+
+public fun <D : Device> DeviceManager.install(name: String, factory: DeviceFactory<D>, meta: Meta = Meta.EMPTY): D {
+    val device = factory(meta, context)
+    registerDevice(NameToken(name), device)
+    return device
+}
+
+public fun <D : Device> DeviceManager.installing(
+    factory: DeviceFactory<D>,
+    metaBuilder: MetaBuilder.() -> Unit = {},
+): ReadOnlyProperty<Any?, D> = ReadOnlyProperty { _, property ->
+    val name = property.name
+    install(name, factory, Meta(metaBuilder))
+}
 

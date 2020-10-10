@@ -2,6 +2,7 @@ package hep.dataforge.control.base
 
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.meta.*
+import hep.dataforge.meta.transformations.MetaConverter
 import hep.dataforge.values.Null
 import hep.dataforge.values.Value
 import hep.dataforge.values.asValue
@@ -9,13 +10,22 @@ import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-private fun <D : DeviceBase> D.provideProperty(): ReadOnlyProperty<D, ReadOnlyDeviceProperty> =
-    ReadOnlyProperty { _: D, property: KProperty<*> ->
-        val name = property.name
-        return@ReadOnlyProperty properties[name]!!
+private fun <D : DeviceBase> D.provideProperty(name: String): ReadOnlyProperty<D, ReadOnlyDeviceProperty> =
+    ReadOnlyProperty { _: D, _: KProperty<*> ->
+        return@ReadOnlyProperty properties.getValue(name)
     }
 
+private fun <D : DeviceBase, T : Any> D.provideProperty(
+    name: String,
+    converter: MetaConverter<T>,
+): ReadOnlyProperty<D, TypedReadOnlyDeviceProperty<T>> =
+    ReadOnlyProperty { _: D, _: KProperty<*> ->
+        return@ReadOnlyProperty TypedReadOnlyDeviceProperty(properties.getValue(name), converter)
+    }
+
+
 public typealias ReadOnlyPropertyDelegate = ReadOnlyProperty<DeviceBase, ReadOnlyDeviceProperty>
+public typealias TypedReadOnlyPropertyDelegate<T> = ReadOnlyProperty<DeviceBase, TypedReadOnlyDeviceProperty<T>>
 
 private class ReadOnlyDevicePropertyProvider<D : DeviceBase>(
     val owner: D,
@@ -27,7 +37,22 @@ private class ReadOnlyDevicePropertyProvider<D : DeviceBase>(
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): ReadOnlyPropertyDelegate {
         val name = property.name
         owner.newReadOnlyProperty(name, default, descriptorBuilder, getter)
-        return owner.provideProperty()
+        return owner.provideProperty(name)
+    }
+}
+
+private class TypedReadOnlyDevicePropertyProvider<D : DeviceBase, T : Any>(
+    val owner: D,
+    val default: MetaItem<*>?,
+    val converter: MetaConverter<T>,
+    val descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    private val getter: suspend (MetaItem<*>?) -> MetaItem<*>,
+) : PropertyDelegateProvider<D, TypedReadOnlyPropertyDelegate<T>> {
+
+    override operator fun provideDelegate(thisRef: D, property: KProperty<*>): TypedReadOnlyPropertyDelegate<T> {
+        val name = property.name
+        owner.newReadOnlyProperty(name, default, descriptorBuilder, getter)
+        return owner.provideProperty(name, converter)
     }
 }
 
@@ -57,9 +82,10 @@ public fun DeviceBase.readingNumber(
     default: Number? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend () -> Number,
-): PropertyDelegateProvider<DeviceBase, ReadOnlyPropertyDelegate> = ReadOnlyDevicePropertyProvider(
+): PropertyDelegateProvider<DeviceBase, TypedReadOnlyPropertyDelegate<Number>> = TypedReadOnlyDevicePropertyProvider(
     this,
     default?.let { MetaItem.ValueItem(it.asValue()) },
+    MetaConverter.number,
     descriptorBuilder,
     getter = {
         val number = getter()
@@ -71,9 +97,10 @@ public fun DeviceBase.readingString(
     default: String? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend () -> String,
-): PropertyDelegateProvider<DeviceBase, ReadOnlyPropertyDelegate> = ReadOnlyDevicePropertyProvider(
+): PropertyDelegateProvider<DeviceBase, TypedReadOnlyPropertyDelegate<String>> = TypedReadOnlyDevicePropertyProvider(
     this,
     default?.let { MetaItem.ValueItem(it.asValue()) },
+    MetaConverter.string,
     descriptorBuilder,
     getter = {
         val number = getter()
@@ -85,9 +112,10 @@ public fun DeviceBase.readingBoolean(
     default: Boolean? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend () -> Boolean,
-): PropertyDelegateProvider<DeviceBase, ReadOnlyPropertyDelegate> = ReadOnlyDevicePropertyProvider(
+): PropertyDelegateProvider<DeviceBase, TypedReadOnlyPropertyDelegate<Boolean>> = TypedReadOnlyDevicePropertyProvider(
     this,
     default?.let { MetaItem.ValueItem(it.asValue()) },
+    MetaConverter.boolean,
     descriptorBuilder,
     getter = {
         val boolean = getter()
@@ -99,22 +127,31 @@ public fun DeviceBase.readingMeta(
     default: Meta? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend MetaBuilder.() -> Unit,
-): PropertyDelegateProvider<DeviceBase, ReadOnlyPropertyDelegate> = ReadOnlyDevicePropertyProvider(
+): PropertyDelegateProvider<DeviceBase, TypedReadOnlyPropertyDelegate<Meta>> = TypedReadOnlyDevicePropertyProvider(
     this,
     default?.let { MetaItem.NodeItem(it) },
+    MetaConverter.meta,
     descriptorBuilder,
     getter = {
         MetaItem.NodeItem(MetaBuilder().apply { getter() })
     }
 )
 
-private fun DeviceBase.provideMutableProperty(): ReadOnlyProperty<DeviceBase, DeviceProperty> =
-    ReadOnlyProperty { _: DeviceBase, property: KProperty<*> ->
-        val name = property.name
+private fun DeviceBase.provideMutableProperty(name: String): ReadOnlyProperty<DeviceBase, DeviceProperty> =
+    ReadOnlyProperty { _: DeviceBase, _: KProperty<*> ->
         return@ReadOnlyProperty properties[name] as DeviceProperty
     }
 
+private fun <T : Any> DeviceBase.provideMutableProperty(
+    name: String,
+    converter: MetaConverter<T>,
+): ReadOnlyProperty<DeviceBase, TypedDeviceProperty<T>> =
+    ReadOnlyProperty { _: DeviceBase, _: KProperty<*> ->
+        return@ReadOnlyProperty TypedDeviceProperty(properties[name] as DeviceProperty, converter)
+    }
+
 public typealias PropertyDelegate = ReadOnlyProperty<DeviceBase, DeviceProperty>
+public typealias TypedPropertyDelegate<T> = ReadOnlyProperty<DeviceBase, TypedDeviceProperty<T>>
 
 private class DevicePropertyProvider<D : DeviceBase>(
     val owner: D,
@@ -127,7 +164,23 @@ private class DevicePropertyProvider<D : DeviceBase>(
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): PropertyDelegate {
         val name = property.name
         owner.newMutableProperty(name, default, descriptorBuilder, getter, setter)
-        return owner.provideMutableProperty()
+        return owner.provideMutableProperty(name)
+    }
+}
+
+private class TypedDevicePropertyProvider<D : DeviceBase, T : Any>(
+    val owner: D,
+    val default: MetaItem<*>?,
+    val converter: MetaConverter<T>,
+    val descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    private val getter: suspend (MetaItem<*>?) -> MetaItem<*>,
+    private val setter: suspend (oldValue: MetaItem<*>?, newValue: MetaItem<*>) -> MetaItem<*>?,
+) : PropertyDelegateProvider<D, TypedPropertyDelegate<T>> {
+
+    override operator fun provideDelegate(thisRef: D, property: KProperty<*>): TypedPropertyDelegate<T> {
+        val name = property.name
+        owner.newMutableProperty(name, default, descriptorBuilder, getter, setter)
+        return owner.provideMutableProperty(name, converter)
     }
 }
 
@@ -164,11 +217,21 @@ public fun DeviceBase.writingVirtual(
     setter = { _, newItem -> newItem }
 )
 
+public fun DeviceBase.writingVirtual(
+    default: Meta,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): PropertyDelegateProvider<DeviceBase, PropertyDelegate> = writing(
+    MetaItem.NodeItem(default),
+    descriptorBuilder,
+    getter = { it ?: MetaItem.NodeItem(default) },
+    setter = { _, newItem -> newItem }
+)
+
 public fun <D : DeviceBase> D.writingDouble(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (Double) -> Double,
     setter: suspend (oldValue: Double?, newValue: Double) -> Double?,
-): PropertyDelegateProvider<D, PropertyDelegate> {
+): PropertyDelegateProvider<D, TypedPropertyDelegate<Double>> {
     val innerGetter: suspend (MetaItem<*>?) -> MetaItem<*> = {
         MetaItem.ValueItem(getter(it.double ?: Double.NaN).asValue())
     }
@@ -177,9 +240,10 @@ public fun <D : DeviceBase> D.writingDouble(
         setter(oldValue.double, newValue.double ?: Double.NaN)?.asMetaItem()
     }
 
-    return DevicePropertyProvider(
+    return TypedDevicePropertyProvider(
         this,
         MetaItem.ValueItem(Double.NaN.asValue()),
+        MetaConverter.double,
         descriptorBuilder,
         innerGetter,
         innerSetter
@@ -190,7 +254,7 @@ public fun <D : DeviceBase> D.writingBoolean(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     getter: suspend (Boolean?) -> Boolean,
     setter: suspend (oldValue: Boolean?, newValue: Boolean) -> Boolean?,
-): PropertyDelegateProvider<D, PropertyDelegate> {
+): PropertyDelegateProvider<D, TypedPropertyDelegate<Boolean>> {
     val innerGetter: suspend (MetaItem<*>?) -> MetaItem<*> = {
         MetaItem.ValueItem(getter(it.boolean).asValue())
     }
@@ -200,9 +264,10 @@ public fun <D : DeviceBase> D.writingBoolean(
             ?.asMetaItem()
     }
 
-    return DevicePropertyProvider(
+    return TypedDevicePropertyProvider(
         this,
         MetaItem.ValueItem(Null),
+        MetaConverter.boolean,
         descriptorBuilder,
         innerGetter,
         innerSetter

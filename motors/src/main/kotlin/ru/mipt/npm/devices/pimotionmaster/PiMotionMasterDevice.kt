@@ -1,18 +1,14 @@
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package ru.mipt.npm.devices.pimotionmaster
 
 import hep.dataforge.context.Context
 import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.control.base.*
-import hep.dataforge.control.controllers.boolean
-import hep.dataforge.control.controllers.double
-import hep.dataforge.control.controllers.duration
-import hep.dataforge.control.ports.Port
-import hep.dataforge.control.ports.PortProxy
-import hep.dataforge.control.ports.send
-import hep.dataforge.control.ports.withDelimiter
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.asMetaItem
+import hep.dataforge.control.controllers.*
+import hep.dataforge.control.ports.*
+import hep.dataforge.meta.*
 import hep.dataforge.names.NameToken
 import hep.dataforge.values.Null
 import hep.dataforge.values.asValue
@@ -22,30 +18,80 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import tornadofx.*
+import java.util.*
+import kotlin.error
 import kotlin.time.Duration
 
-
-public class PiMotionMasterDevice(
+class PiMotionMasterDevice(
     context: Context,
-    axes: List<String>,
-    private val portFactory: suspend (MetaItem<*>?) -> Port,
+    private val portFactory: PortFactory = TcpPort,
 ) : DeviceBase(context), DeviceHub {
 
     override val scope: CoroutineScope = CoroutineScope(
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
     )
 
-    public val port: DeviceProperty by writingVirtual(Null) {
+    val address: DeviceProperty by writingVirtual(Null) {
         info = "The port for TCP connector"
     }
 
-    public val timeout: DeviceProperty by writingVirtual(Null) {
+
+    val timeout: DeviceProperty by writingVirtual(200.asValue()) {
         info = "Timeout"
     }
 
-    public var timeoutValue: Duration by timeout.duration()
+    var timeoutValue: Duration by timeout.duration()
 
-    private val connector = PortProxy { portFactory(port.value) }
+    private val connector = PortProxy { portFactory(address.value.node ?: Meta.EMPTY, context) }
+
+
+    /**
+     * Name-friendly accessor for axis
+     */
+    var axes: Map<String, Axis> = emptyMap()
+        private set
+
+    override val devices: Map<NameToken, Axis> = axes.mapKeys { (key, _) -> NameToken(key) }
+
+    private suspend fun failIfError(message: (Int) -> String = { "Failed with error code $it" }) {
+        val errorCode = getErrorCode()
+        if (errorCode != 0) error(message(errorCode))
+    }
+
+    val connect: DeviceAction by acting({
+        info = "Connect to specific port and initialize axis"
+    }) { portSpec ->
+        //Clear current actions if present
+        if (address.value != null) {
+            stop()
+        }
+        //Update port
+        address.value = portSpec
+        //Initialize axes
+        if (portSpec != null) {
+            val idn = identity.read()
+            failIfError { "Can't connect to $portSpec. Error code: $it" }
+            logger.info { "Connected to $idn on $portSpec" }
+            val ids = request("SAI?")
+            if (ids != axes.keys.toList()) {
+                //re-define axes if needed
+                axes = ids.associateWith { Axis(it) }
+            }
+            ids.map { it.asValue() }.asValue().asMetaItem()
+            initialize()
+            failIfError()
+        }
+    }
+
+    fun connect(host: String, port: Int) {
+        scope.launch {
+            connect(Meta {
+                "host" put host
+                "port" put port
+            })
+        }
+    }
 
     private val mutex = Mutex()
 
@@ -64,14 +110,13 @@ public class PiMotionMasterDevice(
         connector.send(stringToSend)
     }
 
-    public suspend fun getErrorCode(): Int = mutex.withLock {
+    suspend fun getErrorCode(): Int = mutex.withLock {
         withTimeout(timeoutValue) {
             sendCommandInternal("ERR?")
             val errorString = connector.receiving().withDelimiter("\n").first()
             errorString.toInt()
         }
     }
-
 
     /**
      * Send a synchronous request and receive a list of lines as a response
@@ -110,23 +155,26 @@ public class PiMotionMasterDevice(
         }
     }
 
-
-    public val initialize: DeviceAction by acting {
+    val initialize: DeviceAction by acting {
         send("INI")
     }
 
-    public val firmwareVersion: ReadOnlyDeviceProperty by readingString {
+    val identity: ReadOnlyDeviceProperty by readingString {
+        request("*IDN?").first()
+    }
+
+    val firmwareVersion: ReadOnlyDeviceProperty by readingString {
         request("VER?").first()
     }
 
-    public val stop: DeviceAction by acting(
+    val stop: DeviceAction by acting(
         descriptorBuilder = {
             info = "Stop all axis"
         },
         action = { send("STP") }
     )
 
-    public inner class Axis(public val axisId: String) : DeviceBase(context) {
+    inner class Axis(val axisId: String) : DeviceBase(context) {
         override val scope: CoroutineScope get() = this@PiMotionMasterDevice.scope
 
         private suspend fun readAxisBoolean(command: String): Boolean =
@@ -140,45 +188,49 @@ public class PiMotionMasterDevice(
                 "0"
             }
             send(command, axisId, boolean)
+            failIfError()
             return value
         }
 
         private fun axisBooleanProperty(command: String, descriptorBuilder: PropertyDescriptor.() -> Unit = {}) =
-            writingBoolean<Axis>(
+            writingBoolean(
                 getter = { readAxisBoolean("$command?") },
-                setter = { _, newValue -> writeAxisBoolean(command, newValue) },
+                setter = { _, newValue ->
+                    writeAxisBoolean(command, newValue)
+                },
                 descriptorBuilder = descriptorBuilder
             )
 
         private fun axisNumberProperty(command: String, descriptorBuilder: PropertyDescriptor.() -> Unit = {}) =
-            writingDouble<Axis>(
+            writingDouble(
                 getter = {
                     requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
                         ?: error("Malformed $command response. Should include float value for $axisId")
                 },
                 setter = { _, newValue ->
                     send(command, axisId, newValue.toString())
+                    failIfError()
                     newValue
                 },
                 descriptorBuilder = descriptorBuilder
             )
 
-        public val enabled: DeviceProperty by axisBooleanProperty("EAX") {
+        val enabled by axisBooleanProperty("EAX") {
             info = "Motor enable state."
         }
 
-        public val halt: DeviceAction by acting {
+        val halt: DeviceAction by acting {
             send("HLT", axisId)
         }
 
-        public val targetPosition: DeviceProperty by axisNumberProperty("MOV") {
+        val targetPosition by axisNumberProperty("MOV") {
             info = """
                 Sets a new absolute target position for the specified axis.
                 Servo mode must be switched on for the commanded axis prior to using this command (closed-loop operation).
             """.trimIndent()
         }
 
-        public val onTarget: ReadOnlyDeviceProperty by readingBoolean(
+        val onTarget: TypedReadOnlyDeviceProperty<Boolean> by readingBoolean(
             descriptorBuilder = {
                 info = "Queries the on-target state of the specified axis."
             },
@@ -187,7 +239,7 @@ public class PiMotionMasterDevice(
             }
         )
 
-        public val reference: ReadOnlyDeviceProperty by readingBoolean(
+        val reference: ReadOnlyDeviceProperty by readingBoolean(
             descriptorBuilder = {
                 info = "Get Referencing Result"
             },
@@ -200,36 +252,40 @@ public class PiMotionMasterDevice(
             send("FRF", axisId)
         }
 
-        public val position: DeviceProperty by axisNumberProperty("POS") {
+        val position: TypedDeviceProperty<Double> by axisNumberProperty("POS") {
             info = "The current axis position."
         }
 
-        var positionValue by position.double()
-
-        public val openLoopTarget: DeviceProperty by axisNumberProperty("OMA") {
+        val openLoopTarget: DeviceProperty by axisNumberProperty("OMA") {
             info = "Position for open-loop operation."
         }
 
-        public val closedLoop: DeviceProperty by axisBooleanProperty("SVO") {
+        val closedLoop: TypedDeviceProperty<Boolean> by axisBooleanProperty("SVO") {
             info = "Servo closed loop mode"
         }
 
-        var closedLoopValue by closedLoop.boolean()
-
-        public val velocity: DeviceProperty by axisNumberProperty("VEL") {
+        val velocity: TypedDeviceProperty<Double> by axisNumberProperty("VEL") {
             info = "Velocity value for closed-loop operation"
+        }
+
+        val move by acting {
+            val target = it.double ?: it.node["target"].double ?: error("Unacceptable target value $it")
+            closedLoop.write(true)
+            //optionally set velocity
+            it.node["velocity"].double?.let { v ->
+                velocity.write(v)
+            }
+            position.write(target)
+            //read `onTarget` and `position` properties in a cycle until movement is complete
+            while (!onTarget.readTyped(true)) {
+                position.read(true)
+                delay(200)
+            }
         }
     }
 
-    val axisIds: ReadOnlyDeviceProperty by reading {
-        request("SAI?").map { it.asValue() }.asValue().asMetaItem()
+    companion object : DeviceFactory<PiMotionMasterDevice> {
+        override fun invoke(meta: Meta, context: Context): PiMotionMasterDevice = PiMotionMasterDevice(context)
     }
-
-    override val devices: Map<NameToken, Axis> = axes.associate { NameToken(it) to Axis(it) }
-
-    /**
-     * Name-friendly accessor for axis
-     */
-    val axes: Map<String, Axis> get() = devices.mapKeys { it.toString() }
 
 }
