@@ -3,7 +3,7 @@ pluginManagement {
     val toolsVersion = "0.6.3-dev-1.4.20-M1"
 
     repositories {
-        mavenLocal()
+        //mavenLocal()
         jcenter()
         gradlePluginPortal()
         maven("https://kotlin.bintray.com/kotlinx")
@@ -27,8 +27,8 @@ pluginManagement {
 rootProject.name = "dataforge-control"
 
 include(
-    ":ktor-sse",
     ":dataforge-device-core",
+    ":dataforge-device-tcp",
     ":dataforge-device-serial",
     ":dataforge-device-server",
     ":dataforge-magix-client",

@@ -4,6 +4,7 @@ plugins {
 }
 
 val dataforgeVersion: String by rootProject.extra
+val ktorVersion: String by rootProject.extra
 
 kscience {
     useCoroutines()
@@ -17,13 +18,9 @@ kotlin {
                 api("hep.dataforge:dataforge-io:$dataforgeVersion")
             }
         }
-        jvmMain{
+        jvmTest{
             dependencies{
-                api("io.ktor:ktor-network:1.3.2")
-            }
-        }
-        jsMain{
-            dependencies{
+                api("io.ktor:ktor-network:$ktorVersion")
             }
         }
     }

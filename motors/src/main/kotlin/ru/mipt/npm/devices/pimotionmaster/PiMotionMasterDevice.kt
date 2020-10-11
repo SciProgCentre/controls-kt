@@ -22,19 +22,68 @@ import kotlin.time.Duration
 
 class PiMotionMasterDevice(
     context: Context,
-    private val portFactory: PortFactory = TcpPort,
+    private val portFactory: PortFactory = KtorTcpPort,
 ) : DeviceBase(context), DeviceHub {
 
     override val scope: CoroutineScope = CoroutineScope(
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
     )
 
-    private var address: Meta? = null
+    private var port: Port? = null
+    //TODO make proxy work
+    //PortProxy { portFactory(address ?: error("The device is not connected"), context) }
+
 
     val connected by readingBoolean(false, descriptorBuilder = {
         info = "True if the connection address is defined and the device is initialized"
     }) {
-        address != null
+        port != null
+    }
+
+
+    val connect: DeviceAction by acting({
+        info = "Connect to specific port and initialize axis"
+    }) { portSpec ->
+        //Clear current actions if present
+        if (port != null) {
+            disconnect()
+        }
+        //Update port
+        //address = portSpec.node
+        port = portFactory(portSpec.node!!, context)
+        connected.updateLogical(true)
+//        connector.open()
+        //Initialize axes
+        if (portSpec != null) {
+            val idn = identity.read()
+            failIfError { "Can't connect to $portSpec. Error code: $it" }
+            logger.info { "Connected to $idn on $portSpec" }
+            val ids = request("SAI?").map { it.trim() }
+            if (ids != axes.keys.toList()) {
+                //re-define axes if needed
+                axes = ids.associateWith { Axis(it) }
+            }
+            ids.map { it.asValue() }.asValue().asMetaItem()
+            initialize()
+            failIfError()
+        }
+    }
+
+    val disconnect: DeviceAction by acting({
+        info = "Disconnect the program from the device if it is connected"
+    }) {
+        if (port != null) {
+            stop()
+            port?.close()
+        }
+        port = null
+        connected.updateLogical(false)
+    }
+
+    fun disconnect() {
+        runBlocking{
+            disconnect.invoke()
+        }
     }
 
     val timeout: DeviceProperty by writingVirtual(200.asValue()) {
@@ -42,8 +91,6 @@ class PiMotionMasterDevice(
     }
 
     var timeoutValue: Duration by timeout.duration()
-
-    private val connector = PortProxy { portFactory(address ?: error("The device is not connected"), context) }
 
     /**
      * Name-friendly accessor for axis
@@ -58,46 +105,8 @@ class PiMotionMasterDevice(
         if (errorCode != 0) error(message(errorCode))
     }
 
-    val connect: DeviceAction by acting({
-        info = "Connect to specific port and initialize axis"
-    }) { portSpec ->
-        //Clear current actions if present
-        if (address != null) {
-            stop()
-        }
-        //Update port
-        address = portSpec.node
-        connected.invalidate()
-        connector.open()
-        //Initialize axes
-        if (portSpec != null) {
-            val idn = identity.read()
-            failIfError { "Can't connect to $portSpec. Error code: $it" }
-            logger.info { "Connected to $idn on $portSpec" }
-            val ids = request("SAI?")
-            if (ids != axes.keys.toList()) {
-                //re-define axes if needed
-                axes = ids.associateWith { Axis(it) }
-            }
-            ids.map { it.asValue() }.asValue().asMetaItem()
-            initialize()
-            failIfError()
-        }
-    }
-
-    val disconnect: DeviceAction by acting({
-        info = "Disconnect the program from the device if it is connected"
-    }) {
-        connector.close()
-        if (address != null) {
-            stop()
-        }
-        address = null
-        connected.invalidate()
-    }
-
     fun connect(host: String, port: Int) {
-        scope.launch {
+        runBlocking {
             connect(Meta {
                 "host" put host
                 "port" put port
@@ -119,14 +128,14 @@ class PiMotionMasterDevice(
             arguments.joinToString(prefix = " ", separator = " ", postfix = "")
         }
         val stringToSend = "$command$joinedArguments\n"
-        connector.send(stringToSend)
+        port?.send(stringToSend) ?: error("Not connected to device")
     }
 
     suspend fun getErrorCode(): Int = mutex.withLock {
         withTimeout(timeoutValue) {
             sendCommandInternal("ERR?")
-            val errorString = connector.receiving().withDelimiter("\n").first()
-            errorString.toInt()
+            val errorString = port?.receiving()?.withDelimiter("\n")?.first() ?: error("Not connected to device")
+            errorString.trim().toInt()
         }
     }
 
@@ -137,17 +146,12 @@ class PiMotionMasterDevice(
         try {
             withTimeout(timeoutValue) {
                 sendCommandInternal(command, *arguments)
-                val phrases = connector.receiving().withDelimiter("\n")
-                var lastLineFlag = false
-                phrases.transformWhile { line ->
-                    if (lastLineFlag) {
-                        false
-                    } else {
-                        emit(line)
-                        lastLineFlag = !line.endsWith(" \n")
-                        true
-                    }
+                val phrases = port?.receiving()?.withDelimiter("\n") ?: error("Not connected to device")
+                val list = phrases.transformWhile { line ->
+                    emit(line)
+                    line.endsWith(" \n")
                 }.toList()
+                list
             }
         } catch (ex: Throwable) {
             logger.warn { "Error during PIMotionMaster request. Requesting error code." }
@@ -273,6 +277,26 @@ class PiMotionMasterDevice(
             send("FRF", axisId)
         }
 
+        val minPosition by readingNumber(
+            descriptorBuilder = {
+                info = "Minimal position value for the axis"
+            },
+            getter = {
+                requestAndParse("TMN?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed `TMN?` response. Should include float value for $axisId")
+            }
+        )
+
+        val maxPosition by readingNumber(
+            descriptorBuilder = {
+                info = "Maximal position value for the axis"
+            },
+            getter = {
+                requestAndParse("TMX?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed `TMX?` response. Should include float value for $axisId")
+            }
+        )
+
         val position: TypedDeviceProperty<Double> by axisNumberProperty("POS") {
             info = "The current axis position."
         }
@@ -302,6 +326,10 @@ class PiMotionMasterDevice(
                 position.read(true)
                 delay(200)
             }
+        }
+
+        suspend fun move(target: Double) {
+            move(target.asMetaItem())
         }
     }
 

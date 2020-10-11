@@ -11,6 +11,7 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.utils.io.consumeEachBufferRange
+import io.ktor.utils.io.core.Closeable
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -24,7 +25,7 @@ public class KtorTcpPort internal constructor(
     public val host: String,
     public val port: Int,
     coroutineContext: CoroutineContext = context.coroutineContext,
-) : AbstractPort(context, coroutineContext), AutoCloseable {
+) : AbstractPort(context, coroutineContext), Closeable {
 
     override fun toString(): String = "port[tcp:$host:$port]"
 

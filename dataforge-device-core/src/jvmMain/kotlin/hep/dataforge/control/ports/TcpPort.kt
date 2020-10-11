@@ -62,7 +62,11 @@ public class TcpPort private constructor(
 
     override fun close() {
         listenerJob.cancel()
-        futureChannel.cancel()
+        if(futureChannel.isCompleted){
+            futureChannel.getCompleted().close()
+        } else {
+            futureChannel.cancel()
+        }
         super.close()
     }
 

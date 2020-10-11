@@ -1,5 +1,7 @@
 package hep.dataforge.control.server
 
+import hep.dataforge.control.sse.SseEvent
+import hep.dataforge.control.sse.writeSseFlow
 import io.ktor.application.ApplicationCall
 import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
@@ -8,8 +10,6 @@ import io.ktor.response.respondBytesWriter
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import ru.mipt.npm.io.sse.SseEvent
-import ru.mipt.npm.io.sse.writeSseFlow
 
 /**
  * Method that responds an [ApplicationCall] by reading all the [SseEvent]s from the specified [events] [ReceiveChannel]

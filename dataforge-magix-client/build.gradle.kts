@@ -10,7 +10,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(project(":dataforge-device-core"))
-                implementation(project(":ktor-sse"))
+                implementation(project(":dataforge-device-tcp"))
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
             }
         }

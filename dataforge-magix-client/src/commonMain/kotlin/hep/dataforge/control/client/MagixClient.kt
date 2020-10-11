@@ -3,6 +3,8 @@ package hep.dataforge.control.client
 import hep.dataforge.control.controllers.DeviceManager
 import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.respondMessage
+import hep.dataforge.control.sse.SseEvent
+import hep.dataforge.control.sse.readSseFlow
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.wrap
@@ -21,8 +23,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
-import ru.mipt.npm.io.sse.SseEvent
-import ru.mipt.npm.io.sse.readSseFlow
 import kotlin.coroutines.CoroutineContext
 
 

@@ -148,6 +148,14 @@ class PiMotionMasterVirtualDevice(
         respond(response)
     }
 
+    private suspend fun doForEachAxis(parts: List<String>, action: suspend (key: String, value: String) -> Unit) {
+        var i = 0
+        while (parts.size > 2 * i + 1) {
+            action(parts[2 * i + 1], parts[2 * i + 2])
+            i++
+        }
+    }
+
     override suspend fun evaluateRequest(request: ByteArray) {
         assert(request.last() == '\n'.toByte())
         val string = request.decodeToString().substringBefore("\n")
@@ -222,7 +230,7 @@ class PiMotionMasterVirtualDevice(
                 respond(errorCode.toString())
                 errorCode = 0
             }
-            "SAI?" -> respond(axisIds.joinToString(separator = " \n"))
+            "SAI?" -> respond(axisState.keys.joinToString(separator = " \n"))
             "CST?" -> respondForAllAxis(axisIds) { "L-220.20SG" }
             "RON?" -> respondForAllAxis(axisIds) { referenceMode }
             "FRF?" -> respondForAllAxis(axisIds) { "1" } // WAT?
@@ -233,10 +241,17 @@ class PiMotionMasterVirtualDevice(
             "TMX?" -> respondForAllAxis(axisIds) { maxPosition }
             "VEL?" -> respondForAllAxis(axisIds) { velocity }
             "SRG?" -> respond(WAT)
-            "SVO" -> {
-                val requestAxis = parts[1]
-                val servoMode = parts.last()
-                axisState[requestAxis]?.servoMode = servoMode.toInt()
+            "SVO" -> doForEachAxis(parts) { key, value ->
+                axisState[key]?.servoMode = value.toInt()
+            }
+            "MOV" -> doForEachAxis(parts) { key, value ->
+                axisState[key]?.targetPosition = value.toDouble()
+            }
+            "VEL"-> doForEachAxis(parts){key, value ->
+                axisState[key]?.velocity = value.toDouble()
+            }
+            "INI" -> {
+                logger.info { "Axes initialized!" }
             }
             else -> {
                 logger.warn { "Unknown command: $command in message ${String(request)}" }

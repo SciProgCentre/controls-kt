@@ -34,7 +34,7 @@ public fun <T : Any> ReadOnlyDeviceProperty.convert(
     metaConverter: MetaConverter<T>,
     forceRead: Boolean,
 ): ReadOnlyProperty<Any?, T> {
-    return ReadOnlyProperty { thisRef, property ->
+    return ReadOnlyProperty { _, _ ->
         runBlocking(scope.coroutineContext) {
             read(forceRead).let { metaConverter.itemToObject(it) }
         }

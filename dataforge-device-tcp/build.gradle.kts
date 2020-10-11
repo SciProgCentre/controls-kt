@@ -2,7 +2,6 @@ plugins {
     id("ru.mipt.npm.mpp")
 }
 
-group = "ru.mipt.npm"
 
 val ktorVersion: String by rootProject.extra
 
@@ -14,7 +13,8 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api("io.ktor:ktor-io:$ktorVersion")
+                api(project(":dataforge-device-core"))
+                api("io.ktor:ktor-network:$ktorVersion")
             }
         }
         jvmTest{

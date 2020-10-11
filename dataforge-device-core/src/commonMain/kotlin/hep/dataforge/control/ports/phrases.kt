@@ -1,21 +1,20 @@
 package hep.dataforge.control.ports
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 import kotlinx.io.ByteArrayOutput
 
 /**
- * Transform byte fragments into complete phrases using given delimiter
+ * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
  */
-public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> = flow {
+public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
 
     var output = ByteArrayOutput(expectedMessageSize)
     var matcherPosition = 0
 
-    collect { chunk ->
+    return transform { chunk ->
         chunk.forEach { byte ->
             output.writeByte(byte)
             //matching current symbol in delimiter
@@ -39,7 +38,7 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSi
  * Transform byte fragments into utf-8 phrases using utf-8 delimiter
  */
 public fun Flow<ByteArray>.withDelimiter(delimiter: String, expectedMessageSize: Int = 32): Flow<String> {
-    return withDelimiter(delimiter.encodeToByteArray(),expectedMessageSize).map { it.decodeToString() }
+    return withDelimiter(delimiter.encodeToByteArray(), expectedMessageSize).map { it.decodeToString() }
 }
 
 /**

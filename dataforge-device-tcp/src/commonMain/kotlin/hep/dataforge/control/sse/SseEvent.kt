@@ -1,4 +1,4 @@
-package ru.mipt.npm.io.sse
+package hep.dataforge.control.sse
 
 import io.ktor.utils.io.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi

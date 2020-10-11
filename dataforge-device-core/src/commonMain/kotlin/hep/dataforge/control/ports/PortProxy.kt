@@ -5,9 +5,9 @@ import hep.dataforge.context.ContextAware
 import hep.dataforge.context.Global
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -31,40 +31,37 @@ public class PortProxy(override val context: Context = Global, public val factor
         }
     }
 
-    /**
-     * Ensure that the port is open. If it is already open, does nothing. Otherwise, open a new port.
-     */
-    public suspend fun open() {
-        port()//ignore result
-    }
-
     override suspend fun send(data: ByteArray) {
         port().send(data)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun receiving(): Flow<ByteArray> = channelFlow {
-        while (isActive) {
+    override fun receiving(): Flow<ByteArray> = flow {
+        while (true) {
             try {
-                //recreate port and Flow on cancel
+                //recreate port and Flow on connection problems
                 port().receiving().collect {
-                    send(it)
+                    emit(it)
                 }
             } catch (t: Throwable) {
                 logger.warn(t){"Port read failed. Reconnecting."}
-                //cancel
-//                if (t is CancellationException) {
-//                    cancel(t)
-//                }
+                mutex.withLock {
+                    actualPort?.close()
+                    actualPort = null
+                }
             }
         }
-    }// port().receiving()
+    }
 
     // open by default
     override fun isOpen(): Boolean = true
 
     override fun close() {
-        actualPort?.close()
-        actualPort = null
+        context.launch {
+            mutex.withLock {
+                actualPort?.close()
+                actualPort = null
+            }
+        }
     }
 }
