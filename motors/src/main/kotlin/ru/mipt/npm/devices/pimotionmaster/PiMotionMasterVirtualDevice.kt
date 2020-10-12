@@ -8,6 +8,8 @@ import hep.dataforge.control.ports.withDelimiter
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.abs
 import kotlin.time.Duration
 
@@ -20,8 +22,12 @@ abstract class VirtualDevice(val scope: CoroutineScope) : Socket<ByteArray> {
     private val toReceive = Channel<ByteArray>(100)
     private val toRespond = Channel<ByteArray>(100)
 
+    private val mutex = Mutex()
+
     private val receiveJob: Job = toReceive.consumeAsFlow().transformRequests().onEach {
-        evaluateRequest(it)
+        mutex.withLock {
+            evaluateRequest(it)
+        }
     }.catch {
         it.printStackTrace()
     }.launchIn(scope)
@@ -143,7 +149,12 @@ class PiMotionMasterVirtualDevice(
         }
         val response = selectedAxis.joinToString(separator = " \n") {
             val state = axisState.getValue(it)
-            "$it=${state.extract(it)}"
+            val value = when (val extracted = state.extract(it)) {
+                true -> 1
+                false -> 0
+                else -> extracted
+            }
+            "$it=$value"
         }
         respond(response)
     }
@@ -241,13 +252,14 @@ class PiMotionMasterVirtualDevice(
             "TMX?" -> respondForAllAxis(axisIds) { maxPosition }
             "VEL?" -> respondForAllAxis(axisIds) { velocity }
             "SRG?" -> respond(WAT)
+            "ONT?" -> respondForAllAxis(axisIds) { onTarget() }
             "SVO" -> doForEachAxis(parts) { key, value ->
                 axisState[key]?.servoMode = value.toInt()
             }
             "MOV" -> doForEachAxis(parts) { key, value ->
                 axisState[key]?.targetPosition = value.toDouble()
             }
-            "VEL"-> doForEachAxis(parts){key, value ->
+            "VEL" -> doForEachAxis(parts) { key, value ->
                 axisState[key]?.velocity = value.toDouble()
             }
             "INI" -> {

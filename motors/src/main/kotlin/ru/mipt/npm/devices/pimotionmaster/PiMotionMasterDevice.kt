@@ -81,7 +81,7 @@ class PiMotionMasterDevice(
     }
 
     fun disconnect() {
-        runBlocking{
+        runBlocking {
             disconnect.invoke()
         }
     }
@@ -165,7 +165,7 @@ class PiMotionMasterDevice(
     private suspend fun requestAndParse(command: String, vararg arguments: String): Map<String, String> = buildMap {
         request(command, *arguments).forEach { line ->
             val (key, value) = line.split("=")
-            put(key, value)
+            put(key, value.trim())
         }
     }
 
@@ -277,7 +277,7 @@ class PiMotionMasterDevice(
             send("FRF", axisId)
         }
 
-        val minPosition by readingNumber(
+        val minPosition by readingDouble(
             descriptorBuilder = {
                 info = "Minimal position value for the axis"
             },
@@ -287,7 +287,7 @@ class PiMotionMasterDevice(
             }
         )
 
-        val maxPosition by readingNumber(
+        val maxPosition by readingDouble(
             descriptorBuilder = {
                 info = "Maximal position value for the axis"
             },
@@ -297,9 +297,15 @@ class PiMotionMasterDevice(
             }
         )
 
-        val position: TypedDeviceProperty<Double> by axisNumberProperty("POS") {
-            info = "The current axis position."
-        }
+        val position by readingDouble(
+            descriptorBuilder = {
+                info = "The current axis position."
+            },
+            getter = {
+                requestAndParse("POS?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed `POS?` response. Should include float value for $axisId")
+            }
+        )
 
         val openLoopTarget: DeviceProperty by axisNumberProperty("OMA") {
             info = "Position for open-loop operation."
@@ -320,7 +326,7 @@ class PiMotionMasterDevice(
             it.node["velocity"].double?.let { v ->
                 velocity.write(v)
             }
-            position.write(target)
+            targetPosition.write(target)
             //read `onTarget` and `position` properties in a cycle until movement is complete
             while (!onTarget.readTyped(true)) {
                 position.read(true)

@@ -93,6 +93,21 @@ public fun DeviceBase.readingNumber(
     }
 )
 
+public fun DeviceBase.readingDouble(
+    default: Number? = null,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    getter: suspend () -> Double,
+): PropertyDelegateProvider<DeviceBase, TypedReadOnlyPropertyDelegate<Double>> = TypedReadOnlyDevicePropertyProvider(
+    this,
+    default?.let { MetaItem.ValueItem(it.asValue()) },
+    MetaConverter.double,
+    descriptorBuilder,
+    getter = {
+        val number = getter()
+        MetaItem.ValueItem(number.asValue())
+    }
+)
+
 public fun DeviceBase.readingString(
     default: String? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},

@@ -7,9 +7,11 @@ import javafx.beans.property.ReadOnlyProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
-import javafx.collections.FXCollections
+import javafx.geometry.Pos
 import javafx.scene.Parent
 import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import tornadofx.*
@@ -27,6 +29,51 @@ class PiMotionMasterController : Controller() {
     val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
 }
 
+fun VBox.piMotionMasterAxis(
+    axisName: String,
+    axis: PiMotionMasterDevice.Axis,
+    coroutineScope: CoroutineScope,
+) = hbox {
+    alignment = Pos.CENTER
+    label(axisName)
+    coroutineScope.launch {
+        val min = axis.minPosition.readTyped(true)
+        val max = axis.maxPosition.readTyped(true)
+        val positionProperty = axis.position.fxProperty(axis)
+        val startPosition = axis.position.readTyped(true)
+        runLater {
+            vbox {
+                hgrow = Priority.ALWAYS
+                slider(min..max, startPosition) {
+                    minWidth = 300.0
+                    isShowTickLabels = true
+                    isShowTickMarks = true
+                    minorTickCount = 10
+                    majorTickUnit = 1.0
+                    valueProperty().onChange {
+                        coroutineScope.launch {
+                            axis.move(value)
+                        }
+                    }
+                }
+                slider(min..max) {
+                    isDisable = true
+                    valueProperty().bind(positionProperty)
+                }
+            }
+        }
+    }
+}
+
+fun Parent.axisPane(axes: Map<String, PiMotionMasterDevice.Axis>, coroutineScope: CoroutineScope) {
+    vbox {
+        axes.forEach { (name, axis) ->
+            this.piMotionMasterAxis(name, axis, coroutineScope)
+        }
+    }
+}
+
+
 class PiMotionMasterView : View() {
 
     private val controller: PiMotionMasterController by inject()
@@ -35,7 +82,7 @@ class PiMotionMasterView : View() {
     private val connectedProperty: ReadOnlyProperty<Boolean> = device.connected.fxProperty(device)
     private val debugServerJobProperty = SimpleObjectProperty<Job>()
     private val debugServerStarted = debugServerJobProperty.booleanBinding { it != null }
-    private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
+    //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
 
     override val root: Parent = borderpane {
         top {
@@ -49,7 +96,7 @@ class PiMotionMasterView : View() {
                         }
                     }
                     field("Port:") {
-                        textfield(port){
+                        textfield(port) {
                             stripNonNumeric()
                         }
                         button {
@@ -86,9 +133,11 @@ class PiMotionMasterView : View() {
                     action {
                         if (!connectedProperty.value) {
                             device.connect(host.get(), port.get())
-                            axisList.addAll(device.axes.entries)
+                            center {
+                                axisPane(device.axes,controller.context)
+                            }
                         } else {
-                            axisList.removeAll()
+                            this@borderpane.center = null
                             device.disconnect()
                         }
                     }
@@ -98,34 +147,6 @@ class PiMotionMasterView : View() {
             }
         }
 
-        center {
-            listview(axisList) {
-                cellFormat { (name, axis) ->
-                    hbox {
-                        minHeight = 40.0
-                        label(name)
-                        controller.context.launch {
-                            val min = axis.minPosition.readTyped(true)
-                            val max = axis.maxPosition.readTyped(true)
-                            runLater {
-                                slider(min.toDouble()..max.toDouble()){
-                                    hgrow = Priority.ALWAYS
-                                    valueProperty().onChange {
-                                        isDisable = true
-                                        launch {
-                                            axis.move(value)
-                                            runLater {
-                                                isDisable = false
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
