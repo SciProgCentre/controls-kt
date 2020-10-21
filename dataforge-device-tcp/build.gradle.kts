@@ -17,12 +17,6 @@ kotlin {
                 api("io.ktor:ktor-network:$ktorVersion")
             }
         }
-        jvmTest{
-            dependencies{
-                implementation("io.ktor:ktor-server-cio:$ktorVersion")
-                implementation("io.ktor:ktor-client-cio:$ktorVersion")
-                implementation("ch.qos.logback:logback-classic:1.2.3")
-            }
-        }
+
     }
 }

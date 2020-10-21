@@ -111,7 +111,7 @@ class PiMotionMasterView : View() {
                             action {
                                 if (!debugServerStarted.get()) {
                                     debugServerJobProperty.value =
-                                        controller.context.launchPiDebugServer(port.get(), listOf("1", "2"))
+                                        controller.context.launchPiDebugServer(port.get(), listOf("1", "2", "3", "4"))
                                 } else {
                                     debugServerJobProperty.get().cancel()
                                     debugServerJobProperty.value = null

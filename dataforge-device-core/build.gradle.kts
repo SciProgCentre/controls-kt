@@ -18,10 +18,5 @@ kotlin {
                 api("hep.dataforge:dataforge-io:$dataforgeVersion")
             }
         }
-        jvmTest{
-            dependencies{
-                api("io.ktor:ktor-network:$ktorVersion")
-            }
-        }
     }
 }

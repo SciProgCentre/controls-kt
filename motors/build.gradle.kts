@@ -3,9 +3,14 @@ import ru.mipt.npm.gradle.useFx
 plugins {
     id("ru.mipt.npm.jvm")
     id("ru.mipt.npm.publish")
+    application
 }
 
 //TODO to be moved to a separate project
+
+application{
+    mainClassName = "ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt"
+}
 
 kotlin{
     explicitApi = null

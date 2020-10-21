@@ -3,10 +3,10 @@ pluginManagement {
     val toolsVersion = "0.6.3-dev-1.4.20-M1"
 
     repositories {
-        //mavenLocal()
+        mavenLocal()
         jcenter()
         gradlePluginPortal()
-        maven("https://kotlin.bintray.com/kotlinx")
+        //maven("https://kotlin.bintray.com/kotlinx")
         maven("https://dl.bintray.com/kotlin/kotlin-eap")
         maven("https://dl.bintray.com/mipt-npm/dataforge")
         maven("https://dl.bintray.com/mipt-npm/kscience")
@@ -32,7 +32,7 @@ include(
     ":dataforge-device-serial",
     ":dataforge-device-server",
     ":dataforge-magix-client",
-    ":demo",
+//    ":demo",
     ":motors"
 )
 
