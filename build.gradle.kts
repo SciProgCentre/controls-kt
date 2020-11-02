@@ -4,8 +4,9 @@ plugins {
     kotlin("js") apply false
 }
 
-val dataforgeVersion: String by extra("0.2.0-dev-3")
+val dataforgeVersion: String by extra("0.2.0-dev-4")
 val ktorVersion: String by extra("1.4.1")
+val rsocketVersion by extra("0.10.0")
 
 allprojects {
     repositories {
@@ -14,10 +15,12 @@ allprojects {
         maven("http://maven.jzy3d.org/releases")
         maven("https://kotlin.bintray.com/js-externals")
         maven("https://maven.pkg.github.com/altavir/kotlin-logging/")
+        maven("https://dl.bintray.com/rsocket-admin/RSocket")
+        maven("https://maven.pkg.github.com/altavir/ktor-client-sse")
     }
 
     group = "hep.dataforge"
-    version = "0.0.1"
+    version = "0.1.0"
 }
 
 ksciencePublish {
