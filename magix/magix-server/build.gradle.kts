@@ -5,7 +5,9 @@ plugins {
 }
 
 kscience {
-    useSerialization()
+    useSerialization{
+        json()
+    }
 }
 
 val dataforgeVersion: String by rootProject.extra
@@ -21,6 +23,4 @@ dependencies{
 
     implementation("io.rsocket.kotlin:rsocket-core:$rsocketVersion")
     implementation("io.rsocket.kotlin:rsocket-transport-ktor-server:$rsocketVersion")
-
-    implementation("ru.mipt.npm:ktor-client-sse:0.1.0")
 }

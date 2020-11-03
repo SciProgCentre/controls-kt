@@ -4,7 +4,9 @@ plugins {
 }
 
 kscience {
-    useSerialization()
+    useSerialization{
+        json()
+    }
     useCoroutines("1.4.0", configuration = ru.mipt.npm.gradle.DependencyConfiguration.API)
 }
 
