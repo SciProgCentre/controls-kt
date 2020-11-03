@@ -24,7 +24,10 @@ import kotlinx.serialization.encodeToString
 import kotlin.time.minutes
 import kotlin.time.seconds
 
-public class RScocketMagixEndpoint(
+/**
+ * An RSocket endpoint which relies on WebSocket transport
+ */
+public class WebRScocketMagixEndpoint(
     override val scope: CoroutineScope,
     public val host: String,
     public val port: Int,
