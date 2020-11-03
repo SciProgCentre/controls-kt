@@ -27,13 +27,13 @@ pluginManagement {
 rootProject.name = "dataforge-control"
 
 include(
-//    ":dataforge-device-core",
-//    ":dataforge-device-tcp",
-//    ":dataforge-device-serial",
-//    ":dataforge-device-server",
-//    ":dataforge-magix-client",
-//    ":motors",
-//    ":demo",
+    ":dataforge-device-core",
+    ":dataforge-device-tcp",
+    ":dataforge-device-serial",
+    ":dataforge-device-server",
+    ":dataforge-magix-client",
+    ":motors",
+    ":demo",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",

@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.html.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
+import ru.mipt.npm.ktor.sse.SseEvent
+import ru.mipt.npm.ktor.sse.writeSseFlow
+import java.util.*
 
 public typealias GenericMagixMessage = MagixMessage<JsonElement>
 
@@ -130,10 +133,10 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
             //SSE server. Filter from query
             get("sse") {
                 val filter = call.buildFilter()
-                var idCounter = 0
                 val sseFlow = magixFlow.filter(filter).map {
                     val data = magixJson.encodeToString(genericMessageSerializer, it)
-                    SseEvent(data, id = idCounter++.toString())
+                    val id = UUID.randomUUID()
+                    SseEvent(data, id = id.toString(), event = "message")
                 }
                 call.respondSse(sseFlow)
             }
