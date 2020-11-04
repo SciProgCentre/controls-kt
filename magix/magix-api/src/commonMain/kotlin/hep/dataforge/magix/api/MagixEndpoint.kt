@@ -24,7 +24,7 @@ public interface MagixEndpoint {
     /**
      * Send an event using specific [payloadSerializer]
      */
-    public suspend fun <T> send(
+    public suspend fun <T> broadcast(
         payloadSerializer: KSerializer<T>,
         message: MagixMessage<T>,
     )
@@ -40,5 +40,5 @@ public suspend fun MagixEndpoint.subscribe(
     filter: MagixMessageFilter = MagixMessageFilter.ALL,
 ): Flow<MagixMessage<JsonElement>> = subscribe(JsonElement.serializer())
 
-public suspend fun MagixEndpoint.send(message: MagixMessage<JsonElement>): Unit =
-    send(JsonElement.serializer(), message)
+public suspend fun MagixEndpoint.broadcast(message: MagixMessage<JsonElement>): Unit =
+    broadcast(JsonElement.serializer(), message)

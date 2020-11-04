@@ -27,8 +27,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.html.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
-import ru.mipt.npm.ktor.sse.SseEvent
-import ru.mipt.npm.ktor.sse.writeSseFlow
 import java.util.*
 
 public typealias GenericMagixMessage = MagixMessage<JsonElement>

@@ -30,7 +30,7 @@ public class MagixConverter(
                 format = outputFormat,
                 origin = newOrigin ?: message.origin
             )
-            endpoint.send(transformed)
+            endpoint.broadcast(transformed)
         }.launchIn(this)
     }
 }
