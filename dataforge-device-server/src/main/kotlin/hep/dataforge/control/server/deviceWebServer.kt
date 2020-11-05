@@ -12,7 +12,6 @@ import hep.dataforge.control.controllers.respondMessage
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.toMetaItem
-import hep.dataforge.meta.wrap
 import io.ktor.application.*
 import io.ktor.features.CORS
 import io.ktor.features.StatusPages
@@ -189,7 +188,7 @@ public fun Application.deviceModule(
                     ?: throw IllegalArgumentException("The body is not a json object")
                 val meta = json.toMeta()
 
-                val request = DeviceMessage.wrap(meta)
+                val request = DeviceMessage.fromMeta(meta)
 
                 val response = manager.respondMessage(request)
                 call.respondMessage(response)
@@ -202,12 +201,12 @@ public fun Application.deviceModule(
                     get("get") {
                         val target: String by call.parameters
                         val property: String by call.parameters
-                        val request = DeviceMessage {
-                            action = GET_PROPERTY_ACTION
-                            sourceName = WEB_SERVER_TARGET
-                            this.targetName = target
-                            key = property
-                        }
+                        val request = DeviceMessage(
+                            action = GET_PROPERTY_ACTION,
+                            sourceName = WEB_SERVER_TARGET,
+                            targetName = target,
+                            key = property,
+                        )
 
                         val response = manager.respondMessage(request)
                         call.respondMessage(response)
@@ -218,14 +217,13 @@ public fun Application.deviceModule(
                         val body = call.receiveText()
                         val json = Json.parseToJsonElement(body)
 
-                        val request = DeviceMessage {
-                            action = SET_PROPERTY_ACTION
-                            sourceName = WEB_SERVER_TARGET
-                            this.targetName = target
-                            key = property
+                        val request = DeviceMessage(
+                            action = SET_PROPERTY_ACTION,
+                            sourceName = WEB_SERVER_TARGET,
+                            targetName = target,
+                            key = property,
                             value = json.toMetaItem()
-
-                        }
+                        )
 
                         val response = manager.respondMessage(request)
                         call.respondMessage(response)

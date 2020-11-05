@@ -24,7 +24,7 @@ public class RSocketMagixEndpoint(
     public val rSocket: RSocket,
 ) : MagixEndpoint {
 
-    override suspend fun <T> subscribe(
+    override fun <T> subscribe(
         payloadSerializer: KSerializer<T>,
         filter: MagixMessageFilter,
     ): Flow<MagixMessage<T>> {

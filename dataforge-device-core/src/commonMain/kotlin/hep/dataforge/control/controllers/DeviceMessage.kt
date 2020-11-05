@@ -4,21 +4,22 @@ import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.*
 import hep.dataforge.names.Name
 import hep.dataforge.names.asName
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 
-public class DeviceMessage : Scheme() {
-    public var action: String by string { error("Action not defined") }
-    public var status: String by string(default = OK_STATUS)
-    public var sourceName: String? by string()
-    public var targetName: String? by string()
-    public var comment: String? by string()
-    public var key: String? by string()
-    public var value: MetaItem<*>? by item()
-
-    public companion object : SchemeSpec<DeviceMessage>(::DeviceMessage), KSerializer<DeviceMessage> {
+@Serializable
+public data class DeviceMessage(
+    public val action: String,
+    public val status: String = OK_STATUS,
+    public val sourceName: String? = null,
+    public val targetName: String? = null,
+    public val comment: String? = null,
+    public val key: String? = null,
+    public val value: MetaItem<*>? = null,
+) {
+    public companion object {
         public val SOURCE_KEY: Name = DeviceMessage::sourceName.name.asName()
         public val TARGET_KEY: Name = DeviceMessage::targetName.name.asName()
         public val MESSAGE_ACTION_KEY: Name = DeviceMessage::action.name.asName()
@@ -29,42 +30,32 @@ public class DeviceMessage : Scheme() {
         public const val FAIL_STATUS: String = "FAIL"
         public const val PROPERTY_CHANGED_ACTION: String = "event.propertyChanged"
 
-        public inline fun ok(
-            request: DeviceMessage? = null,
-            block: DeviceMessage.() -> Unit = {},
-        ): DeviceMessage = DeviceMessage {
-            targetName = request?.sourceName
-        }.apply(block)
-
-        public inline fun fail(
-            request: DeviceMessage? = null,
-            cause: Throwable? = null,
-            block: DeviceMessage.() -> Unit = {},
-        ): DeviceMessage = DeviceMessage {
-            targetName = request?.sourceName
-            status = FAIL_STATUS
-            if (cause != null) {
-                configure {
-                    set("error.type", cause::class.simpleName)
-                    set("error.message", cause.message)
-                    //set("error.trace", ex.stackTraceToString())
-                }
-                comment = cause.message
-            }
-        }.apply(block)
-
-
-        override val descriptor: SerialDescriptor = MetaSerializer.descriptor
-
-        override fun deserialize(decoder: Decoder): DeviceMessage {
-            val meta = MetaSerializer.deserialize(decoder)
-            return wrap(meta)
+        private fun Throwable.toMeta(): Meta = Meta {
+            "type" put this::class.simpleName
+            "message" put message
+            "trace" put stackTraceToString()
         }
 
-        override fun serialize(encoder: Encoder, value: DeviceMessage) {
-            MetaSerializer.serialize(encoder, value.toMeta())
-        }
+        public fun fail(
+            cause: Throwable,
+            action: String = "undefined",
+        ): DeviceMessage = DeviceMessage(
+            action = action,
+            status = FAIL_STATUS,
+            value = cause.toMeta().asMetaItem()
+        )
+
+        public fun fromMeta(meta: Meta): DeviceMessage = Json.decodeFromJsonElement(meta.toJson())
     }
 }
 
-public fun DeviceMessage.wrap(): SimpleEnvelope = SimpleEnvelope(this.config, null)
+
+public fun DeviceMessage.ok(): DeviceMessage =
+    copy(status = DeviceMessage.OK_STATUS)
+
+public fun DeviceMessage.respondsTo(request: DeviceMessage): DeviceMessage =
+    copy(sourceName = request.targetName, targetName = request.sourceName)
+
+public fun DeviceMessage.toMeta(): JsonMeta = Json.encodeToJsonElement(this).toMetaItem().node!!
+
+public fun DeviceMessage.toEnvelope(): SimpleEnvelope = SimpleEnvelope(toMeta(), null)

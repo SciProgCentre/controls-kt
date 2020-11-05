@@ -142,6 +142,7 @@ class PiMotionMasterDevice(
     /**
      * Send a synchronous request and receive a list of lines as a response
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun request(command: String, vararg arguments: String): List<String> = mutex.withLock {
         try {
             withTimeout(timeoutValue) {

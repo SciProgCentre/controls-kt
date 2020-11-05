@@ -15,7 +15,7 @@ public interface MagixEndpoint {
     /**
      * Subscribe to a [Flow] of messages using specific [payloadSerializer]
      */
-    public suspend fun <T> subscribe(
+    public fun <T> subscribe(
         payloadSerializer: KSerializer<T>,
         filter: MagixMessageFilter = MagixMessageFilter.ALL,
     ): Flow<MagixMessage<T>>
@@ -36,7 +36,7 @@ public interface MagixEndpoint {
     }
 }
 
-public suspend fun MagixEndpoint.subscribe(
+public fun MagixEndpoint.subscribe(
     filter: MagixMessageFilter = MagixMessageFilter.ALL,
 ): Flow<MagixMessage<JsonElement>> = subscribe(JsonElement.serializer())
 

@@ -8,7 +8,9 @@ val ktorVersion: String by rootProject.extra
 
 kscience {
     useCoroutines()
-    useSerialization()
+    useSerialization{
+        json()
+    }
 }
 
 kotlin {
