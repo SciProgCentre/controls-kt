@@ -7,7 +7,7 @@ val dataforgeVersion: String by rootProject.extra
 val ktorVersion: String by rootProject.extra
 
 kscience {
-    useCoroutines()
+    useCoroutines("1.4.1")
     useSerialization{
         json()
     }

@@ -14,10 +14,10 @@ import hep.dataforge.names.Name
 import hep.dataforge.names.NameToken
 import hep.dataforge.names.toName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 
@@ -27,20 +27,18 @@ public class HubController(
     public val scope: CoroutineScope,
 ) : Consumer, Responder {
 
-    private val messageOutbox = Channel<DeviceMessage>(Channel.CONFLATED)
 
-    private val envelopeOutbox = Channel<Envelope>(Channel.CONFLATED)
+    private val messageOutbox = MutableSharedFlow<DeviceMessage>()
 
-    public fun messageOutput(): Flow<DeviceMessage> = messageOutbox.consumeAsFlow()
+    private val envelopeOutbox = MutableSharedFlow<Envelope>()
 
-    public fun envelopeOutput(): Flow<Envelope> = envelopeOutbox.consumeAsFlow()
+    public val messageOutput: SharedFlow<DeviceMessage> get() = messageOutbox
 
-    private val packJob = scope.launch {
-        while (isActive) {
-            val message = messageOutbox.receive()
-            envelopeOutbox.send(message.toEnvelope())
-        }
-    }
+    public val envelopeOutput: SharedFlow<Envelope> get() = envelopeOutbox
+
+    private val packJob = messageOutbox.onEach { message ->
+        envelopeOutbox.emit(message.toEnvelope())
+    }.launchIn(scope)
 
     private val listeners: Map<NameToken, DeviceListener> = hub.devices.mapValues { (name, device) ->
         object : DeviceListener {
@@ -53,8 +51,7 @@ public class HubController(
                         key = propertyName,
                         value = value
                     )
-
-                    messageOutbox.send(change)
+                    messageOutbox.emit(change)
                 }
             }
         }.also {
@@ -74,7 +71,8 @@ public class HubController(
         val targetName = request.meta[DeviceMessage.TARGET_KEY].string?.toName() ?: Name.EMPTY
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         if (request.data == null) {
-            DeviceController.respondMessage(device, targetName.toString(), DeviceMessage.fromMeta(request.meta)).toEnvelope()
+            DeviceController.respondMessage(device, targetName.toString(), DeviceMessage.fromMeta(request.meta))
+                .toEnvelope()
         } else {
             DeviceController.respond(device, targetName.toString(), request)
         }

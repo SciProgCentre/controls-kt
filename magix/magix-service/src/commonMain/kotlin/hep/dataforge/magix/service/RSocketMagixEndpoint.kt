@@ -9,7 +9,8 @@ import io.ktor.util.KtorExperimentalAPI
 import io.rsocket.kotlin.RSocket
 import io.rsocket.kotlin.core.RSocketConnector
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
-import io.rsocket.kotlin.payload.Payload
+import io.rsocket.kotlin.payload.buildPayload
+import io.rsocket.kotlin.payload.data
 import io.rsocket.kotlin.transport.ktor.client.RSocketSupport
 import io.rsocket.kotlin.transport.ktor.client.rSocket
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +22,7 @@ import kotlinx.serialization.encodeToString
 
 public class RSocketMagixEndpoint(
     override val scope: CoroutineScope,
-    public val rSocket: RSocket,
+    private val rSocket: RSocket,
 ) : MagixEndpoint {
 
     override fun <T> subscribe(
@@ -29,7 +30,9 @@ public class RSocketMagixEndpoint(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage<T>> {
         val serializer = MagixMessage.serializer(payloadSerializer)
-        val payload = Payload(MagixEndpoint.magixJson.encodeToString(filter))
+        val payload = buildPayload {
+            data(MagixEndpoint.magixJson.encodeToString(filter))
+        }
         val flow = rSocket.requestStream(payload)
         return flow.map { MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText()) }
     }
@@ -37,7 +40,9 @@ public class RSocketMagixEndpoint(
     override suspend fun <T> broadcast(payloadSerializer: KSerializer<T>, message: MagixMessage<T>) {
         scope.launch {
             val serializer = MagixMessage.serializer(payloadSerializer)
-            val payload = Payload(MagixEndpoint.magixJson.encodeToString(serializer, message))
+            val payload = buildPayload {
+                data(MagixEndpoint.magixJson.encodeToString(serializer, message))
+            }
             rSocket.fireAndForget(payload)
         }
     }

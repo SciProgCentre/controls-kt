@@ -172,7 +172,7 @@ public fun Application.deviceModule(
                     try {
                         application.log.debug("Opened server socket for ${call.request.queryParameters}")
 
-                        manager.controller.envelopeOutput().collect {
+                        manager.controller.envelopeOutput.collect {
                             outgoing.send(it.toFrame())
                         }
 
