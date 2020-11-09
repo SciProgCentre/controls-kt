@@ -5,6 +5,7 @@ import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.respondMessage
 import hep.dataforge.magix.api.MagixEndpoint
 import hep.dataforge.magix.api.MagixMessage
+import hep.dataforge.magix.api.MagixProcessor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -38,7 +39,7 @@ public fun DeviceManager.launchMagixClient(
             payload = responsePayload
         )
         endpoint.broadcast(DeviceMessage.serializer(), response)
-    }.launchIn(endpoint.scope)
+    }.launchIn(this)
 
     controller.messageOutput().onEach { payload ->
         MagixMessage(
@@ -47,8 +48,12 @@ public fun DeviceManager.launchMagixClient(
             origin = endpointID,
             payload = payload
         )
-    }.launchIn(endpoint.scope)
+    }.launchIn(this)
 }
 
+public fun DeviceManager.asMagixProcessor(endpointID: String = "dataforge"): MagixProcessor = object : MagixProcessor {
+    override fun process(endpoint: MagixEndpoint): Job = launchMagixClient(endpoint, endpointID)
+
+}
 
 

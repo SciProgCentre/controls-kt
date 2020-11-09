@@ -1,5 +1,6 @@
 package hep.dataforge.magix.api
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -17,12 +18,13 @@ public interface MagixProcessor {
  * If [newOrigin] is not null, it is used as a replacement for old [MagixMessage.origin] tag.
  */
 public class MagixConverter(
-    public val filter: MagixMessageFilter,
-    public val outputFormat: String,
-    public val newOrigin: String? = null,
-    public val transformer: suspend (JsonElement) -> JsonElement,
+    private val scope: CoroutineScope,
+    private val filter: MagixMessageFilter,
+    private val outputFormat: String,
+    private val newOrigin: String? = null,
+    private val transformer: suspend (JsonElement) -> JsonElement,
 ) : MagixProcessor {
-    override fun process(endpoint: MagixEndpoint): Job = endpoint.scope.launch {
+    override fun process(endpoint: MagixEndpoint): Job = scope.launch {
         endpoint.subscribe(filter).onEach { message ->
             val newPayload = transformer(message.payload)
             val transformed = message.copy(
@@ -32,5 +34,6 @@ public class MagixConverter(
             )
             endpoint.broadcast(transformed)
         }.launchIn(this)
+        //TODO add catch logic here
     }
 }

@@ -6,7 +6,7 @@ plugins {
 
 val dataforgeVersion: String by extra("0.2.0-dev-4")
 val ktorVersion: String by extra("1.4.1")
-val rsocketVersion by extra("0.11.0-SNAPSHOT")
+val rsocketVersion by extra("0.11.1")
 
 allprojects {
     repositories {
@@ -17,7 +17,6 @@ allprojects {
         maven("https://maven.pkg.github.com/altavir/kotlin-logging/")
         maven("https://dl.bintray.com/rsocket-admin/RSocket")
         maven("https://maven.pkg.github.com/altavir/ktor-client-sse")
-        maven("https://oss.jfrog.org/oss-snapshot-local")
     }
 
     group = "hep.dataforge"

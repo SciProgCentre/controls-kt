@@ -20,6 +20,8 @@ import io.ktor.websocket.WebSockets
 import io.rsocket.kotlin.ConnectionAcceptor
 import io.rsocket.kotlin.RSocketRequestHandler
 import io.rsocket.kotlin.payload.Payload
+import io.rsocket.kotlin.payload.buildPayload
+import io.rsocket.kotlin.payload.data
 import io.rsocket.kotlin.transport.ktor.server.RSocketSupport
 import io.rsocket.kotlin.transport.ktor.server.rSocket
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +44,7 @@ internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<GenericMa
             val filter = magixJson.decodeFromString(MagixMessageFilter.serializer(), request.data.readText())
             magixFlow.filter(filter).map { message ->
                 val string = magixJson.encodeToString(genericMessageSerializer, message)
-                Payload(string)
+                buildPayload { data(string) }
             }
         }
         fireAndForget { request: Payload ->
@@ -52,12 +54,12 @@ internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<GenericMa
         // bi-directional connection
         requestChannel { input: Flow<Payload> ->
             input.onEach {
-                magixFlow.emit(magixJson.decodeFromString(genericMessageSerializer,it.data.readText()))
+                magixFlow.emit(magixJson.decodeFromString(genericMessageSerializer, it.data.readText()))
             }.launchIn(this@magixAcceptor)
 
             magixFlow.map { message ->
                 val string = magixJson.encodeToString(genericMessageSerializer, message)
-                Payload(string)
+                buildPayload { data(string) }
             }
         }
     }
