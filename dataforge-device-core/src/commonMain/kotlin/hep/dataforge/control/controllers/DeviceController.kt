@@ -1,7 +1,11 @@
 package hep.dataforge.control.controllers
 
 import hep.dataforge.control.api.*
-import hep.dataforge.control.controllers.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
+import hep.dataforge.control.messages.DeviceMessage
+import hep.dataforge.control.messages.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
+import hep.dataforge.control.messages.respondsTo
+import hep.dataforge.control.messages.toEnvelope
+import hep.dataforge.control.messages.toMeta
 import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
@@ -85,7 +89,7 @@ public class DeviceController(
                     } else error("Device does not support binary response")
                 }
             } catch (ex: Exception) {
-                DeviceMessage.fail(ex).toEnvelope()
+                DeviceMessage.error(ex).toEnvelope()
             }
         }
 
@@ -145,7 +149,7 @@ public class DeviceController(
                 value = value
             )
         } catch (ex: Exception) {
-            DeviceMessage.fail(ex, request.action).respondsTo(request)
+            DeviceMessage.error(ex, request.action).respondsTo(request)
         }
     }
 }
@@ -157,6 +161,6 @@ public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessa
         val device = this[targetName] ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {
-        DeviceMessage.fail(ex, request.action).respondsTo(request)
+        DeviceMessage.error(ex, request.action).respondsTo(request)
     }
 }

@@ -1,7 +1,7 @@
 package hep.dataforge.control.server
 
-import hep.dataforge.control.controllers.DeviceMessage
-import hep.dataforge.control.controllers.toMeta
+import hep.dataforge.control.messages.DeviceMessage
+import hep.dataforge.control.messages.toMeta
 import hep.dataforge.io.*
 import hep.dataforge.meta.MetaSerializer
 import io.ktor.application.ApplicationCall

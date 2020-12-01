@@ -7,8 +7,8 @@ import hep.dataforge.control.api.get
 import hep.dataforge.control.controllers.DeviceController.Companion.GET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.DeviceController.Companion.SET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.DeviceManager
-import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.respondMessage
+import hep.dataforge.control.messages.DeviceMessage
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.toMetaItem

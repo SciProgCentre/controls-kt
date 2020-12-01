@@ -1,8 +1,9 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.DeviceHub
-import hep.dataforge.control.api.DeviceListener
-import hep.dataforge.control.api.get
+import hep.dataforge.control.api.*
+import hep.dataforge.control.messages.DeviceMessage
+import hep.dataforge.control.messages.respondsTo
+import hep.dataforge.control.messages.toEnvelope
 import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
@@ -67,7 +68,7 @@ public class HubController(
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         DeviceController.respondMessage(device, targetName.toString(), message)
     } catch (ex: Exception) {
-        DeviceMessage.fail(ex, message.action).respondsTo(message)
+        DeviceMessage.error(ex, message.action).respondsTo(message)
     }
 
     override suspend fun respond(request: Envelope): Envelope = try {
@@ -79,7 +80,7 @@ public class HubController(
             DeviceController.respond(device, targetName.toString(), request)
         }
     } catch (ex: Exception) {
-        DeviceMessage.fail(ex).toEnvelope()
+        DeviceMessage.error(ex).toEnvelope()
     }
 
     override fun consume(message: Envelope) {
