@@ -55,5 +55,9 @@ public fun DeviceManager.launchMagixClient(
     }.launchIn(endpoint.scope)
 }
 
+public fun DeviceManager.asMagixProcessor(endpointID: String = "dataforge"): MagixProcessor = object : MagixProcessor {
+    override fun process(endpoint: MagixEndpoint): Job = launchMagixClient(endpoint, endpointID)
+
+}
 
 

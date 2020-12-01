@@ -6,8 +6,8 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.util.KtorExperimentalAPI
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
 import io.rsocket.kotlin.transport.ktor.clientTransport
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.coroutineContext
 
 
 /**
@@ -15,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
  */
 @OptIn(KtorExperimentalAPI::class)
 public suspend fun RSocketMagixEndpoint.Companion.withTcp(
-    scope: CoroutineScope,
     host: String,
     port: Int,
     tcpConfig: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
@@ -24,5 +23,5 @@ public suspend fun RSocketMagixEndpoint.Companion.withTcp(
     val transport = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().clientTransport(host, port, tcpConfig)
     val rSocket = buildConnector(rSocketConfig).connect(transport)
 
-    return RSocketMagixEndpoint(scope, rSocket)
+    return RSocketMagixEndpoint(coroutineContext, rSocket)
 }

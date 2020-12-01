@@ -1,6 +1,7 @@
 package hep.dataforge.magix.api
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  *
@@ -26,6 +27,6 @@ public data class MagixMessage<T>(
     val target: String? = null,
     val id: String?  = null,
     val parentId: String? = null,
-    val user: String? = null,
+    val user: JsonElement? = null,
     val action: String? = null
 )

@@ -1,6 +1,5 @@
 package hep.dataforge.magix.api
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -10,8 +9,6 @@ import kotlinx.serialization.json.JsonElement
  * Inwards API of magix endpoint used to build services
  */
 public interface MagixEndpoint {
-    public val scope: CoroutineScope
-
     /**
      * Subscribe to a [Flow] of messages using specific [payloadSerializer]
      */
@@ -32,13 +29,16 @@ public interface MagixEndpoint {
     public companion object {
         public const val DEFAULT_MAGIX_WS_PORT: Int = 7777
         public const val DEFAULT_MAGIX_RAW_PORT: Int = 7778
-        public val magixJson: Json = Json
+        public val magixJson: Json = Json{
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+        }
     }
 }
 
 public fun MagixEndpoint.subscribe(
     filter: MagixMessageFilter = MagixMessageFilter.ALL,
-): Flow<MagixMessage<JsonElement>> = subscribe(JsonElement.serializer())
+): Flow<MagixMessage<JsonElement>> = subscribe(JsonElement.serializer(),filter)
 
 public suspend fun MagixEndpoint.broadcast(message: MagixMessage<JsonElement>): Unit =
     broadcast(JsonElement.serializer(), message)

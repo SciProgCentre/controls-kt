@@ -54,7 +54,7 @@ internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<GenericMa
         // bi-directional connection
         requestChannel { input: Flow<Payload> ->
             input.onEach {
-                magixFlow.emit(magixJson.decodeFromString(genericMessageSerializer,it.data.readText()))
+                magixFlow.emit(magixJson.decodeFromString(genericMessageSerializer, it.data.readText()))
             }.launchIn(this@magixAcceptor)
 
             magixFlow.map { message ->
