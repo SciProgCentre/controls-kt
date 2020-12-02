@@ -1,8 +1,10 @@
 package hep.dataforge.control.controllers
 
-import hep.dataforge.control.api.*
+import hep.dataforge.control.api.DeviceHub
+import hep.dataforge.control.api.DeviceListener
+import hep.dataforge.control.api.get
 import hep.dataforge.control.messages.DeviceMessage
-import hep.dataforge.control.messages.respondsTo
+import hep.dataforge.control.messages.PropertyChangedMessage
 import hep.dataforge.control.messages.toEnvelope
 import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
@@ -48,13 +50,11 @@ public class HubController(
             override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
                 if (value == null) return
                 scope.launch {
-                    val change = DeviceMessage(
-                        sourceName = name.toString(),
-                        action = DeviceMessage.PROPERTY_CHANGED_ACTION,
+                    val change = PropertyChangedMessage(
+                        sourceDevice = name.toString(),
                         key = propertyName,
                         value = value
                     )
-
                     messageOutbox.send(change)
                 }
             }
@@ -64,23 +64,24 @@ public class HubController(
     }
 
     public suspend fun respondMessage(message: DeviceMessage): DeviceMessage = try {
-        val targetName = message.targetName?.toName() ?: Name.EMPTY
+        val targetName = message.targetDevice?.toName() ?: Name.EMPTY
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         DeviceController.respondMessage(device, targetName.toString(), message)
     } catch (ex: Exception) {
-        DeviceMessage.error(ex, message.action).respondsTo(message)
+        DeviceMessage.error(ex, sourceDevice = null, targetDevice = message.sourceDevice)
     }
 
     override suspend fun respond(request: Envelope): Envelope = try {
         val targetName = request.meta[DeviceMessage.TARGET_KEY].string?.toName() ?: Name.EMPTY
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         if (request.data == null) {
-            DeviceController.respondMessage(device, targetName.toString(), DeviceMessage.fromMeta(request.meta)).toEnvelope()
+            DeviceController.respondMessage(device, targetName.toString(), DeviceMessage.fromMeta(request.meta))
+                .toEnvelope()
         } else {
             DeviceController.respond(device, targetName.toString(), request)
         }
     } catch (ex: Exception) {
-        DeviceMessage.error(ex).toEnvelope()
+        DeviceMessage.error(ex, sourceDevice = null).toEnvelope()
     }
 
     override fun consume(message: Envelope) {

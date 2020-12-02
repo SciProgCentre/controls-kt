@@ -24,7 +24,7 @@ private class ActionProvider<D : DeviceBase>(
 ) : PropertyDelegateProvider<D, ActionDelegate> {
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): ActionDelegate {
         val name = property.name
-        owner.newAction(name, descriptorBuilder, block)
+        owner.createAction(name, descriptorBuilder, block)
         return owner.provideAction()
     }
 }

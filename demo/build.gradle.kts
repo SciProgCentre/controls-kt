@@ -22,7 +22,7 @@ dependencies{
     implementation(project(":dataforge-magix-client"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
-    implementation("kscience.plotlykt:plotlykt-server:0.3.0-dev-2")
+    implementation("kscience.plotlykt:plotlykt-server:0.3.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

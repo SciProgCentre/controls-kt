@@ -121,7 +121,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
     /**
      * Create a bound read-only property with given [getter]
      */
-    public fun newReadOnlyProperty(
+    public fun createReadOnlyProperty(
         name: String,
         default: MetaItem<*>?,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -178,7 +178,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
     /**
      * Create a bound mutable property with given [getter] and [setter]
      */
-    public fun newMutableProperty(
+    internal fun createMutableProperty(
         name: String,
         default: MetaItem<*>?,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -217,7 +217,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
     /**
      * Create a new bound action
      */
-    public fun newAction(
+    internal fun createAction(
         name: String,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         block: suspend (MetaItem<*>?) -> MetaItem<*>?,

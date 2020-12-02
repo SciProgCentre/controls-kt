@@ -1,11 +1,7 @@
 package hep.dataforge.control.controllers
 
 import hep.dataforge.control.api.*
-import hep.dataforge.control.messages.DeviceMessage
-import hep.dataforge.control.messages.DeviceMessage.Companion.PROPERTY_CHANGED_ACTION
-import hep.dataforge.control.messages.respondsTo
-import hep.dataforge.control.messages.toEnvelope
-import hep.dataforge.control.messages.toMeta
+import hep.dataforge.control.messages.*
 import hep.dataforge.io.Consumer
 import hep.dataforge.io.Envelope
 import hep.dataforge.io.Responder
@@ -23,7 +19,7 @@ import kotlinx.io.Binary
 @OptIn(DFExperimental::class)
 public class DeviceController(
     public val device: Device,
-    public val deviceTarget: String,
+    public val deviceName: String,
     public val scope: CoroutineScope = device.scope,
 ) : Responder, Consumer, DeviceListener {
 
@@ -34,16 +30,15 @@ public class DeviceController(
     private val outputChannel = Channel<Envelope>(Channel.CONFLATED)
 
     public suspend fun respondMessage(message: DeviceMessage): DeviceMessage =
-        respondMessage(device, deviceTarget, message)
+        respondMessage(device, deviceName, message)
 
-    override suspend fun respond(request: Envelope): Envelope = respond(device, deviceTarget, request)
+    override suspend fun respond(request: Envelope): Envelope = respond(device, deviceName, request)
 
     override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
         if (value == null) return
         scope.launch {
-            val change = DeviceMessage(
-                sourceName = deviceTarget,
-                action = PROPERTY_CHANGED_ACTION,
+            val change = PropertyChangedMessage(
+                sourceDevice = deviceName,
                 key = propertyName,
                 value = value,
             )
@@ -89,7 +84,8 @@ public class DeviceController(
                     } else error("Device does not support binary response")
                 }
             } catch (ex: Exception) {
-                DeviceMessage.error(ex).toEnvelope()
+                val requestSourceName = request.meta[DeviceMessage.SOURCE_KEY].string
+                DeviceMessage.error(ex, sourceDevice = deviceTarget, targetDevice = requestSourceName).toEnvelope()
             }
         }
 
@@ -98,58 +94,68 @@ public class DeviceController(
             deviceTarget: String,
             request: DeviceMessage,
         ): DeviceMessage = try {
-            val requestKey = request.key
-            val requestValue = request.value
-            var key: String? = null
-            var value: MetaItem<*>? = null
-            when (val action = request.action) {
-                GET_PROPERTY_ACTION -> {
-                    key = requestKey
-                    value = device.getProperty(requestKey ?: error("Key field is not defined in request"))
+            when (request) {
+                is PropertyGetMessage -> {
+                    PropertyChangedMessage(
+                        key = request.property,
+                        value = device.getProperty(request.property),
+                        sourceDevice = deviceTarget,
+                        targetDevice = request.sourceDevice
+                    )
                 }
-                SET_PROPERTY_ACTION -> {
-                    require(requestKey != null) { "Key field is not defined in request" }
-                    if (requestValue == null) {
-                        device.invalidateProperty(requestKey)
+                is PropertySetMessage -> {
+                    if (request.value == null) {
+                        device.invalidateProperty(request.property)
                     } else {
-                        device.setProperty(requestKey, requestValue)
+                        device.setProperty(request.property, request.value)
                     }
-                    key = requestKey
-                    value = device.getProperty(requestKey)
+                    PropertyChangedMessage(
+                        key = request.property,
+                        value = device.getProperty(request.property),
+                        sourceDevice = deviceTarget,
+                        targetDevice = request.sourceDevice
+                    )
                 }
-                EXECUTE_ACTION -> {
-                    require(requestKey != null) { "Key field is not defined in request" }
-                    key = requestKey
-                    value = device.execute(requestKey, requestValue)
+                is ActionExecuteMessage -> {
+                    ActionResultMessage(
+                        action = request.action,
+                        result = device.execute(request.action, request.argument),
+                        sourceDevice = deviceTarget,
+                        targetDevice = request.sourceDevice
+                    )
+                }
+                is GetDescriptionMessage -> {
+                    val descriptionMeta = Meta {
+                        "properties" put {
+                            device.propertyDescriptors.map { descriptor ->
+                                descriptor.name put descriptor.config
+                            }
+                        }
+                        "actions" put {
+                            device.actionDescriptors.map { descriptor ->
+                                descriptor.name put descriptor.config
+                            }
+                        }
+                    }
 
+                    DescriptionMessage(
+                        description = descriptionMeta,
+                        sourceDevice = deviceTarget,
+                        targetDevice = request.sourceDevice
+                    )
                 }
-                PROPERTY_LIST_ACTION -> {
-                    value = Meta {
-                        device.propertyDescriptors.map { descriptor ->
-                            descriptor.name put descriptor.config
-                        }
-                    }.asMetaItem()
-                }
-                ACTION_LIST_ACTION -> {
-                    value = Meta {
-                        device.actionDescriptors.map { descriptor ->
-                            descriptor.name put descriptor.config
-                        }
-                    }.asMetaItem()
-                }
-                else -> {
-                    error("Unrecognized action $action")
+
+                is DescriptionMessage, is PropertyChangedMessage, is ActionResultMessage, is BinaryNotificationMessage, is DeviceErrorMessage, is EmptyDeviceMessage -> {
+                    //Those messages are ignored
+                    EmptyDeviceMessage(
+                        sourceDevice = deviceTarget,
+                        targetDevice = request.sourceDevice,
+                        comment = "The message is ignored"
+                    )
                 }
             }
-            DeviceMessage(
-                targetName = request.sourceName,
-                sourceName = deviceTarget,
-                action = "response.${request.action}",
-                key = key,
-                value = value
-            )
         } catch (ex: Exception) {
-            DeviceMessage.error(ex, request.action).respondsTo(request)
+            DeviceMessage.error(ex, sourceDevice = deviceTarget, targetDevice = request.sourceDevice)
         }
     }
 }
@@ -157,10 +163,10 @@ public class DeviceController(
 
 public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
     return try {
-        val targetName = request.targetName?.toName() ?: Name.EMPTY
+        val targetName = request.targetDevice?.toName() ?: Name.EMPTY
         val device = this[targetName] ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {
-        DeviceMessage.error(ex, request.action).respondsTo(request)
+        DeviceMessage.error(ex, sourceDevice = request.targetDevice, targetDevice = request.sourceDevice)
     }
 }

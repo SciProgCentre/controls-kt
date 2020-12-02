@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Flow changes of all properties of a given device ignoring invalidation events
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
-public suspend fun Device.flowValues(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
+public suspend fun Device.flowPropertyChanges(): Flow<Pair<String, MetaItem<*>>> = callbackFlow {
     val listener = object : DeviceListener {
         override fun propertyChanged(propertyName: String, value: MetaItem<*>?) {
             if (value != null) {

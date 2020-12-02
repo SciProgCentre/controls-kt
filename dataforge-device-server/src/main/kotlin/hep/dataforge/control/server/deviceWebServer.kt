@@ -4,11 +4,11 @@ package hep.dataforge.control.server
 
 
 import hep.dataforge.control.api.get
-import hep.dataforge.control.controllers.DeviceController.Companion.GET_PROPERTY_ACTION
-import hep.dataforge.control.controllers.DeviceController.Companion.SET_PROPERTY_ACTION
 import hep.dataforge.control.controllers.DeviceManager
 import hep.dataforge.control.controllers.respondMessage
 import hep.dataforge.control.messages.DeviceMessage
+import hep.dataforge.control.messages.PropertyGetMessage
+import hep.dataforge.control.messages.PropertySetMessage
 import hep.dataforge.meta.toJson
 import hep.dataforge.meta.toMeta
 import hep.dataforge.meta.toMetaItem
@@ -201,11 +201,10 @@ public fun Application.deviceModule(
                     get("get") {
                         val target: String by call.parameters
                         val property: String by call.parameters
-                        val request = DeviceMessage(
-                            action = GET_PROPERTY_ACTION,
-                            sourceName = WEB_SERVER_TARGET,
-                            targetName = target,
-                            key = property,
+                        val request = PropertyGetMessage(
+                            sourceDevice = WEB_SERVER_TARGET,
+                            targetDevice = target,
+                            property = property,
                         )
 
                         val response = manager.respondMessage(request)
@@ -217,11 +216,10 @@ public fun Application.deviceModule(
                         val body = call.receiveText()
                         val json = Json.parseToJsonElement(body)
 
-                        val request = DeviceMessage(
-                            action = SET_PROPERTY_ACTION,
-                            sourceName = WEB_SERVER_TARGET,
-                            targetName = target,
-                            key = property,
+                        val request = PropertySetMessage(
+                            sourceDevice = WEB_SERVER_TARGET,
+                            targetDevice = target,
+                            property = property,
                             value = json.toMetaItem()
                         )
 

@@ -30,15 +30,6 @@ internal suspend fun ApplicationCall.respondJson(builder: JsonObjectBuilder.() -
     respondText(json.toString(), contentType = ContentType.Application.Json)
 }
 
-
 public suspend fun ApplicationCall.respondMessage(message: DeviceMessage) {
     respondText(Json.encodeToString(MetaSerializer, message.toMeta()), contentType = ContentType.Application.Json)
 }
-
-//public suspend fun ApplicationCall.respondMessage(builder: DeviceMessage.() -> Unit) {
-//    respondMessage(DeviceMessage(builder))
-//}
-//
-//public suspend fun ApplicationCall.respondFail(builder: DeviceMessage.() -> Unit) {
-//    respondMessage(DeviceMessage.fail(null, block = builder))
-//}

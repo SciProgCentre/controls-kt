@@ -22,8 +22,8 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 public class RSocketMagixEndpoint(
-    val coroutineContext: CoroutineContext,
-    public val rSocket: RSocket,
+    private val coroutineContext: CoroutineContext,
+    private val rSocket: RSocket,
 ) : MagixEndpoint {
 
     override fun <T> subscribe(

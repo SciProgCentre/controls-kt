@@ -12,24 +12,19 @@ import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 public sealed class DeviceMessage{
-    public abstract val sourceName: String?
-    public abstract val targetName: String?
+    public abstract val sourceDevice: String?
+    public abstract val targetDevice: String?
     public abstract val comment: String?
 
 
     public companion object {
-        public val SOURCE_KEY: Name = DeviceMessage::sourceName.name.asName()
-        public val TARGET_KEY: Name = DeviceMessage::targetName.name.asName()
-        public val MESSAGE_ACTION_KEY: Name = DeviceMessage::action.name.asName()
-        public val MESSAGE_KEY_KEY: Name = DeviceMessage::key.name.asName()
-        public val MESSAGE_VALUE_KEY: Name = DeviceMessage::value.name.asName()
-
-        public const val OK_STATUS: String = "OK"
-        public const val FAIL_STATUS: String = "FAIL"
-        public const val PROPERTY_CHANGED_ACTION: String = "event.propertyChanged"
+        public val SOURCE_KEY: Name = DeviceMessage::sourceDevice.name.asName()
+        public val TARGET_KEY: Name = DeviceMessage::targetDevice.name.asName()
 
         public fun error(
             cause: Throwable,
+            sourceDevice: String?,
+            targetDevice: String? = null,
         ): DeviceErrorMessage = DeviceErrorMessage(
             errorMessage = cause.message,
             errorType = cause::class.simpleName,
@@ -45,27 +40,50 @@ public sealed class DeviceMessage{
 public data class PropertyChangedMessage(
     public val key: String,
     public val value: MetaItem<*>?,
-    override val sourceName: String? = null,
-    override val targetName: String? = null,
+    override val sourceDevice: String,
+    override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
 
 @Serializable
 @SerialName("property.set")
 public data class PropertySetMessage(
-    public val key: String,
-    public val value: MetaItem<*>,
-    override val sourceName: String? = null,
-    override val targetName: String? = null,
+    public val property: String,
+    public val value: MetaItem<*>?,
+    override val sourceDevice: String? = null,
+    override val targetDevice: String,
     override val comment: String? = null,
 ) : DeviceMessage()
 
 @Serializable
-@SerialName("property.read")
-public data class PropertyReadMessage(
-    public val key: String,
-    override val sourceName: String? = null,
-    override val targetName: String? = null,
+@SerialName("property.get")
+public data class PropertyGetMessage(
+    public val property: String,
+    override val sourceDevice: String? = null,
+    override val targetDevice: String,
+    override val comment: String? = null,
+) : DeviceMessage()
+
+/**
+ * Request device description
+ */
+@Serializable
+@SerialName("description.get")
+public data class GetDescriptionMessage(
+    override val sourceDevice: String? = null,
+    override val targetDevice: String,
+    override val comment: String? = null,
+) : DeviceMessage()
+
+/**
+ * The full device description message
+ */
+@Serializable
+@SerialName("description")
+public data class DescriptionMessage(
+    val description: Meta,
+    override val sourceDevice: String,
+    override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
 
@@ -74,8 +92,8 @@ public data class PropertyReadMessage(
 public data class ActionExecuteMessage(
     public val action: String,
     public val argument: MetaItem<*>?,
-    override val sourceName: String? = null,
-    override val targetName: String? = null,
+    override val sourceDevice: String? = null,
+    override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
 
@@ -84,19 +102,46 @@ public data class ActionExecuteMessage(
 public data class ActionResultMessage(
     public val action: String,
     public val result: MetaItem<*>?,
-    override val sourceName: String? = null,
-    override val targetName: String? = null,
+    override val sourceDevice: String? = null,
+    override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
 
+/**
+ * Notifies listeners that a new binary with given [binaryID] is available. The binary itself could not be provided via [DeviceMessage] API.
+ */
+@Serializable
+@SerialName("binary.notification")
+public data class BinaryNotificationMessage(
+    val binaryID: String,
+    override val sourceDevice: String,
+    override val targetDevice: String? = null,
+    override val comment: String? = null,
+) : DeviceMessage()
+
+/**
+ * The message states that the message is received, but no meaningful response is produced.
+ * This message could be used for a heartbeat.
+ */
+@Serializable
+@SerialName("empty")
+public data class EmptyDeviceMessage(
+    override val sourceDevice: String? = null,
+    override val targetDevice: String? = null,
+    override val comment: String? = null,
+) : DeviceMessage()
+
+/**
+ * The evaluation of the message produced a service error
+ */
 @Serializable
 @SerialName("error")
 public data class DeviceErrorMessage(
     public val errorMessage: String?,
     public val errorType: String? = null,
     public val errorStackTrace: String? = null,
-    override val sourceName: String? = null,
-    override val targetName: String? = null,
+    override val sourceDevice: String? = null,
+    override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
 

@@ -36,7 +36,7 @@ private class ReadOnlyDevicePropertyProvider<D : DeviceBase>(
 
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): ReadOnlyPropertyDelegate {
         val name = property.name
-        owner.newReadOnlyProperty(name, default, descriptorBuilder, getter)
+        owner.createReadOnlyProperty(name, default, descriptorBuilder, getter)
         return owner.provideProperty(name)
     }
 }
@@ -51,7 +51,7 @@ private class TypedReadOnlyDevicePropertyProvider<D : DeviceBase, T : Any>(
 
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): TypedReadOnlyPropertyDelegate<T> {
         val name = property.name
-        owner.newReadOnlyProperty(name, default, descriptorBuilder, getter)
+        owner.createReadOnlyProperty(name, default, descriptorBuilder, getter)
         return owner.provideProperty(name, converter)
     }
 }
@@ -178,7 +178,7 @@ private class DevicePropertyProvider<D : DeviceBase>(
 
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): PropertyDelegate {
         val name = property.name
-        owner.newMutableProperty(name, default, descriptorBuilder, getter, setter)
+        owner.createMutableProperty(name, default, descriptorBuilder, getter, setter)
         return owner.provideMutableProperty(name)
     }
 }
@@ -194,7 +194,7 @@ private class TypedDevicePropertyProvider<D : DeviceBase, T : Any>(
 
     override operator fun provideDelegate(thisRef: D, property: KProperty<*>): TypedPropertyDelegate<T> {
         val name = property.name
-        owner.newMutableProperty(name, default, descriptorBuilder, getter, setter)
+        owner.createMutableProperty(name, default, descriptorBuilder, getter, setter)
         return owner.provideMutableProperty(name, converter)
     }
 }
