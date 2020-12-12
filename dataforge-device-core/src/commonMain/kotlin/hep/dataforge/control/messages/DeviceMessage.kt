@@ -2,8 +2,6 @@ package hep.dataforge.control.messages
 
 import hep.dataforge.io.SimpleEnvelope
 import hep.dataforge.meta.*
-import hep.dataforge.names.Name
-import hep.dataforge.names.asName
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -18,9 +16,6 @@ public sealed class DeviceMessage{
 
 
     public companion object {
-        public val SOURCE_KEY: Name = DeviceMessage::sourceDevice.name.asName()
-        public val TARGET_KEY: Name = DeviceMessage::targetDevice.name.asName()
-
         public fun error(
             cause: Throwable,
             sourceDevice: String?,
@@ -126,6 +121,18 @@ public data class BinaryNotificationMessage(
 @Serializable
 @SerialName("empty")
 public data class EmptyDeviceMessage(
+    override val sourceDevice: String? = null,
+    override val targetDevice: String? = null,
+    override val comment: String? = null,
+) : DeviceMessage()
+
+/**
+ * Information log message
+ */
+@Serializable
+@SerialName("log")
+public data class DeviceLogMessage(
+    val message: String,
     override val sourceDevice: String? = null,
     override val targetDevice: String? = null,
     override val comment: String? = null,

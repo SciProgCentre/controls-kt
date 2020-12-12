@@ -3,18 +3,25 @@ package hep.dataforge.control.base
 import hep.dataforge.context.Context
 import hep.dataforge.control.api.ActionDescriptor
 import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.DeviceListener
 import hep.dataforge.control.api.PropertyDescriptor
+import hep.dataforge.meta.DFExperimental
 import hep.dataforge.meta.MetaItem
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+//TODO move to DataForge-core
+@DFExperimental
+public data class LogEntry(val content: String, val priority: Int = 0)
+
 /**
  * Baseline implementation of [Device] interface
  */
+@Suppress("EXPERIMENTAL_API_USAGE")
 public abstract class DeviceBase(override val context: Context) : Device {
 
     private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
@@ -22,25 +29,21 @@ public abstract class DeviceBase(override val context: Context) : Device {
     private val _actions = HashMap<String, DeviceAction>()
     public val actions: Map<String, DeviceAction> get() = _actions
 
-    private val listeners = ArrayList<Pair<Any?, DeviceListener>>(4)
+    private val sharedPropertyFlow = MutableSharedFlow<Pair<String, MetaItem<*>>>()
 
-    override fun registerListener(listener: DeviceListener, owner: Any?) {
-        listeners.add(owner to listener)
-    }
+    override val propertyFlow: SharedFlow<Pair<String, MetaItem<*>>> get() = sharedPropertyFlow
 
-    override fun removeListeners(owner: Any?) {
-        listeners.removeAll { it.first == owner }
-    }
+    private val sharedLogFlow = MutableSharedFlow<LogEntry>()
 
-    internal fun notifyListeners(block: DeviceListener.() -> Unit) {
-        listeners.forEach { it.second.block() }
-    }
+    /**
+     * The [SharedFlow] of log messages
+     */
+    @DFExperimental
+    public val logFlow: SharedFlow<LogEntry>
+        get() = sharedLogFlow
 
-    public fun notifyPropertyChanged(propertyName: String) {
-        scope.launch {
-            val value = getProperty(propertyName)
-            notifyListeners { propertyChanged(propertyName, value) }
-        }
+    protected suspend fun log(message: String, priority: Int = 0) {
+        sharedLogFlow.emit(LogEntry(message, priority))
     }
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
@@ -72,8 +75,8 @@ public abstract class DeviceBase(override val context: Context) : Device {
         )
     }
 
-    override suspend fun execute(command: String, argument: MetaItem<*>?): MetaItem<*>? =
-        (_actions[command] ?: error("Request with name $command not defined")).invoke(argument)
+    override suspend fun execute(action: String, argument: MetaItem<*>?): MetaItem<*>? =
+        (_actions[action] ?: error("Request with name $action not defined")).invoke(argument)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private open inner class BasicReadOnlyDeviceProperty(
@@ -94,8 +97,8 @@ public abstract class DeviceBase(override val context: Context) : Device {
 
         override fun updateLogical(item: MetaItem<*>) {
             state.value = item
-            notifyListeners {
-                propertyChanged(name, item)
+            scope.launch {
+                sharedPropertyFlow.emit(Pair(name, item))
             }
         }
 
@@ -206,11 +209,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
     ) : DeviceAction {
         override suspend fun invoke(arg: MetaItem<*>?): MetaItem<*>? =
             withContext(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job])) {
-                block(arg).also {
-                    notifyListeners {
-                        actionExecuted(name, arg, it)
-                    }
-                }
+                block(arg)
             }
     }
 

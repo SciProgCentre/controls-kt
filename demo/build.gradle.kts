@@ -23,6 +23,8 @@ dependencies{
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
     implementation("kscience.plotlykt:plotlykt-server:0.3.0")
+
+    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -37,5 +39,5 @@ javafx{
 }
 
 application{
-    mainClassName = "hep.dataforge.control.demo.DemoControllerViewKt"
+    mainClass.set("hep.dataforge.control.demo.DemoControllerViewKt")
 }

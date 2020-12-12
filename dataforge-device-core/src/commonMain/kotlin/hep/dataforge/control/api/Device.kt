@@ -2,13 +2,12 @@ package hep.dataforge.control.api
 
 import hep.dataforge.context.ContextAware
 import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
-import hep.dataforge.io.Envelope
-import hep.dataforge.io.EnvelopeBuilder
 import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaItem
 import hep.dataforge.provider.Type
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.io.Closeable
 
 /**
@@ -28,27 +27,15 @@ public interface Device : Closeable, ContextAware {
     public val actionDescriptors: Collection<ActionDescriptor>
 
     /**
-     * The supervisor scope encompassing all operations on a device. When canceled, cancels all running processes
+     * The supervisor scope encompassing all operations on a device. When canceled, cancels all running processes.
      */
     public val scope: CoroutineScope
-
-    /**
-     * Register a new property change listener for this device.
-     * [owner] is provided optionally in order for listener to be
-     * easily removable
-     */
-    public fun registerListener(listener: DeviceListener, owner: Any? = listener)
-
-    /**
-     * Remove all listeners belonging to the specified owner
-     */
-    public fun removeListeners(owner: Any?)
 
     /**
      * Get the value of the property or throw error if property in not defined.
      * Suspend if property value is not available
      */
-    public suspend fun getProperty(propertyName: String): MetaItem<*>
+    public suspend fun getProperty(propertyName: String): MetaItem<*>?
 
     /**
      * Invalidate property and force recalculate
@@ -62,10 +49,15 @@ public interface Device : Closeable, ContextAware {
     public suspend fun setProperty(propertyName: String, value: MetaItem<*>)
 
     /**
+     * The [SharedFlow] of property changes
+     */
+    public val propertyFlow: SharedFlow<Pair<String, MetaItem<*>>>
+
+    /**
      * Send an action request and suspend caller while request is being processed.
      * Could return null if request does not return a meaningful answer.
      */
-    public suspend fun execute(command: String, argument: MetaItem<*>? = null): MetaItem<*>?
+    public suspend fun execute(action: String, argument: MetaItem<*>? = null): MetaItem<*>?
 
     override fun close() {
         scope.cancel("The device is closed")
@@ -76,14 +68,10 @@ public interface Device : Closeable, ContextAware {
     }
 }
 
-public interface ResponderDevice{
-    /**
-     *
-     * A request with binary data or for binary response (or both). This request does not cover basic functionality like
-     * [setProperty], [getProperty] or [execute] and not defined for a generic device.
-     *
-     */
-    public suspend fun respondWithData(request: Envelope): EnvelopeBuilder
+public suspend fun Device.getState(): Meta = Meta{
+    for(descriptor in propertyDescriptors) {
+        descriptor.name put getProperty(descriptor.name)
+    }
 }
 
-public suspend fun Device.execute(name: String, meta: Meta?): MetaItem<*>? = execute(name, meta?.let { MetaItem.NodeItem(it) })
+//public suspend fun Device.execute(name: String, meta: Meta?): MetaItem<*>? = execute(name, meta?.let { MetaItem.NodeItem(it) })

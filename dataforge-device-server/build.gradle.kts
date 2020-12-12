@@ -3,10 +3,6 @@ plugins {
     id("ru.mipt.npm.publish")
 }
 
-kscience {
-    useSerialization()
-}
-
 val dataforgeVersion: String by rootProject.extra
 val ktorVersion: String by rootProject.extra
 

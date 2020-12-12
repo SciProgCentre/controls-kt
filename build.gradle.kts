@@ -4,7 +4,7 @@ plugins {
     kotlin("js") apply false
 }
 
-val dataforgeVersion: String by extra("0.2.0")
+val dataforgeVersion: String by extra("0.2.1-dev-2")
 val ktorVersion: String by extra("1.4.3")
 val rsocketVersion by extra("0.11.1")
 
