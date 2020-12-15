@@ -9,7 +9,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
-public sealed class DeviceMessage{
+public sealed class DeviceMessage {
     public abstract val sourceDevice: String?
     public abstract val targetDevice: String?
     public abstract val comment: String?
@@ -133,6 +133,7 @@ public data class EmptyDeviceMessage(
 @SerialName("log")
 public data class DeviceLogMessage(
     val message: String,
+    val data: MetaItem<*>? = null,
     override val sourceDevice: String? = null,
     override val targetDevice: String? = null,
     override val comment: String? = null,

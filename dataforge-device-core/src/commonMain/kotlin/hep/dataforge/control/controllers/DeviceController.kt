@@ -75,6 +75,7 @@ public class DeviceController(
                         targetDevice = request.sourceDevice
                     )
                 }
+
                 is PropertySetMessage -> {
                     if (request.value == null) {
                         device.invalidateProperty(request.property)
@@ -88,6 +89,7 @@ public class DeviceController(
                         targetDevice = request.sourceDevice
                     )
                 }
+
                 is ActionExecuteMessage -> {
                     ActionResultMessage(
                         action = request.action,
@@ -96,6 +98,7 @@ public class DeviceController(
                         targetDevice = request.sourceDevice
                     )
                 }
+
                 is GetDescriptionMessage -> {
                     val descriptionMeta = Meta {
                         "properties" put {
@@ -117,7 +120,14 @@ public class DeviceController(
                     )
                 }
 
-                is DescriptionMessage, is PropertyChangedMessage, is ActionResultMessage, is BinaryNotificationMessage, is DeviceErrorMessage, is EmptyDeviceMessage -> {
+                is DescriptionMessage,
+                is PropertyChangedMessage,
+                is ActionResultMessage,
+                is BinaryNotificationMessage,
+                is DeviceErrorMessage,
+                is EmptyDeviceMessage,
+                is DeviceLogMessage,
+                -> {
                     //Those messages are ignored
                     EmptyDeviceMessage(
                         sourceDevice = deviceTarget,
