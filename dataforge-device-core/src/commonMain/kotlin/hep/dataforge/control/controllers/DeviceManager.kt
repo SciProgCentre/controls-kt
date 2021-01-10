@@ -20,7 +20,7 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
     override val devices: Map<NameToken, Device> get() = top
 
     public val controller: HubController by lazy {
-        HubController(this, context)
+        HubController(this)
     }
 
     public fun registerDevice(name: NameToken, device: Device) {

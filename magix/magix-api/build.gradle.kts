@@ -4,6 +4,7 @@ plugins {
 }
 
 kscience {
+    useCoroutines()
     useSerialization{
         json()
     }

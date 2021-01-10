@@ -163,24 +163,24 @@ public fun Application.deviceModule(
                     }
                 }
             }
-            //Check if application supports websockets and if it does add a push channel
-            if (this.application.featureOrNull(WebSockets) != null) {
-                webSocket("ws") {
-                    //subscribe on device
-                    val target: String? by call.request.queryParameters
-
-                    try {
-                        application.log.debug("Opened server socket for ${call.request.queryParameters}")
-
-                        manager.controller.envelopeOutput().collect {
-                            outgoing.send(it.toFrame())
-                        }
-
-                    } catch (ex: Exception) {
-                        application.log.debug("Closed server socket for ${call.request.queryParameters}")
-                    }
-                }
-            }
+//            //Check if application supports websockets and if it does add a push channel
+//            if (this.application.featureOrNull(WebSockets) != null) {
+//                webSocket("ws") {
+//                    //subscribe on device
+//                    val target: String? by call.request.queryParameters
+//
+//                    try {
+//                        application.log.debug("Opened server socket for ${call.request.queryParameters}")
+//
+//                        manager.controller.envelopeOutput().collect {
+//                            outgoing.send(it.toFrame())
+//                        }
+//
+//                    } catch (ex: Exception) {
+//                        application.log.debug("Closed server socket for ${call.request.queryParameters}")
+//                    }
+//                }
+//            }
 
             post("message") {
                 val body = call.receiveText()
