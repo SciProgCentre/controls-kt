@@ -5,6 +5,7 @@ import hep.dataforge.control.controllers.respondMessage
 import hep.dataforge.control.messages.DeviceMessage
 import hep.dataforge.magix.api.MagixEndpoint
 import hep.dataforge.magix.api.MagixMessage
+import hep.dataforge.magix.api.MagixProcessor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
@@ -41,9 +42,9 @@ public fun DeviceManager.launchMagixClient(
         endpoint.broadcast(DeviceMessage.serializer(), response)
     }.catch { error ->
         logger.error(error){"Error while responding to message"}
-    }.launchIn(endpoint.scope)
+    }.launchIn(this)
 
-    controller.messageOutput.onEach { payload ->
+    controller.messageOutput().onEach { payload ->
         MagixMessage(
             format = DATAFORGE_MAGIX_FORMAT,
             id = "df[${payload.hashCode()}]",
@@ -52,7 +53,7 @@ public fun DeviceManager.launchMagixClient(
         )
     }.catch { error ->
         logger.error(error){"Error while sending a message"}
-    }.launchIn(endpoint.scope)
+    }.launchIn(this)
 }
 
 public fun DeviceManager.asMagixProcessor(endpointID: String = "dataforge"): MagixProcessor = object : MagixProcessor {
