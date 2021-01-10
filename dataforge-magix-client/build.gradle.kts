@@ -5,6 +5,12 @@ plugins {
 
 val ktorVersion: String by rootProject.extra
 
+kscience{
+    useSerialization {
+        json()
+    }
+}
+
 kotlin {
     sourceSets {
         commonMain {

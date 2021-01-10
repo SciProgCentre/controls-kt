@@ -1,8 +1,8 @@
 package hep.dataforge.control.client
 
 import hep.dataforge.control.controllers.DeviceManager
-import hep.dataforge.control.controllers.DeviceMessage
 import hep.dataforge.control.controllers.respondMessage
+import hep.dataforge.control.messages.DeviceMessage
 import hep.dataforge.magix.api.MagixEndpoint
 import hep.dataforge.magix.api.MagixMessage
 import kotlinx.coroutines.Job

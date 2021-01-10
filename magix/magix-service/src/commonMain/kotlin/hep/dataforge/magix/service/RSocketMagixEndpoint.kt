@@ -13,15 +13,16 @@ import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
 import io.rsocket.kotlin.transport.ktor.client.RSocketSupport
 import io.rsocket.kotlin.transport.ktor.client.rSocket
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 
 public class RSocketMagixEndpoint(
-    override val scope: CoroutineScope,
+    private val coroutineContext: CoroutineContext,
     private val rSocket: RSocket,
 ) : MagixEndpoint {
 
@@ -30,19 +31,15 @@ public class RSocketMagixEndpoint(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage<T>> {
         val serializer = MagixMessage.serializer(payloadSerializer)
-        val payload = buildPayload {
-            data(MagixEndpoint.magixJson.encodeToString(filter))
-        }
+        val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(filter)) }
         val flow = rSocket.requestStream(payload)
         return flow.map { MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText()) }
     }
 
     override suspend fun <T> broadcast(payloadSerializer: KSerializer<T>, message: MagixMessage<T>) {
-        scope.launch {
+        withContext(coroutineContext) {
             val serializer = MagixMessage.serializer(payloadSerializer)
-            val payload = buildPayload {
-                data(MagixEndpoint.magixJson.encodeToString(serializer, message))
-            }
+            val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(serializer, message)) }
             rSocket.fireAndForget(payload)
         }
     }
@@ -57,7 +54,6 @@ public class RSocketMagixEndpoint(
 
         @OptIn(KtorExperimentalAPI::class)
         public suspend fun withWebSockets(
-            scope: CoroutineScope,
             host: String,
             port: Int,
             path: String = "/rsocket",
@@ -77,8 +73,7 @@ public class RSocketMagixEndpoint(
                 client.close()
             }
 
-            return RSocketMagixEndpoint(scope, rSocket)
+            return RSocketMagixEndpoint(coroutineContext, rSocket)
         }
     }
 }
-

@@ -1,6 +1,6 @@
 pluginManagement {
-    val kotlinVersion = "1.4.20-M2"
-    val toolsVersion = "0.6.4-dev-1.4.20-M2"
+    val kotlinVersion = "1.4.21"
+    val toolsVersion = "0.7.1"
 
     repositories {
         mavenLocal()
@@ -24,20 +24,20 @@ pluginManagement {
     }
 }
 
-rootProject.name = "dataforge-control"
+rootProject.name = "controls.kt"
 
 include(
     ":dataforge-device-core",
     ":dataforge-device-tcp",
     ":dataforge-device-serial",
     ":dataforge-device-server",
-    ":dataforge-magix-client",
-    ":motors",
     ":demo",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",
-    ":magix:magix-service"
+    ":magix:magix-service",
+    ":dataforge-magix-client",
+    ":motors"
 )
 
 //includeBuild("../dataforge-core")

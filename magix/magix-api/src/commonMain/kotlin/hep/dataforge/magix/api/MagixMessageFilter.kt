@@ -6,8 +6,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 public data class MagixMessageFilter(
-    val format: List<String>? = null,
-    val origin: List<String>? = null,
+    val format: List<String?>? = null,
+    val origin: List<String?>? = null,
     val target: List<String?>? = null,
     val action: List<String?>? = null,
 ) {

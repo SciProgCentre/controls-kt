@@ -1,7 +1,7 @@
 package hep.dataforge.control.server
 
-import hep.dataforge.control.controllers.DeviceMessage
-import hep.dataforge.control.controllers.toMeta
+import hep.dataforge.control.messages.DeviceMessage
+import hep.dataforge.control.messages.toMeta
 import hep.dataforge.io.*
 import hep.dataforge.meta.MetaSerializer
 import io.ktor.application.ApplicationCall
@@ -30,15 +30,6 @@ internal suspend fun ApplicationCall.respondJson(builder: JsonObjectBuilder.() -
     respondText(json.toString(), contentType = ContentType.Application.Json)
 }
 
-
 public suspend fun ApplicationCall.respondMessage(message: DeviceMessage) {
     respondText(Json.encodeToString(MetaSerializer, message.toMeta()), contentType = ContentType.Application.Json)
 }
-
-//public suspend fun ApplicationCall.respondMessage(builder: DeviceMessage.() -> Unit) {
-//    respondMessage(DeviceMessage(builder))
-//}
-//
-//public suspend fun ApplicationCall.respondFail(builder: DeviceMessage.() -> Unit) {
-//    respondMessage(DeviceMessage.fail(null, block = builder))
-//}

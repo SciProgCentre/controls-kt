@@ -1,5 +1,3 @@
-import ru.mipt.npm.gradle.useFx
-
 plugins {
     id("ru.mipt.npm.jvm")
     id("ru.mipt.npm.publish")
@@ -9,11 +7,14 @@ plugins {
 //TODO to be moved to a separate project
 
 application{
-    mainClassName = "ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt"
+    mainClass.set("ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt")
 }
 
 kotlin{
     explicitApi = null
+}
+
+kscience{
     useFx(ru.mipt.npm.gradle.FXModule.CONTROLS, configuration = ru.mipt.npm.gradle.DependencyConfiguration.IMPLEMENTATION)
 }
 
