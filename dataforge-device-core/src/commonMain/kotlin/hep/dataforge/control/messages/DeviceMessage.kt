@@ -18,28 +18,39 @@ public sealed class DeviceMessage {
     public companion object {
         public fun error(
             cause: Throwable,
-            sourceDevice: String?,
+            sourceDevice: String,
             targetDevice: String? = null,
         ): DeviceErrorMessage = DeviceErrorMessage(
             errorMessage = cause.message,
             errorType = cause::class.simpleName,
-            errorStackTrace = cause.stackTraceToString()
+            errorStackTrace = cause.stackTraceToString(),
+            sourceDevice = sourceDevice,
+            targetDevice = targetDevice
         )
 
         public fun fromMeta(meta: Meta): DeviceMessage = Json.decodeFromJsonElement(meta.toJson())
     }
 }
 
+/**
+ * Notify that property is changed. [sourceDevice] is mandatory.
+ * [property] corresponds to property name.
+ * [value] could be null if the property is invalidated.
+ *
+ */
 @Serializable
 @SerialName("property.changed")
 public data class PropertyChangedMessage(
-    public val key: String,
+    public val property: String,
     public val value: MetaItem<*>?,
     override val sourceDevice: String,
     override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
 
+/**
+ * A command to set or invalidate property. [targetDevice] is mandatory.
+ */
 @Serializable
 @SerialName("property.set")
 public data class PropertySetMessage(
@@ -50,6 +61,10 @@ public data class PropertySetMessage(
     override val comment: String? = null,
 ) : DeviceMessage()
 
+/**
+ * A command to request property value asynchronously. [targetDevice] is mandatory.
+ * The property value should be returned asynchronously via [PropertyChangedMessage].
+ */
 @Serializable
 @SerialName("property.get")
 public data class PropertyGetMessage(
@@ -60,7 +75,7 @@ public data class PropertyGetMessage(
 ) : DeviceMessage()
 
 /**
- * Request device description
+ * Request device description. The result is returned in form of [DescriptionMessage]
  */
 @Serializable
 @SerialName("description.get")
@@ -82,22 +97,28 @@ public data class DescriptionMessage(
     override val comment: String? = null,
 ) : DeviceMessage()
 
+/**
+ * A request to execute an action. [targetDevice] is mandatory
+ */
 @Serializable
 @SerialName("action.execute")
 public data class ActionExecuteMessage(
     public val action: String,
     public val argument: MetaItem<*>?,
     override val sourceDevice: String? = null,
-    override val targetDevice: String? = null,
+    override val targetDevice: String,
     override val comment: String? = null,
 ) : DeviceMessage()
 
+/**
+ * Asynchronous action result. [sourceDevice] is mandatory
+ */
 @Serializable
 @SerialName("action.result")
 public data class ActionResultMessage(
     public val action: String,
     public val result: MetaItem<*>?,
-    override val sourceDevice: String? = null,
+    override val sourceDevice: String,
     override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()
@@ -148,7 +169,7 @@ public data class DeviceErrorMessage(
     public val errorMessage: String?,
     public val errorType: String? = null,
     public val errorStackTrace: String? = null,
-    override val sourceDevice: String? = null,
+    override val sourceDevice: String,
     override val targetDevice: String? = null,
     override val comment: String? = null,
 ) : DeviceMessage()

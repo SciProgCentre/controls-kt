@@ -5,12 +5,14 @@ import hep.dataforge.control.api.Device
 import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.meta.Meta
 import hep.dataforge.meta.MetaBuilder
+import hep.dataforge.meta.get
+import hep.dataforge.meta.string
 import hep.dataforge.names.Name
 import hep.dataforge.names.NameToken
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 
-public class DeviceManager : AbstractPlugin(), DeviceHub {
+public class DeviceManager(override val deviceName: String = "") : AbstractPlugin(), DeviceHub {
     override val tag: PluginTag get() = Companion.tag
 
     /**
@@ -33,7 +35,8 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
         override val tag: PluginTag = PluginTag("devices", group = PluginTag.DATAFORGE_GROUP)
         override val type: KClass<out DeviceManager> = DeviceManager::class
 
-        override fun invoke(meta: Meta, context: Context): DeviceManager = DeviceManager()
+        override fun invoke(meta: Meta, context: Context): DeviceManager =
+            DeviceManager(meta["deviceName"].string ?: "")
     }
 }
 

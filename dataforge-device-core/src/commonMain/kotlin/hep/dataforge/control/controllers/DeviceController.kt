@@ -24,7 +24,7 @@ public class DeviceController(
     private val propertyChanges = device.propertyFlow.map { (propertyName: String, value: MetaItem<*>) ->
         PropertyChangedMessage(
             sourceDevice = deviceName,
-            key = propertyName,
+            property = propertyName,
             value = value,
         )
     }
@@ -69,7 +69,7 @@ public class DeviceController(
             when (request) {
                 is PropertyGetMessage -> {
                     PropertyChangedMessage(
-                        key = request.property,
+                        property = request.property,
                         value = device.getProperty(request.property),
                         sourceDevice = deviceTarget,
                         targetDevice = request.sourceDevice
@@ -83,7 +83,7 @@ public class DeviceController(
                         device.setProperty(request.property, request.value)
                     }
                     PropertyChangedMessage(
-                        key = request.property,
+                        property = request.property,
                         value = device.getProperty(request.property),
                         sourceDevice = deviceTarget,
                         targetDevice = request.sourceDevice
@@ -149,6 +149,6 @@ public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessa
         val device = this[targetName] ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {
-        DeviceMessage.error(ex, sourceDevice = request.targetDevice, targetDevice = request.sourceDevice)
+        DeviceMessage.error(ex, sourceDevice = deviceName, targetDevice = request.sourceDevice)
     }
 }

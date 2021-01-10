@@ -8,6 +8,8 @@ import hep.dataforge.provider.Provider
  * A hub that could locate multiple devices and redirect actions to them
  */
 public interface DeviceHub : Provider {
+    public val deviceName: String
+
     public val devices: Map<NameToken, Device>
 
     override val defaultTarget: String get() = Device.DEVICE_TARGET

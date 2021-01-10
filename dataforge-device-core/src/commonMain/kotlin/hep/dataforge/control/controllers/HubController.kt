@@ -54,7 +54,7 @@ public class HubController(
         val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
         DeviceController.respondMessage(device, targetName.toString(), message)
     } catch (ex: Exception) {
-        DeviceMessage.error(ex, sourceDevice = null, targetDevice = message.sourceDevice)
+        DeviceMessage.error(ex, sourceDevice = hub.deviceName, targetDevice = message.sourceDevice)
     }
 //
 //    override suspend fun respond(request: Envelope): Envelope = try {

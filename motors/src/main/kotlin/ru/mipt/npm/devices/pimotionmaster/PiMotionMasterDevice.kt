@@ -22,6 +22,7 @@ import kotlin.time.Duration
 
 class PiMotionMasterDevice(
     context: Context,
+    override val deviceName: String = "PiMotionMaster",
     private val portFactory: PortFactory = KtorTcpPort,
 ) : DeviceBase(context), DeviceHub {
 
