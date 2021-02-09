@@ -25,6 +25,7 @@ public fun CoroutineScope.startMagixServer(
         buffer,
         extraBufferCapacity = buffer
     )
+
     val tcpTransport = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().serverTransport(port = rawSocketPort)
     RSocketServer().bind(tcpTransport, magixAcceptor(magixFlow))
 

@@ -1,9 +1,12 @@
 package ru.mipt.npm.devices.pimotionmaster
 
+import hep.dataforge.context.logger
 import hep.dataforge.control.api.Device
 import hep.dataforge.control.base.TypedDeviceProperty
 import hep.dataforge.control.base.TypedReadOnlyDeviceProperty
-import javafx.beans.property.*
+import javafx.beans.property.ObjectPropertyBase
+import javafx.beans.property.Property
+import javafx.beans.property.ReadOnlyProperty
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach

@@ -17,9 +17,9 @@ repositories{
 }
 
 dependencies{
-    implementation(project(":dataforge-device-core"))
-    implementation(project(":dataforge-device-server"))
-    implementation(project(":dataforge-magix-client"))
+    implementation(project(":controls-core"))
+    implementation(project(":controls-server"))
+    implementation(project(":controls-magix-client"))
     implementation("no.tornado:tornadofx:1.7.20")
     implementation(kotlin("stdlib-jdk8"))
     implementation("kscience.plotlykt:plotlykt-server:0.3.0")

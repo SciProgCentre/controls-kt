@@ -3,6 +3,7 @@
 package ru.mipt.npm.devices.pimotionmaster
 
 import hep.dataforge.context.Context
+import hep.dataforge.context.logger
 import hep.dataforge.control.api.DeviceHub
 import hep.dataforge.control.api.PropertyDescriptor
 import hep.dataforge.control.base.*

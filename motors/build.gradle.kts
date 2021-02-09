@@ -21,7 +21,7 @@ kscience{
 val ktorVersion: String by rootProject.extra
 
 dependencies {
-    implementation(project(":dataforge-device-tcp"))
-    implementation(project(":dataforge-magix-client"))
+    implementation(project(":controls-tcp"))
+    implementation(project(":controls-magix-client"))
     implementation("no.tornado:tornadofx:1.7.20")
 }

@@ -2,6 +2,7 @@ package hep.dataforge.control.demo
 
 import hep.dataforge.context.ContextAware
 import hep.dataforge.context.Global
+import hep.dataforge.context.logger
 import io.ktor.server.engine.ApplicationEngine
 import javafx.scene.Parent
 import javafx.scene.control.Slider

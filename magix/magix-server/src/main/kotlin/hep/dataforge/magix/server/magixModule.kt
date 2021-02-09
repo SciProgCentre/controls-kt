@@ -52,12 +52,14 @@ internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<GenericMa
             magixFlow.emit(message)
         }
         // bi-directional connection
-        requestChannel { _: Payload, input: Flow<Payload> ->
+        requestChannel { request: Payload, input: Flow<Payload> ->
             input.onEach {
                 magixFlow.emit(magixJson.decodeFromString(genericMessageSerializer, it.data.readText()))
             }.launchIn(this@magixAcceptor)
 
-            magixFlow.map { message ->
+            val filter = magixJson.decodeFromString(MagixMessageFilter.serializer(), request.data.readText())
+
+            magixFlow.filter(filter).map { message ->
                 val string = magixJson.encodeToString(genericMessageSerializer, message)
                 buildPayload { data(string) }
             }

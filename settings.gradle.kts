@@ -1,6 +1,6 @@
 pluginManagement {
-    val kotlinVersion = "1.4.21"
-    val toolsVersion = "0.7.1"
+    val kotlinVersion = "1.4.30"
+    val toolsVersion = "0.7.6"
 
     repositories {
         mavenLocal()
@@ -27,18 +27,20 @@ pluginManagement {
 rootProject.name = "controls.kt"
 
 include(
-    ":dataforge-device-core",
-    ":dataforge-device-tcp",
-    ":dataforge-device-serial",
-    ":dataforge-device-server",
+    ":controls-core",
+    ":controls-tcp",
+    ":controls-serial",
+    ":controls-server",
     ":demo",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",
     ":magix:magix-service",
-    ":dataforge-magix-client",
+    ":magix:magix-java-client",
+    ":controls-magix-client",
     ":motors"
 )
 
 //includeBuild("../dataforge-core")
 //includeBuild("../plotly.kt")
+include("magix-java-client")
