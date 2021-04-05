@@ -1,0 +1,18 @@
+@startuml
+title Transform asynchronous to synchronous
+
+participant Synchronous
+participant Adapter
+participant Asynchronous
+
+activate Adapter
+Asynchronous -> Adapter: message with ID
+Adapter -> Synchronous
+activate Synchronous
+hnote over Adapter : create a waiting thread
+Synchronous -> Adapter
+deactivate Synchronous
+Adapter -> Asynchronous: message with ID
+
+
+@enduml

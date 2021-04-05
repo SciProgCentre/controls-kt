@@ -1,4 +1,4 @@
-package hep.dataforge.magix.api
+package space.kscience.dataforge.magix.api
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

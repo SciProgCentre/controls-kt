@@ -1,17 +1,18 @@
-package hep.dataforge.control.client
+package space.kscience.dataforge.control.client
 
-import hep.dataforge.context.logger
-import hep.dataforge.control.controllers.DeviceManager
-import hep.dataforge.control.controllers.respondMessage
-import hep.dataforge.control.messages.DeviceMessage
-import hep.dataforge.magix.api.MagixEndpoint
-import hep.dataforge.magix.api.MagixMessage
-import hep.dataforge.magix.api.MagixProcessor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
+import space.kscience.dataforge.control.controllers.DeviceManager
+import space.kscience.dataforge.control.controllers.respondMessage
+import space.kscience.dataforge.control.messages.DeviceMessage
+import space.kscience.dataforge.magix.api.MagixEndpoint
+import space.kscience.dataforge.magix.api.MagixMessage
+import space.kscience.dataforge.magix.api.MagixProcessor
 
 
 public const val DATAFORGE_MAGIX_FORMAT: String = "dataforge"

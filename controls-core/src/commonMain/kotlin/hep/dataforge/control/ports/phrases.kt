@@ -1,9 +1,11 @@
-package hep.dataforge.control.ports
+package space.kscience.dataforge.control.ports
 
+import io.ktor.utils.io.core.BytePacketBuilder
+import io.ktor.utils.io.core.readBytes
+import io.ktor.utils.io.core.reset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transform
-import kotlinx.io.ByteArrayOutput
 
 /**
  * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
@@ -11,7 +13,7 @@ import kotlinx.io.ByteArrayOutput
 public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
 
-    var output = ByteArrayOutput(expectedMessageSize)
+    val output = BytePacketBuilder(expectedMessageSize)
     var matcherPosition = 0
 
     return transform { chunk ->
@@ -22,8 +24,9 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSi
                 matcherPosition++
                 if (matcherPosition == delimiter.size) {
                     //full match achieved, sending result
-                    emit(output.toByteArray())
-                    output = ByteArrayOutput(expectedMessageSize)
+                    val bytes = output.build()
+                    emit(bytes.readBytes())
+                    output.reset()
                     matcherPosition = 0
                 }
             } else if (matcherPosition > 0) {

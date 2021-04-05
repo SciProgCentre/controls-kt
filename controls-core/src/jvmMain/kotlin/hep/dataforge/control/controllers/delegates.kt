@@ -1,9 +1,9 @@
-package hep.dataforge.control.controllers
+package space.kscience.dataforge.control.controllers
 
-import hep.dataforge.control.base.*
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.transformations.MetaConverter
 import kotlinx.coroutines.runBlocking
+import space.kscience.dataforge.control.base.*
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty

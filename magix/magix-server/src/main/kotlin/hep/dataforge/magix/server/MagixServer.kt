@@ -1,7 +1,5 @@
-package hep.dataforge.magix.server
+package space.kscience.dataforge.magix.server
 
-import hep.dataforge.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
-import hep.dataforge.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_WS_PORT
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.server.cio.CIO
@@ -13,6 +11,8 @@ import io.rsocket.kotlin.transport.ktor.serverTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import space.kscience.dataforge.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
+import space.kscience.dataforge.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_WS_PORT
 
 @OptIn(KtorExperimentalAPI::class)
 public fun CoroutineScope.startMagixServer(

@@ -1,14 +1,14 @@
-package hep.dataforge.control.serial
+package space.kscience.dataforge.control.serial
 
-import hep.dataforge.context.Context
-import hep.dataforge.control.ports.AbstractPort
-import hep.dataforge.control.ports.Port
-import hep.dataforge.control.ports.PortFactory
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.int
-import hep.dataforge.meta.string
 import jssc.SerialPort.*
 import jssc.SerialPortEventListener
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.control.ports.AbstractPort
+import space.kscience.dataforge.control.ports.Port
+import space.kscience.dataforge.control.ports.PortFactory
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.meta.string
 import kotlin.coroutines.CoroutineContext
 import jssc.SerialPort as JSSCPort
 

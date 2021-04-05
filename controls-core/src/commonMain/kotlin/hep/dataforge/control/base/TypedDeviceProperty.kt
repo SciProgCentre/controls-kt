@@ -1,9 +1,9 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.transformations.MetaConverter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.transformations.MetaConverter
 
 /**
  * A type-safe wrapper on top of read-only property

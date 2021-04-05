@@ -1,11 +1,5 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.context.Context
-import hep.dataforge.control.api.ActionDescriptor
-import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.misc.DFExperimental
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +7,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.control.api.ActionDescriptor
+import space.kscience.dataforge.control.api.Device
+import space.kscience.dataforge.control.api.PropertyDescriptor
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.misc.DFExperimental
 
 //TODO move to DataForge-core
 @DFExperimental

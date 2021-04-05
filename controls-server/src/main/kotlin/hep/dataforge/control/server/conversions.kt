@@ -1,17 +1,16 @@
-package hep.dataforge.control.server
+package space.kscience.dataforge.control.server
 
-import hep.dataforge.control.messages.DeviceMessage
-import hep.dataforge.control.messages.toMeta
-import hep.dataforge.io.*
-import hep.dataforge.meta.MetaSerializer
 import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.response.respondText
-import kotlinx.io.asBinary
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
+import space.kscience.dataforge.control.messages.DeviceMessage
+import space.kscience.dataforge.control.messages.toMeta
+import space.kscience.dataforge.io.*
+import space.kscience.dataforge.meta.MetaSerializer
 
 
 internal fun Frame.toEnvelope(): Envelope {

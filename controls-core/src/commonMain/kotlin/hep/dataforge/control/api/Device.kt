@@ -1,14 +1,15 @@
-package hep.dataforge.control.api
+package space.kscience.dataforge.control.api
 
-import hep.dataforge.context.ContextAware
-import hep.dataforge.control.api.Device.Companion.DEVICE_TARGET
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.misc.Type
+import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.io.Closeable
+import space.kscience.dataforge.context.ContextAware
+import space.kscience.dataforge.control.api.Device.Companion.DEVICE_TARGET
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.misc.Type
+
 
 /**
  *  General interface describing a managed Device

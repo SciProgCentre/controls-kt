@@ -2,20 +2,19 @@
 
 package ru.mipt.npm.devices.pimotionmaster
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.logger
-import hep.dataforge.control.api.DeviceHub
-import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.control.base.*
-import hep.dataforge.control.controllers.*
-import hep.dataforge.control.ports.*
-import hep.dataforge.meta.*
-import hep.dataforge.names.NameToken
-import hep.dataforge.values.asValue
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.dataforge.context.*
+import space.kscience.dataforge.control.api.DeviceHub
+import space.kscience.dataforge.control.api.PropertyDescriptor
+import space.kscience.dataforge.control.base.*
+import space.kscience.dataforge.control.controllers.*
+import space.kscience.dataforge.control.ports.*
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.names.NameToken
+import space.kscience.dataforge.values.asValue
 import tornadofx.*
 import java.util.*
 import kotlin.error

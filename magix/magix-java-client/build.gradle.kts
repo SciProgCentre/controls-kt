@@ -1,7 +1,7 @@
 plugins {
     java
-    id("ru.mipt.npm.jvm")
-    id("ru.mipt.npm.publish")
+    id("ru.mipt.npm.gradle.jvm")
+    `maven-publish`
 }
 
 dependencies {

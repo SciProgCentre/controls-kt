@@ -1,7 +1,7 @@
-package hep.dataforge.control.api
+package space.kscience.dataforge.control.api
 
-import hep.dataforge.meta.Scheme
-import hep.dataforge.meta.string
+import space.kscience.dataforge.meta.Scheme
+import space.kscience.dataforge.meta.string
 
 /**
  * A descriptor for property

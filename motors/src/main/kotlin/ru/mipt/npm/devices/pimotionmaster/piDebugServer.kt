@@ -1,7 +1,5 @@
 package ru.mipt.npm.devices.pimotionmaster
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.Global
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -12,6 +10,8 @@ import io.ktor.util.moveToByteArray
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.Global
 import java.net.InetSocketAddress
 
 val exceptionHandler = CoroutineExceptionHandler { _, throwable ->

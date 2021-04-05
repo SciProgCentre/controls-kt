@@ -1,9 +1,5 @@
-package hep.dataforge.control.ports
+package space.kscience.dataforge.control.ports
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.ContextAware
-import hep.dataforge.context.Global
-import hep.dataforge.context.logger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -11,6 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.dataforge.context.*
 
 /**
  * A port that could be closed multiple times and opens automatically on request
@@ -45,7 +42,7 @@ public class PortProxy(override val context: Context = Global, public val factor
                     emit(it)
                 }
             } catch (t: Throwable) {
-                logger.warn(t){"Port read failed. Reconnecting."}
+                logger.warn{"Port read failed: ${t.message}. Reconnecting."}
                 mutex.withLock {
                     actualPort?.close()
                     actualPort = null

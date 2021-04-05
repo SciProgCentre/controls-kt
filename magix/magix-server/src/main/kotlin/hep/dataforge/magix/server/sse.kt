@@ -1,4 +1,4 @@
-package hep.dataforge.magix.server
+package space.kscience.dataforge.magix.server
 
 import io.ktor.application.ApplicationCall
 import io.ktor.http.CacheControl

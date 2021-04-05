@@ -1,14 +1,11 @@
-package hep.dataforge.control.ports
+package space.kscience.dataforge.control.ports
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.ContextAware
-import hep.dataforge.context.Factory
-import hep.dataforge.context.logger
-import hep.dataforge.control.api.Socket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import space.kscience.dataforge.context.*
+import space.kscience.dataforge.control.api.Socket
 import kotlin.coroutines.CoroutineContext
 
 public interface Port : ContextAware, Socket<ByteArray>

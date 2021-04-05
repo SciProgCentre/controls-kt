@@ -1,10 +1,10 @@
 plugins {
-    id("ru.mipt.npm.jvm")
-    id("ru.mipt.npm.publish")
+    id("ru.mipt.npm.gradle.jvm")
+    `maven-publish`
 }
 
 val dataforgeVersion: String by rootProject.extra
-val ktorVersion: String by rootProject.extra
+val ktorVersion: String  = "1.5.3"
 
 dependencies{
     implementation(project(":controls-core"))

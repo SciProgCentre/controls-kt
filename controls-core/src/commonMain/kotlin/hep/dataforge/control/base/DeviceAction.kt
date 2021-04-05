@@ -1,9 +1,9 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.control.api.ActionDescriptor
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.asMetaItem
+import space.kscience.dataforge.control.api.ActionDescriptor
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.asMetaItem
 
 public interface DeviceAction {
     public val name: String

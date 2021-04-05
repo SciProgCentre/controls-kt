@@ -1,6 +1,6 @@
 plugins {
-    id("ru.mipt.npm.mpp")
-    id("ru.mipt.npm.publish")
+    id("ru.mipt.npm.gradle.mpp")
+    `maven-publish`
 }
 
 kscience {
@@ -9,7 +9,4 @@ kscience {
         json()
     }
 }
-
-val dataforgeVersion: String by rootProject.extra
-val ktorVersion: String by rootProject.extra
 

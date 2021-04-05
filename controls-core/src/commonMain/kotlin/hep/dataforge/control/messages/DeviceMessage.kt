@@ -1,12 +1,12 @@
-package hep.dataforge.control.messages
+package space.kscience.dataforge.control.messages
 
-import hep.dataforge.io.SimpleEnvelope
-import hep.dataforge.meta.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import space.kscience.dataforge.io.SimpleEnvelope
+import space.kscience.dataforge.meta.*
 
 @Serializable
 public sealed class DeviceMessage {

@@ -1,16 +1,16 @@
-package hep.dataforge.control.controllers
+package space.kscience.dataforge.control.controllers
 
-import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.DeviceHub
-import hep.dataforge.control.api.get
-import hep.dataforge.control.messages.*
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.misc.DFExperimental
-import hep.dataforge.names.Name
-import hep.dataforge.names.toName
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import space.kscience.dataforge.control.api.Device
+import space.kscience.dataforge.control.api.DeviceHub
+import space.kscience.dataforge.control.api.get
+import space.kscience.dataforge.control.messages.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.misc.DFExperimental
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.toName
 
 /**
  * The [DeviceController] wraps device operations in [DeviceMessage]

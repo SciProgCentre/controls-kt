@@ -1,14 +1,14 @@
-package hep.dataforge.control.controllers
+package space.kscience.dataforge.control.controllers
 
-import hep.dataforge.context.*
-import hep.dataforge.control.api.Device
-import hep.dataforge.control.api.DeviceHub
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.MetaBuilder
-import hep.dataforge.meta.get
-import hep.dataforge.meta.string
-import hep.dataforge.names.Name
-import hep.dataforge.names.NameToken
+import space.kscience.dataforge.context.*
+import space.kscience.dataforge.control.api.Device
+import space.kscience.dataforge.control.api.DeviceHub
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaBuilder
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.NameToken
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 

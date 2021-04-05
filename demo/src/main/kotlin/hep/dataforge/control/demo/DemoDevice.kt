@@ -1,14 +1,14 @@
-package hep.dataforge.control.demo
+package space.kscience.dataforge.control.demo
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.Factory
-import hep.dataforge.control.base.*
-import hep.dataforge.control.controllers.double
-import hep.dataforge.meta.Meta
-import hep.dataforge.values.asValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.Factory
+import space.kscience.dataforge.control.base.*
+import space.kscience.dataforge.control.controllers.double
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.values.asValue
 import java.time.Instant
 import java.util.concurrent.Executors
 import kotlin.math.cos

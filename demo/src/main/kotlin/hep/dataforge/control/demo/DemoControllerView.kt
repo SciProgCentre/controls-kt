@@ -1,14 +1,15 @@
-package hep.dataforge.control.demo
+package space.kscience.dataforge.control.demo
 
-import hep.dataforge.context.ContextAware
-import hep.dataforge.context.Global
-import hep.dataforge.context.logger
 import io.ktor.server.engine.ApplicationEngine
 import javafx.scene.Parent
 import javafx.scene.control.Slider
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.launch
+import space.kscience.dataforge.context.ContextAware
+import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.context.info
+import space.kscience.dataforge.context.logger
 import tornadofx.*
 import java.awt.Desktop
 import java.net.URI
@@ -28,11 +29,11 @@ class DemoController : Controller(), ContextAware {
     }
 
     fun shutdown() {
-        logger.info("Shutting down...")
+        logger.info { "Shutting down..." }
         server?.stop(1000, 5000)
-        logger.info("Visualization server stopped")
+        logger.info { "Visualization server stopped" }
         device?.close()
-        logger.info("Device server stopped")
+        logger.info { "Device server stopped" }
         context.close()
     }
 }

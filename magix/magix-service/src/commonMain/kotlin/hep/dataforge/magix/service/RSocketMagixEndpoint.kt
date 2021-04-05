@@ -1,8 +1,5 @@
-package hep.dataforge.magix.service
+package space.kscience.dataforge.magix.service
 
-import hep.dataforge.magix.api.MagixEndpoint
-import hep.dataforge.magix.api.MagixMessage
-import hep.dataforge.magix.api.MagixMessageFilter
 import io.ktor.client.HttpClient
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.util.KtorExperimentalAPI
@@ -18,6 +15,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
+import space.kscience.dataforge.magix.api.MagixEndpoint
+import space.kscience.dataforge.magix.api.MagixMessage
+import space.kscience.dataforge.magix.api.MagixMessageFilter
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 

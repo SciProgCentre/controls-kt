@@ -1,11 +1,11 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.meta.*
-import hep.dataforge.meta.transformations.MetaConverter
-import hep.dataforge.values.Null
-import hep.dataforge.values.Value
-import hep.dataforge.values.asValue
+import space.kscience.dataforge.control.api.PropertyDescriptor
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.values.Null
+import space.kscience.dataforge.values.Value
+import space.kscience.dataforge.values.asValue
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty

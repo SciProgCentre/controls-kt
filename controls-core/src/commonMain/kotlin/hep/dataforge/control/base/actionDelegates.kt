@@ -1,11 +1,11 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.control.api.ActionDescriptor
-import hep.dataforge.meta.MetaBuilder
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.meta.MetaItemNode
-import hep.dataforge.meta.MetaItemValue
-import hep.dataforge.values.Value
+import space.kscience.dataforge.control.api.ActionDescriptor
+import space.kscience.dataforge.meta.MetaBuilder
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.MetaItemNode
+import space.kscience.dataforge.meta.MetaItemValue
+import space.kscience.dataforge.values.Value
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty

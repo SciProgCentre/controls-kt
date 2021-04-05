@@ -1,12 +1,13 @@
-package hep.dataforge.control.ports
+package space.kscience.dataforge.control.ports
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.logger
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.get
-import hep.dataforge.meta.int
-import hep.dataforge.meta.string
 import kotlinx.coroutines.*
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.meta.string
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
@@ -51,7 +52,7 @@ public class TcpPort private constructor(
                 }
                 if (num < 0) cancel("The input channel is exhausted")
             } catch (ex: Exception) {
-                logger.error("Channel read error", ex)
+                logger.error(ex){"Channel read error"}
                 delay(1000)
             }
         }

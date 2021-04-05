@@ -1,11 +1,11 @@
-package hep.dataforge.control.api
+package space.kscience.dataforge.control.api
 
+import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.io.Closeable
 
 /**
  * A generic bi-directional sender/receiver object

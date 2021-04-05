@@ -1,8 +1,5 @@
 package ru.mipt.npm.devices.pimotionmaster
 
-import hep.dataforge.context.Global
-import hep.dataforge.control.controllers.DeviceManager
-import hep.dataforge.control.controllers.installing
 import javafx.beans.property.ReadOnlyProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -14,6 +11,9 @@ import javafx.scene.layout.VBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.control.controllers.DeviceManager
+import space.kscience.dataforge.control.controllers.installing
 import tornadofx.*
 
 class PiMotionMasterApp : App(PiMotionMasterView::class)

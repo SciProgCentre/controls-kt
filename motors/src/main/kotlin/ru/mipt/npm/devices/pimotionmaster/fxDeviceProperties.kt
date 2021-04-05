@@ -1,15 +1,16 @@
 package ru.mipt.npm.devices.pimotionmaster
 
-import hep.dataforge.context.logger
-import hep.dataforge.control.api.Device
-import hep.dataforge.control.base.TypedDeviceProperty
-import hep.dataforge.control.base.TypedReadOnlyDeviceProperty
 import javafx.beans.property.ObjectPropertyBase
 import javafx.beans.property.Property
 import javafx.beans.property.ReadOnlyProperty
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import space.kscience.dataforge.context.info
+import space.kscience.dataforge.context.logger
+import space.kscience.dataforge.control.api.Device
+import space.kscience.dataforge.control.base.TypedDeviceProperty
+import space.kscience.dataforge.control.base.TypedReadOnlyDeviceProperty
 import tornadofx.*
 
 fun <T : Any> TypedReadOnlyDeviceProperty<T>.fxProperty(ownerDevice: Device?): ReadOnlyProperty<T> =

@@ -1,4 +1,4 @@
-package hep.dataforge.magix.service
+package space.kscience.dataforge.magix.service
 
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.SocketOptions

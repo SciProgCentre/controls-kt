@@ -1,6 +1,6 @@
 plugins {
-    id("ru.mipt.npm.mpp")
-    id("ru.mipt.npm.publish")
+    id("ru.mipt.npm.gradle.mpp")
+    `maven-publish`
 }
 
 val dataforgeVersion: String by rootProject.extra
@@ -16,7 +16,7 @@ kotlin {
     sourceSets {
         commonMain{
             dependencies {
-                api("hep.dataforge:dataforge-io:$dataforgeVersion")
+                api("space.kscience:dataforge-io:$dataforgeVersion")
             }
         }
     }

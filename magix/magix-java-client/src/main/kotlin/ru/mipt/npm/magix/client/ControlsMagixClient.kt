@@ -1,14 +1,14 @@
 package ru.mipt.npm.magix.client
 
-import hep.dataforge.magix.api.MagixEndpoint
-import hep.dataforge.magix.api.MagixMessage
-import hep.dataforge.magix.api.MagixMessageFilter
-import hep.dataforge.magix.service.RSocketMagixEndpoint
-import hep.dataforge.magix.service.withTcp
 import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
+import space.kscience.dataforge.magix.api.MagixEndpoint
+import space.kscience.dataforge.magix.api.MagixMessage
+import space.kscience.dataforge.magix.api.MagixMessageFilter
+import space.kscience.dataforge.magix.service.RSocketMagixEndpoint
+import space.kscience.dataforge.magix.service.withTcp
 import java.util.concurrent.Flow
 
 public class ControlsMagixClient<T>(

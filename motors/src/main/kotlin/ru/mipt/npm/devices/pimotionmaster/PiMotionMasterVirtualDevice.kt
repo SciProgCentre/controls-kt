@@ -1,16 +1,14 @@
 package ru.mipt.npm.devices.pimotionmaster
 
-import hep.dataforge.context.Context
-import hep.dataforge.context.ContextAware
-import hep.dataforge.context.logger
-import hep.dataforge.control.api.Socket
-import hep.dataforge.control.ports.AbstractPort
-import hep.dataforge.control.ports.withDelimiter
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.dataforge.context.*
+import space.kscience.dataforge.control.api.Socket
+import space.kscience.dataforge.control.ports.AbstractPort
+import space.kscience.dataforge.control.ports.withDelimiter
 import kotlin.math.abs
 import kotlin.time.Duration
 

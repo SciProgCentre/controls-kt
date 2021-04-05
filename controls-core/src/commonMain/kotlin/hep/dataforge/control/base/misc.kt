@@ -1,9 +1,9 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.meta.*
-import hep.dataforge.meta.transformations.MetaConverter
-import hep.dataforge.values.asValue
-import hep.dataforge.values.double
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.values.asValue
+import space.kscience.dataforge.values.double
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration

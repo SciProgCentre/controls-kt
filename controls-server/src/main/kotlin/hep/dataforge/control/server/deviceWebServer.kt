@@ -1,17 +1,8 @@
 @file:OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class, FlowPreview::class)
 
-package hep.dataforge.control.server
+package space.kscience.dataforge.control.server
 
 
-import hep.dataforge.control.api.get
-import hep.dataforge.control.controllers.DeviceManager
-import hep.dataforge.control.controllers.respondMessage
-import hep.dataforge.control.messages.DeviceMessage
-import hep.dataforge.control.messages.PropertyGetMessage
-import hep.dataforge.control.messages.PropertySetMessage
-import hep.dataforge.meta.toJson
-import hep.dataforge.meta.toMeta
-import hep.dataforge.meta.toMetaItem
 import io.ktor.application.*
 import io.ktor.features.CORS
 import io.ktor.features.StatusPages
@@ -38,6 +29,15 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
+import space.kscience.dataforge.control.api.get
+import space.kscience.dataforge.control.controllers.DeviceManager
+import space.kscience.dataforge.control.controllers.respondMessage
+import space.kscience.dataforge.control.messages.DeviceMessage
+import space.kscience.dataforge.control.messages.PropertyGetMessage
+import space.kscience.dataforge.control.messages.PropertySetMessage
+import space.kscience.dataforge.meta.toJson
+import space.kscience.dataforge.meta.toMeta
+import space.kscience.dataforge.meta.toMetaItem
 
 /**
  * Create and start a web server for several devices

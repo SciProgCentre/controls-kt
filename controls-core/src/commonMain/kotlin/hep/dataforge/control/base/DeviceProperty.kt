@@ -1,9 +1,9 @@
-package hep.dataforge.control.base
+package space.kscience.dataforge.control.base
 
-import hep.dataforge.control.api.PropertyDescriptor
-import hep.dataforge.meta.MetaItem
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
+import space.kscience.dataforge.control.api.PropertyDescriptor
+import space.kscience.dataforge.meta.MetaItem
 import kotlin.time.Duration
 
 /**

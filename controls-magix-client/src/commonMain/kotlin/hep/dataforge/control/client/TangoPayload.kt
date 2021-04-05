@@ -1,4 +1,4 @@
-package hep.dataforge.control.client
+package space.kscience.dataforge.control.client
 
 public sealed class TangoPayload(
     val host: String,

@@ -1,22 +1,22 @@
-package hep.dataforge.control.demo
+package space.kscience.dataforge.control.demo
 
-import hep.dataforge.context.Context
-import hep.dataforge.control.controllers.devices
-import hep.dataforge.control.server.startDeviceServer
-import hep.dataforge.control.server.whenStarted
-import hep.dataforge.meta.double
-import hep.dataforge.names.NameToken
 import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
-import kscience.plotly.layout
-import kscience.plotly.models.Trace
-import kscience.plotly.plot
-import kscience.plotly.server.PlotlyUpdateMode
-import kscience.plotly.server.plotlyModule
-import kscience.plotly.trace
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.control.controllers.devices
+import space.kscience.dataforge.control.server.startDeviceServer
+import space.kscience.dataforge.control.server.whenStarted
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.names.NameToken
+import space.kscience.plotly.layout
+import space.kscience.plotly.models.Trace
+import space.kscience.plotly.plot
+import space.kscience.plotly.server.PlotlyUpdateMode
+import space.kscience.plotly.server.plotlyModule
+import space.kscience.plotly.trace
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**

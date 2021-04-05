@@ -1,10 +1,5 @@
-package hep.dataforge.control.ports
+package space.kscience.dataforge.control.ports
 
-import hep.dataforge.context.Context
-import hep.dataforge.meta.Meta
-import hep.dataforge.meta.get
-import hep.dataforge.meta.int
-import hep.dataforge.meta.string
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
@@ -17,6 +12,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.meta.string
 import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
 

@@ -1,6 +1,6 @@
 plugins {
-    id("ru.mipt.npm.mpp")
-    id("ru.mipt.npm.publish")
+    id("ru.mipt.npm.gradle.mpp")
+    `maven-publish`
 }
 
 kscience{

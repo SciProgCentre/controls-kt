@@ -1,9 +1,5 @@
-package hep.dataforge.magix.server
+package space.kscience.dataforge.magix.server
 
-import hep.dataforge.magix.api.MagixEndpoint.Companion.magixJson
-import hep.dataforge.magix.api.MagixMessage
-import hep.dataforge.magix.api.MagixMessageFilter
-import hep.dataforge.magix.api.filter
 import io.ktor.application.*
 import io.ktor.features.CORS
 import io.ktor.features.ContentNegotiation
@@ -29,6 +25,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.html.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
+import space.kscience.dataforge.magix.api.MagixEndpoint.Companion.magixJson
+import space.kscience.dataforge.magix.api.MagixMessage
+import space.kscience.dataforge.magix.api.MagixMessageFilter
+import space.kscience.dataforge.magix.api.filter
 import java.util.*
 
 public typealias GenericMagixMessage = MagixMessage<JsonElement>

@@ -6,14 +6,10 @@ plugins {
 
 
 repositories{
-    mavenLocal()
+    mavenCentral()
     jcenter()
+    maven("https://repo.kotlin.link")
     maven("https://kotlin.bintray.com/kotlinx")
-    maven("https://dl.bintray.com/kotlin/kotlin-eap")
-    maven("https://dl.bintray.com/mipt-npm/dataforge")
-    maven("https://dl.bintray.com/mipt-npm/scientifik")
-    maven("https://dl.bintray.com/mipt-npm/kscience")
-    maven("https://dl.bintray.com/mipt-npm/dev")
 }
 
 dependencies{
@@ -21,9 +17,7 @@ dependencies{
     implementation(project(":controls-server"))
     implementation(project(":controls-magix-client"))
     implementation("no.tornado:tornadofx:1.7.20")
-    implementation(kotlin("stdlib-jdk8"))
-    implementation("kscience.plotlykt:plotlykt-server:0.3.0")
-
+    implementation("space.kscience:plotlykt-server:0.4.0-dev-2")
     implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
 }
 
@@ -39,5 +33,5 @@ javafx{
 }
 
 application{
-    mainClass.set("hep.dataforge.control.demo.DemoControllerViewKt")
+    mainClass.set("space.kscience.dataforge.control.demo.DemoControllerViewKt")
 }

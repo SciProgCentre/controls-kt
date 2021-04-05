@@ -1,8 +1,8 @@
-package hep.dataforge.control.api
+package space.kscience.dataforge.control.api
 
-import hep.dataforge.meta.MetaItem
-import hep.dataforge.names.*
-import hep.dataforge.provider.Provider
+import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.names.*
+import space.kscience.dataforge.provider.Provider
 
 /**
  * A hub that could locate multiple devices and redirect actions to them

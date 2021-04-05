@@ -1,4 +1,4 @@
-package hep.dataforge.control.ports
+package space.kscience.dataforge.control.ports
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
