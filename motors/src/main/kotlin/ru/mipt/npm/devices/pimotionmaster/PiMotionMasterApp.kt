@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.context.fetch
 import space.kscience.dataforge.control.controllers.DeviceManager
 import space.kscience.dataforge.control.controllers.installing
 import tornadofx.*
@@ -20,10 +21,12 @@ class PiMotionMasterApp : App(PiMotionMasterView::class)
 
 class PiMotionMasterController : Controller() {
     //initialize context
-    val context = Global.context("piMotionMaster")
+    val context = Global.buildContext("piMotionMaster"){
+        plugin(DeviceManager)
+    }
 
     //initialize deviceManager plugin
-    val deviceManager: DeviceManager = context.plugins.load(DeviceManager)
+    val deviceManager: DeviceManager = context.fetch(DeviceManager)
 
     // install device
     val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)

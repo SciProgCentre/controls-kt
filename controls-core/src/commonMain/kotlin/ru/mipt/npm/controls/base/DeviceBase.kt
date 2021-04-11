@@ -24,6 +24,10 @@ public data class LogEntry(val content: String, val priority: Int = 0)
 @Suppress("EXPERIMENTAL_API_USAGE")
 public abstract class DeviceBase(override val context: Context) : Device {
 
+    override val scope: CoroutineScope by lazy {
+        CoroutineScope(context.coroutineContext + Job(context.coroutineContext[Job]))
+    }
+
     private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
     public val properties: Map<String, ReadOnlyDeviceProperty> get() = _properties
     private val _actions = HashMap<String, DeviceAction>()

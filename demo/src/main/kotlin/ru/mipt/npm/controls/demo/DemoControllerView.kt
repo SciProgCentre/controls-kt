@@ -18,7 +18,7 @@ class DemoController : Controller(), ContextAware {
 
     var device: DemoDevice? = null
     var server: ApplicationEngine? = null
-    override val context = Global.context("demoDevice")
+    override val context = Global.buildContext("demoDevice")
 
     fun init() {
         context.launch {

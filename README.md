@@ -31,7 +31,7 @@ Among other things, you can:
 ### `dataforge-control-core` module packages
 
 - `api` - defines API for device management. The main class here is 
-[`Device`](controls-core/src/commonMain/kotlin/hep/dataforge/control/api/Device.kt).
+[`Device`](controls-core/src/commonMain/kotlin/ru/mipt/npm/controls/api/Device.kt).
 Generally, a Device has Properties that can be read and written. Also, some Actions
 can optionally be applied on a device (may or may not affect properties). 
 

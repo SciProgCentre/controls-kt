@@ -1,0 +1,25 @@
+@startuml
+participant Physical
+participant Logical
+participant Remote
+
+group Asynchronous update
+    Physical -> Logical: Notify changed
+    Logical -> Remote: Send event
+end
+
+group Timed update
+    Logical -> Logical: Timed check
+    Logical -> Physical: Request value
+    Physical -> Logical: Respond
+    Logical --> Remote: Send event if changed
+end
+
+group Request update
+    Remote -> Logical: Request value
+    Logical --> Physical: Request if needed
+    Physical --> Logical: Respond
+    Logical -> Remote: Force send event
+end
+
+@enduml

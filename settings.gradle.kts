@@ -1,6 +1,6 @@
 pluginManagement {
-    val kotlinVersion = "1.4.32"
-    val toolsVersion = "0.9.3"
+    val kotlinVersion = "1.5.0-M2"
+    val toolsVersion = "0.9.5-dev"
 
     repositories {
         mavenLocal()
@@ -35,6 +35,7 @@ include(
     ":magix:magix-service",
     ":magix:magix-java-client",
     ":controls-magix-client",
+    ":controls-magix-server",
     ":motors"
 )
 

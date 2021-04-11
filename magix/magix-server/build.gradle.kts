@@ -12,7 +12,7 @@ kscience {
 
 val dataforgeVersion: String by rootProject.extra
 val rsocketVersion: String by rootProject.extra
-val ktorVersion: String  = "1.5.3"
+val ktorVersion: String  = ru.mipt.npm.gradle.KScienceVersions.ktorVersion
 
 dependencies{
     api(project(":magix:magix-api"))
