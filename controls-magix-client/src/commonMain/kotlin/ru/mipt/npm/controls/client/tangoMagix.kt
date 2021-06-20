@@ -5,13 +5,12 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import ru.mipt.npm.controls.api.get
+import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.control.api.get
-import space.kscience.dataforge.control.client.generateId
-import space.kscience.dataforge.control.controllers.DeviceManager
 import space.kscience.dataforge.meta.MetaItem
 
 public const val TANGO_MAGIX_FORMAT: String = "tango"
@@ -64,9 +63,8 @@ public data class TangoPayload(
 public fun DeviceManager.launchTangoMagix(
     endpoint: MagixEndpoint<TangoPayload>,
     endpointID: String = TANGO_MAGIX_FORMAT,
-): Job = context.launch {
-
-    suspend inline fun respond(request: MagixMessage<TangoPayload>, payloadBuilder: (TangoPayload) -> TangoPayload) {
+): Job {
+    suspend fun respond(request: MagixMessage<TangoPayload>, payloadBuilder: (TangoPayload) -> TangoPayload) {
         endpoint.broadcast(
             request.copy(
                 id = generateId(request),
@@ -77,55 +75,57 @@ public fun DeviceManager.launchTangoMagix(
         )
     }
 
-    endpoint.subscribe().onEach { request ->
-        try {
-            val device = get(request.payload.device)
-            when (request.payload.action) {
-                TangoAction.read -> {
-                    val value = device.getProperty(request.payload.name)
-                    respond(request) { requestPayload ->
-                        requestPayload.copy(
-                            value = value,
-                            quality = TangoQuality.VALID
-                        )
+
+    return context.launch {
+        endpoint.subscribe().onEach { request ->
+            try {
+                val device = get(request.payload.device)
+                when (request.payload.action) {
+                    TangoAction.read -> {
+                        val value = device.getProperty(request.payload.name)
+                        respond(request) { requestPayload ->
+                            requestPayload.copy(
+                                value = value,
+                                quality = TangoQuality.VALID
+                            )
+                        }
                     }
+                    TangoAction.write -> {
+                        request.payload.value?.let { value ->
+                            device.setProperty(request.payload.name, value)
+                        }
+                        //wait for value to be written and return final state
+                        val value = device.getProperty(request.payload.name)
+                        respond(request) { requestPayload ->
+                            requestPayload.copy(
+                                value = value,
+                                quality = TangoQuality.VALID
+                            )
+                        }
+                    }
+                    TangoAction.exec -> {
+                        val result = device.execute(request.payload.name, request.payload.argin)
+                        respond(request) { requestPayload ->
+                            requestPayload.copy(
+                                argout = result,
+                                quality = TangoQuality.VALID
+                            )
+                        }
+                    }
+                    TangoAction.pipe -> TODO("Pipe not implemented")
                 }
-                TangoAction.write -> {
-                    request.payload.value?.let { value ->
-                        device.setProperty(request.payload.name, value)
-                    }
-                    //wait for value to be written and return final state
-                    val value = device.getProperty(request.payload.name)
-                    respond(request) { requestPayload ->
-                        requestPayload.copy(
-                            value = value,
-                            quality = TangoQuality.VALID
-                        )
-                    }
-                }
-                TangoAction.exec -> {
-                    val result = device.execute(request.payload.name, request.payload.argin)
-                    respond(request) { requestPayload ->
-                        requestPayload.copy(
-                            argout = result,
-                            quality = TangoQuality.VALID
-                        )
-                    }
-                }
-                TangoAction.pipe -> TODO("Pipe not implemented")
-            }
-        } catch (ex: Exception) {
-            logger.error(ex) { "Error while responding to message" }
-            endpoint.broadcast(
-                request.copy(
-                    id = generateId(request),
-                    parentId = request.id,
-                    origin = endpointID,
-                    payload = request.payload.copy(quality = TangoQuality.WARNING)
+            } catch (ex: Exception) {
+                logger.error(ex) { "Error while responding to message" }
+                endpoint.broadcast(
+                    request.copy(
+                        id = generateId(request),
+                        parentId = request.id,
+                        origin = endpointID,
+                        payload = request.payload.copy(quality = TangoQuality.WARNING)
+                    )
                 )
-            )
-        }
-    }.launchIn(this)
+            }
+        }.launchIn(this)
 
 //TODO implement subscriptions?
 //    controller.messageOutput().onEach { payload ->
@@ -140,4 +140,5 @@ public fun DeviceManager.launchTangoMagix(
 //    }.catch { error ->
 //        logger.error(error) { "Error while sending a message" }
 //    }.launchIn(this)
+    }
 }

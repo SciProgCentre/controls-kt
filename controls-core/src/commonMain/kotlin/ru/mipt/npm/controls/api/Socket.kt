@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.api
+package ru.mipt.npm.controls.api
 
 import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope

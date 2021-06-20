@@ -1,4 +1,4 @@
-package space.kscience.dataforge.magix.service
+package ru.mipt.npm.magix.service
 
 import io.ktor.client.HttpClient
 import io.ktor.client.features.websocket.WebSockets

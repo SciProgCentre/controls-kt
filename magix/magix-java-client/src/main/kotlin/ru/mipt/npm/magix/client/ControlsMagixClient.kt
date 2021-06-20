@@ -6,8 +6,8 @@ import kotlinx.serialization.KSerializer
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
-import space.kscience.dataforge.magix.service.RSocketMagixEndpoint
-import space.kscience.dataforge.magix.service.withTcp
+import ru.mipt.npm.magix.service.RSocketMagixEndpoint
+import ru.mipt.npm.magix.service.withTcp
 import java.util.concurrent.Flow
 
 public class ControlsMagixClient<T>(

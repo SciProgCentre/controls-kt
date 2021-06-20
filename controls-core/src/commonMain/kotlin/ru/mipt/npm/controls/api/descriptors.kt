@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.api
+package ru.mipt.npm.controls.api
 
 import space.kscience.dataforge.meta.Scheme
 import space.kscience.dataforge.meta.string

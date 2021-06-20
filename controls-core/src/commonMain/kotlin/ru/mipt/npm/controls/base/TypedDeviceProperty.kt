@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.base
+package ru.mipt.npm.controls.base
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

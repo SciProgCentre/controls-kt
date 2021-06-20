@@ -1,11 +1,8 @@
-package space.kscience.dataforge.control.controllers
+package ru.mipt.npm.controls.controllers
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import space.kscience.dataforge.control.api.Device
-import space.kscience.dataforge.control.api.DeviceHub
-import space.kscience.dataforge.control.api.getOrNull
-import space.kscience.dataforge.control.messages.*
+import ru.mipt.npm.controls.api.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.misc.DFExperimental

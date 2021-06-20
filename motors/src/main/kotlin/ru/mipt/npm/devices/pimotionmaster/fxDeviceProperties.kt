@@ -6,11 +6,11 @@ import javafx.beans.property.ReadOnlyProperty
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import ru.mipt.npm.controls.api.Device
+import ru.mipt.npm.controls.base.TypedDeviceProperty
+import ru.mipt.npm.controls.base.TypedReadOnlyDeviceProperty
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.control.api.Device
-import space.kscience.dataforge.control.base.TypedDeviceProperty
-import space.kscience.dataforge.control.base.TypedReadOnlyDeviceProperty
 import tornadofx.*
 
 fun <T : Any> TypedReadOnlyDeviceProperty<T>.fxProperty(ownerDevice: Device?): ReadOnlyProperty<T> =

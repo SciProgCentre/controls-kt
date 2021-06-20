@@ -11,10 +11,10 @@ import javafx.scene.layout.VBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import ru.mipt.npm.controls.controllers.DeviceManager
+import ru.mipt.npm.controls.controllers.installing
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.context.fetch
-import space.kscience.dataforge.control.controllers.DeviceManager
-import space.kscience.dataforge.control.controllers.installing
 import tornadofx.*
 
 class PiMotionMasterApp : App(PiMotionMasterView::class)

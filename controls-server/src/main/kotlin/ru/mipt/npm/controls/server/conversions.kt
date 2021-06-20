@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.server
+package ru.mipt.npm.controls.server
 
 import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentType
@@ -7,8 +7,8 @@ import io.ktor.response.respondText
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
-import space.kscience.dataforge.control.messages.DeviceMessage
-import space.kscience.dataforge.control.messages.toMeta
+import ru.mipt.npm.controls.api.DeviceMessage
+import ru.mipt.npm.controls.api.toMeta
 import space.kscience.dataforge.io.*
 import space.kscience.dataforge.meta.MetaSerializer
 

@@ -1,6 +1,6 @@
-package space.kscience.dataforge.control.base
+package ru.mipt.npm.controls.base
 
-import space.kscience.dataforge.control.api.ActionDescriptor
+import ru.mipt.npm.controls.api.ActionDescriptor
 import space.kscience.dataforge.meta.MetaBuilder
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.meta.MetaItemNode

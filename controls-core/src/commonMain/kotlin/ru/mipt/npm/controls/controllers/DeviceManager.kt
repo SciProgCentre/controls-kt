@@ -1,8 +1,8 @@
-package space.kscience.dataforge.control.controllers
+package ru.mipt.npm.controls.controllers
 
+import ru.mipt.npm.controls.api.Device
+import ru.mipt.npm.controls.api.DeviceHub
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.control.api.Device
-import space.kscience.dataforge.control.api.DeviceHub
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaBuilder
 import space.kscience.dataforge.meta.get

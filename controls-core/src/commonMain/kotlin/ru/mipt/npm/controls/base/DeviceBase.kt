@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.base
+package ru.mipt.npm.controls.base
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import ru.mipt.npm.controls.api.ActionDescriptor
+import ru.mipt.npm.controls.api.Device
+import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.control.api.ActionDescriptor
-import space.kscience.dataforge.control.api.Device
-import space.kscience.dataforge.control.api.PropertyDescriptor
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.misc.DFExperimental
 
@@ -56,7 +56,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
     override val actionDescriptors: Collection<ActionDescriptor>
         get() = _actions.values.map { it.descriptor }
 
-    internal fun <P : ReadOnlyDeviceProperty> registerProperty(name: String, property: P) {
+    private fun <P : ReadOnlyDeviceProperty> registerProperty(name: String, property: P) {
         if (_properties.contains(name)) error("Property with name $name already registered")
         _properties[name] = property
     }

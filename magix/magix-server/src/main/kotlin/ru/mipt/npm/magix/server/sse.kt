@@ -1,4 +1,4 @@
-package space.kscience.dataforge.magix.server
+package ru.mipt.npm.magix.server
 
 import io.ktor.application.ApplicationCall
 import io.ktor.http.CacheControl

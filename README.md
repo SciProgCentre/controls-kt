@@ -36,7 +36,7 @@ Generally, a Device has Properties that can be read and written. Also, some Acti
 can optionally be applied on a device (may or may not affect properties). 
 
 - `base` - contains baseline `Device` implementation 
-[`DeviceBase`](dataforge-device-core/src/commonMain/kotlin/hep/dataforge/control/base/DeviceBase.kt)
+[`DeviceBase`](controls-core/src/commonMain/kotlin/ru/mipt/npm/controls/base/DeviceBase.kt)
 and property implementation, including property asynchronous flows.
 
 - `controllers` - implements Message Controller that can be attached to the event bus, Message 

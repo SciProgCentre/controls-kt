@@ -2,7 +2,7 @@ package ru.mipt.npm.controls.demo
 
 import com.github.ricky12awesome.jss.encodeToSchema
 import com.github.ricky12awesome.jss.globalJson
-import space.kscience.dataforge.control.messages.DeviceMessage
+import ru.mipt.npm.controls.api.DeviceMessage
 
 fun main() {
     val schema = globalJson.encodeToSchema(DeviceMessage.serializer(), generateDefinitions = false)

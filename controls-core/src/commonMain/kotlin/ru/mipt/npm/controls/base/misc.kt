@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.base
+package ru.mipt.npm.controls.base
 
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.transformations.MetaConverter

@@ -5,7 +5,6 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.util.InternalAPI
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.moveToByteArray
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
@@ -18,7 +17,7 @@ val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
     throwable.printStackTrace()
 }
 
-@OptIn(KtorExperimentalAPI::class, InternalAPI::class)
+@OptIn(InternalAPI::class)
 fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exceptionHandler) {
     val virtualDevice = PiMotionMasterVirtualDevice(this@launchPiDebugServer, axes)
     val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind(InetSocketAddress("localhost", port))

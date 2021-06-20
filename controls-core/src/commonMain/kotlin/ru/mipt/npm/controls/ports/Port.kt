@@ -1,11 +1,11 @@
-package space.kscience.dataforge.control.ports
+package ru.mipt.npm.controls.ports
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import ru.mipt.npm.controls.api.Socket
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.control.api.Socket
 import kotlin.coroutines.CoroutineContext
 
 public interface Port : ContextAware, Socket<ByteArray>

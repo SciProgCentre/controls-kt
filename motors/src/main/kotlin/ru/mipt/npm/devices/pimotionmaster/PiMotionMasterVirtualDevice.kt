@@ -5,10 +5,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import ru.mipt.npm.controls.api.Socket
+import ru.mipt.npm.controls.ports.AbstractPort
+import ru.mipt.npm.controls.ports.withDelimiter
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.control.api.Socket
-import space.kscience.dataforge.control.ports.AbstractPort
-import space.kscience.dataforge.control.ports.withDelimiter
 import kotlin.math.abs
 import kotlin.time.Duration
 
@@ -167,7 +167,7 @@ class PiMotionMasterVirtualDevice(
     }
 
     override suspend fun evaluateRequest(request: ByteArray) {
-        assert(request.last() == '\n'.toByte())
+        assert(request.last() == '\n'.code.toByte())
         val string = request.decodeToString().substringBefore("\n")
             .dropWhile { it != '*' && it != '#' && it !in 'A'..'Z' } //filter junk symbols at the beginning of the line
 

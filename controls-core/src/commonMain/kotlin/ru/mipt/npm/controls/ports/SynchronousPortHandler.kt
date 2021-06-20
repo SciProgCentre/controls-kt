@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.ports
+package ru.mipt.npm.controls.ports
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first

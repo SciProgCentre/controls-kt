@@ -1,7 +1,7 @@
-package space.kscience.dataforge.control.controllers
+package ru.mipt.npm.controls.controllers
 
 import kotlinx.coroutines.runBlocking
-import space.kscience.dataforge.control.base.*
+import ru.mipt.npm.controls.base.*
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.ReadOnlyProperty

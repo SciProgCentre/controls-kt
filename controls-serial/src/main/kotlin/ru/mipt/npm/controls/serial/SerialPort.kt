@@ -1,11 +1,11 @@
-package space.kscience.dataforge.control.serial
+package ru.mipt.npm.controls.serial
 
 import jssc.SerialPort.*
 import jssc.SerialPortEventListener
+import ru.mipt.npm.controls.ports.AbstractPort
+import ru.mipt.npm.controls.ports.Port
+import ru.mipt.npm.controls.ports.PortFactory
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.control.ports.AbstractPort
-import space.kscience.dataforge.control.ports.Port
-import space.kscience.dataforge.control.ports.PortFactory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.string

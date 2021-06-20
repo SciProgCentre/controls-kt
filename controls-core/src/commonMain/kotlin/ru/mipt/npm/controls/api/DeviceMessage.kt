@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.messages
+package ru.mipt.npm.controls.api
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

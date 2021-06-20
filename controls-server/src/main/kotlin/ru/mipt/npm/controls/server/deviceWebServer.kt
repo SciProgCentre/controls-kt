@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class, FlowPreview::class)
 
-package space.kscience.dataforge.control.server
+package ru.mipt.npm.controls.server
 
 
 import io.ktor.application.*
@@ -29,12 +29,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
-import space.kscience.dataforge.control.api.getOrNull
-import space.kscience.dataforge.control.controllers.DeviceManager
-import space.kscience.dataforge.control.controllers.respondMessage
-import space.kscience.dataforge.control.messages.DeviceMessage
-import space.kscience.dataforge.control.messages.PropertyGetMessage
-import space.kscience.dataforge.control.messages.PropertySetMessage
+import ru.mipt.npm.controls.api.DeviceMessage
+import ru.mipt.npm.controls.api.PropertyGetMessage
+import ru.mipt.npm.controls.api.PropertySetMessage
+import ru.mipt.npm.controls.api.getOrNull
+import ru.mipt.npm.controls.controllers.DeviceManager
+import ru.mipt.npm.controls.controllers.respondMessage
 import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.meta.toMetaItem
@@ -42,7 +42,6 @@ import space.kscience.dataforge.meta.toMetaItem
 /**
  * Create and start a web server for several devices
  */
-@OptIn(KtorExperimentalAPI::class)
 public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = 8111,

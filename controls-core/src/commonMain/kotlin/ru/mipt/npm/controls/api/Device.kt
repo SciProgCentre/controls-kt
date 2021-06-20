@@ -1,11 +1,11 @@
-package space.kscience.dataforge.control.api
+package ru.mipt.npm.controls.api
 
 import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharedFlow
+import ru.mipt.npm.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
-import space.kscience.dataforge.control.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.misc.Type

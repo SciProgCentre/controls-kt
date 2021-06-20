@@ -3,21 +3,22 @@
 package ru.mipt.npm.devices.pimotionmaster
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import ru.mipt.npm.controls.api.DeviceHub
+import ru.mipt.npm.controls.api.PropertyDescriptor
+import ru.mipt.npm.controls.base.*
+import ru.mipt.npm.controls.controllers.DeviceFactory
+import ru.mipt.npm.controls.controllers.duration
+import ru.mipt.npm.controls.ports.*
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.control.api.DeviceHub
-import space.kscience.dataforge.control.api.PropertyDescriptor
-import space.kscience.dataforge.control.base.*
-import space.kscience.dataforge.control.controllers.*
-import space.kscience.dataforge.control.ports.*
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.values.asValue
-import tornadofx.*
-import java.util.*
-import kotlin.error
+import kotlin.collections.component1
+import kotlin.collections.component2
 import kotlin.time.Duration
 
 class PiMotionMasterDevice(

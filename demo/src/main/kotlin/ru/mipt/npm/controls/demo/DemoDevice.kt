@@ -3,18 +3,18 @@ package ru.mipt.npm.controls.demo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
+import ru.mipt.npm.controls.base.*
+import ru.mipt.npm.controls.controllers.double
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
-import space.kscience.dataforge.control.base.*
-import space.kscience.dataforge.control.controllers.double
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.values.asValue
 import java.time.Instant
 import java.util.concurrent.Executors
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
-import kotlin.time.seconds
 
 @OptIn(ExperimentalTime::class)
 class DemoDevice(context: Context) : DeviceBase(context) {
@@ -57,9 +57,9 @@ class DemoDevice(context: Context) : DeviceBase(context) {
     }
 
     init {
-        sin.readEvery(0.2.seconds)
-        cos.readEvery(0.2.seconds)
-        coordinates.readEvery(0.3.seconds)
+        sin.readEvery(Duration.seconds(0.2))
+        cos.readEvery(Duration.seconds(0.2))
+        coordinates.readEvery(Duration.seconds(0.3))
     }
 
     override fun close() {

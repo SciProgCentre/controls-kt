@@ -1,8 +1,8 @@
-package space.kscience.dataforge.control.base
+package ru.mipt.npm.controls.base
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
-import space.kscience.dataforge.control.api.PropertyDescriptor
+import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.meta.MetaItem
 import kotlin.time.Duration
 

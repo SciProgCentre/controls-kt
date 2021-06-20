@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.ports
+package ru.mipt.npm.controls.ports
 
 import kotlinx.coroutines.*
 import space.kscience.dataforge.context.Context
@@ -41,7 +41,7 @@ public class TcpPort private constructor(
      */
     public val startJob: Job get() = futureChannel
 
-    private val listenerJob = this.scope.launch {
+    private val listenerJob = this.scope.launch(Dispatchers.IO) {
         val channel = futureChannel.await()
         val buffer = ByteBuffer.allocate(1024)
         while (isActive) {

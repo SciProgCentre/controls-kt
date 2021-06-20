@@ -1,12 +1,9 @@
-package space.kscience.dataforge.magix.api
+package ru.mipt.npm.magix.api
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.MagixMessage
-import ru.mipt.npm.magix.api.MagixMessageFilter
 
 /**
  * Launch magix message converter service

@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
+import ru.mipt.npm.controls.controllers.devices
+import ru.mipt.npm.controls.server.startDeviceServer
+import ru.mipt.npm.controls.server.whenStarted
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.control.controllers.devices
-import space.kscience.dataforge.control.server.startDeviceServer
-import space.kscience.dataforge.control.server.whenStarted
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.NameToken
 import space.kscience.plotly.layout

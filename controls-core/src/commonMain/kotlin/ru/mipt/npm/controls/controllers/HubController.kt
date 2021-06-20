@@ -1,11 +1,11 @@
-package space.kscience.dataforge.control.controllers
+package ru.mipt.npm.controls.controllers
 
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
-import space.kscience.dataforge.control.api.DeviceHub
-import space.kscience.dataforge.control.api.getOrNull
-import space.kscience.dataforge.control.messages.DeviceMessage
+import ru.mipt.npm.controls.api.DeviceHub
+import ru.mipt.npm.controls.api.DeviceMessage
+import ru.mipt.npm.controls.api.getOrNull
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.toName
@@ -14,7 +14,7 @@ import space.kscience.dataforge.names.toName
 @OptIn(DFExperimental::class)
 public class HubController(
     public val hub: DeviceHub,
-)  {
+) {
 
     private val messageOutbox = Channel<DeviceMessage>(Channel.CONFLATED)
 

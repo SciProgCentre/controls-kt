@@ -3,11 +3,8 @@ package ru.mipt.npm.magix.api
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
-/**
- *
- * Magix message according to [magix specification](https://github.com/piazza-controls/rfc/tree/master/1)
- * with a [correction](https://github.com/piazza-controls/rfc/issues/12)
- *
+
+/*
  * {
  *  "format": "string[required]",
  *  "id":"string|number[optional, but desired]",
@@ -18,6 +15,13 @@ import kotlinx.serialization.json.JsonElement
  *  "action":"string[optional, default='heartbeat']",
  *  "payload":"object[optional]"
  * }
+ */
+
+/**
+ *
+ * Magix message according to [magix specification](https://github.com/piazza-controls/rfc/tree/master/1)
+ * with a [correction](https://github.com/piazza-controls/rfc/issues/12)
+ *
  */
 @Serializable
 public data class MagixMessage<T>(

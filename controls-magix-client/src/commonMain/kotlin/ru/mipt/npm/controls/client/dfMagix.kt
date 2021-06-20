@@ -1,17 +1,17 @@
-package space.kscience.dataforge.control.client
+package ru.mipt.npm.controls.client
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import ru.mipt.npm.controls.api.DeviceMessage
+import ru.mipt.npm.controls.controllers.DeviceManager
+import ru.mipt.npm.controls.controllers.respondMessage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.control.controllers.DeviceManager
-import space.kscience.dataforge.control.controllers.respondMessage
-import space.kscience.dataforge.control.messages.DeviceMessage
 
 
 public const val DATAFORGE_MAGIX_FORMAT: String = "dataforge"

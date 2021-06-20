@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.api
+package ru.mipt.npm.controls.api
 
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.names.*
@@ -38,9 +38,7 @@ public interface DeviceHub : Provider {
         }
     }
 
-    public companion object {
-
-    }
+    public companion object
 }
 
 public operator fun DeviceHub.get(nameToken: NameToken): Device =
