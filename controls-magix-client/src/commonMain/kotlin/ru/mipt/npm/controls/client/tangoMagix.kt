@@ -39,6 +39,7 @@ public enum class TangoAction {
     pipe
 }
 
+@Serializable
 public enum class TangoQuality {
     VALID,
     WARNING,
