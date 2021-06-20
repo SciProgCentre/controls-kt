@@ -4,7 +4,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import space.kscience.dataforge.control.api.DeviceHub
-import space.kscience.dataforge.control.api.get
+import space.kscience.dataforge.control.api.getOrNull
 import space.kscience.dataforge.control.messages.DeviceMessage
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
@@ -51,7 +51,7 @@ public class HubController(
 
     public suspend fun respondMessage(message: DeviceMessage): DeviceMessage = try {
         val targetName = message.targetDevice?.toName() ?: Name.EMPTY
-        val device = hub[targetName] ?: error("The device with name $targetName not found in $hub")
+        val device = hub.getOrNull(targetName) ?: error("The device with name $targetName not found in $hub")
         DeviceController.respondMessage(device, targetName.toString(), message)
     } catch (ex: Exception) {
         DeviceMessage.error(ex, sourceDevice = hub.deviceName, targetDevice = message.sourceDevice)

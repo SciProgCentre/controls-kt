@@ -46,23 +46,29 @@ public interface DeviceHub : Provider {
 public operator fun DeviceHub.get(nameToken: NameToken): Device =
     devices[nameToken] ?: error("Device with name $nameToken not found in $this")
 
-public operator fun DeviceHub.get(name: Name): Device? = when {
+public fun DeviceHub.getOrNull(name: Name): Device? = when {
     name.isEmpty() -> this as? Device
     name.length == 1 -> get(name.firstOrNull()!!)
-    else -> (get(name.firstOrNull()!!) as? DeviceHub)?.get(name.cutFirst())
+    else -> (get(name.firstOrNull()!!) as? DeviceHub)?.getOrNull(name.cutFirst())
 }
 
-public operator fun DeviceHub.get(deviceName: String): Device? = get(deviceName.toName())
+public operator fun DeviceHub.get(name: Name): Device =
+    getOrNull(name) ?: error("Device with name $name not found in $this")
 
-public suspend fun DeviceHub.getProperty(deviceName: Name, propertyName: String): MetaItem? =
-    this[deviceName]?.getProperty(propertyName)
+public fun DeviceHub.getOrNull(nameString: String): Device? = getOrNull(nameString.toName())
+
+public operator fun DeviceHub.get(nameString: String): Device =
+    getOrNull(nameString) ?: error("Device with name $nameString not found in $this")
+
+public suspend fun DeviceHub.getProperty(deviceName: Name, propertyName: String): MetaItem =
+    this[deviceName].getProperty(propertyName)
 
 public suspend fun DeviceHub.setProperty(deviceName: Name, propertyName: String, value: MetaItem) {
-    this[deviceName]?.setProperty(propertyName, value)
+    this[deviceName].setProperty(propertyName, value)
 }
 
 public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: MetaItem?): MetaItem? =
-    this[deviceName]?.execute(command, argument)
+    this[deviceName].execute(command, argument)
 
 
 //suspend fun DeviceHub.respond(request: Envelope): EnvelopeBuilder {

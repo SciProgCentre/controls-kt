@@ -1,7 +1,7 @@
 package ru.mipt.npm.magix.client;
 
 import kotlinx.serialization.json.JsonElement;
-import space.kscience.dataforge.magix.api.MagixMessage;
+import ru.mipt.npm.magix.api.MagixMessage;
 
 import java.io.IOException;
 import java.util.concurrent.Flow;

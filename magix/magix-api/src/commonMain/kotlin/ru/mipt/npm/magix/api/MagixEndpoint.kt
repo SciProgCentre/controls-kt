@@ -5,9 +5,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import space.kscience.dataforge.magix.api.MagixMessage
-import space.kscience.dataforge.magix.api.MagixMessageFilter
-import space.kscience.dataforge.magix.api.replacePayload
 
 /**
  * Inwards API of magix endpoint used to build services

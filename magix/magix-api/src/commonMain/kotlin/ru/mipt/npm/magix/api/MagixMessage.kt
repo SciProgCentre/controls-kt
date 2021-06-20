@@ -1,4 +1,4 @@
-package space.kscience.dataforge.magix.api
+package ru.mipt.npm.magix.api
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -28,7 +28,6 @@ public data class MagixMessage<T>(
     val id: String? = null,
     val parentId: String? = null,
     val user: JsonElement? = null,
-    val action: String? = null
 )
 
 /**
@@ -36,4 +35,4 @@ public data class MagixMessage<T>(
  */
 @Suppress("UNCHECKED_CAST")
 public fun <T, R> MagixMessage<T>.replacePayload(payloadTransform: (T) -> R): MagixMessage<R> =
-    MagixMessage(format, origin, payloadTransform(payload), target, id, parentId, user, action)
+    MagixMessage(format, origin, payloadTransform(payload), target, id, parentId, user)

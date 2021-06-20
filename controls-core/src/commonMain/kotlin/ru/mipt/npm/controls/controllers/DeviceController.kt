@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import space.kscience.dataforge.control.api.Device
 import space.kscience.dataforge.control.api.DeviceHub
-import space.kscience.dataforge.control.api.get
+import space.kscience.dataforge.control.api.getOrNull
 import space.kscience.dataforge.control.messages.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaItem
@@ -146,7 +146,7 @@ public class DeviceController(
 public suspend fun DeviceHub.respondMessage(request: DeviceMessage): DeviceMessage {
     return try {
         val targetName = request.targetDevice?.toName() ?: Name.EMPTY
-        val device = this[targetName] ?: error("The device with name $targetName not found in $this")
+        val device = this.getOrNull(targetName) ?: error("The device with name $targetName not found in $this")
         DeviceController.respondMessage(device, targetName.toString(), request)
     } catch (ex: Exception) {
         DeviceMessage.error(ex, sourceDevice = deviceName, targetDevice = request.sourceDevice)

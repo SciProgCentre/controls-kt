@@ -1,4 +1,4 @@
-package space.kscience.dataforge.magix.api
+package ru.mipt.npm.magix.api
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
@@ -9,7 +9,6 @@ public data class MagixMessageFilter(
     val format: List<String?>? = null,
     val origin: List<String?>? = null,
     val target: List<String?>? = null,
-    val action: List<String?>? = null,
 ) {
     public companion object {
         public val ALL: MagixMessageFilter = MagixMessageFilter()
@@ -28,6 +27,5 @@ public fun <T> Flow<MagixMessage<T>>.filter(filter: MagixMessageFilter): Flow<Ma
                 && filter.origin?.contains(message.origin) ?: true
                 && filter.origin?.contains(message.origin) ?: true
                 && filter.target?.contains(message.target) ?: true
-                && filter.action?.contains(message.action) ?: true
     }
 }

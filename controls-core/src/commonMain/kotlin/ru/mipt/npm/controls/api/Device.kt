@@ -36,7 +36,7 @@ public interface Device : Closeable, ContextAware {
      * Get the value of the property or throw error if property in not defined.
      * Suspend if property value is not available
      */
-    public suspend fun getProperty(propertyName: String): MetaItem?
+    public suspend fun getProperty(propertyName: String): MetaItem
 
     /**
      * Invalidate property and force recalculate

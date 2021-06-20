@@ -4,8 +4,8 @@ import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import ru.mipt.npm.magix.api.MagixEndpoint
-import space.kscience.dataforge.magix.api.MagixMessage
-import space.kscience.dataforge.magix.api.MagixMessageFilter
+import ru.mipt.npm.magix.api.MagixMessage
+import ru.mipt.npm.magix.api.MagixMessageFilter
 import space.kscience.dataforge.magix.service.RSocketMagixEndpoint
 import space.kscience.dataforge.magix.service.withTcp
 import java.util.concurrent.Flow

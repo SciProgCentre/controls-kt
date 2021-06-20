@@ -29,7 +29,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
-import space.kscience.dataforge.control.api.get
+import space.kscience.dataforge.control.api.getOrNull
 import space.kscience.dataforge.control.controllers.DeviceManager
 import space.kscience.dataforge.control.controllers.respondMessage
 import space.kscience.dataforge.control.messages.DeviceMessage
@@ -115,7 +115,7 @@ public fun Application.deviceModule(
                         }
                         deviceNames.forEach { deviceName ->
                             val device =
-                                manager[deviceName] ?: error("The device with name $deviceName not found in $manager")
+                                manager.getOrNull(deviceName) ?: error("The device with name $deviceName not found in $manager")
                             div {
                                 id = deviceName
                                 h2 { +deviceName }

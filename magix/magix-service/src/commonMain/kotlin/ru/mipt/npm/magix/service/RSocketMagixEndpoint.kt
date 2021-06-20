@@ -15,8 +15,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import ru.mipt.npm.magix.api.MagixEndpoint
-import space.kscience.dataforge.magix.api.MagixMessage
-import space.kscience.dataforge.magix.api.MagixMessageFilter
+import ru.mipt.npm.magix.api.MagixMessage
+import ru.mipt.npm.magix.api.MagixMessageFilter
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 

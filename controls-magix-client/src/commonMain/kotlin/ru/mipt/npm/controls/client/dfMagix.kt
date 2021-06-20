@@ -6,17 +6,17 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ru.mipt.npm.magix.api.MagixEndpoint
+import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.control.controllers.DeviceManager
 import space.kscience.dataforge.control.controllers.respondMessage
 import space.kscience.dataforge.control.messages.DeviceMessage
-import space.kscience.dataforge.magix.api.MagixMessage
 
 
 public const val DATAFORGE_MAGIX_FORMAT: String = "dataforge"
 
-private fun generateId(request: MagixMessage<DeviceMessage>): String = if (request.id != null) {
+internal fun generateId(request: MagixMessage<*>): String = if (request.id != null) {
     "${request.id}.response"
 } else {
     "df[${request.payload.hashCode()}"
@@ -25,13 +25,11 @@ private fun generateId(request: MagixMessage<DeviceMessage>): String = if (reque
 /**
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
-public fun DeviceManager.launchMagixClient(
+public fun DeviceManager.launchDfMagix(
     endpoint: MagixEndpoint<DeviceMessage>,
     endpointID: String = DATAFORGE_MAGIX_FORMAT,
 ): Job = context.launch {
     endpoint.subscribe().onEach { request ->
-        //TODO analyze action
-
         val responsePayload = respondMessage(request.payload)
         val response = MagixMessage(
             format = DATAFORGE_MAGIX_FORMAT,
@@ -46,11 +44,13 @@ public fun DeviceManager.launchMagixClient(
     }.launchIn(this)
 
     controller.messageOutput().onEach { payload ->
-        MagixMessage(
-            format = DATAFORGE_MAGIX_FORMAT,
-            id = "df[${payload.hashCode()}]",
-            origin = endpointID,
-            payload = payload
+        endpoint.broadcast(
+            MagixMessage(
+                format = DATAFORGE_MAGIX_FORMAT,
+                id = "df[${payload.hashCode()}]",
+                origin = endpointID,
+                payload = payload
+            )
         )
     }.catch { error ->
         logger.error(error) { "Error while sending a message" }
