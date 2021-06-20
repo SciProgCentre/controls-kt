@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.demo
+package ru.mipt.npm.controls.demo
 
 import io.ktor.server.engine.ApplicationEngine
 import javafx.scene.Parent

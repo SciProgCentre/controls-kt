@@ -11,8 +11,11 @@ import io.rsocket.kotlin.transport.ktor.serverTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
-import space.kscience.dataforge.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
-import space.kscience.dataforge.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_WS_PORT
+import ru.mipt.npm.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
+import ru.mipt.npm.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_WS_PORT
+import ru.mipt.npm.magix.server.GenericMagixMessage
+import ru.mipt.npm.magix.server.magixAcceptor
+import ru.mipt.npm.magix.server.magixModule
 
 @OptIn(KtorExperimentalAPI::class)
 public fun CoroutineScope.startMagixServer(

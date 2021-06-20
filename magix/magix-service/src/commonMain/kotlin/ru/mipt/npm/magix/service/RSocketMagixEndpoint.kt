@@ -2,7 +2,6 @@ package space.kscience.dataforge.magix.service
 
 import io.ktor.client.HttpClient
 import io.ktor.client.features.websocket.WebSockets
-import io.ktor.util.KtorExperimentalAPI
 import io.rsocket.kotlin.RSocket
 import io.rsocket.kotlin.core.RSocketConnector
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
@@ -15,19 +14,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
-import space.kscience.dataforge.magix.api.MagixEndpoint
+import ru.mipt.npm.magix.api.MagixEndpoint
 import space.kscience.dataforge.magix.api.MagixMessage
 import space.kscience.dataforge.magix.api.MagixMessageFilter
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
-public class RSocketMagixEndpoint(
+public class RSocketMagixEndpoint<T>(
     private val coroutineContext: CoroutineContext,
+    private val payloadSerializer: KSerializer<T>,
     private val rSocket: RSocket,
-) : MagixEndpoint {
+) : MagixEndpoint<T> {
 
-    override fun <T> subscribe(
-        payloadSerializer: KSerializer<T>,
+    override fun subscribe(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage<T>> {
         val serializer = MagixMessage.serializer(payloadSerializer)
@@ -36,7 +35,7 @@ public class RSocketMagixEndpoint(
         return flow.map { MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText()) }
     }
 
-    override suspend fun <T> broadcast(payloadSerializer: KSerializer<T>, message: MagixMessage<T>) {
+    override suspend fun broadcast(message: MagixMessage<T>) {
         withContext(coroutineContext) {
             val serializer = MagixMessage.serializer(payloadSerializer)
             val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(serializer, message)) }
@@ -52,13 +51,13 @@ public class RSocketMagixEndpoint(
                 connectionConfig(rSocketConfig)
             }
 
-        @OptIn(KtorExperimentalAPI::class)
-        public suspend fun withWebSockets(
+        public suspend fun <T> withWebSockets(
             host: String,
             port: Int,
+            payloadSerializer: KSerializer<T>,
             path: String = "/rsocket",
             rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
-        ): RSocketMagixEndpoint {
+        ): RSocketMagixEndpoint<T> {
             val client = HttpClient {
                 install(WebSockets)
                 install(RSocketSupport) {
@@ -73,7 +72,7 @@ public class RSocketMagixEndpoint(
                 client.close()
             }
 
-            return RSocketMagixEndpoint(coroutineContext, rSocket)
+            return RSocketMagixEndpoint(coroutineContext, payloadSerializer, rSocket)
         }
     }
 }

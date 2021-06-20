@@ -17,10 +17,10 @@ public interface MagixClient<T> {
     Flow.Publisher<MagixMessage<T>> subscribe();
 
     static MagixClient<JsonElement> rSocketTcp(String host, int port) {
-        return ControlsMagixClient.Companion.rSocketTcp(host, port);
+        return ControlsMagixClient.Companion.rSocketTcp(host, port, JsonElement.Companion.serializer());
     }
 
     static MagixClient<JsonElement> rSocketWs(String host, int port, String path) {
-        return ControlsMagixClient.Companion.rSocketWs(host, port, path);
+        return ControlsMagixClient.Companion.rSocketWs(host, port, JsonElement.Companion.serializer(), path);
     }
 }

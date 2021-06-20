@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.demo
+package ru.mipt.npm.controls.demo
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

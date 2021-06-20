@@ -1,9 +1,9 @@
+rootProject.name = "controls.kt"
+
 pluginManagement {
-    val kotlinVersion = "1.5.0-M2"
-    val toolsVersion = "0.9.5-dev"
+    val toolsVersion = "0.10.0"
 
     repositories {
-        mavenLocal()
         maven("https://repo.kotlin.link")
         mavenCentral()
         gradlePluginPortal()
@@ -14,14 +14,8 @@ pluginManagement {
         id("ru.mipt.npm.gradle.mpp") version toolsVersion
         id("ru.mipt.npm.gradle.jvm") version toolsVersion
         id("ru.mipt.npm.gradle.js") version toolsVersion
-        id("ru.mipt.npm.gradle.publish") version toolsVersion
-        kotlin("jvm") version kotlinVersion
-        kotlin("js") version kotlinVersion
-        kotlin("multiplatform") version kotlinVersion
     }
 }
-
-rootProject.name = "controls.kt"
 
 include(
     ":controls-core",
@@ -35,7 +29,6 @@ include(
     ":magix:magix-service",
     ":magix:magix-java-client",
     ":controls-magix-client",
-    ":controls-magix-server",
     ":motors"
 )
 

@@ -5,14 +5,13 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import ru.mipt.npm.magix.api.MagixEndpoint
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.control.controllers.DeviceManager
 import space.kscience.dataforge.control.controllers.respondMessage
 import space.kscience.dataforge.control.messages.DeviceMessage
-import space.kscience.dataforge.magix.api.MagixEndpoint
 import space.kscience.dataforge.magix.api.MagixMessage
-import space.kscience.dataforge.magix.api.MagixProcessor
 
 
 public const val DATAFORGE_MAGIX_FORMAT: String = "dataforge"
@@ -27,10 +26,10 @@ private fun generateId(request: MagixMessage<DeviceMessage>): String = if (reque
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
 public fun DeviceManager.launchMagixClient(
-    endpoint: MagixEndpoint,
+    endpoint: MagixEndpoint<DeviceMessage>,
     endpointID: String = DATAFORGE_MAGIX_FORMAT,
 ): Job = context.launch {
-    endpoint.subscribe(DeviceMessage.serializer()).onEach { request ->
+    endpoint.subscribe().onEach { request ->
         //TODO analyze action
 
         val responsePayload = respondMessage(request.payload)
@@ -41,9 +40,9 @@ public fun DeviceManager.launchMagixClient(
             origin = endpointID,
             payload = responsePayload
         )
-        endpoint.broadcast(DeviceMessage.serializer(), response)
+        endpoint.broadcast(response)
     }.catch { error ->
-        logger.error(error){"Error while responding to message"}
+        logger.error(error) { "Error while responding to message" }
     }.launchIn(this)
 
     controller.messageOutput().onEach { payload ->
@@ -54,13 +53,8 @@ public fun DeviceManager.launchMagixClient(
             payload = payload
         )
     }.catch { error ->
-        logger.error(error){"Error while sending a message"}
+        logger.error(error) { "Error while sending a message" }
     }.launchIn(this)
-}
-
-public fun DeviceManager.asMagixProcessor(endpointID: String = "dataforge"): MagixProcessor = object : MagixProcessor {
-    override fun process(endpoint: MagixEndpoint): Job = launchMagixClient(endpoint, endpointID)
-
 }
 
 

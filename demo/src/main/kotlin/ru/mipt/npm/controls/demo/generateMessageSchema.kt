@@ -1,4 +1,4 @@
-package space.kscience.dataforge.control.demo
+package ru.mipt.npm.controls.demo
 
 import com.github.ricky12awesome.jss.encodeToSchema
 import com.github.ricky12awesome.jss.globalJson

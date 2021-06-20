@@ -1,4 +1,4 @@
-package space.kscience.dataforge.magix.server
+package ru.mipt.npm.magix.server
 
 import io.ktor.application.*
 import io.ktor.features.CORS
@@ -25,10 +25,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.html.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
-import space.kscience.dataforge.magix.api.MagixEndpoint.Companion.magixJson
+import ru.mipt.npm.magix.api.MagixEndpoint.Companion.magixJson
 import space.kscience.dataforge.magix.api.MagixMessage
 import space.kscience.dataforge.magix.api.MagixMessageFilter
 import space.kscience.dataforge.magix.api.filter
+import space.kscience.dataforge.magix.server.SseEvent
+import space.kscience.dataforge.magix.server.respondSse
 import java.util.*
 
 public typealias GenericMagixMessage = MagixMessage<JsonElement>
