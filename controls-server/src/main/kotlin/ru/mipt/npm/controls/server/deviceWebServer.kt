@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class, FlowPreview::class)
 
 package ru.mipt.npm.controls.server
 
@@ -18,12 +17,9 @@ import io.ktor.routing.routing
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.getValue
 import io.ktor.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.html.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -74,7 +70,6 @@ public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
 
 public const val WEB_SERVER_TARGET: String = "@webServer"
 
-@OptIn(KtorExperimentalAPI::class)
 public fun Application.deviceModule(
     manager: DeviceManager,
     deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
@@ -114,7 +109,8 @@ public fun Application.deviceModule(
                         }
                         deviceNames.forEach { deviceName ->
                             val device =
-                                manager.getOrNull(deviceName) ?: error("The device with name $deviceName not found in $manager")
+                                manager.getOrNull(deviceName)
+                                    ?: error("The device with name $deviceName not found in $manager")
                             div {
                                 id = deviceName
                                 h2 { +deviceName }

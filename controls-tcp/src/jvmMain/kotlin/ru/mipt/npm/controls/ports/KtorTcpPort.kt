@@ -4,7 +4,6 @@ import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.utils.io.consumeEachBufferRange
 import io.ktor.utils.io.core.Closeable
 import io.ktor.utils.io.writeAvailable
@@ -29,7 +28,6 @@ public class KtorTcpPort internal constructor(
 
     override fun toString(): String = "port[tcp:$host:$port]"
 
-    @OptIn(KtorExperimentalAPI::class)
     private val futureSocket = scope.async {
         aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(InetSocketAddress(host, port))
     }

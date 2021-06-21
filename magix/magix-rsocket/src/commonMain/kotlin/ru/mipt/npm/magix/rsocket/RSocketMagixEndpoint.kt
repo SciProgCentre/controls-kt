@@ -1,4 +1,4 @@
-package ru.mipt.npm.magix.service
+package ru.mipt.npm.magix.rsocket
 
 import io.ktor.client.HttpClient
 import io.ktor.client.features.websocket.WebSockets
@@ -51,6 +51,9 @@ public class RSocketMagixEndpoint<T>(
                 connectionConfig(rSocketConfig)
             }
 
+        /**
+         * Build a websocket based endpoint connected to [host], [port] and given routing [path]
+         */
         public suspend fun <T> withWebSockets(
             host: String,
             port: Int,

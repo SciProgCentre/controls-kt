@@ -1,4 +1,4 @@
-package ru.mipt.npm.magix.service
+package ru.mipt.npm.magix.rsocket
 
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.SocketOptions
@@ -11,7 +11,7 @@ import kotlin.coroutines.coroutineContext
 
 
 /**
- * Create a plain TCP based [RSocketMagixEndpoint]
+ * Create a plain TCP based [RSocketMagixEndpoint] connected to [host] and [port]
  */
 public suspend fun <T> RSocketMagixEndpoint.Companion.withTcp(
     host: String,

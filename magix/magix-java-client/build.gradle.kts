@@ -5,6 +5,6 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":magix:magix-service"))
+    implementation(project(":magix:magix-rsocket"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk9:${ru.mipt.npm.gradle.KScienceVersions.coroutinesVersion}")
 }

@@ -10,7 +10,6 @@ import io.ktor.routing.post
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.serialization.json
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.getValue
 import io.ktor.websocket.WebSockets
 import io.rsocket.kotlin.ConnectionAcceptor
@@ -70,7 +69,6 @@ internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<GenericMa
 /**
  * Create a message filter from call parameters
  */
-@OptIn(KtorExperimentalAPI::class)
 private fun ApplicationCall.buildFilter(): MagixMessageFilter {
     val query = request.queryParameters
 

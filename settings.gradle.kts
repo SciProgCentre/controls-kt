@@ -1,4 +1,6 @@
-rootProject.name = "controls.kt"
+rootProject.name = "controls"
+
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     val toolsVersion = "0.10.0"
@@ -26,12 +28,9 @@ include(
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",
-    ":magix:magix-service",
+    ":magix:magix-rsocket",
     ":magix:magix-java-client",
+    ":magix:magix-zmq",
     ":controls-magix-client",
     ":motors"
 )
-
-//includeBuild("../dataforge-core")
-//includeBuild("../plotly.kt")
-include("magix-java-client")

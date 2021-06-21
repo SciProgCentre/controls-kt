@@ -5,7 +5,6 @@ import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.response.cacheControl
 import io.ktor.response.respondBytesWriter
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.flow.Flow
@@ -30,7 +29,6 @@ public suspend fun ByteWriteChannel.writeSseFlow(events: Flow<SseEvent>): Unit =
     flush()
 }
 
-@OptIn(KtorExperimentalAPI::class)
 public suspend fun ApplicationCall.respondSse(events: Flow<SseEvent>) {
     response.cacheControl(CacheControl.NoCache(null))
     respondBytesWriter(contentType = ContentType.Text.EventStream) {
