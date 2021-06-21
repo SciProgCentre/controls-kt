@@ -22,14 +22,15 @@ import kotlin.coroutines.coroutineContext
 
 public class RSocketMagixEndpoint<T>(
     private val coroutineContext: CoroutineContext,
-    private val payloadSerializer: KSerializer<T>,
+    payloadSerializer: KSerializer<T>,
     private val rSocket: RSocket,
 ) : MagixEndpoint<T> {
+
+    private val serializer = MagixMessage.serializer(payloadSerializer)
 
     override fun subscribe(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage<T>> {
-        val serializer = MagixMessage.serializer(payloadSerializer)
         val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(filter)) }
         val flow = rSocket.requestStream(payload)
         return flow.map { MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText()) }
@@ -37,7 +38,6 @@ public class RSocketMagixEndpoint<T>(
 
     override suspend fun broadcast(message: MagixMessage<T>) {
         withContext(coroutineContext) {
-            val serializer = MagixMessage.serializer(payloadSerializer)
             val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(serializer, message)) }
             rSocket.fireAndForget(payload)
         }
