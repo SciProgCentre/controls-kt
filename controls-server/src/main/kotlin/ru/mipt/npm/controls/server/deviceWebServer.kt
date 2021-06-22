@@ -1,4 +1,3 @@
-
 package ru.mipt.npm.controls.server
 
 
@@ -20,9 +19,9 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.util.getValue
 import io.ktor.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.html.*
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
 import ru.mipt.npm.controls.api.DeviceMessage
@@ -31,8 +30,11 @@ import ru.mipt.npm.controls.api.PropertySetMessage
 import ru.mipt.npm.controls.api.getOrNull
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.respondMessage
+import ru.mipt.npm.magix.api.MagixEndpoint
+import ru.mipt.npm.magix.server.GenericMagixMessage
+import ru.mipt.npm.magix.server.magixModule
+import ru.mipt.npm.magix.server.rawMagixServerSocket
 import space.kscience.dataforge.meta.toJson
-import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.meta.toMetaItem
 
 /**
@@ -40,7 +42,7 @@ import space.kscience.dataforge.meta.toMetaItem
  */
 public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
-    port: Int = 8111,
+    port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
     host: String = "localhost",
 ): ApplicationEngine {
 
@@ -54,7 +56,7 @@ public fun CoroutineScope.startDeviceServer(
                 call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
             }
         }
-        deviceModule(manager)
+        deviceManagerModule(manager)
         routing {
             get("/") {
                 call.respondRedirect("/dashboard")
@@ -70,22 +72,13 @@ public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
 
 public const val WEB_SERVER_TARGET: String = "@webServer"
 
-public fun Application.deviceModule(
+public fun Application.deviceManagerModule(
     manager: DeviceManager,
     deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
     route: String = "/",
+    rawSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_RAW_PORT,
+    buffer: Int = 100,
 ) {
-//    val controllers = deviceNames.associateWith { name ->
-//        val device = manager.devices[name.toName()]
-//        DeviceController(device, name, manager.context)
-//    }
-//
-//    fun generateFlow(target: String?) = if (target == null) {
-//        controllers.values.asFlow().flatMapMerge { it.output() }
-//    } else {
-//        controllers[target]?.output() ?: error("The device with target $target not found")
-//    }
-
     if (featureOrNull(WebSockets) == null) {
         install(WebSockets)
     }
@@ -159,32 +152,11 @@ public fun Application.deviceModule(
                     }
                 }
             }
-//            //Check if application supports websockets and if it does add a push channel
-//            if (this.application.featureOrNull(WebSockets) != null) {
-//                webSocket("ws") {
-//                    //subscribe on device
-//                    val target: String? by call.request.queryParameters
-//
-//                    try {
-//                        application.log.debug("Opened server socket for ${call.request.queryParameters}")
-//
-//                        manager.controller.envelopeOutput().collect {
-//                            outgoing.send(it.toFrame())
-//                        }
-//
-//                    } catch (ex: Exception) {
-//                        application.log.debug("Closed server socket for ${call.request.queryParameters}")
-//                    }
-//                }
-//            }
 
             post("message") {
                 val body = call.receiveText()
-                val json = Json.parseToJsonElement(body) as? JsonObject
-                    ?: throw IllegalArgumentException("The body is not a json object")
-                val meta = json.toMeta()
 
-                val request = DeviceMessage.fromMeta(meta)
+                val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(DeviceMessage.serializer(), body)
 
                 val response = manager.respondMessage(request)
                 call.respondMessage(response)
@@ -226,4 +198,12 @@ public fun Application.deviceModule(
             }
         }
     }
+
+    val magixFlow = MutableSharedFlow<GenericMagixMessage>(
+        buffer,
+        extraBufferCapacity = buffer
+    )
+
+    rawMagixServerSocket(magixFlow, rawSocketPort)
+    magixModule(magixFlow)
 }

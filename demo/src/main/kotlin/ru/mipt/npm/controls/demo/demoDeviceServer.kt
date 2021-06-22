@@ -1,16 +1,18 @@
 package ru.mipt.npm.controls.demo
 
+import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
-import ru.mipt.npm.controls.controllers.devices
-import ru.mipt.npm.controls.server.startDeviceServer
-import ru.mipt.npm.controls.server.whenStarted
-import space.kscience.dataforge.context.Context
+import ru.mipt.npm.controls.api.DeviceMessage
+import ru.mipt.npm.controls.api.PropertyChangedMessage
+import ru.mipt.npm.magix.api.MagixEndpoint
+import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
+import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.names.NameToken
 import space.kscience.plotly.layout
 import space.kscience.plotly.models.Trace
 import space.kscience.plotly.plot
@@ -49,77 +51,85 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
-fun startDemoDeviceServer(context: Context, device: DemoDevice): ApplicationEngine {
-    context.devices.registerDevice(NameToken("demo"), device)
-    val server = context.startDeviceServer(context.devices)
-    server.whenStarted {
-        plotlyModule("plots").apply {
-            updateMode = PlotlyUpdateMode.PUSH
-            updateInterval = 50
-        }.page { container ->
-            val sinFlow = device.sin.flow()
-            val cosFlow = device.cos.flow()
-            val sinCosFlow = sinFlow.zip(cosFlow) { sin, cos ->
-                sin.double!! to cos.double!!
-            }
-            link {
-                rel = "stylesheet"
-                href = "https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
-                attributes["integrity"] = "sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
-                attributes["crossorigin"] = "anonymous"
-            }
-            div("row") {
-                div("col-6") {
-                    plot(renderer = container) {
-                        layout {
-                            title = "sin property"
-                            xaxis.title = "point index"
-                            yaxis.title = "sin"
-                        }
-                        trace {
-                            context.launch {
-                                val flow: Flow<Iterable<Double>> = sinFlow.mapNotNull { it.double }.windowed(100)
-                                updateFrom(Trace.Y_AXIS, flow)
-                            }
-                        }
-                    }
+suspend fun startDemoDeviceServer(magixHost: String = "localhost"): ApplicationEngine = embeddedServer(CIO, 8080) {
+    val sinFlow = MutableSharedFlow<MetaItem?>()// = device.sin.flow()
+    val cosFlow = MutableSharedFlow<MetaItem?>()// = device.cos.flow()
+
+    launch {
+        val endpoint = MagixEndpoint.rSocketWithWebSockets(magixHost, DeviceMessage.serializer())
+        endpoint.subscribe().collect { magix ->
+            (magix.payload as? PropertyChangedMessage)?.let { message ->
+                when (message.property) {
+                    "sin" -> sinFlow.emit(message.value)
+                    "cos" -> cosFlow.emit(message.value)
                 }
-                div("col-6") {
-                    plot(renderer = container) {
-                        layout {
-                            title = "cos property"
-                            xaxis.title = "point index"
-                            yaxis.title = "cos"
-                        }
-                        trace {
-                            context.launch {
-                                val flow: Flow<Iterable<Double>> = cosFlow.mapNotNull { it.double }.windowed(100)
-                                updateFrom(Trace.Y_AXIS, flow)
-                            }
+            }
+        }
+    }
+
+    plotlyModule("plots").apply {
+        updateMode = PlotlyUpdateMode.PUSH
+        updateInterval = 50
+    }.page { container ->
+        val sinCosFlow = sinFlow.zip(cosFlow) { sin, cos ->
+            sin.double!! to cos.double!!
+        }
+        link {
+            rel = "stylesheet"
+            href = "https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+            attributes["integrity"] = "sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
+            attributes["crossorigin"] = "anonymous"
+        }
+        div("row") {
+            div("col-6") {
+                plot(renderer = container) {
+                    layout {
+                        title = "sin property"
+                        xaxis.title = "point index"
+                        yaxis.title = "sin"
+                    }
+                    trace {
+                        launch {
+                            val flow: Flow<Iterable<Double>> = sinFlow.mapNotNull { it.double }.windowed(100)
+                            updateFrom(Trace.Y_AXIS, flow)
                         }
                     }
                 }
             }
-            div("row") {
-                div("col-12") {
-                    plot(renderer = container) {
-                        layout {
-                            title = "cos vs sin"
-                            xaxis.title = "sin"
-                            yaxis.title = "cos"
+            div("col-6") {
+                plot(renderer = container) {
+                    layout {
+                        title = "cos property"
+                        xaxis.title = "point index"
+                        yaxis.title = "cos"
+                    }
+                    trace {
+                        launch {
+                            val flow: Flow<Iterable<Double>> = cosFlow.mapNotNull { it.double }.windowed(100)
+                            updateFrom(Trace.Y_AXIS, flow)
                         }
-                        trace {
-                            name = "non-synchronized"
-                            context.launch {
-                                val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.windowed(30)
-                                updateXYFrom(flow)
-                            }
+                    }
+                }
+            }
+        }
+        div("row") {
+            div("col-12") {
+                plot(renderer = container) {
+                    layout {
+                        title = "cos vs sin"
+                        xaxis.title = "sin"
+                        yaxis.title = "cos"
+                    }
+                    trace {
+                        name = "non-synchronized"
+                        launch {
+                            val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.windowed(30)
+                            updateXYFrom(flow)
                         }
                     }
                 }
             }
         }
     }
-    return server
 }
 

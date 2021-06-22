@@ -4,13 +4,11 @@ import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentType
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.response.respondText
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import ru.mipt.npm.controls.api.DeviceMessage
-import ru.mipt.npm.controls.api.toMeta
+import ru.mipt.npm.magix.api.MagixEndpoint
 import space.kscience.dataforge.io.*
-import space.kscience.dataforge.meta.MetaSerializer
 
 
 internal fun Frame.toEnvelope(): Envelope {
@@ -29,6 +27,7 @@ internal suspend fun ApplicationCall.respondJson(builder: JsonObjectBuilder.() -
     respondText(json.toString(), contentType = ContentType.Application.Json)
 }
 
-public suspend fun ApplicationCall.respondMessage(message: DeviceMessage) {
-    respondText(Json.encodeToString(MetaSerializer, message.toMeta()), contentType = ContentType.Application.Json)
-}
+public suspend fun ApplicationCall.respondMessage(message: DeviceMessage): Unit = respondText(
+    MagixEndpoint.magixJson.encodeToString(DeviceMessage.serializer(), message),
+    contentType = ContentType.Application.Json
+)

@@ -4,6 +4,10 @@ plugins {
     application
 }
 
+description = """
+    A magix event loop implementation in Kotlin. Includes HTTP/SSE and RSocket routes.
+""".trimIndent()
+
 kscience {
     useSerialization{
         json()

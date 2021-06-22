@@ -13,9 +13,11 @@ repositories{
 }
 
 dependencies{
-    implementation(project(":controls-core"))
-    implementation(project(":controls-server"))
-    implementation(project(":controls-magix-client"))
+    implementation(projects.controlsCore)
+    //implementation(projects.controlsServer)
+    implementation(projects.magix.magixServer)
+    implementation(projects.controlsMagixClient)
+    implementation(projects.magix.magixRsocket)
     implementation("no.tornado:tornadofx:1.7.20")
     implementation("space.kscience:plotlykt-server:0.4.2")
     implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")

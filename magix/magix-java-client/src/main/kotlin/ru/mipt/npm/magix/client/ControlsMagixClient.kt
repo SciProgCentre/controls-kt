@@ -6,11 +6,11 @@ import kotlinx.serialization.KSerializer
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
-import ru.mipt.npm.magix.rsocket.RSocketMagixEndpoint
-import ru.mipt.npm.magix.rsocket.withTcp
+import ru.mipt.npm.magix.rsocket.rSocketWithTcp
+import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
 import java.util.concurrent.Flow
 
-public class ControlsMagixClient<T>(
+internal class ControlsMagixClient<T>(
     private val endpoint: MagixEndpoint<T>,
     private val filter: MagixMessageFilter,
 ) : MagixClient<T> {
@@ -21,27 +21,27 @@ public class ControlsMagixClient<T>(
 
     override fun subscribe(): Flow.Publisher<MagixMessage<T>> = endpoint.subscribe(filter).asPublisher()
 
-    public companion object {
+    companion object {
 
-        public fun <T> rSocketTcp(
+        fun <T> rSocketTcp(
             host: String,
             port: Int,
             payloadSerializer: KSerializer<T>
         ): ControlsMagixClient<T> {
             val endpoint = runBlocking {
-                RSocketMagixEndpoint.withTcp(host, port, payloadSerializer)
+                MagixEndpoint.rSocketWithTcp(host, payloadSerializer, port)
             }
             return ControlsMagixClient(endpoint, MagixMessageFilter())
         }
 
-        public fun <T> rSocketWs(
+        fun <T> rSocketWs(
             host: String,
             port: Int,
             payloadSerializer: KSerializer<T>,
             path: String = "/rsocket"
         ): ControlsMagixClient<T> {
             val endpoint = runBlocking {
-                RSocketMagixEndpoint.withWebSockets(host, port, payloadSerializer, path)
+                MagixEndpoint.rSocketWithWebSockets(host, payloadSerializer, port, path)
             }
             return ControlsMagixClient(endpoint, MagixMessageFilter())
         }

@@ -4,14 +4,13 @@ package ru.mipt.npm.devices.pimotionmaster
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import ru.mipt.npm.controls.api.DeviceHub
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import ru.mipt.npm.controls.base.*
-import ru.mipt.npm.controls.controllers.DeviceFactory
+import ru.mipt.npm.controls.controllers.DeviceSpec
 import ru.mipt.npm.controls.controllers.duration
 import ru.mipt.npm.controls.ports.*
 import space.kscience.dataforge.context.*
@@ -343,7 +342,7 @@ class PiMotionMasterDevice(
         }
     }
 
-    companion object : DeviceFactory<PiMotionMasterDevice> {
+    companion object : DeviceSpec<PiMotionMasterDevice> {
         override fun invoke(meta: Meta, context: Context): PiMotionMasterDevice = PiMotionMasterDevice(context)
     }
 

@@ -27,8 +27,16 @@ public interface MagixEndpoint<T> {
     )
 
     public companion object {
-        public const val DEFAULT_MAGIX_WS_PORT: Int = 7777
+        /**
+         * A default port for HTTP/WS connections
+         */
+        public const val DEFAULT_MAGIX_HTTP_PORT: Int = 7777
+
+        /**
+         * A default port for raw TCP connections
+         */
         public const val DEFAULT_MAGIX_RAW_PORT: Int = 7778
+
         public val magixJson: Json = Json {
             ignoreUnknownKeys = true
             encodeDefaults = false

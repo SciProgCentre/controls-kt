@@ -4,9 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import ru.mipt.npm.controls.base.*
+import ru.mipt.npm.controls.controllers.DeviceSpec
 import ru.mipt.npm.controls.controllers.double
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.values.asValue
 import java.time.Instant
@@ -30,7 +30,7 @@ class DemoDevice(context: Context) : DeviceBase(context) {
 
     val sinScale by writingVirtual(1.0.asValue())
     var sinScaleValue by sinScale.double()
-    val sin by readingNumber {
+    val sin: TypedReadOnlyDeviceProperty<Number> by readingNumber {
         val time = Instant.now()
         sin(time.toEpochMilli().toDouble() / timeScaleValue) * sinScaleValue
     }
@@ -67,7 +67,7 @@ class DemoDevice(context: Context) : DeviceBase(context) {
         executor.shutdown()
     }
 
-    companion object : Factory<DemoDevice> {
+    companion object : DeviceSpec<DemoDevice> {
         override fun invoke(meta: Meta, context: Context): DemoDevice = DemoDevice(context)
     }
 }

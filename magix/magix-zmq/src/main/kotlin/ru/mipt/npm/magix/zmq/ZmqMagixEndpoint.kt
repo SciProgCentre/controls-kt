@@ -3,9 +3,9 @@ package ru.mipt.npm.magix.zmq
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encodeToString
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -13,6 +13,7 @@ import org.zeromq.ZMQException
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
+import ru.mipt.npm.magix.api.filter
 import kotlin.coroutines.CoroutineContext
 
 public class ZmqMagixEndpoint<T>(
@@ -28,7 +29,7 @@ public class ZmqMagixEndpoint<T>(
         val socket = zmqContext.createSocket(SocketType.XSUB)
         socket.bind(address)
 
-        val topic = MagixEndpoint.magixJson.encodeToString(filter)
+        val topic = "magix"//MagixEndpoint.magixJson.encodeToString(filter)
         socket.subscribe(topic)
 
         return channelFlow {
@@ -39,6 +40,7 @@ public class ZmqMagixEndpoint<T>(
             }
             while (activeFlag) {
                 try {
+                    //This is a blocking call.
                     val string = socket.recvStr()
                     val message = MagixEndpoint.magixJson.decodeFromString(serializer, string)
                     send(message)
@@ -51,7 +53,7 @@ public class ZmqMagixEndpoint<T>(
                     }
                 }
             }
-        }
+        }.filter(filter).flowOn(Dispatchers.IO) //should be flown on IO because of blocking calls
     }
 
     private val publishSocket = zmqContext.createSocket(SocketType.XPUB).apply {

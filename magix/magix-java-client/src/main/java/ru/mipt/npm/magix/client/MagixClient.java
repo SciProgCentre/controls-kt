@@ -16,10 +16,23 @@ public interface MagixClient<T> {
 
     Flow.Publisher<MagixMessage<T>> subscribe();
 
+    /**
+     * Create a magix endpoint client using RSocket with raw tcp connection
+     * @param host host name of magix server event loop
+     * @param port port of magix server event loop
+     * @return the client
+     */
     static MagixClient<JsonElement> rSocketTcp(String host, int port) {
         return ControlsMagixClient.Companion.rSocketTcp(host, port, JsonElement.Companion.serializer());
     }
 
+    /**
+     *
+     * @param host host name of magix server event loop
+     * @param port port of magix server event loop
+     * @param path
+     * @return
+     */
     static MagixClient<JsonElement> rSocketWs(String host, int port, String path) {
         return ControlsMagixClient.Companion.rSocketWs(host, port, JsonElement.Companion.serializer(), path);
     }

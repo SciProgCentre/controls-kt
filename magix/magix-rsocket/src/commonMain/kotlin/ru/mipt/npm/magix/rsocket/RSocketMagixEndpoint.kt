@@ -43,39 +43,39 @@ public class RSocketMagixEndpoint<T>(
         }
     }
 
-    public companion object {
+    public companion object
+}
 
-        internal fun buildConnector(rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit) =
-            RSocketConnector {
-                reconnectable(10)
-                connectionConfig(rSocketConfig)
-            }
 
-        /**
-         * Build a websocket based endpoint connected to [host], [port] and given routing [path]
-         */
-        public suspend fun <T> withWebSockets(
-            host: String,
-            port: Int,
-            payloadSerializer: KSerializer<T>,
-            path: String = "/rsocket",
-            rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
-        ): RSocketMagixEndpoint<T> {
-            val client = HttpClient {
-                install(WebSockets)
-                install(RSocketSupport) {
-                    connector = buildConnector(rSocketConfig)
-                }
-            }
+internal fun buildConnector(rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit) =
+    RSocketConnector {
+        reconnectable(10)
+        connectionConfig(rSocketConfig)
+    }
 
-            val rSocket = client.rSocket(host, port, path)
-
-            //Ensure client is closed after rSocket if finished
-            rSocket.job.invokeOnCompletion {
-                client.close()
-            }
-
-            return RSocketMagixEndpoint(coroutineContext, payloadSerializer, rSocket)
+/**
+ * Build a websocket based endpoint connected to [host], [port] and given routing [path]
+ */
+public suspend fun <T> MagixEndpoint.Companion.rSocketWithWebSockets(
+    host: String,
+    payloadSerializer: KSerializer<T>,
+    port: Int = DEFAULT_MAGIX_HTTP_PORT,
+    path: String = "/rsocket",
+    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
+): RSocketMagixEndpoint<T> {
+    val client = HttpClient {
+        install(WebSockets)
+        install(RSocketSupport) {
+            connector = buildConnector(rSocketConfig)
         }
     }
+
+    val rSocket = client.rSocket(host, port, path)
+
+    //Ensure client is closed after rSocket if finished
+    rSocket.job.invokeOnCompletion {
+        client.close()
+    }
+
+    return RSocketMagixEndpoint(coroutineContext, payloadSerializer, rSocket)
 }

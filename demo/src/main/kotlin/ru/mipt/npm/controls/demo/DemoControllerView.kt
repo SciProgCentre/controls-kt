@@ -6,10 +6,14 @@ import javafx.scene.control.Slider
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.launch
-import space.kscience.dataforge.context.ContextAware
-import space.kscience.dataforge.context.Global
-import space.kscience.dataforge.context.info
-import space.kscience.dataforge.context.logger
+import ru.mipt.npm.controls.api.DeviceMessage
+import ru.mipt.npm.controls.client.launchDfMagix
+import ru.mipt.npm.controls.controllers.DeviceManager
+import ru.mipt.npm.controls.controllers.install
+import ru.mipt.npm.magix.api.MagixEndpoint
+import ru.mipt.npm.magix.rsocket.rSocketWithTcp
+import ru.mipt.npm.magix.server.startMagixServer
+import space.kscience.dataforge.context.*
 import tornadofx.*
 import java.awt.Desktop
 import java.net.URI
@@ -17,21 +21,32 @@ import java.net.URI
 class DemoController : Controller(), ContextAware {
 
     var device: DemoDevice? = null
-    var server: ApplicationEngine? = null
-    override val context = Global.buildContext("demoDevice")
+    var magixServer: ApplicationEngine? = null
+    var visualizer: ApplicationEngine? = null
+
+    override val context = Context("demoDevice") {
+        plugin(DeviceManager)
+    }
+
+    private val deviceManager = context.fetch(DeviceManager)
 
     fun init() {
         context.launch {
-            val demo = DemoDevice(context)
-            device = demo
-            server = startDemoDeviceServer(context, demo)
+            device = deviceManager.install("demo", DemoDevice)
+            //starting magix event loop
+            magixServer = startMagixServer()
+            //Launch device client and connect it to the server
+            deviceManager.launchDfMagix(MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer()))
+            visualizer = startDemoDeviceServer()
         }
     }
 
     fun shutdown() {
         logger.info { "Shutting down..." }
-        server?.stop(1000, 5000)
+        visualizer?.stop(1000,5000)
         logger.info { "Visualization server stopped" }
+        magixServer?.stop(1000, 5000)
+        logger.info { "Magix server stopped" }
         device?.close()
         logger.info { "Device server stopped" }
         context.close()
@@ -89,7 +104,7 @@ class DemoControllerView : View(title = " Demo controller remote") {
         button("Show plots") {
             useMaxWidth = true
             action {
-                controller.server?.run {
+                controller.magixServer?.run {
                     val host = "localhost"//environment.connectors.first().host
                     val port = environment.connectors.first().port
                     val uri = URI("http", null, host, port, "/plots", null, null)
