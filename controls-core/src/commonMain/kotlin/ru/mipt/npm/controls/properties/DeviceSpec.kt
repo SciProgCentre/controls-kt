@@ -1,5 +1,6 @@
 package ru.mipt.npm.controls.properties
 
+import kotlinx.coroutines.Deferred
 import ru.mipt.npm.controls.api.ActionDescriptor
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.context.Context
@@ -8,6 +9,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 
 public abstract class DeviceSpec<D : DeviceBySpec<D>>(
     private val buildDevice: () -> D
@@ -44,7 +46,7 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
         read: suspend D.() -> T,
         write: suspend D.(T) -> Unit
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _: DeviceSpec<D>, property ->
+        PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val propertyName = name ?: property.name
             val deviceProperty = object : WritableDevicePropertySpec<D, T> {
                 override val name: String = propertyName
