@@ -1,73 +1,59 @@
 package ru.mipt.npm.controls.demo
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
-import ru.mipt.npm.controls.base.*
-import ru.mipt.npm.controls.controllers.DeviceSpec
-import ru.mipt.npm.controls.controllers.double
-import space.kscience.dataforge.context.Context
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import ru.mipt.npm.controls.properties.*
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.values.asValue
+import space.kscience.dataforge.meta.transformations.MetaConverter
 import java.time.Instant
-import java.util.concurrent.Executors
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
-
-@OptIn(ExperimentalTime::class)
-class DemoDevice(context: Context) : DeviceBase(context) {
-
-    private val executor = Executors.newSingleThreadExecutor()
-
-    override val scope: CoroutineScope = CoroutineScope(
-        context.coroutineContext + executor.asCoroutineDispatcher() + Job(context.coroutineContext[Job])
-    )
-
-    val timeScale: DeviceProperty by writingVirtual(5000.0.asValue())
-    var timeScaleValue by timeScale.double()
-
-    val sinScale by writingVirtual(1.0.asValue())
-    var sinScaleValue by sinScale.double()
-    val sin: TypedReadOnlyDeviceProperty<Number> by readingNumber {
-        val time = Instant.now()
-        sin(time.toEpochMilli().toDouble() / timeScaleValue) * sinScaleValue
-    }
-
-    val cosScale by writingVirtual(1.0.asValue())
-    var cosScaleValue by cosScale.double()
-    val cos by readingNumber {
-        val time = Instant.now()
-        cos(time.toEpochMilli().toDouble() / timeScaleValue) * cosScaleValue
-    }
-
-    val coordinates by readingMeta {
-        val time = Instant.now()
-        "time" put time.toEpochMilli()
-        "x" put sin(time.toEpochMilli().toDouble() / timeScaleValue) * sinScaleValue
-        "y" put cos(time.toEpochMilli().toDouble() / timeScaleValue) * cosScaleValue
-    }
 
 
-    val resetScale: DeviceAction by acting {
-        timeScaleValue = 5000.0
-        sinScaleValue = 1.0
-        cosScaleValue = 1.0
-    }
+class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
+    var timeScale by state(5000.0)
+    var sinScale by state( 1.0)
+    var cosScale by state(1.0)
 
-    init {
-        sin.readEvery(Duration.seconds(0.2))
-        cos.readEvery(Duration.seconds(0.2))
-        coordinates.readEvery(Duration.seconds(0.3))
-    }
+    companion object : DeviceSpec<DemoDevice>(::DemoDevice) {
+        // register virtual properties based on actual object state
+        val timeScaleProperty = registerProperty(MetaConverter.double, DemoDevice::timeScale)
+        val sinScaleProperty = registerProperty(MetaConverter.double, DemoDevice::sinScale)
+        val cosScaleProperty = registerProperty(MetaConverter.double, DemoDevice::cosScale)
 
-    override fun close() {
-        super.close()
-        executor.shutdown()
-    }
+        val sin by doubleProperty {
+            val time = Instant.now()
+            kotlin.math.sin(time.toEpochMilli().toDouble() / timeScale) * sinScale
+        }
 
-    companion object : DeviceSpec<DemoDevice> {
-        override fun invoke(meta: Meta, context: Context): DemoDevice = DemoDevice(context)
+        val cos by doubleProperty {
+            val time = Instant.now()
+            kotlin.math.cos(time.toEpochMilli().toDouble() / timeScale) * sinScale
+        }
+
+        val coordinates by metaProperty {
+            Meta {
+                val time = Instant.now()
+                "time" put time.toEpochMilli()
+                "x" put getSuspend(sin)
+                "y" put getSuspend(cos)
+            }
+        }
+
+        val resetScale by action(MetaConverter.meta, MetaConverter.meta) {
+            timeScale = 5000.0
+            sinScale = 1.0
+            cosScale = 1.0
+            null
+        }
+
+        override fun DemoDevice.onStartup() {
+            launch {
+                while(isActive){
+                    delay(50)
+                    sin.read()
+                    cos.read()
+                }
+            }
+        }
     }
 }

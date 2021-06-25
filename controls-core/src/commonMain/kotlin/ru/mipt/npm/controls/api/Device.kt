@@ -12,10 +12,11 @@ import space.kscience.dataforge.misc.Type
 
 
 /**
- *  General interface describing a managed Device
+ *  General interface describing a managed Device.
+ *  Device is a supervisor scope encompassing all operations on a device. When canceled, cancels all running processes.
  */
 @Type(DEVICE_TARGET)
-public interface Device : Closeable, ContextAware {
+public interface Device : Closeable, ContextAware, CoroutineScope {
     /**
      * List of supported property descriptors
      */
@@ -26,11 +27,6 @@ public interface Device : Closeable, ContextAware {
      * may or may not change the properties
      */
     public val actionDescriptors: Collection<ActionDescriptor>
-
-    /**
-     * The supervisor scope encompassing all operations on a device. When canceled, cancels all running processes.
-     */
-    public val scope: CoroutineScope
 
     /**
      * Get the value of the property or throw error if property in not defined.
@@ -61,7 +57,7 @@ public interface Device : Closeable, ContextAware {
     public suspend fun execute(action: String, argument: MetaItem? = null): MetaItem?
 
     override fun close() {
-        scope.cancel("The device is closed")
+        cancel("The device is closed")
     }
 
     public companion object {

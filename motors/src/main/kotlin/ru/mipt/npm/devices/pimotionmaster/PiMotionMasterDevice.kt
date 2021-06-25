@@ -11,7 +11,6 @@ import kotlinx.coroutines.sync.withLock
 import ru.mipt.npm.controls.api.DeviceHub
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import ru.mipt.npm.controls.base.*
-import ru.mipt.npm.controls.controllers.DeviceSpec
 import ru.mipt.npm.controls.controllers.duration
 import ru.mipt.npm.controls.ports.*
 import space.kscience.dataforge.context.*
@@ -27,10 +26,6 @@ class PiMotionMasterDevice(
     override val deviceName: String = "PiMotionMaster",
     private val portFactory: PortFactory = KtorTcpPort,
 ) : DeviceBase(context), DeviceHub {
-
-    override val scope: CoroutineScope = CoroutineScope(
-        context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
-    )
 
     private var port: Port? = null
     //TODO make proxy work
@@ -151,11 +146,10 @@ class PiMotionMasterDevice(
             withTimeout(timeoutValue) {
                 sendCommandInternal(command, *arguments)
                 val phrases = port?.receiving()?.withDelimiter("\n") ?: error("Not connected to device")
-                val list = phrases.transformWhile { line ->
+                phrases.transformWhile { line ->
                     emit(line)
                     line.endsWith(" \n")
                 }.toList()
-                list
             }
         } catch (ex: Throwable) {
             logger.warn { "Error during PIMotionMaster request. Requesting error code." }
@@ -204,7 +198,6 @@ class PiMotionMasterDevice(
     )
 
     inner class Axis(val axisId: String) : DeviceBase(context) {
-        override val scope: CoroutineScope get() = this@PiMotionMasterDevice.scope
 
         private suspend fun readAxisBoolean(command: String): Boolean =
             requestAndParse(command, axisId)[axisId]?.toIntOrNull()
@@ -343,7 +336,7 @@ class PiMotionMasterDevice(
         }
     }
 
-    companion object : DeviceSpec<PiMotionMasterDevice> {
+    companion object : Factory<PiMotionMasterDevice> {
         override fun invoke(meta: Meta, context: Context): PiMotionMasterDevice = PiMotionMasterDevice(context)
     }
 

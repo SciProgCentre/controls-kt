@@ -40,16 +40,15 @@ public class DeviceManager(override val deviceName: String = "") : AbstractPlugi
     }
 }
 
-public interface DeviceSpec<D : Device> : Factory<D>
 
-public fun <D : Device> DeviceManager.install(name: String, factory: DeviceSpec<D>, meta: Meta = Meta.EMPTY): D {
+public fun <D : Device> DeviceManager.install(name: String, factory: Factory<D>, meta: Meta = Meta.EMPTY): D {
     val device = factory(meta, context)
     registerDevice(NameToken(name), device)
     return device
 }
 
 public fun <D : Device> DeviceManager.installing(
-    factory: DeviceSpec<D>,
+    factory: Factory<D>,
     metaBuilder: MetaBuilder.() -> Unit = {},
 ): ReadOnlyProperty<Any?, D> = ReadOnlyProperty { _, property ->
     val name = property.name

@@ -95,9 +95,9 @@ class DemoControllerView : View(title = " Demo controller remote") {
             useMaxWidth = true
             action {
                 controller.device?.apply {
-                    timeScaleValue = timeScaleSlider.value
-                    sinScaleValue = xScaleSlider.value
-                    cosScaleValue = yScaleSlider.value
+                    timeScale = timeScaleSlider.value
+                    sinScale = xScaleSlider.value
+                    cosScale = yScaleSlider.value
                 }
             }
         }

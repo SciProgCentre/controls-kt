@@ -13,6 +13,7 @@ import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.misc.DFExperimental
+import kotlin.coroutines.CoroutineContext
 
 //TODO move to DataForge-core
 @DFExperimental
@@ -28,7 +29,7 @@ private open class BasicReadOnlyDeviceProperty(
     private val getter: suspend (before: MetaItem?) -> MetaItem,
 ) : ReadOnlyDeviceProperty {
 
-    override val scope: CoroutineScope get() = device.scope
+    override val scope: CoroutineScope get() = device
 
     private val state: MutableStateFlow<MetaItem?> = MutableStateFlow(default)
     override val value: MetaItem? get() = state.value
@@ -107,11 +108,11 @@ private class BasicDeviceProperty(
  * Baseline implementation of [Device] interface
  */
 @Suppress("EXPERIMENTAL_API_USAGE")
-public abstract class DeviceBase(override val context: Context) : Device {
+public abstract class DeviceBase(final override val context: Context) : Device {
 
-    override val scope: CoroutineScope by lazy {
-        CoroutineScope(context.coroutineContext + Job(context.coroutineContext[Job]))
-    }
+    override val coroutineContext: CoroutineContext =
+        context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
+
 
     private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
     public val properties: Map<String, ReadOnlyDeviceProperty> get() = _properties
@@ -219,7 +220,7 @@ public abstract class DeviceBase(override val context: Context) : Device {
         private val block: suspend (MetaItem?) -> MetaItem?,
     ) : DeviceAction {
         override suspend fun invoke(arg: MetaItem?): MetaItem? =
-            withContext(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job])) {
+            withContext(coroutineContext) {
                 block(arg)
             }
     }
