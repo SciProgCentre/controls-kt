@@ -1,17 +1,16 @@
 package ru.mipt.npm.controls.demo
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.properties.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import java.time.Instant
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
 
 
 class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
     var timeScale by state(5000.0)
-    var sinScale by state( 1.0)
+    var sinScale by state(1.0)
     var cosScale by state(1.0)
 
     companion object : DeviceSpec<DemoDevice>(::DemoDevice) {
@@ -34,8 +33,8 @@ class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
             Meta {
                 val time = Instant.now()
                 "time" put time.toEpochMilli()
-                "x" put getSuspend(sin)
-                "y" put getSuspend(cos)
+                "x" put read(sin)
+                "y" put read(cos)
             }
         }
 
@@ -46,13 +45,11 @@ class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
             null
         }
 
+        @OptIn(ExperimentalTime::class)
         override fun DemoDevice.onStartup() {
-            launch {
-                while(isActive){
-                    delay(50)
-                    sin.read()
-                    cos.read()
-                }
+            doRecurring(Duration.milliseconds(50)){
+                sin.read()
+                cos.read()
             }
         }
     }

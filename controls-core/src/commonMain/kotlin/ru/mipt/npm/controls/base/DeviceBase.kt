@@ -152,14 +152,17 @@ public abstract class DeviceBase(final override val context: Context) : Device {
         _actions[name] = action
     }
 
-    override suspend fun getProperty(propertyName: String): MetaItem =
+    override suspend fun readItem(propertyName: String): MetaItem =
         (_properties[propertyName] ?: error("Property with name $propertyName not defined")).read()
 
-    override suspend fun invalidateProperty(propertyName: String) {
+    override fun getItem(propertyName: String): MetaItem?=
+        (_properties[propertyName] ?: error("Property with name $propertyName not defined")).value
+
+    override suspend fun invalidate(propertyName: String) {
         (_properties[propertyName] ?: error("Property with name $propertyName not defined")).invalidate()
     }
 
-    override suspend fun setProperty(propertyName: String, value: MetaItem) {
+    override suspend fun writeItem(propertyName: String, value: MetaItem) {
         (_properties[propertyName] as? DeviceProperty ?: error("Property with name $propertyName not defined")).write(
             value
         )

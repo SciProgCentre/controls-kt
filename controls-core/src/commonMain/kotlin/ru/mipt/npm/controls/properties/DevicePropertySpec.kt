@@ -8,6 +8,13 @@ import space.kscience.dataforge.meta.transformations.MetaConverter
 import space.kscience.dataforge.meta.transformations.nullableItemToObject
 import space.kscience.dataforge.meta.transformations.nullableObjectToMetaItem
 
+
+/**
+ * This API is internal and should not be used in user code
+ */
+@RequiresOptIn
+public annotation class InternalDeviceAPI
+
 //TODO relax T restriction after DF 0.4.4
 public interface DevicePropertySpec<in D : Device, T : Any> {
     /**
@@ -28,9 +35,11 @@ public interface DevicePropertySpec<in D : Device, T : Any> {
     /**
      * Read physical value from the given [device]
      */
+    @InternalDeviceAPI
     public suspend fun read(device: D): T
 }
 
+@OptIn(InternalDeviceAPI::class)
 public suspend fun <D : Device, T : Any> DevicePropertySpec<D, T>.readItem(device: D): MetaItem =
     converter.objectToMetaItem(read(device))
 
@@ -39,9 +48,11 @@ public interface WritableDevicePropertySpec<in D : Device, T : Any> : DeviceProp
     /**
      * Write physical value to a device
      */
+    @InternalDeviceAPI
     public suspend fun write(device: D, value: T)
 }
 
+@OptIn(InternalDeviceAPI::class)
 public suspend fun <D : Device, T : Any> WritableDevicePropertySpec<D, T>.writeItem(device: D, item: MetaItem) {
     write(device, converter.itemToObject(item))
 }

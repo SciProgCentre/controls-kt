@@ -1,8 +1,10 @@
 package ru.mipt.npm.controls.properties
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import ru.mipt.npm.controls.api.ActionDescriptor
@@ -21,6 +23,7 @@ import kotlin.reflect.KProperty
 /**
  * @param D recursive self-type for properties and actions
  */
+@OptIn(InternalDeviceAPI::class)
 public open class DeviceBySpec<D : DeviceBySpec<D>>(
     public val spec: DeviceSpec<D>,
     context: Context = Global,
@@ -55,11 +58,9 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
     internal val self: D
         get() = this as D
 
-    internal fun getLogicalState(propertyName: String): MetaItem? = logicalState[propertyName]
-
     private val stateLock = Mutex()
 
-    internal suspend fun updateLogical(propertyName: String, value: MetaItem?) {
+    private suspend fun updateLogical(propertyName: String, value: MetaItem?) {
         if (value != logicalState[propertyName]) {
             stateLock.withLock {
                 logicalState[propertyName] = value
@@ -74,27 +75,26 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
      * Force read physical value and push an update if it is changed. It does not matter if logical state is present.
      * The logical state is updated after read
      */
-    public suspend fun readProperty(propertyName: String): MetaItem {
+    override suspend fun readItem(propertyName: String): MetaItem {
         val newValue = properties[propertyName]?.readItem(self)
             ?: error("A property with name $propertyName is not registered in $this")
         updateLogical(propertyName, newValue)
         return newValue
     }
 
-    override suspend fun getProperty(propertyName: String): MetaItem =
-        logicalState[propertyName] ?: readProperty(propertyName)
+    override fun getItem(propertyName: String): MetaItem? = logicalState[propertyName]
 
-    override suspend fun invalidateProperty(propertyName: String) {
+    override suspend fun invalidate(propertyName: String) {
         stateLock.withLock {
             logicalState.remove(propertyName)
         }
     }
 
-    override suspend fun setProperty(propertyName: String, value: MetaItem): Unit {
+    override suspend fun writeItem(propertyName: String, value: MetaItem): Unit {
         //If there is a physical property with given name, invalidate logical property and write physical one
         (properties[propertyName] as? WritableDevicePropertySpec<D, out Any>)?.let {
             it.writeItem(self, value)
-            invalidateProperty(propertyName)
+            invalidate(propertyName)
         } ?: run {
             updateLogical(propertyName, value)
         }
@@ -113,36 +113,44 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
     ): ReadWriteProperty<D, T> = observable(initialValue) { property: KProperty<*>, oldValue: T, newValue: T ->
         if (oldValue != newValue) {
             launch {
-                invalidateProperty(property.name)
+                invalidate(property.name)
                 _propertyFlow.emit(property.name to converter.objectToMetaItem(newValue))
             }
         }
     }
 
-    public suspend fun <T : Any> DevicePropertySpec<D, T>.read(): T = read(self)
+    /**
+     * Read typed value and update/push event if needed
+     */
+    public suspend fun <T : Any> DevicePropertySpec<D, T>.read(): T {
+        val res = read(self)
+        updateLogical(name, converter.objectToMetaItem(res))
+        return res
+    }
+
+    public fun <T : Any> DevicePropertySpec<D, T>.get(): T? = getItem(name)?.let(converter::itemToObject)
+
+    /**
+     * Write typed property state and invalidate logical state
+     */
+    public suspend fun <T : Any> WritableDevicePropertySpec<D, T>.write(value: T) {
+        write(self, value)
+        invalidate(name)
+    }
 
     override fun close() {
-        with(spec){ self.onShutdown() }
+        with(spec) { self.onShutdown() }
         super.close()
     }
 }
 
-public suspend fun <D : DeviceBySpec<D>, T : Any> D.getSuspend(
+public suspend fun <D : DeviceBySpec<D>, T : Any> D.read(
     propertySpec: DevicePropertySpec<D, T>
-): T = propertySpec.read(this@getSuspend).also {
-    updateLogical(propertySpec.name, propertySpec.converter.objectToMetaItem(it))
-}
+): T = propertySpec.read()
 
-
-public fun <D : DeviceBySpec<D>, T : Any> D.getAsync(
-    propertySpec: DevicePropertySpec<D, T>
-): Deferred<T> = async {
-    getSuspend(propertySpec)
-}
-
-public operator fun <D : DeviceBySpec<D>, T : Any> D.set(propertySpec: WritableDevicePropertySpec<D, T>, value: T) {
-    launch {
-        propertySpec.write(this@set, value)
-        invalidateProperty(propertySpec.name)
-    }
+public fun <D : DeviceBySpec<D>, T : Any> D.write(
+    propertySpec: WritableDevicePropertySpec<D, T>,
+    value: T
+): Job = launch {
+    propertySpec.write(value)
 }

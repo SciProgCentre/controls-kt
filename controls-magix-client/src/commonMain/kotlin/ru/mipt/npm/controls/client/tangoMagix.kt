@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import ru.mipt.npm.controls.api.get
+import ru.mipt.npm.controls.api.getOrReadItem
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
@@ -83,7 +84,7 @@ public fun DeviceManager.launchTangoMagix(
                 val device = get(request.payload.device)
                 when (request.payload.action) {
                     TangoAction.read -> {
-                        val value = device.getProperty(request.payload.name)
+                        val value = device.getOrReadItem(request.payload.name)
                         respond(request) { requestPayload ->
                             requestPayload.copy(
                                 value = value,
@@ -93,10 +94,10 @@ public fun DeviceManager.launchTangoMagix(
                     }
                     TangoAction.write -> {
                         request.payload.value?.let { value ->
-                            device.setProperty(request.payload.name, value)
+                            device.writeItem(request.payload.name, value)
                         }
                         //wait for value to be written and return final state
-                        val value = device.getProperty(request.payload.name)
+                        val value = device.getOrReadItem(request.payload.name)
                         respond(request) { requestPayload ->
                             requestPayload.copy(
                                 value = value,

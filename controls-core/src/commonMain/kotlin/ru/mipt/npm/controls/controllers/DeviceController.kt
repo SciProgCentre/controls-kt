@@ -67,7 +67,7 @@ public class DeviceController(
                 is PropertyGetMessage -> {
                     PropertyChangedMessage(
                         property = request.property,
-                        value = device.getProperty(request.property),
+                        value = device.getOrReadItem(request.property),
                         sourceDevice = deviceTarget,
                         targetDevice = request.sourceDevice
                     )
@@ -75,13 +75,13 @@ public class DeviceController(
 
                 is PropertySetMessage -> {
                     if (request.value == null) {
-                        device.invalidateProperty(request.property)
+                        device.invalidate(request.property)
                     } else {
-                        device.setProperty(request.property, request.value)
+                        device.writeItem(request.property, request.value)
                     }
                     PropertyChangedMessage(
                         property = request.property,
-                        value = device.getProperty(request.property),
+                        value = device.getOrReadItem(request.property),
                         sourceDevice = deviceTarget,
                         targetDevice = request.sourceDevice
                     )

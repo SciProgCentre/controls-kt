@@ -29,21 +29,25 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
     public val actionDescriptors: Collection<ActionDescriptor>
 
     /**
-     * Get the value of the property or throw error if property in not defined.
-     * Suspend if property value is not available
+     * Read physical state of property and update/push notifications if needed.
      */
-    public suspend fun getProperty(propertyName: String): MetaItem
+    public suspend fun readItem(propertyName: String): MetaItem
 
     /**
-     * Invalidate property and force recalculate
+     * Get the logical state of property or return null if it is invalid
      */
-    public suspend fun invalidateProperty(propertyName: String)
+    public fun getItem(propertyName: String): MetaItem?
+
+    /**
+     * Invalidate property (set logical state to invalid)
+     */
+    public suspend fun invalidate(propertyName: String)
 
     /**
      * Set property [value] for a property with name [propertyName].
      * In rare cases could suspend if the [Device] supports command queue and it is full at the moment.
      */
-    public suspend fun setProperty(propertyName: String, value: MetaItem)
+    public suspend fun writeItem(propertyName: String, value: MetaItem)
 
     /**
      * The [SharedFlow] of property changes
@@ -65,9 +69,19 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
     }
 }
 
-public suspend fun Device.getState(): Meta = Meta{
-    for(descriptor in propertyDescriptors) {
-        descriptor.name put getProperty(descriptor.name)
+
+/**
+ * Get the logical state of property or suspend to read the physical value.
+ */
+public suspend fun Device.getOrReadItem(propertyName: String): MetaItem =
+    getItem(propertyName) ?: readItem(propertyName)
+
+/**
+ * Get a snapshot of logical state of the device
+ */
+public fun Device.getProperties(): Meta = Meta {
+    for (descriptor in propertyDescriptors) {
+        descriptor.name put getItem(descriptor.name)
     }
 }
 

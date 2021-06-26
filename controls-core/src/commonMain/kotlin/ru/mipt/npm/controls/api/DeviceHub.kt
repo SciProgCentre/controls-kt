@@ -58,11 +58,11 @@ public fun DeviceHub.getOrNull(nameString: String): Device? = getOrNull(nameStri
 public operator fun DeviceHub.get(nameString: String): Device =
     getOrNull(nameString) ?: error("Device with name $nameString not found in $this")
 
-public suspend fun DeviceHub.getProperty(deviceName: Name, propertyName: String): MetaItem =
-    this[deviceName].getProperty(propertyName)
+public suspend fun DeviceHub.readItem(deviceName: Name, propertyName: String): MetaItem =
+    this[deviceName].readItem(propertyName)
 
-public suspend fun DeviceHub.setProperty(deviceName: Name, propertyName: String, value: MetaItem) {
-    this[deviceName].setProperty(propertyName, value)
+public suspend fun DeviceHub.writeItem(deviceName: Name, propertyName: String, value: MetaItem) {
+    this[deviceName].writeItem(propertyName, value)
 }
 
 public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: MetaItem?): MetaItem? =
