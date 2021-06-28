@@ -27,4 +27,6 @@ dependencies{
 
     implementation("io.rsocket.kotlin:rsocket-core:$rsocketVersion")
     implementation("io.rsocket.kotlin:rsocket-transport-ktor-server:$rsocketVersion")
+
+    implementation("org.zeromq:jeromq:0.5.2")
 }

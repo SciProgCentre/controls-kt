@@ -4,8 +4,7 @@ plugins {
 }
 
 description = """
-   A stand-alone device tree web server which also works as magix event dispatcher.
-   The server is used to work with stand-alone devices without intermediate control system.
+   A magix event loop server with web server for visualization.
 """.trimIndent()
 
 val dataforgeVersion: String by rootProject.extra

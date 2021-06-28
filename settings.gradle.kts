@@ -1,4 +1,4 @@
-rootProject.name = "controls"
+rootProject.name = "controls-kt"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 

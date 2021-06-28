@@ -32,7 +32,7 @@ import java.util.*
 
 public typealias GenericMagixMessage = MagixMessage<JsonElement>
 
-private val genericMessageSerializer: KSerializer<MagixMessage<JsonElement>> =
+internal val genericMessageSerializer: KSerializer<MagixMessage<JsonElement>> =
     MagixMessage.serializer(JsonElement.serializer())
 
 

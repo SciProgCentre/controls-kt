@@ -37,6 +37,17 @@ public interface MagixEndpoint<T> {
          */
         public const val DEFAULT_MAGIX_RAW_PORT: Int = 7778
 
+        /**
+         * A default PUB port for ZMQ connections
+         */
+        public const val DEFAULT_MAGIX_ZMQ_PUB_PORT: Int = 7781
+
+        /**
+         * A default PULL port for ZMQ connections
+         */
+        public const val DEFAULT_MAGIX_ZMQ_PULL_PORT: Int = 7782
+
+
         public val magixJson: Json = Json {
             ignoreUnknownKeys = true
             encodeDefaults = false

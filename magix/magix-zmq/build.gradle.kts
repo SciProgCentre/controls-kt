@@ -3,6 +3,9 @@ plugins {
     `maven-publish`
 }
 
+description = """
+    ZMQ client endpoint for Magix
+""".trimIndent()
 
 dependencies {
     api(projects.magix.magixApi)

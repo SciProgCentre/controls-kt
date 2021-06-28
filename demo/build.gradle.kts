@@ -36,5 +36,5 @@ javafx{
 }
 
 application{
-    mainClass.set("space.kscience.dataforge.control.demo.DemoControllerViewKt")
+    mainClass.set("ru.mipt.npm.controls.demo.DemoControllerViewKt")
 }

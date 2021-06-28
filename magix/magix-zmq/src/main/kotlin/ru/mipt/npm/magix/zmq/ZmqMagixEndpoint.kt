@@ -1,6 +1,7 @@
 package ru.mipt.npm.magix.zmq
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
@@ -17,17 +18,20 @@ import ru.mipt.npm.magix.api.filter
 import kotlin.coroutines.CoroutineContext
 
 public class ZmqMagixEndpoint<T>(
-    private val coroutineContext: CoroutineContext,
+    private val host: String,
     payloadSerializer: KSerializer<T>,
-    private val address: String,
+    private val pubPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
+    private val pullPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
+    private val coroutineContext: CoroutineContext = Dispatchers.IO
 ) : MagixEndpoint<T>, AutoCloseable {
     private val zmqContext = ZContext()
 
     private val serializer = MagixMessage.serializer(payloadSerializer)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage<T>> {
         val socket = zmqContext.createSocket(SocketType.XSUB)
-        socket.bind(address)
+        socket.connect("$host:$pubPort")
 
         val topic = "magix"//MagixEndpoint.magixJson.encodeToString(filter)
         socket.subscribe(topic)
@@ -53,14 +57,14 @@ public class ZmqMagixEndpoint<T>(
                     }
                 }
             }
-        }.filter(filter).flowOn(Dispatchers.IO) //should be flown on IO because of blocking calls
+        }.filter(filter).flowOn(coroutineContext) //should be flown on IO because of blocking calls
     }
 
-    private val publishSocket = zmqContext.createSocket(SocketType.XPUB).apply {
-        bind(address)
+    private val publishSocket = zmqContext.createSocket(SocketType.PUSH).apply {
+        connect("$host:$pullPort")
     }
 
-    override suspend fun broadcast(message: MagixMessage<T>): Unit = withContext(Dispatchers.IO) {
+    override suspend fun broadcast(message: MagixMessage<T>): Unit = withContext(coroutineContext) {
         val string = MagixEndpoint.magixJson.encodeToString(serializer, message)
         publishSocket.send(string)
     }
