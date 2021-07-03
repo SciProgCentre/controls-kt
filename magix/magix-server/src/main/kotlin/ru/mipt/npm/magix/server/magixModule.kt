@@ -111,10 +111,10 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
                 val message = call.receive<GenericMagixMessage>()
                 magixFlow.emit(message)
             }
-            get {
+            get("loop-state") {
                 call.respondHtml {
                     body {
-                        h1 { +"Magix stream statistics" }
+                        h1 { +"Magix loop statistics" }
                         h2 { +"Number of subscribers: ${magixFlow.subscriptionCount.value}" }
                         h3 { +"Replay cache size: ${magixFlow.replayCache.size}" }
                         h3 { +"Replay cache:" }

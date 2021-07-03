@@ -24,17 +24,15 @@ public class ZmqMagixEndpoint<T>(
     private val pullPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
     private val coroutineContext: CoroutineContext = Dispatchers.IO
 ) : MagixEndpoint<T>, AutoCloseable {
-    private val zmqContext = ZContext()
+    private val zmqContext by lazy { ZContext() }
 
     private val serializer = MagixMessage.serializer(payloadSerializer)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage<T>> {
-        val socket = zmqContext.createSocket(SocketType.XSUB)
+        val socket = zmqContext.createSocket(SocketType.SUB)
         socket.connect("$host:$pubPort")
-
-        val topic = "magix"//MagixEndpoint.magixJson.encodeToString(filter)
-        socket.subscribe(topic)
+        socket.subscribe("")
 
         return channelFlow {
             var activeFlag = true
@@ -45,9 +43,11 @@ public class ZmqMagixEndpoint<T>(
             while (activeFlag) {
                 try {
                     //This is a blocking call.
-                    val string = socket.recvStr()
-                    val message = MagixEndpoint.magixJson.decodeFromString(serializer, string)
-                    send(message)
+                    val string: String? = socket.recvStr(zmq.ZMQ.ZMQ_DONTWAIT)
+                    if (string != null) {
+                        val message = MagixEndpoint.magixJson.decodeFromString(serializer, string)
+                        send(message)
+                    }
                 } catch (t: Throwable) {
                     socket.close()
                     if (t is ZMQException && t.errorCode == ZMQ.Error.ETERM.code) {
@@ -60,8 +60,10 @@ public class ZmqMagixEndpoint<T>(
         }.filter(filter).flowOn(coroutineContext) //should be flown on IO because of blocking calls
     }
 
-    private val publishSocket = zmqContext.createSocket(SocketType.PUSH).apply {
-        connect("$host:$pullPort")
+    private val publishSocket by lazy {
+        zmqContext.createSocket(SocketType.PUSH).apply {
+            connect("$host:$pullPort")
+        }
     }
 
     override suspend fun broadcast(message: MagixMessage<T>): Unit = withContext(coroutineContext) {

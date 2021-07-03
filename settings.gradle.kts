@@ -31,6 +31,7 @@ include(
     ":magix:magix-rsocket",
     ":magix:magix-java-client",
     ":magix:magix-zmq",
+    ":magix:magix-demo",
     ":controls-magix-client",
     ":motors"
 )

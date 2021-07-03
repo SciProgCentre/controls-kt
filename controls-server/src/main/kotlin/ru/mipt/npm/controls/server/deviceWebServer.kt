@@ -32,8 +32,8 @@ import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.respondMessage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.server.GenericMagixMessage
+import ru.mipt.npm.magix.server.launchMagixServerRawRSocket
 import ru.mipt.npm.magix.server.magixModule
-import ru.mipt.npm.magix.server.rawMagixServerSocket
 import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMetaItem
 
@@ -204,6 +204,6 @@ public fun Application.deviceManagerModule(
         extraBufferCapacity = buffer
     )
 
-    rawMagixServerSocket(magixFlow, rawSocketPort)
+    launchMagixServerRawRSocket(magixFlow, rawSocketPort)
     magixModule(magixFlow)
 }
