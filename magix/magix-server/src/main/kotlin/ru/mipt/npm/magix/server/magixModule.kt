@@ -84,6 +84,9 @@ private fun ApplicationCall.buildFilter(): MagixMessageFilter {
     )
 }
 
+/**
+ * Attache magix http/sse and websocket-based rsocket event loop + statistics page to existing [MutableSharedFlow]
+ */
 public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMessage>, route: String = "/") {
     if (featureOrNull(WebSockets) == null) {
         install(WebSockets)
@@ -107,11 +110,7 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
 
     routing {
         route(route) {
-            post {
-                val message = call.receive<GenericMagixMessage>()
-                magixFlow.emit(message)
-            }
-            get("loop-state") {
+            get("state") {
                 call.respondHtml {
                     body {
                         h1 { +"Magix loop statistics" }
@@ -140,12 +139,19 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
                 }
                 call.respondSse(sseFlow)
             }
+            post("broadcast") {
+                val message = call.receive<GenericMagixMessage>()
+                magixFlow.emit(message)
+            }
             //rSocket server. Filter from Payload
             rSocket("rsocket", acceptor = magixAcceptor(magixFlow))
         }
     }
 }
 
+/**
+ * Create a new loop [MutableSharedFlow] with given [buffer] and setup magix module based on it
+ */
 public fun Application.magixModule(route: String = "/", buffer: Int = 100) {
     val magixFlow = MutableSharedFlow<GenericMagixMessage>(buffer)
     magixModule(magixFlow, route)

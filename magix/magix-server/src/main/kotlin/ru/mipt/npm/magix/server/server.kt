@@ -57,10 +57,16 @@ public fun CoroutineScope.startMagixServer(
         val zmqPubSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT
         val zmqPullSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT
         logger.info("Starting magix zmq server on pub port $zmqPubSocketPort and pull port $zmqPullSocketPort")
-        launchMagixServerZmqSocket(magixFlow, zmqPubSocketPort = zmqPubSocketPort, zmqPullSocketPort = zmqPullSocketPort)
+        launchMagixServerZmqSocket(
+            magixFlow,
+            zmqPubSocketPort = zmqPubSocketPort,
+            zmqPullSocketPort = zmqPullSocketPort
+        )
     }
 
-    return embeddedServer(CIO, port = port) {
+    return embeddedServer(CIO, host = "localhost", port = port) {
         magixModule(magixFlow)
+    }.apply {
+        start()
     }
 }

@@ -43,7 +43,7 @@ public class ZmqMagixEndpoint<T>(
             while (activeFlag) {
                 try {
                     //This is a blocking call.
-                    val string: String? = socket.recvStr(zmq.ZMQ.ZMQ_DONTWAIT)
+                    val string: String? = socket.recvStr()
                     if (string != null) {
                         val message = MagixEndpoint.magixJson.decodeFromString(serializer, string)
                         send(message)
