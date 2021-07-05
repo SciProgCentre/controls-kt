@@ -112,6 +112,12 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
         route(route) {
             get("state") {
                 call.respondHtml {
+                    head {
+                        meta {
+                            httpEquiv = "refresh"
+                            content = "2"
+                        }
+                    }
                     body {
                         h1 { +"Magix loop statistics" }
                         h2 { +"Number of subscribers: ${magixFlow.subscriptionCount.value}" }
