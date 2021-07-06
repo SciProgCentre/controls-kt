@@ -1,5 +1,6 @@
 package ru.mipt.npm.magix.server
 
+import io.ktor.application.Application
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.server.cio.CIO
@@ -33,12 +34,14 @@ public fun CoroutineScope.launchMagixServerRawRSocket(
 
 /**
  * A combined RSocket/TCP server
+ * @param applicationConfiguration optional additional configuration for magix loop server
  */
 public fun CoroutineScope.startMagixServer(
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     buffer: Int = 100,
     enableRawRSocket: Boolean = true,
-    enableZmq: Boolean = true
+    enableZmq: Boolean = true,
+    applicationConfiguration: Application.(MutableSharedFlow<GenericMagixMessage>) -> Unit = {}
 ): ApplicationEngine {
     val logger = LoggerFactory.getLogger("magix-server")
     val magixFlow = MutableSharedFlow<GenericMagixMessage>(
@@ -66,6 +69,7 @@ public fun CoroutineScope.startMagixServer(
 
     return embeddedServer(CIO, host = "localhost", port = port) {
         magixModule(magixFlow)
+        applicationConfiguration(magixFlow)
     }.apply {
         start()
     }
