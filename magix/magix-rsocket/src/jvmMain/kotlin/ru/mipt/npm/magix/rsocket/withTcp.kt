@@ -24,5 +24,5 @@ public suspend fun <T> MagixEndpoint.Companion.rSocketWithTcp(
     val transport = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().clientTransport(host, port, tcpConfig)
     val rSocket = buildConnector(rSocketConfig).connect(transport)
 
-    return RSocketMagixEndpoint(coroutineContext, payloadSerializer, rSocket)
+    return RSocketMagixEndpoint(payloadSerializer, rSocket, coroutineContext)
 }

@@ -1,11 +1,9 @@
 package ru.mipt.npm.magix.zmq
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import org.zeromq.SocketType
 import org.zeromq.ZContext
@@ -35,12 +33,10 @@ public class ZmqMagixEndpoint<T>(
         socket.subscribe("")
 
         return channelFlow {
-            var activeFlag = true
             invokeOnClose {
-                activeFlag = false
                 socket.close()
             }
-            while (activeFlag) {
+            while (isActive) {
                 try {
                     //This is a blocking call.
                     val string: String? = socket.recvStr()
@@ -51,9 +47,9 @@ public class ZmqMagixEndpoint<T>(
                 } catch (t: Throwable) {
                     socket.close()
                     if (t is ZMQException && t.errorCode == ZMQ.Error.ETERM.code) {
-                        activeFlag = false
+                        cancel("ZMQ connection terminated", t)
                     } else {
-                        zmqContext.close()
+                        throw t
                     }
                 }
             }

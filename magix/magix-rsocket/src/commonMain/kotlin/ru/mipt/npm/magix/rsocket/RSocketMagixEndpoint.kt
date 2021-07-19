@@ -10,6 +10,7 @@ import io.rsocket.kotlin.payload.data
 import io.rsocket.kotlin.transport.ktor.client.RSocketSupport
 import io.rsocket.kotlin.transport.ktor.client.rSocket
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
@@ -21,9 +22,9 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 public class RSocketMagixEndpoint<T>(
-    private val coroutineContext: CoroutineContext,
     payloadSerializer: KSerializer<T>,
     private val rSocket: RSocket,
+    private val coroutineContext: CoroutineContext,
 ) : MagixEndpoint<T> {
 
     private val serializer = MagixMessage.serializer(payloadSerializer)
@@ -33,7 +34,9 @@ public class RSocketMagixEndpoint<T>(
     ): Flow<MagixMessage<T>> {
         val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(filter)) }
         val flow = rSocket.requestStream(payload)
-        return flow.map { MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText()) }
+        return flow.map {
+            MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText())
+        }.flowOn(coroutineContext)
     }
 
     override suspend fun broadcast(message: MagixMessage<T>) {
@@ -77,5 +80,5 @@ public suspend fun <T> MagixEndpoint.Companion.rSocketWithWebSockets(
         client.close()
     }
 
-    return RSocketMagixEndpoint(coroutineContext, payloadSerializer, rSocket)
+    return RSocketMagixEndpoint(payloadSerializer, rSocket, coroutineContext)
 }
