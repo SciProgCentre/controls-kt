@@ -2,12 +2,12 @@ package ru.mipt.npm.magix.server
 
 import io.ktor.application.Application
 import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.aSocket
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
+import io.ktor.util.InternalAPI
 import io.rsocket.kotlin.core.RSocketServer
-import io.rsocket.kotlin.transport.ktor.serverTransport
+import io.rsocket.kotlin.transport.ktor.TcpServerTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,11 +20,12 @@ import ru.mipt.npm.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
 /**
  * Raw TCP magix server
  */
+@OptIn(InternalAPI::class)
 public fun CoroutineScope.launchMagixServerRawRSocket(
     magixFlow: MutableSharedFlow<GenericMagixMessage>,
     rawSocketPort: Int = DEFAULT_MAGIX_RAW_PORT
 ): Job {
-    val tcpTransport = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().serverTransport(port = rawSocketPort)
+    val tcpTransport = TcpServerTransport(ActorSelectorManager(Dispatchers.IO), port = rawSocketPort)
     val rSocketJob = RSocketServer().bind(tcpTransport, magixAcceptor(magixFlow))
     coroutineContext[Job]?.invokeOnCompletion {
         rSocketJob.cancel()

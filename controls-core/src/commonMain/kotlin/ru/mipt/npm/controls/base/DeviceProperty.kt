@@ -3,7 +3,7 @@ package ru.mipt.npm.controls.base
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import ru.mipt.npm.controls.api.PropertyDescriptor
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 import kotlin.time.Duration
 
 /**
@@ -30,24 +30,24 @@ public interface ReadOnlyDeviceProperty {
     /**
      * Directly update property logical value and notify listener without writing it to device
      */
-    public fun updateLogical(item: MetaItem)
+    public fun updateLogical(item: Meta)
 
     /**
      *  Get cached value and return null if value is invalid or not initialized
      */
-    public val value: MetaItem?
+    public val value: Meta?
 
     /**
      * Read value either from cache if cache is valid or directly from physical device.
      * If [force], reread from physical state even if the logical state is set.
      */
-    public suspend fun read(force: Boolean = false): MetaItem
+    public suspend fun read(force: Boolean = false): Meta
 
     /**
      * The [Flow] representing future logical states of the property.
      * Produces null when the state is invalidated
      */
-    public fun flow(): Flow<MetaItem?>
+    public fun flow(): Flow<Meta?>
 }
 
 
@@ -65,10 +65,10 @@ public fun ReadOnlyDeviceProperty.readEvery(duration: Duration): Job = scope.lau
  * A writeable device property with non-suspended write
  */
 public interface DeviceProperty : ReadOnlyDeviceProperty {
-    override var value: MetaItem?
+    override var value: Meta?
 
     /**
      * Write value to physical device. Invalidates logical value, but does not update it automatically
      */
-    public suspend fun write(item: MetaItem)
+    public suspend fun write(item: Meta)
 }

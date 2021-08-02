@@ -2,19 +2,24 @@
 
 package ru.mipt.npm.devices.pimotionmaster
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import ru.mipt.npm.controls.api.DeviceHub
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import ru.mipt.npm.controls.base.*
 import ru.mipt.npm.controls.controllers.duration
 import ru.mipt.npm.controls.ports.*
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.values.asValue
 import kotlin.collections.component1
@@ -23,7 +28,6 @@ import kotlin.time.Duration
 
 class PiMotionMasterDevice(
     context: Context,
-    override val deviceName: String = "PiMotionMaster",
     private val portFactory: PortFactory = KtorTcpPort,
 ) : DeviceBase(context), DeviceHub {
 
@@ -48,7 +52,7 @@ class PiMotionMasterDevice(
         }
         //Update port
         //address = portSpec.node
-        port = portFactory(portSpec.node!!, context)
+        port = portFactory(portSpec ?: Meta.EMPTY, context)
         connected.updateLogical(true)
 //        connector.open()
         //Initialize axes
@@ -61,7 +65,7 @@ class PiMotionMasterDevice(
                 //re-define axes if needed
                 axes = ids.associateWith { Axis(it) }
             }
-            ids.map { it.asValue() }.asValue().asMetaItem()
+            Meta(ids.map { it.asValue() }.asValue())
             initialize()
             failIfError()
         }
@@ -317,10 +321,10 @@ class PiMotionMasterDevice(
         }
 
         val move by acting {
-            val target = it.double ?: it.node["target"].double ?: error("Unacceptable target value $it")
+            val target = it.double ?: it?.get("target").double ?: error("Unacceptable target value $it")
             closedLoop.write(true)
             //optionally set velocity
-            it.node["velocity"].double?.let { v ->
+            it?.get("velocity").double?.let { v ->
                 velocity.write(v)
             }
             targetPosition.write(target)
@@ -332,7 +336,7 @@ class PiMotionMasterDevice(
         }
 
         suspend fun move(target: Double) {
-            move(target.asMetaItem())
+            move(target.asMeta())
         }
     }
 

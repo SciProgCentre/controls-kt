@@ -9,6 +9,8 @@ import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
 import io.rsocket.kotlin.transport.ktor.client.RSocketSupport
 import io.rsocket.kotlin.transport.ktor.client.rSocket
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -36,7 +38,7 @@ public class RSocketMagixEndpoint<T>(
         val flow = rSocket.requestStream(payload)
         return flow.map {
             MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText())
-        }.flowOn(coroutineContext)
+        }.flowOn(coroutineContext[CoroutineDispatcher]?:Dispatchers.Unconfined)
     }
 
     override suspend fun broadcast(message: MagixMessage<T>) {

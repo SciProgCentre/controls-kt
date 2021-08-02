@@ -1,5 +1,6 @@
 plugins {
     id("ru.mipt.npm.gradle.jvm")
+    application
 }
 
 
@@ -12,4 +13,8 @@ dependencies{
 
 kotlin{
     explicitApi = null
+}
+
+application{
+    mainClass.set("ZmqKt")
 }

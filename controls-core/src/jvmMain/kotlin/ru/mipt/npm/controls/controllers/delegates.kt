@@ -2,7 +2,7 @@ package ru.mipt.npm.controls.controllers
 
 import kotlinx.coroutines.runBlocking
 import ru.mipt.npm.controls.base.*
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
@@ -12,7 +12,7 @@ import kotlin.time.Duration
 /**
  * Blocking read of the value
  */
-public operator fun ReadOnlyDeviceProperty.getValue(thisRef: Any?, property: KProperty<*>): MetaItem =
+public operator fun ReadOnlyDeviceProperty.getValue(thisRef: Any?, property: KProperty<*>): Meta =
     runBlocking(scope.coroutineContext) {
         read()
     }
@@ -22,7 +22,7 @@ public operator fun <T: Any> TypedReadOnlyDeviceProperty<T>.getValue(thisRef: An
         readTyped()
     }
 
-public operator fun DeviceProperty.setValue(thisRef: Any?, property: KProperty<*>, value: MetaItem) {
+public operator fun DeviceProperty.setValue(thisRef: Any?, property: KProperty<*>, value: Meta) {
     this.value = value
 }
 
@@ -36,7 +36,8 @@ public fun <T : Any> ReadOnlyDeviceProperty.convert(
 ): ReadOnlyProperty<Any?, T> {
     return ReadOnlyProperty { _, _ ->
         runBlocking(scope.coroutineContext) {
-            read(forceRead).let { metaConverter.itemToObject(it) }
+            val meta = read(forceRead)
+            metaConverter.metaToObject(meta)?: error("Meta $meta could not be converted by $metaConverter")
         }
     }
 }
@@ -47,11 +48,12 @@ public fun <T : Any> DeviceProperty.convert(
 ): ReadWriteProperty<Any?, T> {
     return object : ReadWriteProperty<Any?, T> {
         override fun getValue(thisRef: Any?, property: KProperty<*>): T = runBlocking(scope.coroutineContext) {
-            read(forceRead).let { metaConverter.itemToObject(it) }
+            val meta = read(forceRead)
+            metaConverter.metaToObject(meta)?: error("Meta $meta could not be converted by $metaConverter")
         }
 
         override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-            this@convert.setValue(thisRef, property, value.let { metaConverter.objectToMetaItem(it) })
+            this@convert.setValue(thisRef, property, value.let { metaConverter.objectToMeta(it) })
         }
     }
 }

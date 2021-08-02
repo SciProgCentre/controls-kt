@@ -29,13 +29,15 @@ import ru.mipt.npm.controls.api.PropertyGetMessage
 import ru.mipt.npm.controls.api.PropertySetMessage
 import ru.mipt.npm.controls.api.getOrNull
 import ru.mipt.npm.controls.controllers.DeviceManager
-import ru.mipt.npm.controls.controllers.respondMessage
+import ru.mipt.npm.controls.controllers.respondHubMessage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.server.GenericMagixMessage
 import ru.mipt.npm.magix.server.launchMagixServerRawRSocket
 import ru.mipt.npm.magix.server.magixModule
 import space.kscience.dataforge.meta.toJson
-import space.kscience.dataforge.meta.toMetaItem
+import space.kscience.dataforge.meta.toMeta
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
 
 /**
  * Create and start a web server for several devices
@@ -70,7 +72,7 @@ public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
 }
 
 
-public const val WEB_SERVER_TARGET: String = "@webServer"
+public val WEB_SERVER_TARGET: Name = "@webServer".asName()
 
 public fun Application.deviceManagerModule(
     manager: DeviceManager,
@@ -158,7 +160,7 @@ public fun Application.deviceManagerModule(
 
                 val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(DeviceMessage.serializer(), body)
 
-                val response = manager.respondMessage(request)
+                val response = manager.respondHubMessage(request)
                 call.respondMessage(response)
             }
 
@@ -171,11 +173,11 @@ public fun Application.deviceManagerModule(
                         val property: String by call.parameters
                         val request = PropertyGetMessage(
                             sourceDevice = WEB_SERVER_TARGET,
-                            targetDevice = target,
+                            targetDevice = Name.parse(target),
                             property = property,
                         )
 
-                        val response = manager.respondMessage(request)
+                        val response = manager.respondHubMessage(request)
                         call.respondMessage(response)
                     }
                     post("set") {
@@ -186,12 +188,12 @@ public fun Application.deviceManagerModule(
 
                         val request = PropertySetMessage(
                             sourceDevice = WEB_SERVER_TARGET,
-                            targetDevice = target,
+                            targetDevice = Name.parse(target),
                             property = property,
-                            value = json.toMetaItem()
+                            value = json.toMeta()
                         )
 
-                        val response = manager.respondMessage(request)
+                        val response = manager.respondHubMessage(request)
                         call.respondMessage(response)
                     }
                 }

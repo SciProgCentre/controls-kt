@@ -7,13 +7,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import ru.mipt.npm.controls.api.ActionDescriptor
-import ru.mipt.npm.controls.api.Device
-import ru.mipt.npm.controls.api.PropertyDescriptor
+import ru.mipt.npm.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaItem
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.coroutines.CoroutineContext
 import kotlin.properties.Delegates.observable
@@ -48,11 +45,11 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
     }
 
-    private val logicalState: HashMap<String, MetaItem?> = HashMap()
+    private val logicalState: HashMap<String, Meta?> = HashMap()
 
-    private val _propertyFlow: MutableSharedFlow<Pair<String, MetaItem>> = MutableSharedFlow()
+    private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow()
 
-    override val propertyFlow: SharedFlow<Pair<String, MetaItem>> get() = _propertyFlow
+    public override val messageFlow: SharedFlow<DeviceMessage> get() = sharedMessageFlow
 
     @Suppress("UNCHECKED_CAST")
     internal val self: D
@@ -60,13 +57,13 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
 
     private val stateLock = Mutex()
 
-    private suspend fun updateLogical(propertyName: String, value: MetaItem?) {
+    private suspend fun updateLogical(propertyName: String, value: Meta?) {
         if (value != logicalState[propertyName]) {
             stateLock.withLock {
                 logicalState[propertyName] = value
             }
             if (value != null) {
-                _propertyFlow.emit(propertyName to value)
+                sharedMessageFlow.emit(PropertyChangedMessage(propertyName, value))
             }
         }
     }
@@ -75,14 +72,14 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
      * Force read physical value and push an update if it is changed. It does not matter if logical state is present.
      * The logical state is updated after read
      */
-    override suspend fun readItem(propertyName: String): MetaItem {
+    override suspend fun readProperty(propertyName: String): Meta {
         val newValue = properties[propertyName]?.readItem(self)
             ?: error("A property with name $propertyName is not registered in $this")
         updateLogical(propertyName, newValue)
         return newValue
     }
 
-    override fun getItem(propertyName: String): MetaItem? = logicalState[propertyName]
+    override fun getProperty(propertyName: String): Meta? = logicalState[propertyName]
 
     override suspend fun invalidate(propertyName: String) {
         stateLock.withLock {
@@ -90,7 +87,7 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
         }
     }
 
-    override suspend fun writeItem(propertyName: String, value: MetaItem): Unit {
+    override suspend fun writeItem(propertyName: String, value: Meta): Unit {
         //If there is a physical property with given name, invalidate logical property and write physical one
         (properties[propertyName] as? WritableDevicePropertySpec<D, out Any>)?.let {
             it.writeItem(self, value)
@@ -100,7 +97,7 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
         }
     }
 
-    override suspend fun execute(action: String, argument: MetaItem?): MetaItem? =
+    override suspend fun execute(action: String, argument: Meta?): Meta? =
         actions[action]?.executeItem(self, argument)
 
 
@@ -114,7 +111,7 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
         if (oldValue != newValue) {
             launch {
                 invalidate(property.name)
-                _propertyFlow.emit(property.name to converter.objectToMetaItem(newValue))
+                sharedMessageFlow.emit(PropertyChangedMessage(property.name, converter.objectToMeta(newValue)))
             }
         }
     }
@@ -124,11 +121,11 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
      */
     public suspend fun <T : Any> DevicePropertySpec<D, T>.read(): T {
         val res = read(self)
-        updateLogical(name, converter.objectToMetaItem(res))
+        updateLogical(name, converter.objectToMeta(res))
         return res
     }
 
-    public fun <T : Any> DevicePropertySpec<D, T>.get(): T? = getItem(name)?.let(converter::itemToObject)
+    public fun <T : Any> DevicePropertySpec<D, T>.get(): T? = getProperty(name)?.let(converter::metaToObject)
 
     /**
      * Write typed property state and invalidate logical state

@@ -1,6 +1,6 @@
 package ru.mipt.npm.controls.api
 
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.*
 import space.kscience.dataforge.provider.Provider
 
@@ -8,8 +8,6 @@ import space.kscience.dataforge.provider.Provider
  * A hub that could locate multiple devices and redirect actions to them
  */
 public interface DeviceHub : Provider {
-    public val deviceName: String
-
     public val devices: Map<NameToken, Device>
 
     override val defaultTarget: String get() = Device.DEVICE_TARGET
@@ -53,19 +51,19 @@ public fun DeviceHub.getOrNull(name: Name): Device? = when {
 public operator fun DeviceHub.get(name: Name): Device =
     getOrNull(name) ?: error("Device with name $name not found in $this")
 
-public fun DeviceHub.getOrNull(nameString: String): Device? = getOrNull(nameString.toName())
+public fun DeviceHub.getOrNull(nameString: String): Device? = getOrNull(Name.parse(nameString))
 
 public operator fun DeviceHub.get(nameString: String): Device =
     getOrNull(nameString) ?: error("Device with name $nameString not found in $this")
 
-public suspend fun DeviceHub.readItem(deviceName: Name, propertyName: String): MetaItem =
-    this[deviceName].readItem(propertyName)
+public suspend fun DeviceHub.readProperty(deviceName: Name, propertyName: String): Meta =
+    this[deviceName].readProperty(propertyName)
 
-public suspend fun DeviceHub.writeItem(deviceName: Name, propertyName: String, value: MetaItem) {
+public suspend fun DeviceHub.writeItem(deviceName: Name, propertyName: String, value: Meta) {
     this[deviceName].writeItem(propertyName, value)
 }
 
-public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: MetaItem?): MetaItem? =
+public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: Meta?): Meta? =
     this[deviceName].execute(command, argument)
 
 

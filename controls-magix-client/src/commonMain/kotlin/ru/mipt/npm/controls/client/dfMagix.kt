@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.controllers.DeviceManager
-import ru.mipt.npm.controls.controllers.respondMessage
+import ru.mipt.npm.controls.controllers.hubMessageFlow
+import ru.mipt.npm.controls.controllers.respondHubMessage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error
@@ -25,25 +26,28 @@ internal fun generateId(request: MagixMessage<*>): String = if (request.id != nu
 /**
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
-public fun DeviceManager.launchDfMagix(
+public fun DeviceManager.connectToMagix(
     endpoint: MagixEndpoint<DeviceMessage>,
     endpointID: String = DATAFORGE_MAGIX_FORMAT,
 ): Job = context.launch {
     endpoint.subscribe().onEach { request ->
-        val responsePayload = respondMessage(request.payload)
-        val response = MagixMessage(
-            format = DATAFORGE_MAGIX_FORMAT,
-            id = generateId(request),
-            parentId = request.id,
-            origin = endpointID,
-            payload = responsePayload
-        )
-        endpoint.broadcast(response)
+        val responsePayload = respondHubMessage(request.payload)
+        if (responsePayload != null) {
+            val response = MagixMessage(
+                format = DATAFORGE_MAGIX_FORMAT,
+                id = generateId(request),
+                parentId = request.id,
+                origin = endpointID,
+                payload = responsePayload
+            )
+
+            endpoint.broadcast(response)
+        }
     }.catch { error ->
         logger.error(error) { "Error while responding to message" }
     }.launchIn(this)
 
-    controller.messageOutput().onEach { payload ->
+    hubMessageFlow(this).onEach { payload ->
         endpoint.broadcast(
             MagixMessage(
                 format = DATAFORGE_MAGIX_FORMAT,

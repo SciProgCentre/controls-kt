@@ -12,7 +12,7 @@ import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 
 public const val TANGO_MAGIX_FORMAT: String = "tango"
 
@@ -54,11 +54,11 @@ public data class TangoPayload(
     val host: String,
     val device: String,
     val name: String,
-    val value: MetaItem? = null,
+    val value: Meta? = null,
     val quality: TangoQuality = TangoQuality.VALID,
-    val argin: MetaItem? = null,
-    val argout: MetaItem? = null,
-    val data: MetaItem? = null,
+    val argin: Meta? = null,
+    val argout: Meta? = null,
+    val data: Meta? = null,
     val errors: List<String>? = null
 )
 

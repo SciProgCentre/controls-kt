@@ -7,7 +7,7 @@ This repository contains a prototype of API and simple implementation
 of a slow control system, including a demo.
 
 DataForge-control uses some concepts and modules of DataForge, 
-such as `Meta` (immutable tree-like structure) and `MetaItem` (which 
+such as `Meta` (immutable tree-like structure) and `Meta` (which 
 includes a scalar value, or a tree of values, easily convertable to/from JSON 
 if needed).  
 

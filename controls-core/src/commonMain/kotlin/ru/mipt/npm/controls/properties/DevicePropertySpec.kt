@@ -3,10 +3,10 @@ package ru.mipt.npm.controls.properties
 import ru.mipt.npm.controls.api.ActionDescriptor
 import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.api.PropertyDescriptor
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
-import space.kscience.dataforge.meta.transformations.nullableItemToObject
-import space.kscience.dataforge.meta.transformations.nullableObjectToMetaItem
+import space.kscience.dataforge.meta.transformations.nullableMetaToObject
+import space.kscience.dataforge.meta.transformations.nullableObjectToMeta
 
 
 /**
@@ -40,8 +40,8 @@ public interface DevicePropertySpec<in D : Device, T : Any> {
 }
 
 @OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T : Any> DevicePropertySpec<D, T>.readItem(device: D): MetaItem =
-    converter.objectToMetaItem(read(device))
+public suspend fun <D : Device, T : Any> DevicePropertySpec<D, T>.readItem(device: D): Meta =
+    converter.objectToMeta(read(device))
 
 
 public interface WritableDevicePropertySpec<in D : Device, T : Any> : DevicePropertySpec<D, T> {
@@ -53,8 +53,8 @@ public interface WritableDevicePropertySpec<in D : Device, T : Any> : DeviceProp
 }
 
 @OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T : Any> WritableDevicePropertySpec<D, T>.writeItem(device: D, item: MetaItem) {
-    write(device, converter.itemToObject(item))
+public suspend fun <D : Device, T : Any> WritableDevicePropertySpec<D, T>.writeItem(device: D, item: Meta) {
+    write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
 }
 
 public interface DeviceActionSpec<in D : Device, I : Any, O : Any> {
@@ -80,9 +80,9 @@ public interface DeviceActionSpec<in D : Device, I : Any, O : Any> {
 
 public suspend fun <D : Device, I : Any, O : Any> DeviceActionSpec<D, I, O>.executeItem(
     device: D,
-    item: MetaItem?
-): MetaItem? {
-    val arg = inputConverter.nullableItemToObject(item)
+    item: Meta?
+): Meta? {
+    val arg = inputConverter.nullableMetaToObject(item)
     val res = execute(device, arg)
-    return outputConverter.nullableObjectToMetaItem(res)
+    return outputConverter.nullableObjectToMeta(res)
 }

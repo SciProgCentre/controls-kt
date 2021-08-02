@@ -2,7 +2,7 @@ package ru.mipt.npm.controls.client
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 
 
 /*
@@ -31,7 +31,7 @@ public data class EqData(
     @SerialName("type_id")
     val typeId: Int,
     val type: String? = null,
-    val value: MetaItem? = null,
+    val value: Meta? = null,
     @SerialName("event_id")
     val eventId: Int? = null,
     val error: Int? = null,

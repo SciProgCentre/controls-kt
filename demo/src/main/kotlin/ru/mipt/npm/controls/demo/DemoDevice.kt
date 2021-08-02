@@ -47,7 +47,7 @@ class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
 
         @OptIn(ExperimentalTime::class)
         override fun DemoDevice.onStartup() {
-            doRecurring(Duration.milliseconds(50)){
+            doRecurring(Duration.milliseconds(10)){
                 sin.read()
                 cos.read()
             }

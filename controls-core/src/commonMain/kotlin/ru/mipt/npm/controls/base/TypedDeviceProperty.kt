@@ -2,7 +2,7 @@ package ru.mipt.npm.controls.base
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
 /**
@@ -14,14 +14,18 @@ public open class TypedReadOnlyDeviceProperty<T : Any>(
 ) : ReadOnlyDeviceProperty by property {
 
     public fun updateLogical(obj: T) {
-        property.updateLogical(converter.objectToMetaItem(obj))
+        property.updateLogical(converter.objectToMeta(obj))
     }
 
-    public open val typedValue: T? get() = value?.let { converter.itemToObject(it) }
+    public open val typedValue: T? get() = value?.let { converter.metaToObject(it) }
 
-    public suspend fun readTyped(force: Boolean = false): T = converter.itemToObject(read(force))
+    public suspend fun readTyped(force: Boolean = false): T {
+        val meta = read(force)
+        return converter.metaToObject(meta)
+            ?: error("Meta $meta could not be converted by $converter")
+    }
 
-    public fun flowTyped(): Flow<T?> = flow().map { it?.let { converter.itemToObject(it) } }
+    public fun flowTyped(): Flow<T?> = flow().map { it?.let { converter.metaToObject(it) } }
 }
 
 /**
@@ -32,23 +36,23 @@ public class TypedDeviceProperty<T : Any>(
     converter: MetaConverter<T>,
 ) : TypedReadOnlyDeviceProperty<T>(property, converter), DeviceProperty {
 
-    override var value: MetaItem?
+    override var value: Meta?
         get() = property.value
         set(arg) {
             property.value = arg
         }
 
     public override var typedValue: T?
-        get() = value?.let { converter.itemToObject(it) }
+        get() = value?.let { converter.metaToObject(it) }
         set(arg) {
-            property.value = arg?.let { converter.objectToMetaItem(arg) }
+            property.value = arg?.let { converter.objectToMeta(arg) }
         }
 
-    override suspend fun write(item: MetaItem) {
+    override suspend fun write(item: Meta) {
         property.write(item)
     }
 
     public suspend fun write(obj: T) {
-        property.write(converter.objectToMetaItem(obj))
+        property.write(converter.objectToMeta(obj))
     }
 }

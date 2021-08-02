@@ -2,8 +2,6 @@ package ru.mipt.npm.controls.properties
 
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaItem
-import space.kscience.dataforge.meta.TypedMetaItem
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
@@ -38,13 +36,6 @@ public fun <D : DeviceBySpec<D>> DeviceSpec<D>.stringProperty(
     read: suspend D.() -> String
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, String>>> =
     property(MetaConverter.string, name, descriptorBuilder, read)
-
-public fun <D : DeviceBySpec<D>> DeviceSpec<D>.itemProperty(
-    name: String? = null,
-    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    read: suspend D.() -> MetaItem
-): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, MetaItem>>> =
-    property(MetaConverter.item, name, descriptorBuilder, read)
 
 public fun <D : DeviceBySpec<D>> DeviceSpec<D>.metaProperty(
     name: String? = null,
@@ -87,14 +78,6 @@ public fun <D : DeviceBySpec<D>> DeviceSpec<D>.stringProperty(
     write: suspend D.(String) -> Unit
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, String>>> =
     property(MetaConverter.string, name, descriptorBuilder, read, write)
-
-public fun <D : DeviceBySpec<D>> DeviceSpec<D>.itemProperty(
-    name: String? = null,
-    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    read: suspend D.() -> MetaItem,
-    write: suspend D.(MetaItem) -> Unit
-): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, TypedMetaItem<*>>>> =
-    property(MetaConverter.item, name, descriptorBuilder, read, write)
 
 public fun <D : DeviceBySpec<D>> DeviceSpec<D>.metaProperty(
     name: String? = null,

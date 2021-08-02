@@ -7,12 +7,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import ru.mipt.npm.controls.api.ActionDescriptor
-import ru.mipt.npm.controls.api.Device
-import ru.mipt.npm.controls.api.PropertyDescriptor
+import ru.mipt.npm.controls.api.*
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.meta.MetaItem
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
+import kotlin.collections.set
 import kotlin.coroutines.CoroutineContext
 
 //TODO move to DataForge-core
@@ -24,28 +23,33 @@ public data class LogEntry(val content: String, val priority: Int = 0)
 private open class BasicReadOnlyDeviceProperty(
     val device: DeviceBase,
     override val name: String,
-    default: MetaItem?,
+    default: Meta?,
     override val descriptor: PropertyDescriptor,
-    private val getter: suspend (before: MetaItem?) -> MetaItem,
+    private val getter: suspend (before: Meta?) -> Meta,
 ) : ReadOnlyDeviceProperty {
 
     override val scope: CoroutineScope get() = device
 
-    private val state: MutableStateFlow<MetaItem?> = MutableStateFlow(default)
-    override val value: MetaItem? get() = state.value
+    private val state: MutableStateFlow<Meta?> = MutableStateFlow(default)
+    override val value: Meta? get() = state.value
 
     override suspend fun invalidate() {
         state.value = null
     }
 
-    override fun updateLogical(item: MetaItem) {
+    override fun updateLogical(item: Meta) {
         state.value = item
         scope.launch {
-            device.sharedPropertyFlow.emit(Pair(name, item))
+            device.sharedMessageFlow.emit(
+                PropertyChangedMessage(
+                    property = name,
+                    value = item,
+                )
+            )
         }
     }
 
-    override suspend fun read(force: Boolean): MetaItem {
+    override suspend fun read(force: Boolean): Meta {
         //backup current value
         val currentValue = value
         return if (force || currentValue == null) {
@@ -61,7 +65,7 @@ private open class BasicReadOnlyDeviceProperty(
         }
     }
 
-    override fun flow(): StateFlow<MetaItem?> = state
+    override fun flow(): StateFlow<Meta?> = state
 }
 
 
@@ -69,13 +73,13 @@ private open class BasicReadOnlyDeviceProperty(
 private class BasicDeviceProperty(
     device: DeviceBase,
     name: String,
-    default: MetaItem?,
+    default: Meta?,
     descriptor: PropertyDescriptor,
-    getter: suspend (MetaItem?) -> MetaItem,
-    private val setter: suspend (oldValue: MetaItem?, newValue: MetaItem) -> MetaItem?,
+    getter: suspend (Meta?) -> Meta,
+    private val setter: suspend (oldValue: Meta?, newValue: Meta) -> Meta?,
 ) : BasicReadOnlyDeviceProperty(device, name, default, descriptor, getter), DeviceProperty {
 
-    override var value: MetaItem?
+    override var value: Meta?
         get() = super.value
         set(value) {
             scope.launch {
@@ -89,7 +93,7 @@ private class BasicDeviceProperty(
 
     private val writeLock = Mutex()
 
-    override suspend fun write(item: MetaItem) {
+    override suspend fun write(item: Meta) {
         writeLock.withLock {
             //fast return if value is not changed
             if (item == value) return@withLock
@@ -113,16 +117,14 @@ public abstract class DeviceBase(final override val context: Context) : Device {
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
 
-
     private val _properties = HashMap<String, ReadOnlyDeviceProperty>()
     public val properties: Map<String, ReadOnlyDeviceProperty> get() = _properties
     private val _actions = HashMap<String, DeviceAction>()
     public val actions: Map<String, DeviceAction> get() = _actions
 
-    internal val sharedPropertyFlow = MutableSharedFlow<Pair<String, MetaItem>>()
+    internal val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
 
-    override val propertyFlow: SharedFlow<Pair<String, MetaItem>> get() = sharedPropertyFlow
-
+    override val messageFlow: SharedFlow<DeviceMessage> get() = sharedMessageFlow
     private val sharedLogFlow = MutableSharedFlow<LogEntry>()
 
     /**
@@ -152,23 +154,23 @@ public abstract class DeviceBase(final override val context: Context) : Device {
         _actions[name] = action
     }
 
-    override suspend fun readItem(propertyName: String): MetaItem =
+    override suspend fun readProperty(propertyName: String): Meta =
         (_properties[propertyName] ?: error("Property with name $propertyName not defined")).read()
 
-    override fun getItem(propertyName: String): MetaItem?=
+    override fun getProperty(propertyName: String): Meta? =
         (_properties[propertyName] ?: error("Property with name $propertyName not defined")).value
 
     override suspend fun invalidate(propertyName: String) {
         (_properties[propertyName] ?: error("Property with name $propertyName not defined")).invalidate()
     }
 
-    override suspend fun writeItem(propertyName: String, value: MetaItem) {
+    override suspend fun writeItem(propertyName: String, value: Meta) {
         (_properties[propertyName] as? DeviceProperty ?: error("Property with name $propertyName not defined")).write(
             value
         )
     }
 
-    override suspend fun execute(action: String, argument: MetaItem?): MetaItem? =
+    override suspend fun execute(action: String, argument: Meta?): Meta? =
         (_actions[action] ?: error("Request with name $action not defined")).invoke(argument)
 
     /**
@@ -176,9 +178,9 @@ public abstract class DeviceBase(final override val context: Context) : Device {
      */
     public fun createReadOnlyProperty(
         name: String,
-        default: MetaItem?,
+        default: Meta?,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-        getter: suspend (MetaItem?) -> MetaItem,
+        getter: suspend (Meta?) -> Meta,
     ): ReadOnlyDeviceProperty {
         val property = BasicReadOnlyDeviceProperty(
             this,
@@ -197,10 +199,10 @@ public abstract class DeviceBase(final override val context: Context) : Device {
      */
     internal fun createMutableProperty(
         name: String,
-        default: MetaItem?,
+        default: Meta?,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-        getter: suspend (MetaItem?) -> MetaItem,
-        setter: suspend (oldValue: MetaItem?, newValue: MetaItem) -> MetaItem?,
+        getter: suspend (Meta?) -> Meta,
+        setter: suspend (oldValue: Meta?, newValue: Meta) -> Meta?,
     ): DeviceProperty {
         val property = BasicDeviceProperty(
             this,
@@ -220,9 +222,9 @@ public abstract class DeviceBase(final override val context: Context) : Device {
     private inner class BasicDeviceAction(
         override val name: String,
         override val descriptor: ActionDescriptor,
-        private val block: suspend (MetaItem?) -> MetaItem?,
+        private val block: suspend (Meta?) -> Meta?,
     ) : DeviceAction {
-        override suspend fun invoke(arg: MetaItem?): MetaItem? =
+        override suspend fun invoke(arg: Meta?): Meta? =
             withContext(coroutineContext) {
                 block(arg)
             }
@@ -234,7 +236,7 @@ public abstract class DeviceBase(final override val context: Context) : Device {
     internal fun createAction(
         name: String,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
-        block: suspend (MetaItem?) -> MetaItem?,
+        block: suspend (Meta?) -> Meta?,
     ): DeviceAction {
         val action = BasicDeviceAction(name, ActionDescriptor(name).apply(descriptorBuilder), block)
         registerAction(name, action)

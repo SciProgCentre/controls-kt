@@ -14,6 +14,7 @@ import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
 import ru.mipt.npm.magix.api.filter
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 
 public class ZmqMagixEndpoint<T>(
     private val host: String,
@@ -53,7 +54,9 @@ public class ZmqMagixEndpoint<T>(
                     }
                 }
             }
-        }.filter(filter).flowOn(coroutineContext) //should be flown on IO because of blocking calls
+        }.filter(filter).flowOn(
+            coroutineContext[CoroutineDispatcher] ?: Dispatchers.IO
+        ) //should be flown on IO because of blocking calls
     }
 
     private val publishSocket by lazy {
@@ -71,3 +74,16 @@ public class ZmqMagixEndpoint<T>(
         zmqContext.close()
     }
 }
+
+public suspend fun <T> MagixEndpoint.Companion.zmq(
+    host: String,
+    payloadSerializer: KSerializer<T>,
+    pubPort: Int = DEFAULT_MAGIX_ZMQ_PUB_PORT,
+    pullPort: Int = DEFAULT_MAGIX_ZMQ_PULL_PORT,
+): ZmqMagixEndpoint<T> = ZmqMagixEndpoint(
+    host,
+    payloadSerializer,
+    pubPort,
+    pullPort,
+    coroutineContext = coroutineContext
+)

@@ -7,11 +7,12 @@ import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.api.DeviceMessage
-import ru.mipt.npm.controls.client.launchDfMagix
+import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
+import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
 import ru.mipt.npm.magix.server.startMagixServer
 import space.kscience.dataforge.context.*
 import tornadofx.*
@@ -34,16 +35,18 @@ class DemoController : Controller(), ContextAware {
         context.launch {
             device = deviceManager.install("demo", DemoDevice)
             //starting magix event loop
-            magixServer = startMagixServer()
+            magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
             //Launch device client and connect it to the server
-            deviceManager.launchDfMagix(MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer()))
-            visualizer = startDemoDeviceServer()
+            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
+            deviceManager.connectToMagix(deviceEndpoint)
+            val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost", DeviceMessage.serializer())
+            visualizer = visualEndpoint.startDemoDeviceServer()
         }
     }
 
     fun shutdown() {
         logger.info { "Shutting down..." }
-        visualizer?.stop(1000,5000)
+        visualizer?.stop(1000, 5000)
         logger.info { "Visualization server stopped" }
         magixServer?.stop(1000, 5000)
         logger.info { "Magix server stopped" }
@@ -104,10 +107,10 @@ class DemoControllerView : View(title = " Demo controller remote") {
         button("Show plots") {
             useMaxWidth = true
             action {
-                controller.magixServer?.run {
+                controller.visualizer?.run {
                     val host = "localhost"//environment.connectors.first().host
                     val port = environment.connectors.first().port
-                    val uri = URI("http", null, host, port, "/plots", null, null)
+                    val uri = URI("http", null, host, port, "/", null, null)
                     Desktop.getDesktop().browse(uri)
                 }
             }

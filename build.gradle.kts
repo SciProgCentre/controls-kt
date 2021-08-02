@@ -2,16 +2,13 @@ plugins {
     id("ru.mipt.npm.gradle.project")
 }
 
-val dataforgeVersion: String by extra("0.4.3")
+val dataforgeVersion: String by extra("0.5.0-dev-7")
 val ktorVersion: String by extra(ru.mipt.npm.gradle.KScienceVersions.ktorVersion)
-val rsocketVersion by extra("0.12.0")
+val rsocketVersion by extra("0.13.1")
 
 allprojects {
     group = "ru.mipt.npm"
-    version = "0.1.0"
-    repositories{
-        jcenter()
-    }
+    version = "0.1.1"
 }
 
 ksciencePublish {
