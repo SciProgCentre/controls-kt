@@ -9,6 +9,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveText
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
+import io.ktor.response.respondText
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.route
@@ -157,11 +158,13 @@ public fun Application.deviceManagerModule(
 
             post("message") {
                 val body = call.receiveText()
-
                 val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(DeviceMessage.serializer(), body)
-
                 val response = manager.respondHubMessage(request)
-                call.respondMessage(response)
+                if (response != null) {
+                    call.respondMessage(response)
+                } else {
+                    call.respondText("No response")
+                }
             }
 
             route("{target}") {
@@ -178,7 +181,11 @@ public fun Application.deviceManagerModule(
                         )
 
                         val response = manager.respondHubMessage(request)
-                        call.respondMessage(response)
+                        if (response != null) {
+                            call.respondMessage(response)
+                        } else {
+                            call.respond(HttpStatusCode.InternalServerError)
+                        }
                     }
                     post("set") {
                         val target: String by call.parameters
@@ -194,7 +201,11 @@ public fun Application.deviceManagerModule(
                         )
 
                         val response = manager.respondHubMessage(request)
-                        call.respondMessage(response)
+                        if (response != null) {
+                            call.respondMessage(response)
+                        } else {
+                            call.respond(HttpStatusCode.InternalServerError)
+                        }
                     }
                 }
             }

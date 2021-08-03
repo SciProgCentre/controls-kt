@@ -24,6 +24,7 @@ include(
     ":controls-tcp",
     ":controls-serial",
     ":controls-server",
+    ":controls-opcua",
     ":demo",
     ":magix",
     ":magix:magix-api",

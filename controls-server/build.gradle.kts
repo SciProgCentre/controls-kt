@@ -8,7 +8,7 @@ description = """
 """.trimIndent()
 
 val dataforgeVersion: String by rootProject.extra
-val ktorVersion: String = "1.5.3"
+val ktorVersion: String by rootProject.extra
 
 dependencies {
     implementation(project(":controls-core"))

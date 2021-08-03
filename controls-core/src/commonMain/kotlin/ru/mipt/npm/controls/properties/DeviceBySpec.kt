@@ -18,6 +18,7 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /**
+ * A device generated from specification
  * @param D recursive self-type for properties and actions
  */
 @OptIn(InternalDeviceAPI::class)
