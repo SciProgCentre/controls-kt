@@ -52,8 +52,9 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
             override val name: String = readWriteProperty.name
             override val descriptor: PropertyDescriptor = PropertyDescriptor(this.name).apply(descriptorBuilder)
             override val converter: MetaConverter<T> = converter
-            override suspend fun read(device: D): T =
-                withContext(device.coroutineContext) { readWriteProperty.get(device) }
+            override suspend fun read(device: D): T = withContext(device.coroutineContext) {
+                readWriteProperty.get(device)
+            }
 
             override suspend fun write(device: D, value: T) = withContext(device.coroutineContext) {
                 readWriteProperty.set(device, value)
@@ -145,12 +146,12 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
     /**
      * The function is executed right after device initialization is finished
      */
-    public open fun D.onStartup(){}
+    public open fun D.onStartup() {}
 
     /**
      * The function is executed before device is shut down
      */
-    public open fun D.onShutdown(){}
+    public open fun D.onShutdown() {}
 
 
     override fun invoke(meta: Meta, context: Context): D = buildDevice().apply {

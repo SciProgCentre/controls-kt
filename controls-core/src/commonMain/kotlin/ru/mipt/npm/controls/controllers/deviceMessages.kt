@@ -25,7 +25,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
             if (request.value == null) {
                 invalidate(request.property)
             } else {
-                writeItem(request.property, request.value)
+                writeProperty(request.property, request.value)
             }
             PropertyChangedMessage(
                 property = request.property,

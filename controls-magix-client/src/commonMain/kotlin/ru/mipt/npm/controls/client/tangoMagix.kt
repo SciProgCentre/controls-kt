@@ -94,7 +94,7 @@ public fun DeviceManager.launchTangoMagix(
                     }
                     TangoAction.write -> {
                         request.payload.value?.let { value ->
-                            device.writeItem(request.payload.name, value)
+                            device.writeProperty(request.payload.name, value)
                         }
                         //wait for value to be written and return final state
                         val value = device.getOrReadItem(request.payload.name)

@@ -47,7 +47,7 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
      * Set property [value] for a property with name [propertyName].
      * In rare cases could suspend if the [Device] supports command queue and it is full at the moment.
      */
-    public suspend fun writeItem(propertyName: String, value: Meta)
+    public suspend fun writeProperty(propertyName: String, value: Meta)
 
     /**
      * A subscription-based [Flow] of [DeviceMessage] provided by device. The flow is guaranteed to be readable

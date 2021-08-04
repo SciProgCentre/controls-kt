@@ -164,7 +164,7 @@ public abstract class DeviceBase(final override val context: Context) : Device {
         (_properties[propertyName] ?: error("Property with name $propertyName not defined")).invalidate()
     }
 
-    override suspend fun writeItem(propertyName: String, value: Meta) {
+    override suspend fun writeProperty(propertyName: String, value: Meta) {
         (_properties[propertyName] as? DeviceProperty ?: error("Property with name $propertyName not defined")).write(
             value
         )

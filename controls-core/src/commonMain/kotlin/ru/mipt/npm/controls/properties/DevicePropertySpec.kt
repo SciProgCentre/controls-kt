@@ -5,8 +5,6 @@ import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
-import space.kscience.dataforge.meta.transformations.nullableMetaToObject
-import space.kscience.dataforge.meta.transformations.nullableObjectToMeta
 
 
 /**
@@ -15,8 +13,7 @@ import space.kscience.dataforge.meta.transformations.nullableObjectToMeta
 @RequiresOptIn
 public annotation class InternalDeviceAPI
 
-//TODO relax T restriction after DF 0.4.4
-public interface DevicePropertySpec<in D : Device, T : Any> {
+public interface DevicePropertySpec<in D : Device, T> {
     /**
      * Property name, should be unique in device
      */
@@ -40,11 +37,11 @@ public interface DevicePropertySpec<in D : Device, T : Any> {
 }
 
 @OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T : Any> DevicePropertySpec<D, T>.readItem(device: D): Meta =
+public suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta =
     converter.objectToMeta(read(device))
 
 
-public interface WritableDevicePropertySpec<in D : Device, T : Any> : DevicePropertySpec<D, T> {
+public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
     /**
      * Write physical value to a device
      */
@@ -53,11 +50,11 @@ public interface WritableDevicePropertySpec<in D : Device, T : Any> : DeviceProp
 }
 
 @OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T : Any> WritableDevicePropertySpec<D, T>.writeItem(device: D, item: Meta) {
+public suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
     write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
 }
 
-public interface DeviceActionSpec<in D : Device, I : Any, O : Any> {
+public interface DeviceActionSpec<in D : Device, I, O> {
     /**
      * Action name, should be unique in device
      */
@@ -78,11 +75,11 @@ public interface DeviceActionSpec<in D : Device, I : Any, O : Any> {
     public suspend fun execute(device: D, input: I?): O?
 }
 
-public suspend fun <D : Device, I : Any, O : Any> DeviceActionSpec<D, I, O>.executeItem(
+public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeMeta(
     device: D,
     item: Meta?
 ): Meta? {
-    val arg = inputConverter.nullableMetaToObject(item)
+    val arg = item?.let { inputConverter.metaToObject(item) }
     val res = execute(device, arg)
-    return outputConverter.nullableObjectToMeta(res)
+    return res?.let { outputConverter.objectToMeta(res) }
 }

@@ -10,6 +10,9 @@ import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.install
+import ru.mipt.npm.controls.demo.DemoDevice.Companion.cosScale
+import ru.mipt.npm.controls.demo.DemoDevice.Companion.sinScale
+import ru.mipt.npm.controls.demo.DemoDevice.Companion.timeScale
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
@@ -97,10 +100,12 @@ class DemoControllerView : View(title = " Demo controller remote") {
         button("Submit") {
             useMaxWidth = true
             action {
-                controller.device?.apply {
-                    timeScale = timeScaleSlider.value
-                    sinScale = xScaleSlider.value
-                    cosScale = yScaleSlider.value
+                controller.device?.run {
+                    launch {
+                        timeScale.write(timeScaleSlider.value)
+                        sinScale.write(xScaleSlider.value)
+                        cosScale.write(yScaleSlider.value)
+                    }
                 }
             }
         }

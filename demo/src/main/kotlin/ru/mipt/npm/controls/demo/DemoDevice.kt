@@ -9,24 +9,24 @@ import kotlin.time.ExperimentalTime
 
 
 class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
-    var timeScale by state(5000.0)
-    var sinScale by state(1.0)
-    var cosScale by state(1.0)
+    private var timeScaleState = 5000.0
+    private var sinScaleState = 1.0
+    private var cosScaleState = 1.0
 
     companion object : DeviceSpec<DemoDevice>(::DemoDevice) {
         // register virtual properties based on actual object state
-        val timeScaleProperty = registerProperty(MetaConverter.double, DemoDevice::timeScale)
-        val sinScaleProperty = registerProperty(MetaConverter.double, DemoDevice::sinScale)
-        val cosScaleProperty = registerProperty(MetaConverter.double, DemoDevice::cosScale)
+        val timeScale = registerProperty(MetaConverter.double, DemoDevice::timeScaleState)
+        val sinScale = registerProperty(MetaConverter.double, DemoDevice::sinScaleState)
+        val cosScale = registerProperty(MetaConverter.double, DemoDevice::cosScaleState)
 
         val sin by doubleProperty {
             val time = Instant.now()
-            kotlin.math.sin(time.toEpochMilli().toDouble() / timeScale) * sinScale
+            kotlin.math.sin(time.toEpochMilli().toDouble() / timeScaleState) * sinScaleState
         }
 
         val cos by doubleProperty {
             val time = Instant.now()
-            kotlin.math.cos(time.toEpochMilli().toDouble() / timeScale) * sinScale
+            kotlin.math.cos(time.toEpochMilli().toDouble() / timeScaleState) * sinScaleState
         }
 
         val coordinates by metaProperty {
@@ -39,9 +39,9 @@ class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
         }
 
         val resetScale by action(MetaConverter.meta, MetaConverter.meta) {
-            timeScale = 5000.0
-            sinScale = 1.0
-            cosScale = 1.0
+            timeScale.write(5000.0)
+            sinScale.write(1.0)
+            cosScale.write(1.0)
             null
         }
 

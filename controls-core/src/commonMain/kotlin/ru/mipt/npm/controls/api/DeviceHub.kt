@@ -59,8 +59,8 @@ public operator fun DeviceHub.get(nameString: String): Device =
 public suspend fun DeviceHub.readProperty(deviceName: Name, propertyName: String): Meta =
     this[deviceName].readProperty(propertyName)
 
-public suspend fun DeviceHub.writeItem(deviceName: Name, propertyName: String, value: Meta) {
-    this[deviceName].writeItem(propertyName, value)
+public suspend fun DeviceHub.writeProperty(deviceName: Name, propertyName: String, value: Meta) {
+    this[deviceName].writeProperty(propertyName, value)
 }
 
 public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: Meta?): Meta? =
