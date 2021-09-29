@@ -17,6 +17,7 @@ kotlin {
         commonMain{
             dependencies {
                 api("space.kscience:dataforge-io:$dataforgeVersion")
+                api(npm.kotlinx.datetime)
             }
         }
     }

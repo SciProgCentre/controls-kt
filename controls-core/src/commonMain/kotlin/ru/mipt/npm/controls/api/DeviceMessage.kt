@@ -1,5 +1,7 @@
 package ru.mipt.npm.controls.api
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -16,6 +18,7 @@ public sealed class DeviceMessage {
     public abstract val sourceDevice: Name?
     public abstract val targetDevice: Name?
     public abstract val comment: String?
+    public abstract val time: Instant?
 
     /**
      * Update the source device name for composition. If the original name is null, resulting name is also null.
@@ -52,6 +55,7 @@ public data class PropertyChangedMessage(
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = block(sourceDevice))
 }
@@ -67,6 +71,7 @@ public data class PropertySetMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -82,6 +87,7 @@ public data class PropertyGetMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -95,6 +101,7 @@ public data class GetDescriptionMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -109,6 +116,7 @@ public data class DescriptionMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = block(sourceDevice))
 }
@@ -124,6 +132,7 @@ public data class ActionExecuteMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -139,6 +148,7 @@ public data class ActionResultMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = block(sourceDevice))
 }
@@ -153,6 +163,7 @@ public data class BinaryNotificationMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = block(sourceDevice))
 }
@@ -167,6 +178,7 @@ public data class EmptyDeviceMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -182,6 +194,7 @@ public data class DeviceLogMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -198,6 +211,7 @@ public data class DeviceErrorMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
+    override val time: Instant? = Clock.System.now()
 ) : DeviceMessage(){
     override fun changeSource(block: (Name) -> Name):DeviceMessage  = copy(sourceDevice = block(sourceDevice))
 }

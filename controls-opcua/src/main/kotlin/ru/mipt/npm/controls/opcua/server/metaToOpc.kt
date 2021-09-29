@@ -1,16 +1,24 @@
 package ru.mipt.npm.controls.opcua.server
 
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue
 import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaSerializer
 import space.kscience.dataforge.meta.isLeaf
 import space.kscience.dataforge.values.*
+import java.time.Instant
 
-internal fun Meta.toOpc(statusCode: StatusCode = StatusCode.GOOD, time: DateTime? = null): DataValue {
+/**
+ * Convert Meta to OPC data value using
+ */
+internal fun Meta.toOpc(
+    statusCode: StatusCode = StatusCode.GOOD,
+    sourceTime: DateTime? = null,
+    serverTime: DateTime? = null
+): DataValue {
     val variant: Variant = if (isLeaf) {
         when (value?.type) {
             null, ValueType.NULL -> Variant.NULL_VALUE
@@ -24,7 +32,7 @@ internal fun Meta.toOpc(statusCode: StatusCode = StatusCode.GOOD, time: DateTime
             }
         }
     } else {
-        Variant(Json.encodeToString(MetaSerializer, this))
+        Variant(Json.encodeToString(this))
     }
-    return DataValue(variant, statusCode, time)
+    return DataValue(variant, statusCode, sourceTime,serverTime ?: DateTime(Instant.now()))
 }

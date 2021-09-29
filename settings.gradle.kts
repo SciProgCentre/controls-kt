@@ -7,7 +7,6 @@ pluginManagement {
     val toolsVersion = "0.10.4"
 
     repositories {
-        mavenLocal()
         maven("https://repo.kotlin.link")
         mavenCentral()
         gradlePluginPortal()
@@ -18,6 +17,19 @@ pluginManagement {
         id("ru.mipt.npm.gradle.mpp") version toolsVersion
         id("ru.mipt.npm.gradle.jvm") version toolsVersion
         id("ru.mipt.npm.gradle.js") version toolsVersion
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven("https://repo.kotlin.link")
+        mavenCentral()
+    }
+
+    versionCatalogs {
+        create("npm") {
+            from("ru.mipt.npm:version-catalog:0.10.4")
+        }
     }
 }
 
