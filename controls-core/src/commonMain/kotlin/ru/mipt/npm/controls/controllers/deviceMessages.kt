@@ -5,8 +5,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import ru.mipt.npm.controls.api.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
 
@@ -48,12 +51,12 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
             val descriptionMeta = Meta {
                 "properties" put {
                     propertyDescriptors.map { descriptor ->
-                        descriptor.name put descriptor.toMeta()
+                        descriptor.name put Json.encodeToJsonElement(descriptor).toMeta()
                     }
                 }
                 "actions" put {
                     actionDescriptors.map { descriptor ->
-                        descriptor.name put descriptor.toMeta()
+                        descriptor.name put Json.encodeToJsonElement(descriptor).toMeta()
                     }
                 }
             }

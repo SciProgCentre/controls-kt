@@ -15,9 +15,9 @@ class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
 
     companion object : DeviceSpec<DemoDevice>(::DemoDevice) {
         // register virtual properties based on actual object state
-        val timeScale = registerProperty(MetaConverter.double, DemoDevice::timeScaleState)
-        val sinScale = registerProperty(MetaConverter.double, DemoDevice::sinScaleState)
-        val cosScale = registerProperty(MetaConverter.double, DemoDevice::cosScaleState)
+        val timeScale by property(MetaConverter.double, DemoDevice::timeScaleState)
+        val sinScale by property(MetaConverter.double, DemoDevice::sinScaleState)
+        val cosScale by property(MetaConverter.double, DemoDevice::cosScaleState)
 
         val sin by doubleProperty {
             val time = Instant.now()

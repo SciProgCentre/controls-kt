@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.opcua
+package ru.mipt.npm.controls.opcua.client
 
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking

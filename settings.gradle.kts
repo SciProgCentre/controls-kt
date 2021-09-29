@@ -1,11 +1,13 @@
 rootProject.name = "controls-kt"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+enableFeaturePreview("VERSION_CATALOGS")
 
 pluginManagement {
-    val toolsVersion = "0.10.2"
+    val toolsVersion = "0.10.4"
 
     repositories {
+        mavenLocal()
         maven("https://repo.kotlin.link")
         mavenCentral()
         gradlePluginPortal()

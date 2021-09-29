@@ -1,22 +1,32 @@
 package ru.mipt.npm.controls.api
 
-import space.kscience.dataforge.meta.Scheme
-import space.kscience.dataforge.meta.string
+import kotlinx.serialization.Serializable
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.descriptors.MetaDescriptorBuilder
+
+//TODO add proper builders
 
 /**
  * A descriptor for property
  */
-public class PropertyDescriptor(name: String) : Scheme() {
-    public val name: String by string(name)
-    public var info: String? by string()
+@Serializable
+public class PropertyDescriptor(
+    public val name: String,
+    public var info: String? = null,
+    public var metaDescriptor: MetaDescriptor = MetaDescriptor(),
+    public var readable: Boolean = true,
+    public var writable: Boolean = false
+)
+
+public fun PropertyDescriptor.metaDescriptor(block: MetaDescriptorBuilder.()->Unit){
+    metaDescriptor = MetaDescriptor(block)
 }
 
 /**
  * A descriptor for property
  */
-public class ActionDescriptor(name: String) : Scheme() {
-    public val name: String by string(name)
-    public var info: String? by string()
-    //var descriptor by spec(ItemDescriptor)
+@Serializable
+public class ActionDescriptor(public val name: String) {
+    public var info: String? = null
 }
 

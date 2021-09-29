@@ -9,7 +9,9 @@ val miloVersion: String = "0.6.3"
 dependencies {
     api(project(":controls-core"))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${ru.mipt.npm.gradle.KScienceVersions.coroutinesVersion}")
-    implementation("org.eclipse.milo:sdk-client:$miloVersion")
-    implementation("org.eclipse.milo:bsd-parser:$miloVersion")
-    implementation("org.eclipse.milo:dictionary-reader:$miloVersion")
+
+    api("org.eclipse.milo:sdk-client:$miloVersion")
+    api("org.eclipse.milo:bsd-parser:$miloVersion")
+
+    api("org.eclipse.milo:sdk-server:$miloVersion")
 }

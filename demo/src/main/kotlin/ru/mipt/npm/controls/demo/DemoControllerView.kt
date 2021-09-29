@@ -6,6 +6,8 @@ import javafx.scene.control.Slider
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.launch
+import org.eclipse.milo.opcua.sdk.server.OpcUaServer
+import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
@@ -13,6 +15,9 @@ import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.cosScale
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.sinScale
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.timeScale
+import ru.mipt.npm.controls.opcua.server.OpcUaServer
+import ru.mipt.npm.controls.opcua.server.endpoint
+import ru.mipt.npm.controls.opcua.server.serveDevices
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
@@ -27,6 +32,13 @@ class DemoController : Controller(), ContextAware {
     var device: DemoDevice? = null
     var magixServer: ApplicationEngine? = null
     var visualizer: ApplicationEngine? = null
+    var opcUaServer: OpcUaServer = OpcUaServer {
+        setApplicationName(LocalizedText.english("ru.mipt.npm.controls.opcua"))
+        endpoint {
+            setBindPort(9999)
+            //use default endpoint
+        }
+    }
 
     override val context = Context("demoDevice") {
         plugin(DeviceManager)
@@ -44,11 +56,16 @@ class DemoController : Controller(), ContextAware {
             deviceManager.connectToMagix(deviceEndpoint)
             val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost", DeviceMessage.serializer())
             visualizer = visualEndpoint.startDemoDeviceServer()
+
+            opcUaServer.startup()
+            opcUaServer.serveDevices(deviceManager)
         }
     }
 
     fun shutdown() {
         logger.info { "Shutting down..." }
+        opcUaServer.shutdown()
+        logger.info { "OpcUa server stopped" }
         visualizer?.stop(1000, 5000)
         logger.info { "Visualization server stopped" }
         magixServer?.stop(1000, 5000)

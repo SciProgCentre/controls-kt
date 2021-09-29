@@ -2,8 +2,12 @@ package ru.mipt.npm.controls.api
 
 import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import ru.mipt.npm.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.meta.Meta
@@ -70,7 +74,6 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
     }
 }
 
-
 /**
  * Get the logical state of property or suspend to read the physical value.
  */
@@ -85,5 +88,12 @@ public fun Device.getProperties(): Meta = Meta {
         setMeta(Name.parse(descriptor.name), getProperty(descriptor.name))
     }
 }
+
+/**
+ * Subscribe on property changes for the whole device
+ */
+public fun Device.onPropertyChange(callback: suspend PropertyChangedMessage.() -> Unit): Job =
+    messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(this)
+
 
 //public suspend fun Device.execute(name: String, meta: Meta?): Meta? = execute(name, meta?.let { MetaNode(it) })

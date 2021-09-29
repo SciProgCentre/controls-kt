@@ -22,8 +22,10 @@ import io.ktor.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.html.*
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyGetMessage
@@ -35,7 +37,6 @@ import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.server.GenericMagixMessage
 import ru.mipt.npm.magix.server.launchMagixServerRawRSocket
 import ru.mipt.npm.magix.server.magixModule
-import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
@@ -116,7 +117,7 @@ public fun Application.deviceManagerModule(
                                         li {
                                             a(href = "../$deviceName/${property.name}/get") { +"${property.name}: " }
                                             code {
-                                                +property.toMeta().toJson().toString()
+                                                +Json.encodeToString(property)
                                             }
                                         }
                                     }
@@ -127,7 +128,7 @@ public fun Application.deviceManagerModule(
                                         li {
                                             +("${action.name}: ")
                                             code {
-                                                +action.toMeta().toJson().toString()
+                                                +Json.encodeToString(action)
                                             }
                                         }
                                     }
@@ -144,12 +145,12 @@ public fun Application.deviceManagerModule(
                         put("target", name.toString())
                         put("properties", buildJsonArray {
                             device.propertyDescriptors.forEach { descriptor ->
-                                add(descriptor.toMeta().toJson())
+                                add(Json.encodeToJsonElement(descriptor))
                             }
                         })
                         put("actions", buildJsonArray {
                             device.actionDescriptors.forEach { actionDescriptor ->
-                                add(actionDescriptor.toMeta().toJson())
+                                add(Json.encodeToJsonElement(actionDescriptor))
                             }
                         })
                     }

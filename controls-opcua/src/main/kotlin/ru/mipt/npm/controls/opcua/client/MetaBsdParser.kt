@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.opcua
+package ru.mipt.npm.controls.opcua.client
 
 import org.eclipse.milo.opcua.binaryschema.AbstractCodec
 import org.eclipse.milo.opcua.binaryschema.parser.BsdParser

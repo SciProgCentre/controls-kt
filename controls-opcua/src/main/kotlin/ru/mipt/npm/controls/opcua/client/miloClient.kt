@@ -1,10 +1,9 @@
-package ru.mipt.npm.controls.opcua
+package ru.mipt.npm.controls.opcua.client
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder
 import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider
 import org.eclipse.milo.opcua.sdk.client.api.identity.IdentityProvider
-import org.eclipse.milo.opcua.sdk.client.dtd.DataTypeDictionarySessionInitializer
 import org.eclipse.milo.opcua.stack.client.security.DefaultClientCertificateValidator
 import org.eclipse.milo.opcua.stack.core.security.DefaultTrustListManager
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
@@ -17,6 +16,9 @@ import space.kscience.dataforge.context.logger
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.*
+
+public fun <T:Any> T?.toOptional(): Optional<T> = if(this == null) Optional.empty() else Optional.of(this)
 
 
 internal fun Context.createMiloClient(
@@ -41,9 +43,7 @@ internal fun Context.createMiloClient(
     return OpcUaClient.create(
         endpointUrl,
         { endpoints: List<EndpointDescription?> ->
-            endpoints.stream()
-                .filter(endpointFilter)
-                .findFirst()
+            endpoints.firstOrNull(endpointFilter).toOptional()
         }
     ) { configBuilder: OpcUaClientConfigBuilder ->
         configBuilder
@@ -56,7 +56,8 @@ internal fun Context.createMiloClient(
             .setIdentityProvider(identityProvider)
             .setRequestTimeout(uint(5000))
             .build()
-    }.apply {
-        addSessionInitializer(DataTypeDictionarySessionInitializer(MetaBsdParser()))
     }
+//        .apply {
+//        addSessionInitializer(DataTypeDictionarySessionInitializer(MetaBsdParser()))
+//    }
 }

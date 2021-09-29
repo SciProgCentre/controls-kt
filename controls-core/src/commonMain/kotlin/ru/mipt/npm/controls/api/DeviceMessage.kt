@@ -42,14 +42,13 @@ public sealed class DeviceMessage {
 /**
  * Notify that property is changed. [sourceDevice] is mandatory.
  * [property] corresponds to property name.
- * [value] could be null if the property is invalidated.
  *
  */
 @Serializable
 @SerialName("property.changed")
 public data class PropertyChangedMessage(
     public val property: String,
-    public val value: Meta?,
+    public val value: Meta,
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
