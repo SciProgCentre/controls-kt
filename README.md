@@ -21,6 +21,11 @@ DataForge-control is a [Kotlin-multiplatform](https://kotlinlang.org/docs/refere
 application. Asynchronous operations are implemented with 
 [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) library.
 
+## Materials and publications
+
+* Video - [A general overview seminar](https://youtu.be/LO-qjWgXMWc)
+* Video - [A seminar about the system mechanics](https://youtu.be/wES0RV5GpoQ)
+* Article - [A Novel Solution for Controlling Hardware Components of Accelerators and Beamlines](https://www.preprints.org/manuscript/202108.0336/v1) 
 
 ### Features
 Among other things, you can:
