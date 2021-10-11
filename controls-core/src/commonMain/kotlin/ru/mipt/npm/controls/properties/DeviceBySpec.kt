@@ -54,6 +54,9 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
 
     private val stateLock = Mutex()
 
+    /**
+     * Update logical property state and notify listeners
+     */
     protected suspend fun updateLogical(propertyName: String, value: Meta?) {
         if (value != logicalState[propertyName]) {
             stateLock.withLock {
@@ -87,8 +90,8 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
     override suspend fun writeProperty(propertyName: String, value: Meta): Unit {
         //If there is a physical property with given name, invalidate logical property and write physical one
         (properties[propertyName] as? WritableDevicePropertySpec<D, out Any?>)?.let {
-            it.writeMeta(self, value)
             invalidate(propertyName)
+            it.writeMeta(self, value)
         } ?: run {
             updateLogical(propertyName, value)
         }
@@ -112,8 +115,12 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
      * Write typed property state and invalidate logical state
      */
     public suspend fun <T> WritableDevicePropertySpec<D, T>.write(value: T) {
-        write(self, value)
         invalidate(name)
+        write(self, value)
+        //perform asynchronous read and update after write
+        launch {
+            read()
+        }
     }
 
     override fun close() {

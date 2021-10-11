@@ -1,6 +1,7 @@
 package ru.mipt.npm.controls.opcua.server
 
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toJavaInstant
 import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.core.AccessLevel
 import org.eclipse.milo.opcua.sdk.core.Reference
@@ -15,6 +16,7 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
 import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel
 import org.eclipse.milo.opcua.stack.core.AttributeId
 import org.eclipse.milo.opcua.stack.core.Identifiers
+import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.api.DeviceHub
@@ -123,14 +125,14 @@ public class DeviceNameSpace(
             }.build()
 
 
-            device[descriptor]?.toOpc()?.let {
+            device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
                 node.value = it
             }
 
             /**
              * Subscribe to node value changes
              */
-            node.addAttributeObserver { uaNode: UaNode, attributeId: AttributeId, value: Any ->
+            node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any ->
                 if (attributeId == AttributeId.Value) {
                     val meta: Meta = when (value) {
                         is Meta -> value
@@ -153,7 +155,8 @@ public class DeviceNameSpace(
         //Subscribe on properties updates
         device.onPropertyChange {
             nodes[property]?.let { node ->
-                node.value = value.toOpc()
+                val sourceTime = time?.let { DateTime(it.toJavaInstant()) }
+                node.value = value.toOpc(sourceTime = sourceTime)
             }
         }
         //recursively add sub-devices

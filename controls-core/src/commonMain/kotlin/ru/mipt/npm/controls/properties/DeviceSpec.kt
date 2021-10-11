@@ -51,16 +51,19 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
         PropertyDelegateProvider { _, property ->
             val deviceProperty = object : WritableDevicePropertySpec<D, T> {
                 override val name: String = property.name
+
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(name).apply {
                     //TODO add type from converter
                     writable = true
                 }.apply(descriptorBuilder)
+
                 override val converter: MetaConverter<T> = converter
+
                 override suspend fun read(device: D): T = withContext(device.coroutineContext) {
                     readWriteProperty.get(device)
                 }
 
-                override suspend fun write(device: D, value: T) = withContext(device.coroutineContext) {
+                override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext) {
                     readWriteProperty.set(device, value)
                 }
             }
@@ -107,7 +110,7 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
 
                 override suspend fun read(device: D): T = withContext(device.coroutineContext) { device.read() }
 
-                override suspend fun write(device: D, value: T) = withContext(device.coroutineContext) {
+                override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext) {
                     device.write(value)
                 }
             }

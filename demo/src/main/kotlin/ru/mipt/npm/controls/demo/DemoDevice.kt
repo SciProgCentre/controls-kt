@@ -1,5 +1,6 @@
 package ru.mipt.npm.controls.demo
 
+import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.properties.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
@@ -47,9 +48,12 @@ class DemoDevice : DeviceBySpec<DemoDevice>(DemoDevice) {
 
         @OptIn(ExperimentalTime::class)
         override fun DemoDevice.onStartup() {
+            launch {
+                sinScale.read()
+                cosScale.read()
+            }
             doRecurring(Duration.milliseconds(50)){
-                sin.read()
-                cos.read()
+                coordinates.read()
             }
         }
     }

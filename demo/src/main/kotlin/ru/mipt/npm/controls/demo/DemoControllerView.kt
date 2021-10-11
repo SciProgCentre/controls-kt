@@ -99,7 +99,7 @@ class DemoControllerView : View(title = " Demo controller remote") {
             pane {
                 hgrow = Priority.ALWAYS
             }
-            xScaleSlider = slider(0.0..2.0, 1.0) {
+            xScaleSlider = slider(0.1..2.0, 1.0) {
                 isShowTickLabels = true
                 isShowTickMarks = true
             }
@@ -109,7 +109,7 @@ class DemoControllerView : View(title = " Demo controller remote") {
             pane {
                 hgrow = Priority.ALWAYS
             }
-            yScaleSlider = slider(0.0..2.0, 1.0) {
+            yScaleSlider = slider(0.1..2.0, 1.0) {
                 isShowTickLabels = true
                 isShowTickMarks = true
             }

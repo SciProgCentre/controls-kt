@@ -44,6 +44,8 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
 
     /**
      * Invalidate property (set logical state to invalid)
+     *
+     * This message is suspended to provide lock-free local property changes (they require coroutine context).
      */
     public suspend fun invalidate(propertyName: String)
 
@@ -77,11 +79,13 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
 /**
  * Get the logical state of property or suspend to read the physical value.
  */
-public suspend fun Device.getOrReadItem(propertyName: String): Meta =
+public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
     getProperty(propertyName) ?: readProperty(propertyName)
 
 /**
  * Get a snapshot of logical state of the device
+ *
+ * TODO currently this 
  */
 public fun Device.getProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {
@@ -94,6 +98,3 @@ public fun Device.getProperties(): Meta = Meta {
  */
 public fun Device.onPropertyChange(callback: suspend PropertyChangedMessage.() -> Unit): Job =
     messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(this)
-
-
-//public suspend fun Device.execute(name: String, meta: Meta?): Meta? = execute(name, meta?.let { MetaNode(it) })
