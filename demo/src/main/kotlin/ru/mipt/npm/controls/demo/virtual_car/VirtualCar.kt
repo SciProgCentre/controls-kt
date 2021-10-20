@@ -11,27 +11,32 @@ import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
-    private var speedState: Pair<Double, Double> = Pair(0.0, 0.0)
+    private var _speedState: Pair<Double, Double> = Pair(0.0, 0.0)
+    private val speedState: Pair<Double, Double>
     get() {
-        val previous_speed = field
-        val current_acceleration = this.accelerationState
-        val now = Instant.now().toEpochMilli().toDouble()
-        val time_difference = now - this.timeState
-        this.timeState = now
-        field = Pair(
-            previous_speed.first + time_difference * current_acceleration.first,
-            previous_speed.second + time_difference * current_acceleration.second
-        )
-        return field
+        updateSpeedLocationTime()
+        return this._speedState
     }
 
     private var accelerationState: Pair<Double, Double> = Pair(0.0, 0.0)
     set(value) {
-        this.speedState
+        updateSpeedLocationTime()
         field = value
     }
 
     private var timeState = Instant.now().toEpochMilli().toDouble()
+
+    private fun updateSpeedLocationTime() {
+        val previousSpeed = this._speedState
+        val currentAcceleration = this.accelerationState
+        val now = Instant.now().toEpochMilli().toDouble()
+        val timeDifference = now - this.timeState
+        this.timeState = now
+        this._speedState = Pair(
+            previousSpeed.first + timeDifference * currentAcceleration.first * 1e-3,
+            previousSpeed.second + timeDifference * currentAcceleration.second * 1e-3
+        )
+    }
 
     object DoublePairMetaConverter : MetaConverter<Pair<Double, Double>> {
         override fun metaToObject(meta: Meta): Pair<Double, Double> = Pair(
@@ -43,7 +48,6 @@ class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
             "x" put obj.first
             "y" put obj.second
         }
-
     }
 
     companion object : DeviceSpec<VirtualCar>(::VirtualCar) {
@@ -66,7 +70,7 @@ class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
                 speed.read()
                 acceleration.read()
             }
-            doRecurring(Duration.milliseconds(50)){
+            doRecurring(Duration.seconds(1)){
                 carProperties.read()
             }
         }
