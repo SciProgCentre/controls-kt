@@ -10,22 +10,22 @@ import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
+data class Coordinates(val x: Double = 0.0, val y: Double = 0.0)
+
 class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
-    private var _speedState: Pair<Double, Double> = Pair(0.0, 0.0)
-    private val speedState: Pair<Double, Double>
-    get() {
+    private var speedState: Coordinates = Coordinates()
+    private fun updateAndGetSpeed(): Coordinates {
         updateSpeedLocationTime()
-        return this._speedState
+        return this.speedState
     }
 
-    private var _locationState: Pair<Double, Double> = Pair(0.0, 0.0)
-    private val locationState: Pair<Double, Double>
-    get() {
+    private var locationState: Coordinates = Coordinates()
+    private fun updateAndGetLocation(): Coordinates {
         updateSpeedLocationTime()
-        return this._locationState
+        return this.locationState
     }
 
-    private var accelerationState: Pair<Double, Double> = Pair(0.0, 0.0)
+    private var accelerationState: Coordinates = Coordinates()
     set(value) {
         updateSpeedLocationTime()
         field = value
@@ -34,52 +34,52 @@ class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
     private var timeState = Instant.now().toEpochMilli().toDouble()
 
     private fun updateSpeedLocationTime() {
-        val previousSpeed = this._speedState
-        val previousLocation = this._locationState
+        val previousSpeed = this.speedState
+        val previousLocation = this.locationState
         val currentAcceleration = this.accelerationState
         val now = Instant.now().toEpochMilli().toDouble()
         val timeDifference = now - this.timeState
         this.timeState = now
-        this._speedState = Pair(
-            previousSpeed.first + timeDifference * currentAcceleration.first * 1e-3,
-            previousSpeed.second + timeDifference * currentAcceleration.second * 1e-3
+        this.speedState = Coordinates(
+            previousSpeed.x + timeDifference * currentAcceleration.x * 1e-3,
+            previousSpeed.y + timeDifference * currentAcceleration.y * 1e-3
         )
-        val locationDifference = Pair(
-            timeDifference * 1e-3 * (previousSpeed.first + currentAcceleration.first * timeDifference * 1e-3 / 2),
-            timeDifference * 1e-3 * (previousSpeed.second + currentAcceleration.second * timeDifference * 1e-3 / 2)
+        val locationDifference = Coordinates(
+            timeDifference * 1e-3 * (previousSpeed.x + currentAcceleration.x * timeDifference * 1e-3 / 2),
+            timeDifference * 1e-3 * (previousSpeed.y + currentAcceleration.y * timeDifference * 1e-3 / 2)
         )
-        this._locationState = Pair(
-            previousLocation.first + locationDifference.first,
-            previousLocation.second + locationDifference.second
+        this.locationState = Coordinates(
+            previousLocation.x + locationDifference.x,
+            previousLocation.y + locationDifference.y
         )
     }
 
-    object DoublePairMetaConverter : MetaConverter<Pair<Double, Double>> {
-        override fun metaToObject(meta: Meta): Pair<Double, Double> = Pair(
+    object CoordinatesMetaConverter : MetaConverter<Coordinates> {
+        override fun metaToObject(meta: Meta): Coordinates = Coordinates(
             meta["x"].double ?: 0.0,
             meta["y"].double ?: 0.0
         )
 
-        override fun objectToMeta(obj: Pair<Double, Double>): Meta = Meta {
-            "x" put obj.first
-            "y" put obj.second
+        override fun objectToMeta(obj: Coordinates): Meta = Meta {
+            "x" put obj.x
+            "y" put obj.y
         }
     }
 
     companion object : DeviceSpec<VirtualCar>(::VirtualCar) {
-        val speed by property(DoublePairMetaConverter) { this.speedState }
+        val speed by property(CoordinatesMetaConverter) { this.updateAndGetSpeed() }
 
-        val location by property(DoublePairMetaConverter) { this.locationState }
+        val location by property(CoordinatesMetaConverter) { this.updateAndGetLocation() }
 
-        val acceleration by property(DoublePairMetaConverter, VirtualCar::accelerationState)
+        val acceleration by property(CoordinatesMetaConverter, VirtualCar::accelerationState)
 
         val carProperties by metaProperty {
             Meta {
                 val time = Instant.now()
                 "time" put time.toEpochMilli()
-                "speed" put DoublePairMetaConverter.objectToMeta(read(speed))
-                "location" put DoublePairMetaConverter.objectToMeta(read(location))
-                "acceleration" put DoublePairMetaConverter.objectToMeta(read(acceleration))
+                "speed" put CoordinatesMetaConverter.objectToMeta(read(speed))
+                "location" put CoordinatesMetaConverter.objectToMeta(read(location))
+                "acceleration" put CoordinatesMetaConverter.objectToMeta(read(acceleration))
             }
         }
 

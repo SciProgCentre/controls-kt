@@ -97,7 +97,7 @@ class VirtualCarControllerView : View(title = " Virtual car controller remote") 
             action {
                 controller.device?.run {
                     launch {
-                        acceleration.write(Pair(accelerationXProperty.get(), accelerationYProperty.get()))
+                        acceleration.write(Coordinates(accelerationXProperty.get(), accelerationYProperty.get()))
                     }
                 }
             }
