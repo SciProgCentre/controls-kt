@@ -1,6 +1,8 @@
 @startuml
 title Simple call with callback
+
 Main -> Async: call
+activate Main
 activate Async
 
 Async -> Main: result

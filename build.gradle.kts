@@ -1,18 +1,21 @@
-val dataforgeVersion by extra("0.1.8")
-val plotlyVersion by extra("0.2.0-dev-12")
-
-
-allprojects {
-    repositories {
-        mavenLocal()
-        maven("https://dl.bintray.com/pdvrieze/maven")
-        maven("http://maven.jzy3d.org/releases")
-        maven("https://kotlin.bintray.com/js-externals")
-    }
-
-    group = "hep.dataforge"
-    version = "0.0.1"
+plugins {
+    id("ru.mipt.npm.gradle.project")
 }
 
-val githubProject by extra("dataforge-control")
-val bintrayRepo by extra("dataforge")
+val dataforgeVersion: String by extra("0.5.1")
+val ktorVersion: String by extra(ru.mipt.npm.gradle.KScienceVersions.ktorVersion)
+val rsocketVersion by extra("0.13.1")
+
+allprojects {
+    group = "ru.mipt.npm"
+    version = "0.1.1"
+}
+
+ksciencePublish {
+    github("controls.kt")
+    space()
+}
+
+apiValidation {
+    validationDisabled = true
+}

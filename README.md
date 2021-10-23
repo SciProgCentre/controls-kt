@@ -2,13 +2,12 @@
 
 # Controls.kt
 
-Controls.kt (former DataForge-control) is a data acquisition framework (work in progress). It is
-based on DataForge, a software framework for automated data processing. 
+Controls.kt (former DataForge-control) is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
 This repository contains a prototype of API and simple implementation 
 of a slow control system, including a demo.
 
 Controls.kt uses some concepts and modules of DataForge, 
-such as `Meta` (immutable tree-like structure) and `MetaItem` (which 
+such as `Meta` (immutable tree-like structure) and `Meta` (which 
 includes a scalar value, or a tree of values, easily convertable to/from JSON 
 if needed).  
 
@@ -37,12 +36,12 @@ Among other things, you can:
 ### `dataforge-control-core` module packages
 
 - `api` - defines API for device management. The main class here is 
-[`Device`](dataforge-device-core/src/commonMain/kotlin/hep/dataforge/control/api/Device.kt).
+[`Device`](controls-core/src/commonMain/kotlin/ru/mipt/npm/controls/api/Device.kt).
 Generally, a Device has Properties that can be read and written. Also, some Actions
 can optionally be applied on a device (may or may not affect properties). 
 
 - `base` - contains baseline `Device` implementation 
-[`DeviceBase`](dataforge-control-core/src/commonMain/kotlin/hep/dataforge/control/base/DeviceBase.kt) 
+[`DeviceBase`](controls-core/src/commonMain/kotlin/ru/mipt/npm/controls/base/DeviceBase.kt)
 and property implementation, including property asynchronous flows.
 
 - `controllers` - implements Message Controller that can be attached to the event bus, Message 
