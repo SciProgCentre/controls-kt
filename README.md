@@ -1,12 +1,12 @@
 [![JetBrains Research](https://jb.gg/badges/research.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 
-# DataForge-control
+# Controls.kt
 
-DataForge-control is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
+Controls.kt (former DataForge-control) is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
 This repository contains a prototype of API and simple implementation 
 of a slow control system, including a demo.
 
-DataForge-control uses some concepts and modules of DataForge, 
+Controls.kt uses some concepts and modules of DataForge, 
 such as `Meta` (immutable tree-like structure) and `Meta` (which 
 includes a scalar value, or a tree of values, easily convertable to/from JSON 
 if needed).  
@@ -20,6 +20,11 @@ DataForge-control is a [Kotlin-multiplatform](https://kotlinlang.org/docs/refere
 application. Asynchronous operations are implemented with 
 [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) library.
 
+## Materials and publications
+
+* Video - [A general overview seminar](https://youtu.be/LO-qjWgXMWc)
+* Video - [A seminar about the system mechanics](https://youtu.be/wES0RV5GpoQ)
+* Article - [A Novel Solution for Controlling Hardware Components of Accelerators and Beamlines](https://www.preprints.org/manuscript/202108.0336/v1) 
 
 ### Features
 Among other things, you can:
