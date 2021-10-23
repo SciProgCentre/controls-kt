@@ -13,13 +13,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import ru.mipt.npm.controls.api.DeviceHub
 import ru.mipt.npm.controls.api.PropertyDescriptor
-import ru.mipt.npm.controls.base.*
-import ru.mipt.npm.controls.controllers.duration
 import ru.mipt.npm.controls.ports.*
+import ru.mipt.npm.controls.spec.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.transformations.MetaConverter
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.values.asValue
 import kotlin.collections.component1
@@ -29,58 +29,12 @@ import kotlin.time.Duration
 class PiMotionMasterDevice(
     context: Context,
     private val portFactory: PortFactory = KtorTcpPort,
-) : DeviceBase(context), DeviceHub {
+) : DeviceBySpec<PiMotionMasterDevice>(PiMotionMasterDevice, context), DeviceHub {
 
     private var port: Port? = null
     //TODO make proxy work
     //PortProxy { portFactory(address ?: error("The device is not connected"), context) }
 
-
-    val connected by readingBoolean(false, descriptorBuilder = {
-        info = "True if the connection address is defined and the device is initialized"
-    }) {
-        port != null
-    }
-
-
-    val connect: DeviceAction by acting({
-        info = "Connect to specific port and initialize axis"
-    }) { portSpec ->
-        //Clear current actions if present
-        if (port != null) {
-            disconnect()
-        }
-        //Update port
-        //address = portSpec.node
-        port = portFactory(portSpec ?: Meta.EMPTY, context)
-        connected.updateLogical(true)
-//        connector.open()
-        //Initialize axes
-        if (portSpec != null) {
-            val idn = identity.read()
-            failIfError { "Can't connect to $portSpec. Error code: $it" }
-            logger.info { "Connected to $idn on $portSpec" }
-            val ids = request("SAI?").map { it.trim() }
-            if (ids != axes.keys.toList()) {
-                //re-define axes if needed
-                axes = ids.associateWith { Axis(it) }
-            }
-            Meta(ids.map { it.asValue() }.asValue())
-            initialize()
-            failIfError()
-        }
-    }
-
-    val disconnect: DeviceAction by acting({
-        info = "Disconnect the program from the device if it is connected"
-    }) {
-        if (port != null) {
-            stop()
-            port?.close()
-        }
-        port = null
-        connected.updateLogical(false)
-    }
 
     fun disconnect() {
         runBlocking {
@@ -88,11 +42,7 @@ class PiMotionMasterDevice(
         }
     }
 
-    val timeout: DeviceProperty by writingVirtual(200.asValue()) {
-        info = "Timeout"
-    }
-
-    var timeoutValue: Duration by timeout.duration()
+    var timeoutValue: Duration = Duration.microseconds(200)
 
     /**
      * Name-friendly accessor for axis
@@ -182,166 +132,225 @@ class PiMotionMasterDevice(
         }
     }
 
-    val initialize: DeviceAction by acting {
-        send("INI")
-    }
+    companion object : DeviceSpec<PiMotionMasterDevice>(), Factory<PiMotionMasterDevice> {
 
-    val identity: ReadOnlyDeviceProperty by readingString {
-        request("*IDN?").first()
-    }
+        override fun invoke(meta: Meta, context: Context): PiMotionMasterDevice = PiMotionMasterDevice(context)
 
-    val firmwareVersion: ReadOnlyDeviceProperty by readingString {
-        request("VER?").first()
-    }
+        val connected by booleanProperty(descriptorBuilder = {
+            info = "True if the connection address is defined and the device is initialized"
+        }) {
+            port != null
+        }
 
-    val stop: DeviceAction by acting(
-        descriptorBuilder = {
+
+        val initialize by unitAction {
+            send("INI")
+        }
+
+        val identity by stringProperty {
+            request("*IDN?").first()
+        }
+
+        val firmwareVersion by stringProperty {
+            request("VER?").first()
+        }
+
+        val stop by unitAction({
             info = "Stop all axis"
-        },
-        action = { send("STP") }
-    )
+        }) {
+            send("STP")
+        }
 
-    inner class Axis(val axisId: String) : DeviceBase(context) {
+        val connect by metaAction(descriptorBuilder = {
+            info = "Connect to specific port and initialize axis"
+        }) { portSpec ->
+            //Clear current actions if present
+            if (port != null) {
+                disconnect()
+            }
+            //Update port
+            //address = portSpec.node
+            port = portFactory(portSpec ?: Meta.EMPTY, context)
+            updateLogical(connected, true)
+//        connector.open()
+            //Initialize axes
+            if (portSpec != null) {
+                val idn = identity.read()
+                failIfError { "Can't connect to $portSpec. Error code: $it" }
+                logger.info { "Connected to $idn on $portSpec" }
+                val ids = request("SAI?").map { it.trim() }
+                if (ids != axes.keys.toList()) {
+                    //re-define axes if needed
+                    axes = ids.associateWith { Axis(this, it) }
+                }
+                Meta(ids.map { it.asValue() }.asValue())
+                initialize()
+                failIfError()
+            }
+            null
+        }
 
+        val disconnect by metaAction({
+            info = "Disconnect the program from the device if it is connected"
+        }) {
+            if (port != null) {
+                stop()
+                port?.close()
+            }
+            port = null
+            updateLogical(connected, false)
+            null
+        }
+
+
+        val timeout by property(MetaConverter.duration, PiMotionMasterDevice::timeoutValue) {
+            info = "Timeout"
+        }
+    }
+
+
+    class Axis(
+        val mm: PiMotionMasterDevice,
+        val axisId: String
+    ) : DeviceBySpec<Axis>(Axis, mm.context) {
+
+        /**
+         * TODO Move to head device and abstract
+         */
         private suspend fun readAxisBoolean(command: String): Boolean =
-            requestAndParse(command, axisId)[axisId]?.toIntOrNull()
-                    ?: error("Malformed $command response. Should include integer value for $axisId") != 0
+            (mm.requestAndParse(command, axisId)[axisId]?.toIntOrNull()
+                ?: error("Malformed $command response. Should include integer value for $axisId")) != 0
 
+        /**
+         * TODO Move to head device and abstract
+         */
         private suspend fun writeAxisBoolean(command: String, value: Boolean): Boolean {
             val boolean = if (value) {
                 "1"
             } else {
                 "0"
             }
-            send(command, axisId, boolean)
-            failIfError()
+            mm.send(command, axisId, boolean)
+            mm.failIfError()
             return value
-        }
-
-        private fun axisBooleanProperty(command: String, descriptorBuilder: PropertyDescriptor.() -> Unit = {}) =
-            writingBoolean(
-                getter = { readAxisBoolean("$command?") },
-                setter = { _, newValue ->
-                    writeAxisBoolean(command, newValue)
-                },
-                descriptorBuilder = descriptorBuilder
-            )
-
-        private fun axisNumberProperty(command: String, descriptorBuilder: PropertyDescriptor.() -> Unit = {}) =
-            writingDouble(
-                getter = {
-                    requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
-                        ?: error("Malformed $command response. Should include float value for $axisId")
-                },
-                setter = { _, newValue ->
-                    send(command, axisId, newValue.toString())
-                    failIfError()
-                    newValue
-                },
-                descriptorBuilder = descriptorBuilder
-            )
-
-        val enabled by axisBooleanProperty("EAX") {
-            info = "Motor enable state."
-        }
-
-        val halt: DeviceAction by acting {
-            send("HLT", axisId)
-        }
-
-        val targetPosition by axisNumberProperty("MOV") {
-            info = """
-                Sets a new absolute target position for the specified axis.
-                Servo mode must be switched on for the commanded axis prior to using this command (closed-loop operation).
-            """.trimIndent()
-        }
-
-        val onTarget: TypedReadOnlyDeviceProperty<Boolean> by readingBoolean(
-            descriptorBuilder = {
-                info = "Queries the on-target state of the specified axis."
-            },
-            getter = {
-                readAxisBoolean("ONT?")
-            }
-        )
-
-        val reference: ReadOnlyDeviceProperty by readingBoolean(
-            descriptorBuilder = {
-                info = "Get Referencing Result"
-            },
-            getter = {
-                readAxisBoolean("FRF?")
-            }
-        )
-
-        val moveToReference by acting {
-            send("FRF", axisId)
-        }
-
-        val minPosition by readingDouble(
-            descriptorBuilder = {
-                info = "Minimal position value for the axis"
-            },
-            getter = {
-                requestAndParse("TMN?", axisId)[axisId]?.toDoubleOrNull()
-                    ?: error("Malformed `TMN?` response. Should include float value for $axisId")
-            }
-        )
-
-        val maxPosition by readingDouble(
-            descriptorBuilder = {
-                info = "Maximal position value for the axis"
-            },
-            getter = {
-                requestAndParse("TMX?", axisId)[axisId]?.toDoubleOrNull()
-                    ?: error("Malformed `TMX?` response. Should include float value for $axisId")
-            }
-        )
-
-        val position by readingDouble(
-            descriptorBuilder = {
-                info = "The current axis position."
-            },
-            getter = {
-                requestAndParse("POS?", axisId)[axisId]?.toDoubleOrNull()
-                    ?: error("Malformed `POS?` response. Should include float value for $axisId")
-            }
-        )
-
-        val openLoopTarget: DeviceProperty by axisNumberProperty("OMA") {
-            info = "Position for open-loop operation."
-        }
-
-        val closedLoop: TypedDeviceProperty<Boolean> by axisBooleanProperty("SVO") {
-            info = "Servo closed loop mode"
-        }
-
-        val velocity: TypedDeviceProperty<Double> by axisNumberProperty("VEL") {
-            info = "Velocity value for closed-loop operation"
-        }
-
-        val move by acting {
-            val target = it.double ?: it?.get("target").double ?: error("Unacceptable target value $it")
-            closedLoop.write(true)
-            //optionally set velocity
-            it?.get("velocity").double?.let { v ->
-                velocity.write(v)
-            }
-            targetPosition.write(target)
-            //read `onTarget` and `position` properties in a cycle until movement is complete
-            while (!onTarget.readTyped(true)) {
-                position.read(true)
-                delay(200)
-            }
         }
 
         suspend fun move(target: Double) {
             move(target.asMeta())
         }
-    }
 
-    companion object : Factory<PiMotionMasterDevice> {
-        override fun invoke(meta: Meta, context: Context): PiMotionMasterDevice = PiMotionMasterDevice(context)
+        companion object : DeviceSpec<Axis>() {
+
+            private fun axisBooleanProperty(
+                command: String,
+                descriptorBuilder: PropertyDescriptor.() -> Unit = {}
+            ) = booleanProperty(
+                read = {
+                    readAxisBoolean("$command?")
+                },
+                write = {
+                    writeAxisBoolean(command, it)
+                },
+                descriptorBuilder = descriptorBuilder
+            )
+
+            private fun axisNumberProperty(
+                command: String,
+                descriptorBuilder: PropertyDescriptor.() -> Unit = {}
+            ) = doubleProperty(
+                read = {
+                    mm.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
+                        ?: error("Malformed $command response. Should include float value for $axisId")
+                },
+                write = { newValue ->
+                    mm.send(command, axisId, newValue.toString())
+                    mm.failIfError()
+                },
+                descriptorBuilder = descriptorBuilder
+            )
+
+            val enabled by axisBooleanProperty("EAX") {
+                info = "Motor enable state."
+            }
+
+            val halt by unitAction {
+                mm.send("HLT", axisId)
+            }
+
+            val targetPosition by axisNumberProperty("MOV") {
+                info = """
+                Sets a new absolute target position for the specified axis.
+                Servo mode must be switched on for the commanded axis prior to using this command (closed-loop operation).
+            """.trimIndent()
+            }
+
+            val onTarget by booleanProperty({
+                info = "Queries the on-target state of the specified axis."
+            }) {
+                readAxisBoolean("ONT?")
+            }
+
+            val reference by booleanProperty({
+                info = "Get Referencing Result"
+            }) {
+                readAxisBoolean("FRF?")
+            }
+
+            val moveToReference by unitAction {
+                mm.send("FRF", axisId)
+            }
+
+            val minPosition by doubleProperty({
+                info = "Minimal position value for the axis"
+            }) {
+                mm.requestAndParse("TMN?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed `TMN?` response. Should include float value for $axisId")
+            }
+
+            val maxPosition by doubleProperty({
+                info = "Maximal position value for the axis"
+            }) {
+                mm.requestAndParse("TMX?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed `TMX?` response. Should include float value for $axisId")
+            }
+
+            val position by doubleProperty({
+                info = "The current axis position."
+            }) {
+                mm.requestAndParse("POS?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed `POS?` response. Should include float value for $axisId")
+            }
+
+            val openLoopTarget by axisNumberProperty("OMA") {
+                info = "Position for open-loop operation."
+            }
+
+            val closedLoop by axisBooleanProperty("SVO") {
+                info = "Servo closed loop mode"
+            }
+
+            val velocity by axisNumberProperty("VEL") {
+                info = "Velocity value for closed-loop operation"
+            }
+
+            val move by metaAction {
+                val target = it.double ?: it?.get("target").double ?: error("Unacceptable target value $it")
+                closedLoop.write(true)
+                //optionally set velocity
+                it?.get("velocity").double?.let { v ->
+                    velocity.write(v)
+                }
+                targetPosition.write(target)
+                //read `onTarget` and `position` properties in a cycle until movement is complete
+                while (!onTarget.read()) {
+                    position.read()
+                    delay(200)
+                }
+                null
+            }
+
+        }
+
     }
 
 }

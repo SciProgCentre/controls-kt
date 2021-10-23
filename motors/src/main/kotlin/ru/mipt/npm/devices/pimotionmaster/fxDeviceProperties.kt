@@ -3,58 +3,67 @@ package ru.mipt.npm.devices.pimotionmaster
 import javafx.beans.property.ObjectPropertyBase
 import javafx.beans.property.Property
 import javafx.beans.property.ReadOnlyProperty
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import ru.mipt.npm.controls.api.Device
-import ru.mipt.npm.controls.base.TypedDeviceProperty
-import ru.mipt.npm.controls.base.TypedReadOnlyDeviceProperty
+import ru.mipt.npm.controls.spec.DevicePropertySpec
+import ru.mipt.npm.controls.spec.WritableDevicePropertySpec
+import ru.mipt.npm.controls.spec.onPropertyChange
+import ru.mipt.npm.controls.spec.write
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import tornadofx.*
 
-fun <T : Any> TypedReadOnlyDeviceProperty<T>.fxProperty(ownerDevice: Device?): ReadOnlyProperty<T> =
-    object : ObjectPropertyBase<T>() {
-        override fun getBean(): Any? = ownerDevice
-        override fun getName(): String = this@fxProperty.name
+/**
+ * Bind a FX property to a device property with a given [spec]
+ */
+fun <D : Device, T : Any> Device.fxProperty(
+    spec: DevicePropertySpec<D, T>
+): ReadOnlyProperty<T> = object : ObjectPropertyBase<T>() {
+    override fun getBean(): Any = this
+    override fun getName(): String = spec.name
 
-        init {
-            //Read incoming changes
-            flowTyped().onEach {
-                if (it != null) {
-                    runLater {
+    init {
+        //Read incoming changes
+        onPropertyChange(spec) {
+            if (it != null) {
+                runLater {
+                    try {
                         set(it)
+                    } catch (ex: Throwable) {
+                        logger.info { "Failed to set property $name to $it" }
                     }
-                } else {
-                    invalidated()
                 }
-            }.catch {
-                ownerDevice?.logger?.info { "Failed to set property $name to $it" }
-            }.launchIn(scope)
+            } else {
+                invalidated()
+            }
         }
     }
+}
 
-fun <T : Any> TypedDeviceProperty<T>.fxProperty(ownerDevice: Device?): Property<T> =
+fun <D : Device, T : Any> D.fxProperty(spec: WritableDevicePropertySpec<D, T>): Property<T> =
     object : ObjectPropertyBase<T>() {
-        override fun getBean(): Any? = ownerDevice
-        override fun getName(): String = this@fxProperty.name
+        override fun getBean(): Any = this
+        override fun getName(): String = spec.name
 
         init {
             //Read incoming changes
-            flowTyped().onEach {
+            onPropertyChange(spec) {
                 if (it != null) {
                     runLater {
-                        set(it)
+                        try {
+                            set(it)
+                        } catch (ex: Throwable) {
+                            logger.info { "Failed to set property $name to $it" }
+                        }
                     }
                 } else {
                     invalidated()
                 }
-            }.catch {
-                ownerDevice?.logger?.info { "Failed to set property $name  to $it" }
-            }.launchIn(scope)
+            }
 
-            onChange {
-                typedValue = it
+            onChange { newValue ->
+                if (newValue != null) {
+                    write(spec, newValue)
+                }
             }
         }
     }

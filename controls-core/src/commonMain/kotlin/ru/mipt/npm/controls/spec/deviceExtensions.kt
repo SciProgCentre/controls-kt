@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.properties
+package ru.mipt.npm.controls.spec
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -14,7 +14,7 @@ import kotlin.time.Duration
  *
  * The flow is canceled when the device scope is canceled
  */
-public fun <D : DeviceBySpec<D>, R> D.readRecurring(interval: Duration, reader: suspend D.() -> R): Flow<R> = flow {
+public fun <D : DeviceBase<D>, R> D.readRecurring(interval: Duration, reader: suspend D.() -> R): Flow<R> = flow {
     while (isActive) {
         kotlinx.coroutines.delay(interval)
         emit(reader())
@@ -24,7 +24,7 @@ public fun <D : DeviceBySpec<D>, R> D.readRecurring(interval: Duration, reader: 
 /**
  * Do a recurring task on a device. The task could
  */
-public fun <D : DeviceBySpec<D>> D.doRecurring(interval: Duration, task: suspend D.() -> Unit): Job = launch {
+public fun <D : DeviceBase<D>> D.doRecurring(interval: Duration, task: suspend D.() -> Unit): Job = launch {
     while (isActive) {
         kotlinx.coroutines.delay(interval)
         task()

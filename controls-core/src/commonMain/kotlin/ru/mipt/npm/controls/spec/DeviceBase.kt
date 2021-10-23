@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.properties
+package ru.mipt.npm.controls.spec
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -13,24 +13,15 @@ import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.Meta
 import kotlin.coroutines.CoroutineContext
 
-/**
- * A device generated from specification
- * @param D recursive self-type for properties and actions
- */
+
 @OptIn(InternalDeviceAPI::class)
-public open class DeviceBySpec<D : DeviceBySpec<D>>(
-    public val spec: DeviceSpec<D>,
-    context: Context = Global,
-    meta: Meta = Meta.EMPTY
+public abstract class DeviceBase<D : DeviceBase<D>>(
+    override val context: Context = Global,
+    public val meta: Meta = Meta.EMPTY
 ) : Device {
-    override var context: Context = context
-        internal set
 
-    public var meta: Meta = meta
-        internal set
-
-    public val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
-    public val actions: Map<String, DeviceActionSpec<D, *, *>> get() = spec.actions
+    public abstract val properties: Map<String, DevicePropertySpec<D, *>> //get() = spec.properties
+    public abstract val actions: Map<String, DeviceActionSpec<D, *, *>> //get() = spec.actions
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
         get() = properties.values.map { it.descriptor }
@@ -69,6 +60,13 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
     }
 
     /**
+     * Update logical state using given [spec] and its convertor
+     */
+    protected suspend fun <T> updateLogical(spec: DevicePropertySpec<D, T>, value: T) {
+        updateLogical(spec.name, spec.converter.objectToMeta(value))
+    }
+
+    /**
      * Force read physical value and push an update if it is changed. It does not matter if logical state is present.
      * The logical state is updated after read
      */
@@ -98,7 +96,7 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
     }
 
     override suspend fun execute(action: String, argument: Meta?): Meta? =
-        actions[action]?.executeMeta(self, argument)
+        actions[action]?.executeWithMeta(self, argument)
 
     /**
      * Read typed value and update/push event if needed
@@ -123,19 +121,20 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
         }
     }
 
-    override fun close() {
-        with(spec) { self.onShutdown() }
-        super.close()
-    }
+    public suspend operator fun <I, O> DeviceActionSpec<D, I, O>.invoke(input: I? = null): O? = execute(self, input)
+
 }
 
-public suspend fun <D : DeviceBySpec<D>, T : Any> D.read(
-    propertySpec: DevicePropertySpec<D, T>
-): T = propertySpec.read()
-
-public fun <D : DeviceBySpec<D>, T> D.write(
-    propertySpec: WritableDevicePropertySpec<D, T>,
-    value: T
-): Job = launch {
-    propertySpec.write(value)
+/**
+ * A device generated from specification
+ * @param D recursive self-type for properties and actions
+ */
+public open class DeviceBySpec<D : DeviceBySpec<D>>(
+    public val spec: DeviceSpec<D>,
+    context: Context = Global,
+    meta: Meta = Meta.EMPTY
+) : DeviceBase<D>(context, meta) {
+    override val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
+    override val actions: Map<String, DeviceActionSpec<D, *, *>> get() = spec.actions
 }
+

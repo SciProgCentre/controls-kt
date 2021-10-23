@@ -57,7 +57,7 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
 
     /**
      * A subscription-based [Flow] of [DeviceMessage] provided by device. The flow is guaranteed to be readable
-     * multiple times
+     * multiple times.
      */
     public val messageFlow: Flow<DeviceMessage>
 
@@ -67,6 +67,14 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
      */
     public suspend fun execute(action: String, argument: Meta? = null): Meta?
 
+    /**
+     * Initialize the device. This function suspends until the device is finished initialization
+     */
+    public suspend fun open(): Unit = Unit
+
+    /**
+     * Close and terminate the device. This function does not wait for device to be closed.
+     */
     override fun close() {
         cancel("The device is closed")
     }
@@ -85,7 +93,7 @@ public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
 /**
  * Get a snapshot of logical state of the device
  *
- * TODO currently this 
+ * TODO currently this
  */
 public fun Device.getProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {

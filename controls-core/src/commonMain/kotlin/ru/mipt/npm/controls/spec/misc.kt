@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.base
+package ru.mipt.npm.controls.spec
 
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double

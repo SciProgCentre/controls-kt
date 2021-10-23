@@ -1,10 +1,9 @@
-package ru.mipt.npm.controls.properties
+package ru.mipt.npm.controls.spec
 
 import kotlinx.coroutines.withContext
 import ru.mipt.npm.controls.api.ActionDescriptor
+import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.api.PropertyDescriptor
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
@@ -14,9 +13,7 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
 @OptIn(InternalDeviceAPI::class)
-public abstract class DeviceSpec<D : DeviceBySpec<D>>(
-    private val buildDevice: () -> D
-) : Factory<D> {
+public abstract class DeviceSpec<D : Device> {
     private val _properties = HashMap<String, DevicePropertySpec<D, *>>()
     public val properties: Map<String, DevicePropertySpec<D, *>> get() = _properties
 
@@ -75,8 +72,8 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
 
     public fun <T : Any> property(
         converter: MetaConverter<T>,
-        name: String? = null,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        name: String? = null,
         read: suspend D.() -> T
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
@@ -96,8 +93,8 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
 
     public fun <T : Any> property(
         converter: MetaConverter<T>,
-        name: String? = null,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        name: String? = null,
         read: suspend D.() -> T,
         write: suspend D.(T) -> Unit
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, T>>> =
@@ -129,8 +126,8 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
     public fun <I : Any, O : Any> action(
         inputConverter: MetaConverter<I>,
         outputConverter: MetaConverter<O>,
-        name: String? = null,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
+        name: String? = null,
         execute: suspend D.(I?) -> O?
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
@@ -153,19 +150,35 @@ public abstract class DeviceSpec<D : DeviceBySpec<D>>(
         }
 
     /**
-     * The function is executed right after device initialization is finished
+     * An action that takes [Meta] and returns [Meta]. No conversions are done
      */
-    public open fun D.onStartup() {}
+    public fun metaAction(
+        descriptorBuilder: ActionDescriptor.() -> Unit = {},
+        name: String? = null,
+        execute: suspend D.(Meta?) -> Meta?
+    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> = action(
+        MetaConverter.Companion.meta,
+        MetaConverter.Companion.meta,
+        descriptorBuilder,
+        name
+    ){
+        execute(it)
+    }
 
     /**
-     * The function is executed before device is shut down
+     * An action that takes no parameters and returns no values
      */
-    public open fun D.onShutdown() {}
-
-
-    override fun invoke(meta: Meta, context: Context): D = buildDevice().apply {
-        this.context = context
-        this.meta = meta
-        onStartup()
+    public fun unitAction(
+        descriptorBuilder: ActionDescriptor.() -> Unit = {},
+        name: String? = null,
+        execute: suspend D.() -> Unit
+    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> = action(
+        MetaConverter.Companion.meta,
+        MetaConverter.Companion.meta,
+        descriptorBuilder,
+        name
+    ){
+        execute()
+        null
     }
 }

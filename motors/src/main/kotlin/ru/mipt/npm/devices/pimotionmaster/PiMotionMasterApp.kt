@@ -13,6 +13,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.installing
+import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.maxPosition
+import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.minPosition
+import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.position
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.context.fetch
 import tornadofx.*
@@ -40,28 +43,30 @@ fun VBox.piMotionMasterAxis(
     alignment = Pos.CENTER
     label(axisName)
     coroutineScope.launch {
-        val min = axis.minPosition.readTyped(true)
-        val max = axis.maxPosition.readTyped(true)
-        val positionProperty = axis.position.fxProperty(axis)
-        val startPosition = axis.position.readTyped(true)
-        runLater {
-            vbox {
-                hgrow = Priority.ALWAYS
-                slider(min..max, startPosition) {
-                    minWidth = 300.0
-                    isShowTickLabels = true
-                    isShowTickMarks = true
-                    minorTickCount = 10
-                    majorTickUnit = 1.0
-                    valueProperty().onChange {
-                        coroutineScope.launch {
-                            axis.move(value)
+        with(axis) {
+            val min = minPosition.read()
+            val max = maxPosition.read()
+            val positionProperty = fxProperty(position)
+            val startPosition = position.read()
+            runLater {
+                vbox {
+                    hgrow = Priority.ALWAYS
+                    slider(min..max, startPosition) {
+                        minWidth = 300.0
+                        isShowTickLabels = true
+                        isShowTickMarks = true
+                        minorTickCount = 10
+                        majorTickUnit = 1.0
+                        valueProperty().onChange {
+                            coroutineScope.launch {
+                                axis.move(value)
+                            }
                         }
                     }
-                }
-                slider(min..max) {
-                    isDisable = true
-                    valueProperty().bind(positionProperty)
+                    slider(min..max) {
+                        isDisable = true
+                        valueProperty().bind(positionProperty)
+                    }
                 }
             }
         }
@@ -82,7 +87,7 @@ class PiMotionMasterView : View() {
     private val controller: PiMotionMasterController by inject()
     val device = controller.motionMaster
 
-    private val connectedProperty: ReadOnlyProperty<Boolean> = device.connected.fxProperty(device)
+    private val connectedProperty: ReadOnlyProperty<Boolean> = device.fxProperty(PiMotionMasterDevice.connected)
     private val debugServerJobProperty = SimpleObjectProperty<Job>()
     private val debugServerStarted = debugServerJobProperty.booleanBinding { it != null }
     //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()

@@ -1,7 +1,14 @@
-package ru.mipt.npm.controls.properties
+package ru.mipt.npm.controls.spec
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.api.ActionDescriptor
 import ru.mipt.npm.controls.api.Device
+import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
@@ -75,7 +82,7 @@ public interface DeviceActionSpec<in D : Device, I, O> {
     public suspend fun execute(device: D, input: I?): O?
 }
 
-public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeMeta(
+public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
     device: D,
     item: Meta?
 ): Meta? {
@@ -83,3 +90,40 @@ public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeMeta(
     val res = execute(device, arg)
     return res?.let { outputConverter.objectToMeta(res) }
 }
+
+
+public suspend fun <D : DeviceBase<D>, T : Any> D.read(
+    propertySpec: DevicePropertySpec<D, T>
+): T = propertySpec.read()
+
+public suspend fun <D : Device, T : Any> D.read(
+    propertySpec: DevicePropertySpec<D, T>
+): T = propertySpec.converter.metaToObject(readProperty(propertySpec.name))
+    ?: error("Property meta converter returned null")
+
+public fun <D : Device, T> D.write(
+    propertySpec: WritableDevicePropertySpec<D, T>,
+    value: T
+): Job = launch {
+    writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
+}
+
+public fun <D : DeviceBase<D>, T> D.write(
+    propertySpec: WritableDevicePropertySpec<D, T>,
+    value: T
+): Job = launch {
+    propertySpec.write(value)
+}
+
+/**
+ * A type safe property change listener
+ */
+public fun <D : Device, T> Device.onPropertyChange(
+    spec: DevicePropertySpec<D, T>,
+    callback: suspend PropertyChangedMessage.(T?) -> Unit
+): Job = messageFlow
+    .filterIsInstance<PropertyChangedMessage>()
+    .filter { it.property == spec.name }
+    .onEach { change ->
+        change.callback(spec.converter.metaToObject(change.value))
+    }.launchIn(this)

@@ -5,7 +5,7 @@ plugins {
 }
 
 
-repositories{
+repositories {
     mavenCentral()
     jcenter()
     maven("https://repo.kotlin.link")
@@ -15,7 +15,7 @@ repositories{
 val ktorVersion: String by rootProject.extra
 val rsocketVersion: String by rootProject.extra
 
-dependencies{
+dependencies {
     implementation(projects.controlsCore)
     //implementation(projects.controlsServer)
     implementation(projects.magix.magixServer)
@@ -34,15 +34,15 @@ dependencies{
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions {
         jvmTarget = "11"
-        freeCompilerArgs = freeCompilerArgs + "-Xjvm-default=all"
+        freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }
 }
 
-javafx{
+javafx {
     version = "14"
     modules("javafx.controls")
 }
 
-application{
+application {
     mainClass.set("ru.mipt.npm.controls.demo.DemoControllerViewKt")
 }

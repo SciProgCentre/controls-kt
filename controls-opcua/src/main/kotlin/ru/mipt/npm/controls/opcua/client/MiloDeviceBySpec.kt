@@ -4,8 +4,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
-import ru.mipt.npm.controls.properties.DeviceBySpec
-import ru.mipt.npm.controls.properties.DeviceSpec
+import ru.mipt.npm.controls.spec.DeviceBySpec
+import ru.mipt.npm.controls.spec.DeviceSpec
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.Meta
