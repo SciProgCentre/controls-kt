@@ -1,5 +1,6 @@
 package ru.mipt.npm.controls.controllers
 
+import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.api.DeviceHub
 import space.kscience.dataforge.context.*
@@ -38,6 +39,9 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
 public fun <D : Device> DeviceManager.install(name: String, factory: Factory<D>, meta: Meta = Meta.EMPTY): D {
     val device = factory(meta, context)
     registerDevice(NameToken(name), device)
+    device.launch {
+        device.open()
+    }
     return device
 }
 
