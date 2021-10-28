@@ -1,7 +1,9 @@
 package ru.mipt.npm.controls.demo.virtual_car
 
 import kotlinx.coroutines.launch
-import ru.mipt.npm.controls.properties.*
+import ru.mipt.npm.controls.spec.*
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
@@ -12,18 +14,10 @@ import kotlin.time.ExperimentalTime
 
 data class Coordinates(val x: Double = 0.0, val y: Double = 0.0)
 
-class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
+class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(VirtualCar, context, meta) {
     private var speedState: Coordinates = Coordinates()
-    private fun updateAndGetSpeed(): Coordinates {
-        updateSpeedLocationTime()
-        return this.speedState
-    }
 
     private var locationState: Coordinates = Coordinates()
-    private fun updateAndGetLocation(): Coordinates {
-        updateSpeedLocationTime()
-        return this.locationState
-    }
 
     private var accelerationState: Coordinates = Coordinates()
     set(value) {
@@ -54,6 +48,24 @@ class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
         )
     }
 
+    @OptIn(ExperimentalTime::class)
+    override suspend fun open() {
+        super.open()
+        launch {
+            doRecurring(Duration.seconds(1)) {
+                carProperties.read()
+            }
+        }
+        launch {
+            doRecurring(Duration.milliseconds(50)) {
+                updateSpeedLocationTime()
+                updateLogical(speed, this@VirtualCar.speedState)
+                updateLogical(acceleration, this@VirtualCar.accelerationState)
+                updateLogical(location, this@VirtualCar.locationState)
+            }
+        }
+    }
+
     object CoordinatesMetaConverter : MetaConverter<Coordinates> {
         override fun metaToObject(meta: Meta): Coordinates = Coordinates(
             meta["x"].double ?: 0.0,
@@ -66,10 +78,12 @@ class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
         }
     }
 
-    companion object : DeviceSpec<VirtualCar>(::VirtualCar) {
-        val speed by property(CoordinatesMetaConverter) { this.updateAndGetSpeed() }
+    companion object : DeviceSpec<VirtualCar>(), Factory<VirtualCar> {
+        override fun invoke(meta: Meta, context: Context): VirtualCar = VirtualCar(context, meta)
 
-        val location by property(CoordinatesMetaConverter) { this.updateAndGetLocation() }
+        val speed by property(CoordinatesMetaConverter) { this.speedState }
+
+        val location by property(CoordinatesMetaConverter) { this.locationState }
 
         val acceleration by property(CoordinatesMetaConverter, VirtualCar::accelerationState)
 
@@ -80,18 +94,6 @@ class VirtualCar : DeviceBySpec<VirtualCar>(VirtualCar) {
                 "speed" put CoordinatesMetaConverter.objectToMeta(read(speed))
                 "location" put CoordinatesMetaConverter.objectToMeta(read(location))
                 "acceleration" put CoordinatesMetaConverter.objectToMeta(read(acceleration))
-            }
-        }
-
-        @OptIn(ExperimentalTime::class)
-        override fun VirtualCar.onStartup() {
-            launch {
-                speed.read()
-                acceleration.read()
-                location.read()
-            }
-            doRecurring(Duration.seconds(1)){
-                carProperties.read()
             }
         }
     }

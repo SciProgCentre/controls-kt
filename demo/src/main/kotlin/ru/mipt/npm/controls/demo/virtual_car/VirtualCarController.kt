@@ -7,16 +7,11 @@ import javafx.scene.control.TextField
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.launch
-import org.eclipse.milo.opcua.sdk.server.OpcUaServer
-import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.virtual_car.VirtualCar.Companion.acceleration
-import ru.mipt.npm.controls.opcua.server.OpcUaServer
-import ru.mipt.npm.controls.opcua.server.endpoint
-import ru.mipt.npm.controls.opcua.server.serveDevices
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.server.startMagixServer
@@ -27,13 +22,6 @@ class VirtualCarController : Controller(), ContextAware {
 
     var device: VirtualCar? = null
     var magixServer: ApplicationEngine? = null
-    var opcUaServer: OpcUaServer = OpcUaServer {
-        setApplicationName(LocalizedText.english("ru.mipt.npm.controls.opcua"))
-        endpoint {
-            setBindPort(9999)
-            //use default endpoint
-        }
-    }
 
     override val context = Context("demoDevice") {
         plugin(DeviceManager)
@@ -49,16 +37,11 @@ class VirtualCarController : Controller(), ContextAware {
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
-
-            opcUaServer.startup()
-            opcUaServer.serveDevices(deviceManager)
         }
     }
 
     fun shutdown() {
         logger.info { "Shutting down..." }
-        opcUaServer.shutdown()
-        logger.info { "OpcUa server stopped" }
         magixServer?.stop(1000, 5000)
         logger.info { "Magix server stopped" }
         device?.close()
