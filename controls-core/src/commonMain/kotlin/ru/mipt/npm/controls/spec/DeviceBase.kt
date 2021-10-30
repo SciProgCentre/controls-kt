@@ -17,7 +17,7 @@ import kotlin.coroutines.CoroutineContext
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceBase<D : DeviceBase<D>>(
     override val context: Context = Global,
-    public val meta: Meta = Meta.EMPTY
+    override val meta: Meta = Meta.EMPTY
 ) : Device {
 
     public abstract val properties: Map<String, DevicePropertySpec<D, *>> //get() = spec.properties
@@ -130,7 +130,7 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
  * @param D recursive self-type for properties and actions
  */
 public open class DeviceBySpec<D : DeviceBySpec<D>>(
-    public val spec: DeviceSpec<D>,
+    public val spec: DeviceSpec<in D>,
     context: Context = Global,
     meta: Meta = Meta.EMPTY
 ) : DeviceBase<D>(context, meta) {

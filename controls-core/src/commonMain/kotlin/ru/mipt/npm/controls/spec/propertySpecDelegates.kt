@@ -97,7 +97,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.booleanProperty(
     read: suspend D.() -> Boolean,
     write: suspend D.(Boolean) -> Unit
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, Boolean>>> =
-    property(
+    mutableProperty(
         MetaConverter.boolean,
         {
             metaDescriptor {
@@ -117,7 +117,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.numberProperty(
     read: suspend D.() -> Number,
     write: suspend D.(Number) -> Unit
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, Number>>> =
-    property(MetaConverter.number, numberDescriptor(descriptorBuilder), name, read, write)
+    mutableProperty(MetaConverter.number, numberDescriptor(descriptorBuilder), name, read, write)
 
 public fun <D : DeviceBase<D>> DeviceSpec<D>.doubleProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -125,7 +125,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.doubleProperty(
     read: suspend D.() -> Double,
     write: suspend D.(Double) -> Unit
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, Double>>> =
-    property(MetaConverter.double, numberDescriptor(descriptorBuilder), name, read, write)
+    mutableProperty(MetaConverter.double, numberDescriptor(descriptorBuilder), name, read, write)
 
 public fun <D : DeviceBase<D>> DeviceSpec<D>.stringProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -133,7 +133,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.stringProperty(
     read: suspend D.() -> String,
     write: suspend D.(String) -> Unit
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, String>>> =
-    property(MetaConverter.string, descriptorBuilder, name, read, write)
+    mutableProperty(MetaConverter.string, descriptorBuilder, name, read, write)
 
 public fun <D : DeviceBase<D>> DeviceSpec<D>.metaProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -141,4 +141,4 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.metaProperty(
     read: suspend D.() -> Meta,
     write: suspend D.(Meta) -> Unit
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, Meta>>> =
-    property(MetaConverter.meta, descriptorBuilder, name, read, write)
+    mutableProperty(MetaConverter.meta, descriptorBuilder, name, read, write)

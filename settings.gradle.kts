@@ -4,6 +4,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 enableFeaturePreview("VERSION_CATALOGS")
 
 pluginManagement {
+
     val toolsVersion = "0.10.5"
 
     repositories {
@@ -40,6 +41,7 @@ include(
     ":controls-server",
     ":controls-opcua",
     ":demo",
+    ":demo:car",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",

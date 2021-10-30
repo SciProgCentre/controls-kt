@@ -4,10 +4,7 @@ import javafx.beans.property.ObjectPropertyBase
 import javafx.beans.property.Property
 import javafx.beans.property.ReadOnlyProperty
 import ru.mipt.npm.controls.api.Device
-import ru.mipt.npm.controls.spec.DevicePropertySpec
-import ru.mipt.npm.controls.spec.WritableDevicePropertySpec
-import ru.mipt.npm.controls.spec.onPropertyChange
-import ru.mipt.npm.controls.spec.write
+import ru.mipt.npm.controls.spec.*
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import tornadofx.*

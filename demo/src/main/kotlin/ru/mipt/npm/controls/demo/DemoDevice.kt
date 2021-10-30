@@ -38,15 +38,15 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDe
         override fun invoke(meta: Meta, context: Context): DemoDevice = DemoDevice(context, meta)
 
         // register virtual properties based on actual object state
-        val timeScale by property(MetaConverter.double, DemoDevice::timeScaleState) {
+        val timeScale by mutableProperty(MetaConverter.double, DemoDevice::timeScaleState) {
             metaDescriptor {
                 type(ValueType.NUMBER)
             }
             info = "Real to virtual time scale"
         }
 
-        val sinScale by property(MetaConverter.double, DemoDevice::sinScaleState)
-        val cosScale by property(MetaConverter.double, DemoDevice::cosScaleState)
+        val sinScale by mutableProperty(MetaConverter.double, DemoDevice::sinScaleState)
+        val cosScale by mutableProperty(MetaConverter.double, DemoDevice::cosScaleState)
 
         val sin by doubleProperty {
             val time = Instant.now()

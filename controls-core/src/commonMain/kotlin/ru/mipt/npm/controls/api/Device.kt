@@ -21,6 +21,12 @@ import space.kscience.dataforge.names.Name
  */
 @Type(DEVICE_TARGET)
 public interface Device : Closeable, ContextAware, CoroutineScope {
+
+    /**
+     * Initial configuration meta for the device
+     */
+    public val meta: Meta get() = Meta.EMPTY
+
     /**
      * List of supported property descriptors
      */

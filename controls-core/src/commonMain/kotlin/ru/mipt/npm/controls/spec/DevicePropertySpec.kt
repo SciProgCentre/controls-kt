@@ -17,15 +17,10 @@ import space.kscience.dataforge.meta.transformations.MetaConverter
 /**
  * This API is internal and should not be used in user code
  */
-@RequiresOptIn
+@RequiresOptIn("This API should not be called outside of Device internals")
 public annotation class InternalDeviceAPI
 
 public interface DevicePropertySpec<in D : Device, T> {
-    /**
-     * Property name, should be unique in device
-     */
-    public val name: String
-
     /**
      * Property descriptor
      */
@@ -42,6 +37,11 @@ public interface DevicePropertySpec<in D : Device, T> {
     @InternalDeviceAPI
     public suspend fun read(device: D): T
 }
+
+/**
+ * Property name, should be unique in device
+ */
+public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
 
 @OptIn(InternalDeviceAPI::class)
 public suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta =
@@ -63,11 +63,6 @@ public suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(de
 
 public interface DeviceActionSpec<in D : Device, I, O> {
     /**
-     * Action name, should be unique in device
-     */
-    public val name: String
-
-    /**
      * Action descriptor
      */
     public val descriptor: ActionDescriptor
@@ -82,9 +77,14 @@ public interface DeviceActionSpec<in D : Device, I, O> {
     public suspend fun execute(device: D, input: I?): O?
 }
 
+/**
+ * Action name, should be unique in device
+ */
+public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
+
 public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
     device: D,
-    item: Meta?
+    item: Meta?,
 ): Meta? {
     val arg = item?.let { inputConverter.metaToObject(item) }
     val res = execute(device, arg)
@@ -93,24 +93,24 @@ public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
 
 
 public suspend fun <D : DeviceBase<D>, T : Any> D.read(
-    propertySpec: DevicePropertySpec<D, T>
+    propertySpec: DevicePropertySpec<D, T>,
 ): T = propertySpec.read()
 
 public suspend fun <D : Device, T : Any> D.read(
-    propertySpec: DevicePropertySpec<D, T>
+    propertySpec: DevicePropertySpec<D, T>,
 ): T = propertySpec.converter.metaToObject(readProperty(propertySpec.name))
     ?: error("Property meta converter returned null")
 
 public fun <D : Device, T> D.write(
     propertySpec: WritableDevicePropertySpec<D, T>,
-    value: T
+    value: T,
 ): Job = launch {
     writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
 }
 
 public fun <D : DeviceBase<D>, T> D.write(
     propertySpec: WritableDevicePropertySpec<D, T>,
-    value: T
+    value: T,
 ): Job = launch {
     propertySpec.write(value)
 }
@@ -120,7 +120,7 @@ public fun <D : DeviceBase<D>, T> D.write(
  */
 public fun <D : Device, T> Device.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
-    callback: suspend PropertyChangedMessage.(T?) -> Unit
+    callback: suspend PropertyChangedMessage.(T?) -> Unit,
 ): Job = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }

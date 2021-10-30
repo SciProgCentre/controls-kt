@@ -203,7 +203,7 @@ class PiMotionMasterDevice(
         }
 
 
-        val timeout by property(MetaConverter.duration, PiMotionMasterDevice::timeoutValue) {
+        val timeout by mutableProperty(MetaConverter.duration, PiMotionMasterDevice::timeoutValue) {
             info = "Timeout"
         }
     }
