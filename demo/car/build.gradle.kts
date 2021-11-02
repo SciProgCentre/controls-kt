@@ -16,6 +16,9 @@ val rsocketVersion: String by rootProject.extra
 dependencies {
     implementation(projects.controlsCore)
     implementation(projects.magix.magixApi)
+    implementation(projects.magix.magixServer)
+    implementation(projects.magix.magixRsocket)
+    implementation(projects.controlsMagixClient)
 
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")
     implementation("no.tornado:tornadofx:1.7.20")

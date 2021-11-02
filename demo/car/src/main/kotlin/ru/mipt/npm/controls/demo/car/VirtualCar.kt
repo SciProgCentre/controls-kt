@@ -6,9 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.spec.DeviceBySpec
-import ru.mipt.npm.controls.spec.DeviceSpec
 import ru.mipt.npm.controls.spec.doRecurring
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -40,13 +38,7 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
     }
 }
 
-interface IVirtualCar : Device {
-    var speedState: Vector2D
-    var locationState: Vector2D
-    var accelerationState: Vector2D
-}
-
-class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(VirtualCar, context, meta), IVirtualCar {
+class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
     private val timeScale = 1e-3
 
     private val mass by meta.double(1000.0) // mass in kilograms
@@ -85,14 +77,14 @@ class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(Virtua
         //TODO apply friction. One can introduce rotation of the cabin and different friction coefficients along the axis
         launch {
             //update logical states
-            location.read()
-            speed.read()
-            acceleration.read()
+            IVirtualCar.location.read()
+            IVirtualCar.speed.read()
+            IVirtualCar.acceleration.read()
         }
 
     }
 
-    public fun applyForce(force: Vector2D, duration: Duration) {
+    fun applyForce(force: Vector2D, duration: Duration) {
         launch {
             update()
             accelerationState = force / mass
@@ -116,22 +108,7 @@ class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(Virtua
         }
     }
 
-    companion object : DeviceSpec<IVirtualCar>(), Factory<VirtualCar> {
+    companion object : Factory<VirtualCar> {
         override fun invoke(meta: Meta, context: Context): VirtualCar = VirtualCar(context, meta)
-
-        /**
-         * Read-only speed
-         */
-        val speed by property(Vector2D, IVirtualCar::speedState)
-
-        /**
-         * Read-only location
-         */
-        val location by property(Vector2D, IVirtualCar::locationState)
-
-        /**
-         * writable acceleration
-         */
-        val acceleration by mutableProperty(Vector2D, IVirtualCar::accelerationState)
     }
 }
