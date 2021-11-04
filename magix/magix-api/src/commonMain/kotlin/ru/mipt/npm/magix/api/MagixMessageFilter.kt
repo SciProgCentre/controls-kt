@@ -25,7 +25,6 @@ public fun <T> Flow<MagixMessage<T>>.filter(filter: MagixMessageFilter): Flow<Ma
     return filter { message ->
         filter.format?.contains(message.format) ?: true
                 && filter.origin?.contains(message.origin) ?: true
-                && filter.origin?.contains(message.origin) ?: true
                 && filter.target?.contains(message.target) ?: true
     }
 }

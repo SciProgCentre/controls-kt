@@ -14,13 +14,15 @@ import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
+import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
 import ru.mipt.npm.magix.server.startMagixServer
 import space.kscience.dataforge.context.*
 import tornadofx.*
 
 class VirtualCarController : Controller(), ContextAware {
 
-    var device: VirtualCar? = null
+    var virtualCar: VirtualCar? = null
+    var magixVirtualCar: MagixVirtualCar? = null
     var magixServer: ApplicationEngine? = null
 
     override val context = Context("demoDevice") {
@@ -31,9 +33,11 @@ class VirtualCarController : Controller(), ContextAware {
 
     fun init() {
         context.launch {
-            device = deviceManager.install("virtual-car", VirtualCar)
+            virtualCar = deviceManager.install("virtual-car", VirtualCar)
             //starting magix event loop
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
+            val magixEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost", DeviceMessage.serializer())
+            magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCarFactory(magixEndpoint))
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
@@ -44,8 +48,10 @@ class VirtualCarController : Controller(), ContextAware {
         logger.info { "Shutting down..." }
         magixServer?.stop(1000, 5000)
         logger.info { "Magix server stopped" }
-        device?.close()
-        logger.info { "Device server stopped" }
+        magixVirtualCar?.close()
+        logger.info { "Magix virtual car server stopped" }
+        virtualCar?.close()
+        logger.info { "Virtual car server stopped" }
         context.close()
     }
 }
@@ -78,7 +84,7 @@ class VirtualCarControllerView : View(title = " Virtual car controller remote") 
         button("Submit") {
             useMaxWidth = true
             action {
-                controller.device?.run {
+                controller.virtualCar?.run {
                     launch {
                         acceleration.write(Vector2D(accelerationXProperty.get(),
                             accelerationYProperty.get()))

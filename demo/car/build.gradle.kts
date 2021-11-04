@@ -20,6 +20,7 @@ dependencies {
     implementation(projects.magix.magixRsocket)
     implementation(projects.controlsMagixClient)
 
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")
     implementation("no.tornado:tornadofx:1.7.20")
     implementation("space.kscience:plotlykt-server:0.5.0-dev-1")
