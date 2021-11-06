@@ -38,7 +38,7 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
     }
 }
 
-class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
+open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
     private val timeScale = 1e-3
 
     private val mass by meta.double(1000.0) // mass in kilograms

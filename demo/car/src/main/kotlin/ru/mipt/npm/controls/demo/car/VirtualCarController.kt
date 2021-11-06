@@ -36,8 +36,7 @@ class VirtualCarController : Controller(), ContextAware {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
             //starting magix event loop
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
-            val magixEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost", DeviceMessage.serializer())
-            magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCarFactory(magixEndpoint))
+            magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
