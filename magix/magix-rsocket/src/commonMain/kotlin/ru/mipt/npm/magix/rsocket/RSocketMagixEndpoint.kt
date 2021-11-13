@@ -20,6 +20,7 @@ import kotlinx.serialization.encodeToString
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
+import ru.mipt.npm.magix.api.filter
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
@@ -38,7 +39,7 @@ public class RSocketMagixEndpoint<T>(
         val flow = rSocket.requestStream(payload)
         return flow.map {
             MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText())
-        }.flowOn(coroutineContext[CoroutineDispatcher]?:Dispatchers.Unconfined)
+        }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
     override suspend fun broadcast(message: MagixMessage<T>) {

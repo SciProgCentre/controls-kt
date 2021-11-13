@@ -21,7 +21,7 @@ public class ZmqMagixEndpoint<T>(
     payloadSerializer: KSerializer<T>,
     private val pubPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
     private val pullPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
-    private val coroutineContext: CoroutineContext = Dispatchers.IO
+    private val coroutineContext: CoroutineContext = Dispatchers.IO,
 ) : MagixEndpoint<T>, AutoCloseable {
     private val zmqContext by lazy { ZContext() }
 
@@ -54,9 +54,8 @@ public class ZmqMagixEndpoint<T>(
                     }
                 }
             }
-        }.filter(filter).flowOn(
-            coroutineContext[CoroutineDispatcher] ?: Dispatchers.IO
-        ) //should be flown on IO because of blocking calls
+        }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.IO)
+        //should be flown on IO because of blocking calls
     }
 
     private val publishSocket by lazy {
