@@ -2,7 +2,6 @@ package ru.mipt.npm.controls.xodus
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.StoreTransaction
-import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.magix.api.MagixMessage
 
@@ -17,7 +16,7 @@ public fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entit
     return entity
 }
 
-public fun MagixMessage<DeviceMessage>.toEntity(transaction: StoreTransaction): Entity {
+public fun <T> MagixMessage<T>.toEntity(transaction: StoreTransaction): Entity {
     val entity = transaction.newEntity("MagixMessage")
     entity.setProperty("format", format)
     entity.setProperty("origin", origin)

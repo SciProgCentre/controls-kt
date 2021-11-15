@@ -25,6 +25,9 @@ dependencies {
     implementation("no.tornado:tornadofx:1.7.20")
     implementation("space.kscience:plotlykt-server:0.5.0-dev-1")
     implementation("ch.qos.logback:logback-classic:1.2.3")
+    implementation("org.jetbrains.xodus:xodus-entity-store:1.3.232")
+    implementation("org.jetbrains.xodus:xodus-environment:1.3.232")
+    implementation("org.jetbrains.xodus:xodus-vfs:1.3.232")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
