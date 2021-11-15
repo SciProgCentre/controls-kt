@@ -29,6 +29,7 @@ internal fun generateId(request: MagixMessage<*>): String = if (request.id != nu
 public fun DeviceManager.connectToMagix(
     endpoint: MagixEndpoint<DeviceMessage>,
     endpointID: String = DATAFORGE_MAGIX_FORMAT,
+    preSendAction: (MagixMessage<*>) -> Unit = {}
 ): Job = context.launch {
     endpoint.subscribe().onEach { request ->
         val responsePayload = respondHubMessage(request.payload)
@@ -48,13 +49,15 @@ public fun DeviceManager.connectToMagix(
     }.launchIn(this)
 
     hubMessageFlow(this).onEach { payload ->
+        val magixMessage = MagixMessage(
+            format = DATAFORGE_MAGIX_FORMAT,
+            id = "df[${payload.hashCode()}]",
+            origin = endpointID,
+            payload = payload
+        )
+        preSendAction(magixMessage)
         endpoint.broadcast(
-            MagixMessage(
-                format = DATAFORGE_MAGIX_FORMAT,
-                id = "df[${payload.hashCode()}]",
-                origin = endpointID,
-                payload = payload
-            )
+            magixMessage
         )
     }.catch { error ->
         logger.error(error) { "Error while sending a message" }
