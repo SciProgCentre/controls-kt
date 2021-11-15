@@ -15,6 +15,7 @@ kotlin {
             dependencies {
                 implementation(project(":magix:magix-rsocket"))
                 implementation(project(":controls-core"))
+                implementation("org.jetbrains.xodus:xodus-openAPI:1.3.232")
             }
         }
     }

@@ -13,6 +13,7 @@ import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
+import jetbrains.exodus.entitystore.Entity
 
 
 public const val DATAFORGE_MAGIX_FORMAT: String = "dataforge"
