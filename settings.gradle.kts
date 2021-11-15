@@ -50,5 +50,6 @@ include(
     ":magix:magix-zmq",
     ":magix:magix-demo",
     ":controls-magix-client",
-    ":motors"
+    ":motors",
+    ":controls-xodus"
 )
