@@ -16,7 +16,8 @@ import kotlin.test.assertEquals
 
 internal class ConvertersTest {
     companion object {
-        private val entityStore = PersistentEntityStores.newInstance(".test")
+        private val storeName = ".converters_test"
+        private val entityStore = PersistentEntityStores.newInstance(storeName)
         private val expectedMessage = MagixMessage(
             "dataforge",
             "dataforge",
@@ -46,7 +47,7 @@ internal class ConvertersTest {
         @JvmStatic
         fun deleteDatabase() {
             entityStore.close()
-            File(".test").deleteRecursively()
+            File(storeName).deleteRecursively()
         }
     }
 
