@@ -2,8 +2,13 @@ package ru.mipt.npm.controls.xodus
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.StoreTransaction
+import kotlinx.datetime.Instant
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.magix.api.MagixMessage
+import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.names.Name
 
 public fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entity {
     val entity = transaction.newEntity("PropertyChangedMessage")
@@ -14,6 +19,21 @@ public fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entit
     comment?.let { entity.setProperty("comment", it) }
     time?.let { entity.setProperty("time", it.toEpochMilliseconds()) }
     return entity
+}
+
+public fun Entity.toPropertyChangedMessage(): PropertyChangedMessage? {
+    if (getProperty("property") == null || getProperty("value") == null || getProperty("sourceDevice") == null) {
+        return null
+    }
+
+    return PropertyChangedMessage(
+        getProperty("property") as String,
+        Json.decodeFromString(MetaSerializer, getProperty("value") as String),
+        Name.parse(getProperty("sourceDevice") as String),
+        getProperty("targetDevice")?.let { Name.parse(it as String) },
+        getProperty("comment")?.let { it as String },
+        getProperty("time")?.let { Instant.fromEpochMilliseconds(it as Long) }
+    )
 }
 
 public fun <T> MagixMessage<T>.toEntity(transaction: StoreTransaction): Entity {
@@ -29,4 +49,22 @@ public fun <T> MagixMessage<T>.toEntity(transaction: StoreTransaction): Entity {
     parentId?.let { entity.setProperty("parentId", it) }
     user?.let { entity.setProperty("user", it.toString()) }
     return entity
+}
+
+public fun Entity.toMagixMessage(): MagixMessage<PropertyChangedMessage>? {
+    if (getProperty("format") == null || getProperty("origin") == null) {
+        return null
+    }
+
+    return getLink("payload")?.toPropertyChangedMessage()?.let { propertyChangedMessage ->
+        MagixMessage(
+            getProperty("format") as String,
+            getProperty("origin") as String,
+            propertyChangedMessage,
+            getProperty("target")?.let { it as String },
+            getProperty("id")?.let { it as String },
+            getProperty("parentId")?.let { it as String },
+            getProperty("user")?.let { Json.decodeFromString(JsonElement.serializer(), it as String) }
+        )
+    }
 }
