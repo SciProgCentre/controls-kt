@@ -1,20 +1,21 @@
 package ru.mipt.npm.controls.demo.car
 
-import io.ktor.server.engine.*
+import io.ktor.server.engine.ApplicationEngine
 import javafx.beans.property.DoubleProperty
 import javafx.scene.Parent
 import javafx.scene.control.TextField
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentEntityStores
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
+import ru.mipt.npm.controls.xodus.connectXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.server.startMagixServer
@@ -27,6 +28,7 @@ class VirtualCarController : Controller(), ContextAware {
     var magixVirtualCar: MagixVirtualCar? = null
     var magixServer: ApplicationEngine? = null
     var entityStore: PersistentEntityStore? = null
+    var storageJob: Job? =null
 
     override val context = Context("demoDevice") {
         plugin(DeviceManager)
@@ -37,17 +39,16 @@ class VirtualCarController : Controller(), ContextAware {
     fun init() {
         context.launch {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
+
             //starting magix event loop
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             entityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.messages")
+            //connect to entity store
+            storageJob = deviceManager.connectXodus(entityStore as PersistentEntityStore)
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
-            if (entityStore != null) {
-                deviceManager.connectToMagix(deviceEndpoint, entityStore = entityStore as PersistentEntityStoreImpl)
-            } else {
-                deviceManager.connectToMagix(deviceEndpoint)
-            }
+            deviceManager.connectToMagix(deviceEndpoint)
         }
     }
 

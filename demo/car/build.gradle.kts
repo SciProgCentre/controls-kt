@@ -19,6 +19,7 @@ dependencies {
     implementation(projects.magix.magixServer)
     implementation(projects.magix.magixRsocket)
     implementation(projects.controlsMagixClient)
+    implementation(projects.controlsXodus)
 
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")

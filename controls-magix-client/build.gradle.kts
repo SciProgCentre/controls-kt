@@ -17,11 +17,5 @@ kotlin {
                 implementation(project(":controls-core"))
             }
         }
-        jvmMain {
-            dependencies {
-                implementation("org.jetbrains.xodus:xodus-openAPI:1.3.232")
-                implementation(project(":controls-xodus"))
-            }
-        }
     }
 }

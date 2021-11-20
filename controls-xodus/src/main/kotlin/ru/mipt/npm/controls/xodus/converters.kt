@@ -8,12 +8,26 @@ import kotlinx.serialization.json.JsonElement
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.meta.isLeaf
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.values.Value
+import space.kscience.dataforge.values.ValueType
 
 public fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entity {
     val entity = transaction.newEntity("PropertyChangedMessage")
     entity.setProperty("property", property)
-    entity.setProperty("value", value.toString())
+    if (value.isLeaf) {
+        val v: Value = value.value ?: TODO()
+        when(v.type){
+            ValueType.NULL -> TODO()
+            ValueType.LIST -> TODO()
+            ValueType.NUMBER -> TODO()
+            ValueType.STRING -> TODO()
+            ValueType.BOOLEAN -> TODO()
+        }
+    } else {
+        entity.setProperty("value", value.toString())
+    }
     entity.setProperty("sourceDevice", sourceDevice.toString())
     targetDevice?.let { entity.setProperty("targetDevice", it.toString()) }
     comment?.let { entity.setProperty("comment", it) }
