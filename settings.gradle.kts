@@ -51,5 +51,6 @@ include(
     ":magix:magix-demo",
     ":controls-magix-client",
     ":motors",
-    ":controls-xodus"
+    ":controls-xodus",
+    ":controls-mongo"
 )

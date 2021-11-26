@@ -10,16 +10,20 @@ import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.litote.kmongo.coroutine.CoroutineClient
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
+import ru.mipt.npm.controls.mongo.MongoClientFactory
+import ru.mipt.npm.controls.mongo.connectMongo
 import ru.mipt.npm.controls.xodus.connectXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.controls.xodus.startMagixServer
 import space.kscience.dataforge.context.*
+import space.kscience.dataforge.meta.Meta
 import tornadofx.*
 
 class VirtualCarController : Controller(), ContextAware {
@@ -29,7 +33,9 @@ class VirtualCarController : Controller(), ContextAware {
     var magixServer: ApplicationEngine? = null
     var deviceEntityStore: PersistentEntityStore? = null
     var magixEntityStore: PersistentEntityStore? = null
-    var storageJob: Job? =null
+    var mongoClient: CoroutineClient? = null
+    var xodusStorageJob: Job? = null
+    var mongoStorageJob: Job? = null
 
     override val context = Context("demoDevice") {
         plugin(DeviceManager)
@@ -48,7 +54,10 @@ class VirtualCarController : Controller(), ContextAware {
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             deviceEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.messages")
             //connect to device entity store
-            storageJob = deviceManager.connectXodus(deviceEntityStore as PersistentEntityStore)
+            xodusStorageJob = deviceManager.connectXodus(deviceEntityStore as PersistentEntityStore)
+            //Create mongo client and connect to MongoDB
+            mongoClient = MongoClientFactory.invoke(meta = Meta.EMPTY, context)
+            mongoStorageJob = deviceManager.connectMongo(mongoClient as CoroutineClient)
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
@@ -67,6 +76,8 @@ class VirtualCarController : Controller(), ContextAware {
         logger.info { "Device entity store closed" }
         magixEntityStore?.close()
         logger.info { "Magix entity store closed" }
+        mongoClient?.close()
+        logger.info { "MongoClient closed" }
         context.close()
     }
 }
