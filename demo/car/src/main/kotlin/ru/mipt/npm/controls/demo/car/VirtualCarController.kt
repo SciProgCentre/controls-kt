@@ -18,7 +18,7 @@ import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.controls.xodus.connectXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
-import ru.mipt.npm.magix.server.startMagixServer
+import ru.mipt.npm.controls.xodus.startMagixServer
 import space.kscience.dataforge.context.*
 import tornadofx.*
 
@@ -27,7 +27,8 @@ class VirtualCarController : Controller(), ContextAware {
     var virtualCar: VirtualCar? = null
     var magixVirtualCar: MagixVirtualCar? = null
     var magixServer: ApplicationEngine? = null
-    var entityStore: PersistentEntityStore? = null
+    var deviceEntityStore: PersistentEntityStore? = null
+    var magixEntityStore: PersistentEntityStore? = null
     var storageJob: Job? =null
 
     override val context = Context("demoDevice") {
@@ -40,12 +41,14 @@ class VirtualCarController : Controller(), ContextAware {
         context.launch {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
 
-            //starting magix event loop
-            magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
+            //starting magix event loop and connect it to entity store
+            magixEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.server_messages")
+            magixServer = startMagixServer(
+                entityStore = magixEntityStore as PersistentEntityStore,  enableRawRSocket = true, enableZmq = true)
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
-            entityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.messages")
-            //connect to entity store
-            storageJob = deviceManager.connectXodus(entityStore as PersistentEntityStore)
+            deviceEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.messages")
+            //connect to device entity store
+            storageJob = deviceManager.connectXodus(deviceEntityStore as PersistentEntityStore)
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
@@ -60,8 +63,10 @@ class VirtualCarController : Controller(), ContextAware {
         logger.info { "Magix virtual car server stopped" }
         virtualCar?.close()
         logger.info { "Virtual car server stopped" }
-        entityStore?.close()
-        logger.info { "Entity store closed" }
+        deviceEntityStore?.close()
+        logger.info { "Device entity store closed" }
+        magixEntityStore?.close()
+        logger.info { "Magix entity store closed" }
         context.close()
     }
 }
