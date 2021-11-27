@@ -55,7 +55,7 @@ internal class QueriesTest {
     @Test
     fun testFromTo() {
         assertEquals(propertyChangedMessages.subList(0, 2).toSet(), entityStore.computeInReadonlyTransaction {
-            it.fromTo(Instant.fromEpochMilliseconds(1000), Instant.fromEpochMilliseconds(1500))
+            it.fromTo( Instant.fromEpochMilliseconds(1000)..Instant.fromEpochMilliseconds(1500))
         }.toSet())
     }
 

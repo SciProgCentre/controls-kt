@@ -23,11 +23,9 @@ import space.kscience.dataforge.meta.string
 public object MongoClientFactory : Factory<CoroutineClient> {
     public const val connectionString: String = "mongodb://mongoadmin:secret@localhost:27888"
 
-    override fun invoke(meta: Meta, context: Context): CoroutineClient {
-        return meta["connectionString"]?.string?.let {
-            KMongo.createClient(it).coroutine
-        } ?: KMongo.createClient(connectionString).coroutine
-    }
+    override fun invoke(meta: Meta, context: Context): CoroutineClient = meta["connectionString"]?.string?.let {
+        KMongo.createClient(it).coroutine
+    } ?: KMongo.createClient(connectionString).coroutine
 }
 
 public fun DeviceManager.connectMongo(
@@ -40,4 +38,8 @@ public fun DeviceManager.connectMongo(
             .getCollection<DeviceMessage>()
             .insertOne(Json.encodeToString(message))
     }
-}.launchIn(context)
+}.launchIn(context).apply {
+    invokeOnCompletion {
+        client.close()
+    }
+}

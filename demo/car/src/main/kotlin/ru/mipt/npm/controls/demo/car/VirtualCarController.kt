@@ -19,9 +19,10 @@ import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.controls.mongo.MongoClientFactory
 import ru.mipt.npm.controls.mongo.connectMongo
 import ru.mipt.npm.controls.xodus.connectXodus
+import ru.mipt.npm.controls.xodus.storeInXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
-import ru.mipt.npm.controls.xodus.startMagixServer
+import ru.mipt.npm.magix.server.startMagixServer
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import tornadofx.*
@@ -49,15 +50,17 @@ class VirtualCarController : Controller(), ContextAware {
 
             //starting magix event loop and connect it to entity store
             magixEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.server_messages")
-            magixServer = startMagixServer(
-                entityStore = magixEntityStore as PersistentEntityStore,  enableRawRSocket = true, enableZmq = true)
+            magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
+                flow.storeInXodus(magixEntityStore as PersistentEntityStore)
+            }
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             deviceEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.messages")
             //connect to device entity store
             xodusStorageJob = deviceManager.connectXodus(deviceEntityStore as PersistentEntityStore)
             //Create mongo client and connect to MongoDB
-            mongoClient = MongoClientFactory.invoke(meta = Meta.EMPTY, context)
-            mongoStorageJob = deviceManager.connectMongo(mongoClient as CoroutineClient)
+            val mongoClient = MongoClientFactory.invoke(meta = Meta.EMPTY, context)
+            mongoStorageJob = deviceManager.connectMongo(mongoClient)
+            this@VirtualCarController.mongoClient = mongoClient
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
