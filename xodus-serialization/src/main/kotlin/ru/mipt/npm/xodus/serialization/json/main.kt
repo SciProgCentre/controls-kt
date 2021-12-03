@@ -24,8 +24,7 @@ internal fun main() {
             Name.parse("magix-virtual-car"),
             time = Instant.fromEpochMilliseconds(1337)
         ),
-        "magix-virtual-car",
-        user = JsonObject(content = mapOf(Pair("name", JsonPrimitive("SCADA"))))
+        "magix-virtual-car"
     )
 
     val entityStore = PersistentEntityStores.newInstance(Paths.get(".xodus_serialization").toString())

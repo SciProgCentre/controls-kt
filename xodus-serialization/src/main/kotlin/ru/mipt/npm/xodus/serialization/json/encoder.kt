@@ -16,6 +16,7 @@ internal fun StoreTransaction.encodeToEntity(jsonElement: JsonElement, entity: E
             jsonElement.forEach { entry ->
                 entry.value.let { value ->
                     when(value) {
+                        // не сможем десериализовать, если JsonNull (надо ли обрабатывать???) (можно сохранить в отдельный список ключи null-ов)
                         is JsonPrimitive -> {
                             if (value.isString) {
                                 entity.setProperty(entry.key, value.content)
@@ -30,6 +31,7 @@ internal fun StoreTransaction.encodeToEntity(jsonElement: JsonElement, entity: E
                         }
 
                         // считаем, что все элементы массива - JsonObject, иначе не можем напрямую сериализовать (надо придывать костыли???)
+                        // не сможем десериализовать, если массив пустой (надо ли обрабатывать???) (можно сохранять в отдельный список ключи пустых массивов)
                         is JsonArray -> {
                             value.forEach { element ->
                                 val childEntity = newEntity("${entity.type}.${entry.key}")
