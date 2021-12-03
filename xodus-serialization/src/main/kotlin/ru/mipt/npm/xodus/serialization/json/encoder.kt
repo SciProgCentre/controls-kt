@@ -1,0 +1,58 @@
+package ru.mipt.npm.xodus.serialization.json
+
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.StoreTransaction
+import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.json.*
+import kotlinx.serialization.serializer
+
+internal fun StoreTransaction.encodeToEntity(jsonElement: JsonElement, entity: Entity) {
+    when (jsonElement) {
+        is JsonPrimitive -> throw IllegalStateException("Can't serialize primitive value to entity")
+        is JsonArray -> throw IllegalStateException("Can't serialize array value to entity")
+        is JsonObject -> {
+            jsonElement.forEach { entry ->
+                entry.value.let { value ->
+                    when(value) {
+                        is JsonPrimitive -> {
+                            if (value.isString) {
+                                entity.setProperty(entry.key, value.content)
+                            } else {
+                                (value.longOrNull ?: value.doubleOrNull ?: value.booleanOrNull)?.let {
+                                    entity.setProperty(
+                                        entry.key,
+                                        it
+                                    )
+                                }
+                            }
+                        }
+
+                        // считаем, что все элементы массива - JsonObject, иначе не можем напрямую сериализовать (надо придывать костыли???)
+                        is JsonArray -> {
+                            value.forEach { element ->
+                                val childEntity = newEntity("${entity.type}.${entry.key}")
+                                encodeToEntity(element, childEntity)
+                                entity.addLink(entry.key, childEntity)
+                            }
+                        }
+
+                        is JsonObject -> {
+                            val childEntity = newEntity("${entity.type}.${entry.key}")
+                            encodeToEntity(value, childEntity)
+                            entity.setLink(entry.key, childEntity)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+public fun <T> StoreTransaction.encodeToEntity(serializer: SerializationStrategy<T>, value: T, entityType: String): Entity {
+    val entity: Entity = newEntity(entityType)
+    encodeToEntity(Json.encodeToJsonElement(serializer, value), entity)
+    return entity
+}
+
+public inline fun <reified T> StoreTransaction.encodeToEntity(value: T, entityType: String): Entity =
+    encodeToEntity(serializer(), value, entityType)

@@ -52,5 +52,7 @@ include(
     ":controls-magix-client",
     ":motors",
     ":controls-xodus",
-    ":controls-mongo"
+    ":controls-mongo",
+    ":xodus-serialization"
 )
+include("xodus-serialization")
