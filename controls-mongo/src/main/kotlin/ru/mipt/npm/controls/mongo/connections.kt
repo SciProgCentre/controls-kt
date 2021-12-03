@@ -1,5 +1,6 @@
 package ru.mipt.npm.controls.mongo
 
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
@@ -16,30 +17,42 @@ import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.hubMessageFlow
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
+import space.kscience.dataforge.context.debug
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 
-public object MongoClientFactory : Factory<CoroutineClient> {
-    public const val connectionString: String = "mongodb://mongoadmin:secret@localhost:27888"
+internal object DefaultMongoConfig {
+    const val databaseName = "deviceMessage"
+}
 
-    override fun invoke(meta: Meta, context: Context): CoroutineClient = meta["connectionString"]?.string?.let {
+public object MongoClientFactory : Factory<CoroutineClient> {
+    private const val connectionString: String = "mongodb://mongoadmin:secret@localhost:27888"
+
+    override fun invoke(meta: Meta, context: Context): CoroutineClient = meta["mongoConfig"]?.get("connectionString")?.string?.let {
         KMongo.createClient(it).coroutine
     } ?: KMongo.createClient(connectionString).coroutine
 }
 
+@OptIn(InternalCoroutinesApi::class)
 public fun DeviceManager.connectMongo(
-    client: CoroutineClient,
+    factory: Factory<CoroutineClient>,
     filterCondition: suspend (DeviceMessage) -> Boolean  = { true }
-): Job = hubMessageFlow(context).filter(filterCondition).onEach { message ->
-    context.launch {
-        client
-            .getDatabase("deviceServer")
-            .getCollection<DeviceMessage>()
-            .insertOne(Json.encodeToString(message))
-    }
-}.launchIn(context).apply {
-    invokeOnCompletion {
-        client.close()
+): Job {
+    val client = factory.invoke(meta, context)
+    logger.debug { "Mongo client opened" }
+    val collection = client
+        .getDatabase(meta["mongoConfig"]?.get("databaseName")?.string ?: DefaultMongoConfig.databaseName)
+        .getCollection<DeviceMessage>()
+    return hubMessageFlow(context).filter(filterCondition).onEach { message ->
+        context.launch {
+                collection.insertOne(Json.encodeToString(message))
+        }
+    }.launchIn(context).apply {
+        invokeOnCompletion(onCancelling = true) {
+            logger.debug { "Mongo client closed" }
+            client.close()
+        }
     }
 }

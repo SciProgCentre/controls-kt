@@ -1,26 +1,57 @@
 package ru.mipt.npm.controls.xodus
 
+import io.ktor.application.*
 import jetbrains.exodus.entitystore.PersistentEntityStore
+import jetbrains.exodus.entitystore.PersistentEntityStores
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.job
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.hubMessageFlow
 import ru.mipt.npm.magix.server.GenericMagixMessage
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.Factory
+import space.kscience.dataforge.context.debug
+import space.kscience.dataforge.context.logger
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
+import java.nio.file.Paths
 
+internal object DefaultXodusConfig {
+    val entityStorePath = Paths.get(".messages")
+}
 
-public fun DeviceManager.connectXodus(
-    entityStore: PersistentEntityStore,
-    filterCondition: suspend (DeviceMessage) -> Boolean  = { it is PropertyChangedMessage }
-): Job = hubMessageFlow(context).filter(filterCondition).onEach { message ->
-    entityStore.executeInTransaction {
-        (message as PropertyChangedMessage).toEntity(it)
+public object EntityStoreFactory : Factory<PersistentEntityStore> {
+    override fun invoke(meta: Meta, context: Context): PersistentEntityStore {
+        return PersistentEntityStores.newInstance(
+            meta["xodusConfig"]?.get("entityStorePath")?.string ?: DefaultXodusConfig.entityStorePath.toString()
+        )
     }
-}.launchIn(context)
+}
+
+@OptIn(InternalCoroutinesApi::class)
+public fun DeviceManager.connectXodus(
+    factory: Factory<PersistentEntityStore>,
+    filterCondition: suspend (DeviceMessage) -> Boolean  = { it is PropertyChangedMessage }
+): Job {
+    val entityStore = factory.invoke(meta, context)
+    logger.debug { "Device entity store opened" }
+
+    return hubMessageFlow(context).filter(filterCondition).onEach { message ->
+        entityStore.executeInTransaction {
+            (message as PropertyChangedMessage).toEntity(it)
+        }
+    }.launchIn(context).apply {
+        invokeOnCompletion(onCancelling = true) {
+            entityStore.close()
+            logger.debug { "Device entity store closed" }
+        }
+    }
+}
 
 //public fun CoroutineScope.startMagixServer(
 //    entityStore: PersistentEntityStore,
@@ -51,5 +82,19 @@ public fun SharedFlow<GenericMagixMessage>.storeInXodus(
             val entity = txn.newEntity("MagixMessage")
             entity.setProperty("value", message.toString())
         }
+    }
+}
+
+@OptIn(InternalCoroutinesApi::class)
+public fun Application.storeInXodus(
+    factory: Factory<PersistentEntityStore>,
+    flow: MutableSharedFlow<GenericMagixMessage>,
+    meta: Meta = Meta.EMPTY
+) {
+    val entityStore = factory.invoke(meta)
+
+    flow.storeInXodus(entityStore)
+    coroutineContext.job.invokeOnCompletion(onCancelling = true) {
+        entityStore.close()
     }
 }

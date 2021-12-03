@@ -6,11 +6,8 @@ import javafx.scene.Parent
 import javafx.scene.control.TextField
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
-import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.PersistentEntityStores
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.litote.kmongo.coroutine.CoroutineClient
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.controllers.DeviceManager
@@ -18,6 +15,7 @@ import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.controls.mongo.MongoClientFactory
 import ru.mipt.npm.controls.mongo.connectMongo
+import ru.mipt.npm.controls.xodus.EntityStoreFactory
 import ru.mipt.npm.controls.xodus.connectXodus
 import ru.mipt.npm.controls.xodus.storeInXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
@@ -28,14 +26,16 @@ import space.kscience.dataforge.meta.Meta
 import tornadofx.*
 import java.nio.file.Paths
 
+internal object VirtualCarControllerConfig {
+    val deviceEntityStorePath = Paths.get(".messages")
+    val magixEntityStorePath = Paths.get(".server_messages")
+}
+
 class VirtualCarController : Controller(), ContextAware {
 
     var virtualCar: VirtualCar? = null
     var magixVirtualCar: MagixVirtualCar? = null
     var magixServer: ApplicationEngine? = null
-    var deviceEntityStore: PersistentEntityStore? = null
-    var magixEntityStore: PersistentEntityStore? = null
-    var mongoClient: CoroutineClient? = null
     var xodusStorageJob: Job? = null
     var mongoStorageJob: Job? = null
 
@@ -43,25 +43,29 @@ class VirtualCarController : Controller(), ContextAware {
         plugin(DeviceManager)
     }
 
-    private val deviceManager = context.fetch(DeviceManager)
+    private val deviceManager = context.fetch(DeviceManager, Meta {
+        "xodusConfig" put {
+            "entityStorePath" put VirtualCarControllerConfig.deviceEntityStorePath.toString()
+        }
+    })
 
     fun init() {
         context.launch {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
 
             //starting magix event loop and connect it to entity store
-            magixEntityStore = PersistentEntityStores.newInstance(Paths.get(".server_messages").toFile())
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
-                flow.storeInXodus(magixEntityStore as PersistentEntityStore)
+                storeInXodus(EntityStoreFactory, flow, Meta {
+                    "xodusConfig" put {
+                        "entityStorePath" put VirtualCarControllerConfig.magixEntityStorePath.toString()
+                    }
+                })
             }
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
-            deviceEntityStore = PersistentEntityStores.newInstance(Paths.get(".messages").toFile())
             //connect to device entity store
-            xodusStorageJob = deviceManager.connectXodus(deviceEntityStore as PersistentEntityStore)
+            xodusStorageJob = deviceManager.connectXodus(EntityStoreFactory)
             //Create mongo client and connect to MongoDB
-            val mongoClient = MongoClientFactory.invoke(meta = Meta.EMPTY, context)
-            mongoStorageJob = deviceManager.connectMongo(mongoClient)
-            this@VirtualCarController.mongoClient = mongoClient
+            mongoStorageJob = deviceManager.connectMongo(MongoClientFactory)
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
             deviceManager.connectToMagix(deviceEndpoint)
@@ -76,12 +80,6 @@ class VirtualCarController : Controller(), ContextAware {
         logger.info { "Magix virtual car server stopped" }
         virtualCar?.close()
         logger.info { "Virtual car server stopped" }
-        deviceEntityStore?.close()
-        logger.info { "Device entity store closed" }
-        magixEntityStore?.close()
-        logger.info { "Magix entity store closed" }
-        mongoClient?.close()
-        logger.info { "MongoClient closed" }
         context.close()
     }
 }
