@@ -13,7 +13,7 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.values.Value
 import space.kscience.dataforge.values.ValueType
 
-public fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entity {
+internal fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entity {
     val entity = transaction.newEntity("PropertyChangedMessage")
     entity.setProperty("property", property)
     entity.setProperty("value", value.toString())
@@ -24,7 +24,7 @@ public fun PropertyChangedMessage.toEntity(transaction: StoreTransaction): Entit
     return entity
 }
 
-public fun Entity.toPropertyChangedMessage(): PropertyChangedMessage? {
+internal fun Entity.toPropertyChangedMessage(): PropertyChangedMessage? {
     if (getProperty("property") == null || getProperty("value") == null || getProperty("sourceDevice") == null) {
         return null
     }
@@ -39,7 +39,7 @@ public fun Entity.toPropertyChangedMessage(): PropertyChangedMessage? {
     )
 }
 
-public fun <T> MagixMessage<T>.toEntity(transaction: StoreTransaction): Entity {
+internal fun <T> MagixMessage<T>.toEntity(transaction: StoreTransaction): Entity {
     val entity = transaction.newEntity("MagixMessage")
     entity.setProperty("format", format)
     entity.setProperty("origin", origin)
@@ -54,7 +54,7 @@ public fun <T> MagixMessage<T>.toEntity(transaction: StoreTransaction): Entity {
     return entity
 }
 
-public fun Entity.toMagixMessage(): MagixMessage<PropertyChangedMessage>? {
+internal fun Entity.toMagixMessage(): MagixMessage<PropertyChangedMessage>? {
     if (getProperty("format") == null || getProperty("origin") == null) {
         return null
     }

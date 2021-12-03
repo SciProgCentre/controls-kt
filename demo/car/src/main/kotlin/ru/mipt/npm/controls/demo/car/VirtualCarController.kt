@@ -26,6 +26,7 @@ import ru.mipt.npm.magix.server.startMagixServer
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import tornadofx.*
+import java.nio.file.Paths
 
 class VirtualCarController : Controller(), ContextAware {
 
@@ -49,12 +50,12 @@ class VirtualCarController : Controller(), ContextAware {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
 
             //starting magix event loop and connect it to entity store
-            magixEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.server_messages")
+            magixEntityStore = PersistentEntityStores.newInstance(Paths.get(".server_messages").toFile())
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
                 flow.storeInXodus(magixEntityStore as PersistentEntityStore)
             }
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
-            deviceEntityStore = PersistentEntityStores.newInstance("/home/marvel1337/2021/SCADA/.messages")
+            deviceEntityStore = PersistentEntityStores.newInstance(Paths.get(".messages").toFile())
             //connect to device entity store
             xodusStorageJob = deviceManager.connectXodus(deviceEntityStore as PersistentEntityStore)
             //Create mongo client and connect to MongoDB

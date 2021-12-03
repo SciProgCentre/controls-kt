@@ -5,11 +5,8 @@ import kotlinx.datetime.Instant
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.xodus.toPropertyChangedMessage
 
-//selectDeviceMessagesInRange
-public fun StoreTransaction.fromTo(
-    range: ClosedRange<Instant>,
-//    from: Instant,
-//    to: Instant,
+public fun StoreTransaction.selectPropertyChangedMessagesFromRange(
+    range: ClosedRange<Instant>
 ): List<PropertyChangedMessage> = find(
     "PropertyChangedMessage",
     "time",
