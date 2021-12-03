@@ -12,6 +12,7 @@ import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.hubMessageFlow
 import ru.mipt.npm.magix.server.GenericMagixMessage
+import ru.mipt.npm.xodus.serialization.json.encodeToEntity
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.debug
@@ -36,15 +37,13 @@ public object EntityStoreFactory : Factory<PersistentEntityStore> {
 @OptIn(InternalCoroutinesApi::class)
 public fun DeviceManager.connectXodus(
     factory: Factory<PersistentEntityStore>,
-    filterCondition: suspend (DeviceMessage) -> Boolean  = { it is PropertyChangedMessage }
+    filterCondition: suspend (DeviceMessage) -> Boolean  = { true }
 ): Job {
     val entityStore = factory.invoke(meta, context)
     logger.debug { "Device entity store opened" }
 
     return hubMessageFlow(context).filter(filterCondition).onEach { message ->
-        entityStore.executeInTransaction {
-            (message as PropertyChangedMessage).toEntity(it)
-        }
+        entityStore.encodeToEntity(message, "DeviceMessage")
     }.launchIn(context).apply {
         invokeOnCompletion(onCancelling = true) {
             entityStore.close()
@@ -78,10 +77,7 @@ public fun SharedFlow<GenericMagixMessage>.storeInXodus(
     flowFilter: suspend (GenericMagixMessage) -> Boolean = { true },
 ){
     filter(flowFilter).onEach { message ->
-        entityStore.executeInTransaction { txn ->
-            val entity = txn.newEntity("MagixMessage")
-            entity.setProperty("value", message.toString())
-        }
+        entityStore.encodeToEntity(message, "MagixMessage")
     }
 }
 
