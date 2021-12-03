@@ -1,6 +1,8 @@
 package ru.mipt.npm.xodus.serialization.json
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.json.*
@@ -40,3 +42,20 @@ public fun <T> StoreTransaction.decodeFromEntity(entity: Entity, deserializer: D
 }
 
 public inline fun <reified T> StoreTransaction.decodeFromEntity(entity: Entity): T = decodeFromEntity(entity, serializer())
+
+// First entity with entityType will be decoded
+public fun <T> PersistentEntityStore.decodeFromEntity(entityType: String, deserializer: DeserializationStrategy<T>): T? {
+    return computeInTransaction { txn ->
+        txn.getAll(entityType).first?.let { txn.decodeFromEntity(it, deserializer) }
+    }
+}
+
+public inline fun <reified T> PersistentEntityStore.decodeFromEntity(entityType: String): T? = decodeFromEntity(entityType, serializer())
+
+public fun <T> PersistentEntityStore.decodeFromEntity(entityId: EntityId, deserializer: DeserializationStrategy<T>): T? {
+    return computeInTransaction { txn ->
+        txn.decodeFromEntity(txn.getEntity(entityId), deserializer)
+    }
+}
+
+public inline fun <reified T> PersistentEntityStore.decodeFromEntity(entityId: EntityId): T? = decodeFromEntity(entityId, serializer())

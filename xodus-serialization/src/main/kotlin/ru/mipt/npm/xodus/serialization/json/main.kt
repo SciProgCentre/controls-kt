@@ -28,7 +28,7 @@ internal fun main() {
         user = JsonObject(content = mapOf(Pair("name", JsonPrimitive("SCADA"))))
     )
 
-    val entityStore = PersistentEntityStores.newInstance(Paths.get("xodus_serialization").toString())
+    val entityStore = PersistentEntityStores.newInstance(Paths.get(".xodus_serialization").toString())
     entityStore.executeInTransaction { txn ->
         txn.encodeToEntity(expectedMessage, "MagixMessage")
     }

@@ -1,6 +1,8 @@
 package ru.mipt.npm.xodus.serialization.json
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.*
@@ -55,4 +57,13 @@ public fun <T> StoreTransaction.encodeToEntity(serializer: SerializationStrategy
 }
 
 public inline fun <reified T> StoreTransaction.encodeToEntity(value: T, entityType: String): Entity =
+    encodeToEntity(serializer(), value, entityType)
+
+public fun <T> PersistentEntityStore.encodeToEntity(serializer: SerializationStrategy<T>, value: T, entityType: String): EntityId {
+    return computeInTransaction { txn ->
+        txn.encodeToEntity(serializer, value, entityType).id
+    }
+}
+
+public inline fun <reified T> PersistentEntityStore.encodeToEntity(value: T, entityType: String): EntityId =
     encodeToEntity(serializer(), value, entityType)
