@@ -15,9 +15,8 @@ import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.controls.mongo.MongoClientFactory
 import ru.mipt.npm.controls.mongo.connectMongo
-import ru.mipt.npm.controls.xodus.EntityStoreFactory
-import ru.mipt.npm.controls.xodus.connectXodus
 import ru.mipt.npm.controls.xodus.storeInXodus
+import ru.mipt.npm.controls.xodus.storeMessagesInXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.server.startMagixServer
@@ -55,7 +54,7 @@ class VirtualCarController : Controller(), ContextAware {
 
             //starting magix event loop and connect it to entity store
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
-                storeInXodus(EntityStoreFactory, flow, Meta {
+                storeInXodus( flow, Meta {
                     "xodusConfig" put {
                         "entityStorePath" put VirtualCarControllerConfig.magixEntityStorePath.toString()
                     }
@@ -63,7 +62,7 @@ class VirtualCarController : Controller(), ContextAware {
             }
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             //connect to device entity store
-            xodusStorageJob = deviceManager.connectXodus(EntityStoreFactory)
+            xodusStorageJob = deviceManager.storeMessagesInXodus()
             //Create mongo client and connect to MongoDB
             mongoStorageJob = deviceManager.connectMongo(MongoClientFactory)
             //Launch device client and connect it to the server

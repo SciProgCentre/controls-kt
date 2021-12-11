@@ -5,6 +5,8 @@ plugins {
 
 val xodusVersion = "1.3.232"
 
+//TODO to be moved to DataForge
+
 kscience {
     useSerialization {
         json()
