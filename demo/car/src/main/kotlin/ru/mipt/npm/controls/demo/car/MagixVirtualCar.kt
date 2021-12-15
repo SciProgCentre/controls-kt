@@ -14,8 +14,7 @@ import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
 import kotlin.time.ExperimentalTime
 
-class MagixVirtualCar(context: Context, meta: Meta)
-    : VirtualCar(context, meta) {
+class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) {
 
     private suspend fun MagixEndpoint<DeviceMessage>.startMagixVirtualCarUpdate() {
         launch {

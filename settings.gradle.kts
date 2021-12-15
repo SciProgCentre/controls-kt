@@ -5,7 +5,7 @@ enableFeaturePreview("VERSION_CATALOGS")
 
 pluginManagement {
 
-    val toolsVersion = "0.10.5"
+    val toolsVersion = "0.10.7"
 
     repositories {
         maven("https://repo.kotlin.link")
@@ -29,7 +29,7 @@ dependencyResolutionManagement {
 
     versionCatalogs {
         create("npm") {
-            from("ru.mipt.npm:version-catalog:0.10.5")
+            from("ru.mipt.npm:version-catalog:0.10.7")
         }
     }
 }
@@ -50,5 +50,9 @@ include(
     ":magix:magix-zmq",
     ":magix:magix-demo",
     ":controls-magix-client",
-    ":motors"
+    ":motors",
+    ":controls-xodus",
+    ":controls-mongo",
+    ":xodus-serialization"
 )
+include("xodus-serialization")

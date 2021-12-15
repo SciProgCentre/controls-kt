@@ -16,7 +16,7 @@ import ru.mipt.npm.controls.controllers.installing
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.maxPosition
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.minPosition
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.position
-import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.fetch
 import tornadofx.*
 
@@ -24,7 +24,7 @@ class PiMotionMasterApp : App(PiMotionMasterView::class)
 
 class PiMotionMasterController : Controller() {
     //initialize context
-    val context = Global.buildContext("piMotionMaster"){
+    val context = Context("piMotionMaster"){
         plugin(DeviceManager)
     }
 
