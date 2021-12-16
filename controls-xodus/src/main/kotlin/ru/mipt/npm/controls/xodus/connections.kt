@@ -36,6 +36,13 @@ internal val defaultPersistentStoreFactory = object : Factory<PersistentEntitySt
     override fun invoke(meta: Meta, context: Context): PersistentEntityStore = context.getPersistentEntityStore(meta)
 }
 
+/**
+ * Begin to store DeviceMessages from this DeviceManager
+ * @param factory factory that will be used for creating persistent entity store instance. DefaultPersistentStoreFactory by default.
+ * DeviceManager's meta and context will be used for in invoke method.
+ * @param filterCondition allow you to specify messages which we want to store. Always true by default.
+ * @return Job which responsible for our storage
+ */
 @OptIn(InternalCoroutinesApi::class)
 public fun DeviceManager.storeMessagesInXodus(
     factory: Factory<PersistentEntityStore> = defaultPersistentStoreFactory,
@@ -83,6 +90,12 @@ internal fun Flow<GenericMagixMessage>.storeInXodus(
     }
 }
 
+/** Begin to store MagixMessages from certain flow
+ * @param flow flow of messages which we will store
+ * @param meta Meta which may have some configuration parameters for our storage and will be used in invoke method of factory
+ * @param factory factory that will be used for creating persistent entity store instance. DefaultPersistentStoreFactory by default.
+ * @param flowFilter allow you to specify messages which we want to store. Always true by default.
+ */
 @OptIn(InternalCoroutinesApi::class)
 public fun Application.storeInXodus(
     flow: MutableSharedFlow<GenericMagixMessage>,
