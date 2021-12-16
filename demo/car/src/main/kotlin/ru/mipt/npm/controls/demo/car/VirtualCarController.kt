@@ -15,6 +15,7 @@ import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.controls.mongo.MongoClientFactory
 import ru.mipt.npm.controls.mongo.connectMongo
+import ru.mipt.npm.controls.xodus.XODUS_STORE_PROPERTY
 import ru.mipt.npm.controls.xodus.storeInXodus
 import ru.mipt.npm.controls.xodus.storeMessagesInXodus
 import ru.mipt.npm.magix.api.MagixEndpoint
@@ -55,9 +56,7 @@ class VirtualCarController : Controller(), ContextAware {
             //starting magix event loop and connect it to entity store
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
                 storeInXodus( flow, Meta {
-                    "xodusConfig" put {
-                        "entityStorePath" put VirtualCarControllerConfig.magixEntityStorePath.toString()
-                    }
+                    XODUS_STORE_PROPERTY put VirtualCarControllerConfig.magixEntityStorePath.toString()
                 })
             }
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
