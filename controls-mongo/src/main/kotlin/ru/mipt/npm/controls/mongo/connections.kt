@@ -39,6 +39,13 @@ public object DefaultMongoClientFactory : Factory<CoroutineClient> {
     } ?: KMongo.createClient(DEFAULT_MONGO_DATABASE_URL).coroutine
 }
 
+/**
+ * Begin to store DeviceMessages from this DeviceManager
+ * @param factory factory that will be used for creating persistent entity store instance. DefaultPersistentStoreFactory by default.
+ * DeviceManager's meta and context will be used for in invoke method.
+ * @param filterCondition allow you to specify messages which we want to store. Always true by default.
+ * @return Job which responsible for our storage
+ */
 @OptIn(InternalCoroutinesApi::class)
 public fun DeviceManager.connectMongo(
     factory: Factory<CoroutineClient>,
@@ -70,6 +77,12 @@ internal fun Flow<GenericMagixMessage>.storeInMongo(
     }
 }
 
+/** Begin to store MagixMessages from certain flow
+ * @param flow flow of messages which we will store
+ * @param meta Meta which may have some configuration parameters for our storage and will be used in invoke method of factory
+ * @param factory factory that will be used for creating persistent entity store instance. DefaultPersistentStoreFactory by default.
+ * @param flowFilter allow you to specify messages which we want to store. Always true by default.
+ */
 @OptIn(InternalCoroutinesApi::class)
 public fun Application.storeInMongo(
     flow: MutableSharedFlow<GenericMagixMessage>,
