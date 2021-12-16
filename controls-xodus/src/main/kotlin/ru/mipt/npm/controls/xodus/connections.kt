@@ -22,7 +22,7 @@ import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
 
 private const val DEFAULT_XODUS_STORE_PATH = ".storage"
-private val XODUS_STORE_PROPERTY = Name.of("xodus", "entityStorePath")
+public val XODUS_STORE_PROPERTY: Name = Name.of("xodus", "entityStorePath")
 
 private fun Context.getPersistentEntityStore(meta: Meta = Meta.EMPTY): PersistentEntityStore {
     val storePath = meta[XODUS_STORE_PROPERTY]?.string
@@ -41,7 +41,7 @@ public fun DeviceManager.storeMessagesInXodus(
     factory: Factory<PersistentEntityStore> = defaultPersistentStoreFactory,
     filterCondition: suspend (DeviceMessage) -> Boolean = { true },
 ): Job {
-    val entityStore = factory(Meta.EMPTY, context)
+    val entityStore = factory(meta, context)
     logger.debug { "Device entity store opened" }
 
     return hubMessageFlow(context).filter(filterCondition).onEach { message ->
@@ -76,7 +76,7 @@ public fun DeviceManager.storeMessagesInXodus(
 
 internal fun Flow<GenericMagixMessage>.storeInXodus(
     entityStore: PersistentEntityStore,
-    flowFilter: (GenericMagixMessage) -> Boolean = { true },
+    flowFilter: suspend (GenericMagixMessage) -> Boolean = { true },
 ) {
     filter(flowFilter).onEach { message ->
         entityStore.encodeToEntity(message, "MagixMessage")
@@ -88,7 +88,7 @@ public fun Application.storeInXodus(
     flow: MutableSharedFlow<GenericMagixMessage>,
     meta: Meta = Meta.EMPTY,
     factory: Factory<PersistentEntityStore> = defaultPersistentStoreFactory,
-    flowFilter: (GenericMagixMessage) -> Boolean = { true },
+    flowFilter: suspend (GenericMagixMessage) -> Boolean = { true },
 ) {
     val entityStore = factory(meta)
 
