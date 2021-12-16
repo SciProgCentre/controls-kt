@@ -9,5 +9,6 @@ dependencies {
     implementation(projects.controlsCore)
     implementation(projects.magix.magixApi)
     implementation(projects.controlsMagixClient)
+    implementation(projects.magix.magixServer)
     implementation("org.litote.kmongo:kmongo-coroutine-serialization:$kmongoVersion")
 }
