@@ -17,6 +17,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.math.pow
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
@@ -103,7 +104,7 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
         //initializing the clock
         timeState = Clock.System.now()
         //starting regular updates
-        doRecurring(Duration.milliseconds(100)) {
+        doRecurring(100.milliseconds) {
             update()
         }
     }

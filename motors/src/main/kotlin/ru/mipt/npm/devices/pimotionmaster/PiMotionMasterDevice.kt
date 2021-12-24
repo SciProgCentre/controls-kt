@@ -25,6 +25,7 @@ import space.kscience.dataforge.values.asValue
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class PiMotionMasterDevice(
     context: Context,
@@ -42,7 +43,7 @@ class PiMotionMasterDevice(
         }
     }
 
-    var timeoutValue: Duration = Duration.microseconds(200)
+    var timeoutValue: Duration = 200.milliseconds
 
     /**
      * Name-friendly accessor for axis

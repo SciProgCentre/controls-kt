@@ -10,7 +10,7 @@ import space.kscience.dataforge.meta.descriptors.value
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import space.kscience.dataforge.values.ValueType
 import java.time.Instant
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 
@@ -27,7 +27,7 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDe
             cosScale.read()
             timeScale.read()
         }
-        doRecurring(Duration.milliseconds(50)) {
+        doRecurring(50.milliseconds) {
             coordinates.read()
         }
     }

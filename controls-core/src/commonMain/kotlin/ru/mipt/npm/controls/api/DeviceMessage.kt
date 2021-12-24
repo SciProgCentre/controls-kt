@@ -113,6 +113,8 @@ public data class GetDescriptionMessage(
 @SerialName("description")
 public data class DescriptionMessage(
     val description: Meta,
+    val properties: Collection<PropertyDescriptor>,
+    val actions: Collection<ActionDescriptor>,
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
