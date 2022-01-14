@@ -38,7 +38,8 @@ internal fun StoreTransaction.decodeFromEntity(entity: Entity): JsonElement = bu
 
 public fun <T> StoreTransaction.decodeFromEntity(entity: Entity, deserializer: DeserializationStrategy<T>): T {
     val jsonElement = decodeFromEntity(entity)
-    return Json.decodeFromJsonElement(deserializer, jsonElement)
+    val json = Json { ignoreUnknownKeys = true }
+    return json.decodeFromJsonElement(deserializer, jsonElement)
 }
 
 public inline fun <reified T> StoreTransaction.decodeFromEntity(entity: Entity): T = decodeFromEntity(entity, serializer())

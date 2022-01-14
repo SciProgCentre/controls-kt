@@ -53,6 +53,6 @@ include(
     ":motors",
     ":controls-xodus",
     ":controls-mongo",
-    ":xodus-serialization"
+    ":xodus-serialization",
+    ":controls-storage"
 )
-include("xodus-serialization")

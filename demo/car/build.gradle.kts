@@ -21,6 +21,7 @@ dependencies {
     implementation(projects.controlsMagixClient)
     implementation(projects.controlsXodus)
     implementation(projects.controlsMongo)
+    implementation(projects.controlsStorage)
 
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")
