@@ -34,7 +34,7 @@ public fun DeviceManager.storeMessages(
     logger.debug { "Storage client created" }
 
     return hubMessageFlow(context).filter(filterCondition).onEach { message ->
-        client.storeValue(message, StorageKind.DEVICE_HUB)
+        client.storeValueInDeviceHub(message)
     }.launchIn(context).apply {
         invokeOnCompletion(onCancelling = true) {
             client.close()

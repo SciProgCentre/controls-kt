@@ -10,7 +10,6 @@ import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.hubMessageFlow
-import ru.mipt.npm.controls.storage.synchronous.StorageKind
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.logger
@@ -29,7 +28,7 @@ public fun DeviceManager.storeMessages(
     logger.debug { "Storage client created" }
 
     return hubMessageFlow(context).filter(filterCondition).onEach { message ->
-        client.storeValue(message, StorageKind.DEVICE_HUB)
+        client.storeValueInDeviceHub(message)
     }.launchIn(context).apply {
         invokeOnCompletion(onCancelling = true) {
             client.close()

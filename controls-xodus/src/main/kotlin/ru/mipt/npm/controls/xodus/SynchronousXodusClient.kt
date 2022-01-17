@@ -3,6 +3,7 @@ package ru.mipt.npm.controls.xodus
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import kotlinx.datetime.Instant
+import kotlinx.serialization.KSerializer
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.storage.synchronous.StorageKind
 import ru.mipt.npm.controls.storage.synchronous.SynchronousStorageClient
@@ -23,13 +24,12 @@ private const val DEVICE_HUB_ENTITY_TYPE = "DeviceMessage"
 private const val MAGIX_SERVER_ENTITY_TYPE = "MagixMessage"
 
 internal class SynchronousXodusClient(private val entityStore: PersistentEntityStore) : SynchronousStorageClient {
-    override fun <T : Any> storeValue(value: T, storageKind: StorageKind, clazz: KClass<T>) {
-        val entityType = when (storageKind) {
-            StorageKind.DEVICE_HUB -> DEVICE_HUB_ENTITY_TYPE
-            StorageKind.MAGIX_SERVER -> MAGIX_SERVER_ENTITY_TYPE
-        }
+    override fun <T : Any> storeValueInDeviceHub(value: T, serializer: KSerializer<T>) {
+        entityStore.encodeToEntity(value, DEVICE_HUB_ENTITY_TYPE, serializer)
+    }
 
-        entityStore.encodeToEntity(value, entityType, clazz)
+    override fun <T : Any> storeValueInMagixServer(value: T, serializer: KSerializer<T>) {
+        entityStore.encodeToEntity(value, MAGIX_SERVER_ENTITY_TYPE, serializer)
     }
 
     override fun getPropertyHistory(

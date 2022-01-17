@@ -16,7 +16,7 @@ internal fun Flow<GenericMagixMessage>.store(
     flowFilter: suspend (GenericMagixMessage) -> Boolean = { true },
 ) {
     filter(flowFilter).onEach { message ->
-        client.storeValue(message, StorageKind.MAGIX_SERVER)
+        client.storeValueInMagixServer(message)
     }
 }
 

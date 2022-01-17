@@ -5,6 +5,7 @@ import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
@@ -73,5 +74,5 @@ public inline fun <reified T> PersistentEntityStore.encodeToEntity(value: T, ent
     encodeToEntity(serializer(), value, entityType)
 
 @OptIn(InternalSerializationApi::class)
-public fun <T : Any> PersistentEntityStore.encodeToEntity(value: T, entityType: String, clazz: KClass<T>): EntityId = encodeToEntity(
-    clazz.serializer(), value, entityType)
+public fun <T : Any> PersistentEntityStore.encodeToEntity(value: T, entityType: String, serializer: KSerializer<T>): EntityId =
+    encodeToEntity(serializer, value, entityType)
