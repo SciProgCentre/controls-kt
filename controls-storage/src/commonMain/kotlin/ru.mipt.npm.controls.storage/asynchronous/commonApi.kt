@@ -1,11 +1,11 @@
 package ru.mipt.npm.controls.storage.asynchronous
 
+import io.ktor.utils.io.core.use
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.io.core.use
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
 import ru.mipt.npm.controls.controllers.DeviceManager

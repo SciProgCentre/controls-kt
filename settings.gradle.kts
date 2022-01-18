@@ -1,13 +1,13 @@
 rootProject.name = "controls-kt"
-
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 enableFeaturePreview("VERSION_CATALOGS")
 
 pluginManagement {
 
-    val toolsVersion = "0.10.5"
+    val toolsVersion: String by extra
 
     repositories {
+        mavenLocal()
         maven("https://repo.kotlin.link")
         mavenCentral()
         gradlePluginPortal()
@@ -22,14 +22,18 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+
+    val toolsVersion: String by extra
+
     repositories {
+        mavenLocal()
         maven("https://repo.kotlin.link")
         mavenCentral()
     }
 
     versionCatalogs {
-        create("npm") {
-            from("ru.mipt.npm:version-catalog:0.10.5")
+        create("npmlibs") {
+            from("ru.mipt.npm:version-catalog:$toolsVersion")
         }
     }
 }

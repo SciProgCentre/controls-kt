@@ -1,6 +1,6 @@
 package ru.mipt.npm.controls.storage.synchronous
 
-import kotlinx.io.core.Closeable
+import io.ktor.utils.io.core.Closeable
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 import ru.mipt.npm.controls.api.PropertyChangedMessage
