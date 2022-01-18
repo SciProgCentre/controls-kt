@@ -28,7 +28,7 @@ internal class MongoEventStorage(
     private val client: CoroutineClient,
     private val meta: Meta = Meta.EMPTY,
 ) : EventStorage {
-    override suspend fun <T : Any> storeValueInDeviceHub(value: T, serializer: KSerializer<T>) {
+    override suspend fun <T : Any> storeDeviceMessage(value: T, serializer: KSerializer<T>) {
         val collection = client
             .getDatabase(
                 meta[MONGO_DEVICE_MESSAGE_DATABASE_NAME_PROPERTY]?.string
@@ -39,7 +39,7 @@ internal class MongoEventStorage(
         collection.insertOne(Json.encodeToString(serializer, value))
     }
 
-    override suspend fun <T : Any> storeValueInMagixServer(value: T, serializer: KSerializer<T>) {
+    override suspend fun <T : Any> storeMagixMessage(value: T, serializer: KSerializer<T>) {
         val collection = client
             .getDatabase(meta[MONGO_MAGIX_MESSAGE_DATABASE_NAME_PROPERTY]?.string
                 ?: DEFAULT_MAGIX_MESSAGE_DATABASE_NAME)

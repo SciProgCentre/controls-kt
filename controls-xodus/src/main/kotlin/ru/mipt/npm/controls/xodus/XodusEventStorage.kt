@@ -22,11 +22,11 @@ private const val DEVICE_HUB_ENTITY_TYPE = "DeviceMessage"
 private const val MAGIX_SERVER_ENTITY_TYPE = "MagixMessage"
 
 public class XodusEventStorage(private val entityStore: PersistentEntityStore) : EventStorage {
-    override suspend fun <T : Any> storeValueInDeviceHub(value: T, serializer: KSerializer<T>) {
+    override suspend fun <T : Any> storeDeviceMessage(value: T, serializer: KSerializer<T>) {
         entityStore.encodeToEntity(value, DEVICE_HUB_ENTITY_TYPE, serializer)
     }
 
-    override suspend fun <T : Any> storeValueInMagixServer(value: T, serializer: KSerializer<T>) {
+    override suspend fun <T : Any> storeMagixMessage(value: T, serializer: KSerializer<T>) {
         entityStore.encodeToEntity(value, MAGIX_SERVER_ENTITY_TYPE, serializer)
     }
 
