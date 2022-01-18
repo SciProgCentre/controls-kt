@@ -1,4 +1,6 @@
 import jetbrains.exodus.entitystore.PersistentEntityStores
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -6,9 +8,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
-import ru.mipt.npm.controls.storage.synchronous.getPropertyHistory
-import ru.mipt.npm.controls.xodus.DefaultSynchronousXodusClientFactory
+import ru.mipt.npm.controls.storage.getPropertyHistory
 import ru.mipt.npm.controls.xodus.XODUS_STORE_PROPERTY
+import ru.mipt.npm.controls.xodus.XodusEventStorage
 import ru.mipt.npm.xodus.serialization.json.encodeToEntity
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -56,11 +58,15 @@ internal class PropertyHistoryTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun getPropertyHistoryTest() {
-        assertEquals(listOf(propertyChangedMessages[0]), getPropertyHistory(
-            "virtual-car", "speed", DefaultSynchronousXodusClientFactory, Meta {
+    fun getPropertyHistoryTest() = runTest {
+        assertEquals(
+            listOf(propertyChangedMessages[0]),
+            getPropertyHistory(
+            "virtual-car", "speed", XodusEventStorage, Meta {
                 XODUS_STORE_PROPERTY put storeName
-            }))
+            })
+        )
     }
 }

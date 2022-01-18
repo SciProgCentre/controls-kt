@@ -14,12 +14,10 @@ import ru.mipt.npm.controls.controllers.DeviceManager
 import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
 import ru.mipt.npm.controls.mongo.DefaultAsynchronousMongoClientFactory
-import ru.mipt.npm.controls.storage.asynchronous.store
-import ru.mipt.npm.controls.storage.asynchronous.storeMessages
-import ru.mipt.npm.controls.storage.synchronous.store
-import ru.mipt.npm.controls.storage.synchronous.storeMessages
-import ru.mipt.npm.controls.xodus.DefaultSynchronousXodusClientFactory
+import ru.mipt.npm.controls.storage.store
+import ru.mipt.npm.controls.storage.storeMessages
 import ru.mipt.npm.controls.xodus.XODUS_STORE_PROPERTY
+import ru.mipt.npm.controls.xodus.XodusEventStorage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.server.startMagixServer
@@ -57,14 +55,14 @@ class VirtualCarController : Controller(), ContextAware {
 
             //starting magix event loop and connect it to entity store
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
-                store( flow, Meta {
+                store(flow, XodusEventStorage, Meta {
                     XODUS_STORE_PROPERTY put VirtualCarControllerConfig.magixEntityStorePath.toString()
-                }, DefaultSynchronousXodusClientFactory)
+                })
                 store(flow, DefaultAsynchronousMongoClientFactory)
             }
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             //connect to device entity store
-            xodusStorageJob = deviceManager.storeMessages(DefaultSynchronousXodusClientFactory)
+            xodusStorageJob = deviceManager.storeMessages(XodusEventStorage)
             //Create mongo client and connect to MongoDB
             mongoStorageJob = deviceManager.storeMessages(DefaultAsynchronousMongoClientFactory)
             //Launch device client and connect it to the server

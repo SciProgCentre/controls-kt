@@ -9,16 +9,20 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                implementation(projects.controlsCore)
+                api(projects.controlsCore)
             }
         }
 
         jvmMain {
             dependencies {
-                implementation(projects.magix.magixApi)
-                implementation(projects.controlsMagixClient)
-                implementation(projects.magix.magixServer)
+                api(projects.magix.magixApi)
+                api(projects.controlsMagixClient)
+                api(projects.magix.magixServer)
             }
         }
     }
+}
+
+readme{
+    maturity = ru.mipt.npm.gradle.Maturity.PROTOTYPE
 }
