@@ -8,10 +8,8 @@ import io.ktor.util.InternalAPI
 import io.ktor.util.moveToByteArray
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
-import java.net.InetSocketAddress
 
 val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
     throwable.printStackTrace()
@@ -20,7 +18,7 @@ val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
 @OptIn(InternalAPI::class)
 fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exceptionHandler) {
     val virtualDevice = PiMotionMasterVirtualDevice(this@launchPiDebugServer, axes)
-    val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind(InetSocketAddress("localhost", port))
+    val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", port)
     println("Started virtual port server at ${server.localAddress}")
 
     while (isActive) {

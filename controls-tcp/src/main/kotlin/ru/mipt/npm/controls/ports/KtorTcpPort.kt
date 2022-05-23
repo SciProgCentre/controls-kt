@@ -16,7 +16,6 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.string
-import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
 
 public class KtorTcpPort internal constructor(
@@ -29,7 +28,7 @@ public class KtorTcpPort internal constructor(
     override fun toString(): String = "port[tcp:$host:$port]"
 
     private val futureSocket = scope.async {
-        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(InetSocketAddress(host, port))
+        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(host, port)
     }
 
     private val writeChannel = scope.async {

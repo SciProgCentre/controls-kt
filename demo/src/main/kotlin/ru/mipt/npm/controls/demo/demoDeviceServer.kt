@@ -1,12 +1,12 @@
 package ru.mipt.npm.controls.demo
 
-import io.ktor.application.install
-import io.ktor.features.CORS
+import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
-import io.ktor.websocket.WebSockets
-import io.rsocket.kotlin.transport.ktor.server.RSocketSupport
+import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.websocket.WebSockets
+import io.rsocket.kotlin.ktor.server.RSocketSupport
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
@@ -54,33 +54,32 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
-suspend fun MagixEndpoint<DeviceMessage>.startDemoDeviceServer(): ApplicationEngine =
-    embeddedServer(CIO, 9090) {
-        install(WebSockets)
-        install(RSocketSupport)
+suspend fun MagixEndpoint<DeviceMessage>.startDemoDeviceServer(): ApplicationEngine = embeddedServer(CIO, 9090) {
+    install(WebSockets)
+    install(RSocketSupport)
 
-        install(CORS) {
-            anyHost()
-        }
+    install(CORS) {
+        anyHost()
+    }
 
-        val sinFlow = MutableSharedFlow<Meta?>()// = device.sin.flow()
-        val cosFlow = MutableSharedFlow<Meta?>()// = device.cos.flow()
+    val sinFlow = MutableSharedFlow<Meta?>()// = device.sin.flow()
+    val cosFlow = MutableSharedFlow<Meta?>()// = device.cos.flow()
 
-        launch {
-            subscribe().collect { magix ->
-                (magix.payload as? PropertyChangedMessage)?.let { message ->
-                    when (message.property) {
-                        "sin" -> sinFlow.emit(message.value)
-                        "cos" -> cosFlow.emit(message.value)
-                    }
+    launch {
+        subscribe().collect { magix ->
+            (magix.payload as? PropertyChangedMessage)?.let { message ->
+                when (message.property) {
+                    "sin" -> sinFlow.emit(message.value)
+                    "cos" -> cosFlow.emit(message.value)
                 }
             }
         }
+    }
 
-        plotlyModule().apply {
-            updateMode = PlotlyUpdateMode.PUSH
-            updateInterval = 50
-        }.page { container ->
+    plotlyModule{
+        updateMode = PlotlyUpdateMode.PUSH
+        updateInterval = 50
+        page { container ->
             val sinCosFlow = sinFlow.zip(cosFlow) { sin, cos ->
                 sin.double!! to cos.double!!
             }
@@ -140,6 +139,8 @@ suspend fun MagixEndpoint<DeviceMessage>.startDemoDeviceServer(): ApplicationEng
                     }
                 }
             }
+
         }
-    }.apply { start() }
+    }
+}.apply { start() }
 

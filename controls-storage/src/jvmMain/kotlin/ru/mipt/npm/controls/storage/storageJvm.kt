@@ -1,6 +1,6 @@
 package ru.mipt.npm.controls.storage
 
-import io.ktor.application.Application
+import io.ktor.server.application.Application
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow

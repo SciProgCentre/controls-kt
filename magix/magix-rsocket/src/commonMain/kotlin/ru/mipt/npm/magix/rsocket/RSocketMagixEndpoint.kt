@@ -1,16 +1,17 @@
 package ru.mipt.npm.magix.rsocket
 
 import io.ktor.client.HttpClient
-import io.ktor.client.features.websocket.WebSockets
+import io.ktor.client.plugins.websocket.WebSockets
 import io.rsocket.kotlin.RSocket
 import io.rsocket.kotlin.core.RSocketConnector
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
+import io.rsocket.kotlin.ktor.client.RSocketSupport
+import io.rsocket.kotlin.ktor.client.rSocket
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
-import io.rsocket.kotlin.transport.ktor.client.RSocketSupport
-import io.rsocket.kotlin.transport.ktor.client.rSocket
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -79,7 +80,7 @@ public suspend fun <T> MagixEndpoint.Companion.rSocketWithWebSockets(
     val rSocket = client.rSocket(host, port, path)
 
     //Ensure client is closed after rSocket if finished
-    rSocket.job.invokeOnCompletion {
+    rSocket.coroutineContext[Job]?.invokeOnCompletion {
         client.close()
     }
 

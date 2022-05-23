@@ -1,24 +1,23 @@
 package ru.mipt.npm.magix.server
 
-import io.ktor.application.*
-import io.ktor.features.CORS
-import io.ktor.features.ContentNegotiation
-import io.ktor.html.respondHtml
-import io.ktor.request.receive
-import io.ktor.routing.get
-import io.ktor.routing.post
-import io.ktor.routing.route
-import io.ktor.routing.routing
-import io.ktor.serialization.json
-import io.ktor.util.getValue
-import io.ktor.websocket.WebSockets
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.*
+import io.ktor.server.html.respondHtml
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.receive
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import io.ktor.server.util.getValue
+import io.ktor.server.websocket.WebSockets
 import io.rsocket.kotlin.ConnectionAcceptor
 import io.rsocket.kotlin.RSocketRequestHandler
+import io.rsocket.kotlin.ktor.server.RSocketSupport
+import io.rsocket.kotlin.ktor.server.rSocket
 import io.rsocket.kotlin.payload.Payload
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
-import io.rsocket.kotlin.transport.ktor.server.RSocketSupport
-import io.rsocket.kotlin.transport.ktor.server.rSocket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.html.*
@@ -88,23 +87,23 @@ private fun ApplicationCall.buildFilter(): MagixMessageFilter {
  * Attache magix http/sse and websocket-based rsocket event loop + statistics page to existing [MutableSharedFlow]
  */
 public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMessage>, route: String = "/") {
-    if (featureOrNull(WebSockets) == null) {
+    if (pluginOrNull(WebSockets) == null) {
         install(WebSockets)
     }
 
-    if (featureOrNull(CORS) == null) {
-        install(CORS) {
-            //TODO consider more safe policy
-            anyHost()
-        }
-    }
-    if (featureOrNull(ContentNegotiation) == null) {
+//    if (pluginOrNull(CORS) == null) {
+//        install(CORS) {
+//            //TODO consider more safe policy
+//            anyHost()
+//        }
+//    }
+    if (pluginOrNull(ContentNegotiation) == null) {
         install(ContentNegotiation) {
             json()
         }
     }
 
-    if (featureOrNull(RSocketSupport) == null) {
+    if (pluginOrNull(RSocketSupport) == null) {
         install(RSocketSupport)
     }
 
@@ -150,7 +149,7 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
                 magixFlow.emit(message)
             }
             //rSocket server. Filter from Payload
-            rSocket("rsocket", acceptor = magixAcceptor(magixFlow))
+            rSocket("rsocket", acceptor = this@magixModule.magixAcceptor(magixFlow))
         }
     }
 }

@@ -22,7 +22,13 @@ kotlin {
             dependencies {
                 api(projects.magix.magixApi)
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.rsocket.kotlin:rsocket-transport-ktor-client:$rsocketVersion")
+                implementation("io.rsocket.kotlin:rsocket-ktor-client:$rsocketVersion")
+            }
+        }
+        jvmMain{
+            dependencies{
+                implementation("io.ktor:ktor-network:$ktorVersion")
+                implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
             }
         }
     }

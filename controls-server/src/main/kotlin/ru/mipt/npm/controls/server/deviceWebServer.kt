@@ -1,24 +1,23 @@
 package ru.mipt.npm.controls.server
 
 
-import io.ktor.application.*
-import io.ktor.features.CORS
-import io.ktor.features.StatusPages
-import io.ktor.html.respondHtml
 import io.ktor.http.HttpStatusCode
-import io.ktor.request.receiveText
-import io.ktor.response.respond
-import io.ktor.response.respondRedirect
-import io.ktor.response.respondText
-import io.ktor.routing.get
-import io.ktor.routing.post
-import io.ktor.routing.route
-import io.ktor.routing.routing
+import io.ktor.server.application.*
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
-import io.ktor.util.getValue
-import io.ktor.websocket.WebSockets
+import io.ktor.server.html.respondHtml
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.receiveText
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import io.ktor.server.util.getValue
+import io.ktor.server.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.html.*
@@ -52,11 +51,11 @@ public fun CoroutineScope.startDeviceServer(
 
     return this.embeddedServer(CIO, port, host) {
         install(WebSockets)
-        install(CORS) {
-            anyHost()
-        }
+//        install(CORS) {
+//            anyHost()
+//        }
         install(StatusPages) {
-            exception<IllegalArgumentException> { cause ->
+            exception<IllegalArgumentException> { call, cause ->
                 call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
             }
         }
@@ -83,15 +82,15 @@ public fun Application.deviceManagerModule(
     rawSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_RAW_PORT,
     buffer: Int = 100,
 ) {
-    if (featureOrNull(WebSockets) == null) {
+    if (pluginOrNull(WebSockets) == null) {
         install(WebSockets)
     }
 
-    if (featureOrNull(CORS) == null) {
-        install(CORS) {
-            anyHost()
-        }
-    }
+//    if (pluginOrNull(CORS) == null) {
+//        install(CORS) {
+//            anyHost()
+//        }
+//    }
 
     routing {
         route(route) {

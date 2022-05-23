@@ -39,8 +39,8 @@ public suspend inline fun <reified T: Any> MiloDevice.readOpcWithTime(
     val time = data.serverTime ?: error("No server time provided")
     val meta: Meta = when (val content = data.value.value) {
         is T -> return content to time
-        content is Meta -> content as Meta
-        content is ExtensionObject -> (content as ExtensionObject).decode(client.dynamicSerializationContext) as Meta
+        is Meta -> content
+        is ExtensionObject -> content.decode(client.dynamicSerializationContext) as Meta
         else -> error("Incompatible OPC property value $content")
     }
 

@@ -1,14 +1,13 @@
 package ru.mipt.npm.magix.server
 
-import io.ktor.application.ApplicationCall
 import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
-import io.ktor.response.cacheControl
-import io.ktor.response.respondBytesWriter
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.cacheControl
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 
 /**
  * The data class representing a SSE Event that will be sent to the client.

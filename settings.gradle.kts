@@ -8,9 +8,9 @@ pluginManagement {
 
     repositories {
         mavenLocal()
-        maven("https://repo.kotlin.link")
-        mavenCentral()
         gradlePluginPortal()
+        mavenCentral()
+        maven("https://repo.kotlin.link")
     }
 
     plugins {
@@ -27,8 +27,8 @@ dependencyResolutionManagement {
 
     repositories {
         mavenLocal()
-        maven("https://repo.kotlin.link")
         mavenCentral()
+        maven("https://repo.kotlin.link")
     }
 
     versionCatalogs {
@@ -45,7 +45,7 @@ include(
     ":controls-server",
     ":controls-opcua",
     ":demo",
-    ":demo:car",
+//    ":demo:car",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",

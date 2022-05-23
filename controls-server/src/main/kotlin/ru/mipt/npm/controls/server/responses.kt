@@ -1,8 +1,8 @@
 package ru.mipt.npm.controls.server
 
-import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentType
-import io.ktor.response.respondText
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respondText
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import ru.mipt.npm.controls.api.DeviceMessage

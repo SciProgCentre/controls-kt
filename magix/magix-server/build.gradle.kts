@@ -21,12 +21,13 @@ val ktorVersion: String  = ru.mipt.npm.gradle.KScienceVersions.ktorVersion
 dependencies{
     api(project(":magix:magix-api"))
     api("io.ktor:ktor-server-cio:$ktorVersion")
-    api("io.ktor:ktor-websockets:$ktorVersion")
-    api("io.ktor:ktor-serialization:$ktorVersion")
-    api("io.ktor:ktor-html-builder:$ktorVersion")
+    api("io.ktor:ktor-server-websockets:$ktorVersion")
+    api("io.ktor:ktor-server-content-negotiation:$ktorVersion")
+    api("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+    api("io.ktor:ktor-server-html-builder:$ktorVersion")
 
-    api("io.rsocket.kotlin:rsocket-core:$rsocketVersion")
-    api("io.rsocket.kotlin:rsocket-transport-ktor-server:$rsocketVersion")
+    api("io.rsocket.kotlin:rsocket-ktor-server:$rsocketVersion")
+    api("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
 
     api("org.zeromq:jeromq:0.5.2")
 }
