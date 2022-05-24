@@ -37,7 +37,7 @@ public class KtorTcpPort internal constructor(
 
     private val listenerJob = scope.launch {
         val input = futureSocket.await().openReadChannel()
-        input.consumeEachBufferRange { buffer, last ->
+        input.consumeEachBufferRange { buffer, _ ->
             val array = ByteArray(buffer.remaining())
             buffer.get(array)
             receive(array)
