@@ -5,11 +5,13 @@ plugins {
 
 val xodusVersion = "2.0.1"
 
+kscience{
+    useCoroutines()
+}
+
 dependencies {
-    api(projects.controlsStorage)
+    api(projects.magix.magixApi)
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
-//    implementation("org.jetbrains.xodus:xodus-environment:$xodusVersion")
-//    implementation("org.jetbrains.xodus:xodus-vfs:$xodusVersion")
 
     testImplementation(npmlibs.kotlinx.coroutines.test)
 }

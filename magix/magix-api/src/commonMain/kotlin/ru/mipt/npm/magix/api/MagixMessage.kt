@@ -25,9 +25,9 @@ import kotlinx.serialization.json.JsonElement
  */
 @Serializable
 public data class MagixMessage<T>(
-    val format: String,
     val origin: String,
     val payload: T,
+    val format: String = origin,
     val target: String? = null,
     val id: String? = null,
     val parentId: String? = null,
@@ -39,4 +39,4 @@ public data class MagixMessage<T>(
  */
 @Suppress("UNCHECKED_CAST")
 public fun <T, R> MagixMessage<T>.replacePayload(payloadTransform: (T) -> R): MagixMessage<R> =
-    MagixMessage(format, origin, payloadTransform(payload), target, id, parentId, user)
+    MagixMessage(origin, payloadTransform(payload), format, target, id, parentId, user)

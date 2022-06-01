@@ -10,11 +10,11 @@ import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
-import ru.mipt.npm.controls.controllers.DeviceManager
-import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.cosScale
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.sinScale
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.timeScale
+import ru.mipt.npm.controls.manager.DeviceManager
+import ru.mipt.npm.controls.manager.install
 import ru.mipt.npm.controls.opcua.server.OpcUaServer
 import ru.mipt.npm.controls.opcua.server.endpoint
 import ru.mipt.npm.controls.opcua.server.serveDevices

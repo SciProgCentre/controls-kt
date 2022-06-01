@@ -6,7 +6,7 @@ plugins {
 val dataforgeVersion: String by rootProject.extra
 
 kscience {
-    useCoroutines("1.4.1")
+    useCoroutines()
     useSerialization{
         json()
     }

@@ -11,8 +11,8 @@ import javafx.scene.layout.VBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import ru.mipt.npm.controls.controllers.DeviceManager
-import ru.mipt.npm.controls.controllers.installing
+import ru.mipt.npm.controls.manager.DeviceManager
+import ru.mipt.npm.controls.manager.installing
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.maxPosition
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.minPosition
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.position

@@ -30,8 +30,8 @@ import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyGetMessage
 import ru.mipt.npm.controls.api.PropertySetMessage
 import ru.mipt.npm.controls.api.getOrNull
-import ru.mipt.npm.controls.controllers.DeviceManager
-import ru.mipt.npm.controls.controllers.respondHubMessage
+import ru.mipt.npm.controls.manager.DeviceManager
+import ru.mipt.npm.controls.manager.respondHubMessage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.server.GenericMagixMessage
 import ru.mipt.npm.magix.server.launchMagixServerRawRSocket

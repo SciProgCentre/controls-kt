@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.controllers
+package ru.mipt.npm.controls.manager
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow

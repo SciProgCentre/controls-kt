@@ -7,7 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import ru.mipt.npm.controls.api.get
 import ru.mipt.npm.controls.api.getOrReadProperty
-import ru.mipt.npm.controls.controllers.DeviceManager
+import ru.mipt.npm.controls.manager.DeviceManager
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import space.kscience.dataforge.context.error

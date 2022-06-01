@@ -22,7 +22,7 @@ import ru.mipt.npm.controls.api.Device
 import ru.mipt.npm.controls.api.DeviceHub
 import ru.mipt.npm.controls.api.PropertyDescriptor
 import ru.mipt.npm.controls.api.onPropertyChange
-import ru.mipt.npm.controls.controllers.DeviceManager
+import ru.mipt.npm.controls.manager.DeviceManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaSerializer
 import space.kscience.dataforge.names.Name

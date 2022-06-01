@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-val kmongoVersion = "4.4.0"
+val kmongoVersion = "4.5.1"
 
 dependencies {
     implementation(projects.controlsStorage)
