@@ -27,7 +27,7 @@ import space.kscience.dataforge.names.matches
 import space.kscience.dataforge.names.parseAsName
 
 
-internal fun StoreTransaction.writeMessage(message: DeviceMessage): Entity {
+internal fun StoreTransaction.writeMessage(message: DeviceMessage): Unit {
     val entity: Entity = newEntity(XodusDeviceMessageStorage.DEVICE_MESSAGE_ENTITY_TYPE)
     val json = Json.encodeToJsonElement(DeviceMessage.serializer(), message).jsonObject
     val type = json["type"]?.jsonPrimitive?.content ?: error("Message json representation must have type.")
@@ -43,8 +43,6 @@ internal fun StoreTransaction.writeMessage(message: DeviceMessage): Entity {
         entity.setProperty(DeviceMessage::targetDevice.name, it.toString())
     }
     entity.setBlobString("json", Json.encodeToString(json))
-
-    return entity
 }
 
 
@@ -65,15 +63,16 @@ public class XodusDeviceMessageStorage(
 ) : DeviceMessageStorage, AutoCloseable {
 
     override suspend fun write(event: DeviceMessage) {
-        //entityStore.encodeToEntity(event, DEVICE_MESSAGE_ENTITY_TYPE, DeviceMessage.serializer())
-        entityStore.computeInTransaction { txn ->
+        entityStore.executeInTransaction { txn ->
             txn.writeMessage(event)
         }
     }
 
-    override suspend fun readAll(): List<DeviceMessage> = entityStore.computeInTransaction { transaction ->
-        transaction.getAll(
+    override suspend fun readAll(): List<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
+        transaction.sort(
             DEVICE_MESSAGE_ENTITY_TYPE,
+            DeviceMessage::time.name,
+            true
         ).map {
             Json.decodeFromString(
                 DeviceMessage.serializer(),
@@ -87,22 +86,21 @@ public class XodusDeviceMessageStorage(
         range: ClosedRange<Instant>?,
         sourceDevice: Name?,
         targetDevice: Name?,
-    ): List<DeviceMessage> = entityStore.computeInTransaction { transaction ->
+    ): List<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
         transaction.find(
             DEVICE_MESSAGE_ENTITY_TYPE,
             "type",
             eventType
-        ).mapNotNull {
-            if (it.timeInRange(range) &&
-                it.propertyMatchesName(DeviceMessage::sourceDevice.name, sourceDevice) &&
-                it.propertyMatchesName(DeviceMessage::targetDevice.name, targetDevice)
-            ) {
-                Json.decodeFromString(
-                    DeviceMessage.serializer(),
-                    it.getBlobString("json") ?: error("No json content found")
-                )
-            } else null
-        }
+        ).asSequence().filter {
+            it.timeInRange(range) &&
+                    it.propertyMatchesName(DeviceMessage::sourceDevice.name, sourceDevice) &&
+                    it.propertyMatchesName(DeviceMessage::targetDevice.name, targetDevice)
+        }.map {
+            Json.decodeFromString(
+                DeviceMessage.serializer(),
+                it.getBlobString("json") ?: error("No json content found")
+            )
+        }.sortedBy { it.time }.toList()
     }
 
     override fun close() {
@@ -110,7 +108,7 @@ public class XodusDeviceMessageStorage(
     }
 
     public companion object : Factory<XodusDeviceMessageStorage> {
-        internal const val DEVICE_MESSAGE_ENTITY_TYPE = "DeviceMessage"
+        internal const val DEVICE_MESSAGE_ENTITY_TYPE = "controls-kt.message"
         public val XODUS_STORE_PROPERTY: Name = Name.of("xodus", "storagePath")
 
 

@@ -6,20 +6,19 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
-import ru.mipt.npm.controls.storage.getPropertyHistory
-import ru.mipt.npm.controls.xodus.XODUS_STORE_PROPERTY
-import ru.mipt.npm.controls.xodus.XodusEventStorage
-import ru.mipt.npm.xodus.serialization.json.encodeToEntity
+import ru.mipt.npm.controls.xodus.XodusDeviceMessageStorage
+import ru.mipt.npm.controls.xodus.query
+import ru.mipt.npm.controls.xodus.writeMessage
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import java.io.File
+import space.kscience.dataforge.names.asName
+import java.nio.file.Files
 
 internal class PropertyHistoryTest {
     companion object {
-        private val storeName = ".property_history_test"
-        private val entityStore = PersistentEntityStores.newInstance(storeName)
+        val storeFile = Files.createTempDirectory("controls-xodus").toFile()
+
 
         private val propertyChangedMessages = listOf(
             PropertyChangedMessage(
@@ -45,28 +44,34 @@ internal class PropertyHistoryTest {
         @BeforeAll
         @JvmStatic
         fun createEntities() {
-            propertyChangedMessages.forEach {
-                entityStore.encodeToEntity<DeviceMessage>(it, "DeviceMessage")
+            PersistentEntityStores.newInstance(storeFile).use {
+                it.executeInTransaction { transaction ->
+                    propertyChangedMessages.forEach { message ->
+                        transaction.writeMessage(message)
+                    }
+                }
             }
-            entityStore.close()
         }
 
         @AfterAll
         @JvmStatic
         fun deleteDatabase() {
-            File(storeName).deleteRecursively()
+            storeFile.deleteRecursively()
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun getPropertyHistoryTest() = runTest {
-        assertEquals(
-            listOf(propertyChangedMessages[0]),
-            getPropertyHistory(
-            "virtual-car", "speed", XodusEventStorage, Meta {
-                XODUS_STORE_PROPERTY put storeName
-            })
-        )
+        PersistentEntityStores.newInstance(storeFile).use { entityStore ->
+            XodusDeviceMessageStorage(entityStore).use { storage ->
+                assertEquals(
+                    propertyChangedMessages[0],
+                    storage.query<PropertyChangedMessage>(
+                        sourceDevice = "virtual-car".asName()
+                    ).first { it.property == "speed" }
+                )
+            }
+        }
     }
 }
