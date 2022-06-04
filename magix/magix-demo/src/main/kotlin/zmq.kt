@@ -15,7 +15,7 @@ import java.awt.Desktop
 import java.net.URI
 
 
-suspend fun MagixEndpoint<JsonObject>.sendJson(
+suspend fun MagixEndpoint.sendJson(
     origin: String,
     format: String = "json",
     target: String? = null,
@@ -44,11 +44,11 @@ suspend fun main(): Unit = coroutineScope {
 
     logger.info("Starting client")
     //Create zmq magix endpoint and wait for to finish
-    ZmqMagixEndpoint("tcp://localhost", JsonObject.serializer()).use { client ->
+    ZmqMagixEndpoint("tcp://localhost").use { client ->
         logger.info("Starting subscription")
         client.subscribe().onEach {
             println(it.payload)
-            if (it.payload["index"]?.jsonPrimitive?.int == numberOfMessages) {
+            if (it.payload.jsonObject["index"]?.jsonPrimitive?.int == numberOfMessages) {
                 logger.info("Index $numberOfMessages reached. Terminating")
                 cancel()
             }

@@ -8,7 +8,6 @@ import javafx.stage.Stage
 import kotlinx.coroutines.launch
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
-import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.cosScale
 import ru.mipt.npm.controls.demo.DemoDevice.Companion.sinScale
@@ -52,9 +51,9 @@ class DemoController : Controller(), ContextAware {
             //starting magix event loop
             magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
             //Launch device client and connect it to the server
-            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
+            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint)
-            val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost", DeviceMessage.serializer())
+            val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
             visualizer = visualEndpoint.startDemoDeviceServer()
 
             opcUaServer.startup()

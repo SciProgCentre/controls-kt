@@ -12,9 +12,9 @@ import java.util.concurrent.Flow;
  * @param <T>
  */
 public interface MagixClient<T> {
-    void broadcast(MagixMessage<T> msg) throws IOException;
+    void broadcast(MagixMessage msg) throws IOException;
 
-    Flow.Publisher<MagixMessage<T>> subscribe();
+    Flow.Publisher<MagixMessage> subscribe();
 
     /**
      * Create a magix endpoint client using RSocket with raw tcp connection
@@ -23,7 +23,7 @@ public interface MagixClient<T> {
      * @return the client
      */
     static MagixClient<JsonElement> rSocketTcp(String host, int port) {
-        return ControlsMagixClient.Companion.rSocketTcp(host, port, JsonElement.Companion.serializer());
+        return ControlsMagixClient.Companion.rSocketTcp(host, port);
     }
 
     /**
@@ -31,7 +31,6 @@ public interface MagixClient<T> {
      * @param host host name of magix server event loop
      * @param port port of magix server event loop
      * @param path
-     * @return
      */
     static MagixClient<JsonElement> rSocketWs(String host, int port, String path) {
         return ControlsMagixClient.Companion.rSocketWs(host, port, JsonElement.Companion.serializer(), path);

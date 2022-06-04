@@ -11,25 +11,24 @@ import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
 import java.util.concurrent.Flow
 
 internal class ControlsMagixClient<T>(
-    private val endpoint: MagixEndpoint<T>,
+    private val endpoint: MagixEndpoint,
     private val filter: MagixMessageFilter,
 ) : MagixClient<T> {
 
-    override fun broadcast(msg: MagixMessage<T>): Unit = runBlocking {
+    override fun broadcast(msg: MagixMessage): Unit = runBlocking {
         endpoint.broadcast(msg)
     }
 
-    override fun subscribe(): Flow.Publisher<MagixMessage<T>> = endpoint.subscribe(filter).asPublisher()
+    override fun subscribe(): Flow.Publisher<MagixMessage> = endpoint.subscribe(filter).asPublisher()
 
     companion object {
 
         fun <T> rSocketTcp(
             host: String,
             port: Int,
-            payloadSerializer: KSerializer<T>
         ): ControlsMagixClient<T> {
             val endpoint = runBlocking {
-                MagixEndpoint.rSocketWithTcp(host, payloadSerializer, port)
+                MagixEndpoint.rSocketWithTcp(host, port)
             }
             return ControlsMagixClient(endpoint, MagixMessageFilter())
         }
@@ -41,7 +40,7 @@ internal class ControlsMagixClient<T>(
             path: String = "/rsocket"
         ): ControlsMagixClient<T> {
             val endpoint = runBlocking {
-                MagixEndpoint.rSocketWithWebSockets(host, payloadSerializer, port, path)
+                MagixEndpoint.rSocketWithWebSockets(host, port, path)
             }
             return ControlsMagixClient(endpoint, MagixMessageFilter())
         }

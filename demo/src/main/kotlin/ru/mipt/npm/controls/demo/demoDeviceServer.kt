@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
-import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.api.PropertyChangedMessage
+import ru.mipt.npm.controls.client.controlsMagixFormat
 import ru.mipt.npm.magix.api.MagixEndpoint
+import ru.mipt.npm.magix.api.subscribe
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
 import space.kscience.plotly.layout
@@ -54,7 +55,7 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
-suspend fun MagixEndpoint<DeviceMessage>.startDemoDeviceServer(): ApplicationEngine = embeddedServer(CIO, 9090) {
+suspend fun MagixEndpoint.startDemoDeviceServer(): ApplicationEngine = embeddedServer(CIO, 9090) {
     install(WebSockets)
     install(RSocketSupport)
 
@@ -66,8 +67,8 @@ suspend fun MagixEndpoint<DeviceMessage>.startDemoDeviceServer(): ApplicationEng
     val cosFlow = MutableSharedFlow<Meta?>()// = device.cos.flow()
 
     launch {
-        subscribe().collect { magix ->
-            (magix.payload as? PropertyChangedMessage)?.let { message ->
+        subscribe(controlsMagixFormat).collect { (magix, payload) ->
+            (payload as? PropertyChangedMessage)?.let { message ->
                 when (message.property) {
                     "sin" -> sinFlow.emit(message.value)
                     "cos" -> cosFlow.emit(message.value)

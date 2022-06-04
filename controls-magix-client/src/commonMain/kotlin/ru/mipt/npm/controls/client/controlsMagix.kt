@@ -9,15 +9,17 @@ import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.manager.DeviceManager
 import ru.mipt.npm.controls.manager.hubMessageFlow
 import ru.mipt.npm.controls.manager.respondHubMessage
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.MagixMessage
+import ru.mipt.npm.magix.api.*
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 
 
-public const val DATAFORGE_MAGIX_FORMAT: String = "dataforge"
+public val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(
+    DeviceMessage.serializer(),
+    setOf("controls-kt", "dataforge")
+)
 
-internal fun generateId(request: MagixMessage<*>): String = if (request.id != null) {
+internal fun generateId(request: MagixMessage): String = if (request.id != null) {
     "${request.id}.response"
 } else {
     "df[${request.payload.hashCode()}"
@@ -27,37 +29,30 @@ internal fun generateId(request: MagixMessage<*>): String = if (request.id != nu
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
 public fun DeviceManager.connectToMagix(
-    endpoint: MagixEndpoint<DeviceMessage>,
-    endpointID: String = DATAFORGE_MAGIX_FORMAT,
-    preSendAction: (MagixMessage<*>) -> Unit = {}
+    endpoint: MagixEndpoint,
+    endpointID: String = controlsMagixFormat.defaultFormat,
 ): Job = context.launch {
-    endpoint.subscribe().onEach { request ->
-        val responsePayload = respondHubMessage(request.payload)
+    endpoint.subscribe(controlsMagixFormat).onEach { (request, payload) ->
+        val responsePayload = respondHubMessage(payload)
         if (responsePayload != null) {
-            val response = MagixMessage(
+            endpoint.broadcast(
+                format = controlsMagixFormat,
                 origin = endpointID,
                 payload = responsePayload,
-                format = DATAFORGE_MAGIX_FORMAT,
                 id = generateId(request),
                 parentId = request.id
             )
-
-            endpoint.broadcast(response)
         }
     }.catch { error ->
         logger.error(error) { "Error while responding to message" }
     }.launchIn(this)
 
     hubMessageFlow(this).onEach { payload ->
-        val magixMessage = MagixMessage(
+        endpoint.broadcast(
+            format = controlsMagixFormat,
             origin = endpointID,
             payload = payload,
-            format = DATAFORGE_MAGIX_FORMAT,
             id = "df[${payload.hashCode()}]"
-        )
-        preSendAction(magixMessage)
-        endpoint.broadcast(
-            magixMessage
         )
     }.catch { error ->
         logger.error(error) { "Error while sending a message" }

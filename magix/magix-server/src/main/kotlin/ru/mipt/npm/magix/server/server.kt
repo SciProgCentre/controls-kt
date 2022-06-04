@@ -14,12 +14,13 @@ import org.slf4j.LoggerFactory
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_HTTP_PORT
 import ru.mipt.npm.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
+import ru.mipt.npm.magix.api.MagixMessage
 
 /**
  * Raw TCP magix server
  */
 public fun CoroutineScope.launchMagixServerRawRSocket(
-    magixFlow: MutableSharedFlow<GenericMagixMessage>,
+    magixFlow: MutableSharedFlow<MagixMessage>,
     rawSocketPort: Int = DEFAULT_MAGIX_RAW_PORT,
 ): TcpServer {
     val tcpTransport = TcpServerTransport(port = rawSocketPort)
@@ -41,10 +42,10 @@ public fun CoroutineScope.startMagixServer(
     buffer: Int = 100,
     enableRawRSocket: Boolean = true,
     enableZmq: Boolean = true,
-    applicationConfiguration: Application.(MutableSharedFlow<GenericMagixMessage>) -> Unit = {},
+    applicationConfiguration: Application.(MutableSharedFlow<MagixMessage>) -> Unit = {},
 ): ApplicationEngine {
     val logger = LoggerFactory.getLogger("magix-server")
-    val magixFlow = MutableSharedFlow<GenericMagixMessage>(
+    val magixFlow = MutableSharedFlow<MagixMessage>(
         buffer,
         extraBufferCapacity = buffer
     )

@@ -4,7 +4,6 @@ import io.ktor.network.sockets.SocketOptions
 import io.ktor.util.InternalAPI
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
 import io.rsocket.kotlin.transport.ktor.tcp.TcpClientTransport
-import kotlinx.serialization.KSerializer
 import ru.mipt.npm.magix.api.MagixEndpoint
 import kotlin.coroutines.coroutineContext
 
@@ -13,13 +12,12 @@ import kotlin.coroutines.coroutineContext
  * Create a plain TCP based [RSocketMagixEndpoint] connected to [host] and [port]
  */
 @OptIn(InternalAPI::class)
-public suspend fun <T> MagixEndpoint.Companion.rSocketWithTcp(
+public suspend fun MagixEndpoint.Companion.rSocketWithTcp(
     host: String,
-    payloadSerializer: KSerializer<T>,
     port: Int = DEFAULT_MAGIX_RAW_PORT,
     tcpConfig: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
     rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
-): RSocketMagixEndpoint<T> {
+): RSocketMagixEndpoint {
     val transport = TcpClientTransport(
         hostname = host,
         port = port,
@@ -27,5 +25,5 @@ public suspend fun <T> MagixEndpoint.Companion.rSocketWithTcp(
     )
     val rSocket = buildConnector(rSocketConfig).connect(transport)
 
-    return RSocketMagixEndpoint(payloadSerializer, rSocket, coroutineContext)
+    return RSocketMagixEndpoint(rSocket, coroutineContext)
 }

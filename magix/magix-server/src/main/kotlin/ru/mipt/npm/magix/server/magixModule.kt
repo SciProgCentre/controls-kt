@@ -21,44 +21,39 @@ import io.rsocket.kotlin.payload.data
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.html.*
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import ru.mipt.npm.magix.api.MagixEndpoint.Companion.magixJson
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
 import ru.mipt.npm.magix.api.filter
 import java.util.*
 
-public typealias GenericMagixMessage = MagixMessage<JsonElement>
 
-internal val genericMessageSerializer: KSerializer<MagixMessage<JsonElement>> =
-    MagixMessage.serializer(JsonElement.serializer())
-
-
-internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<GenericMagixMessage>) = ConnectionAcceptor {
+internal fun CoroutineScope.magixAcceptor(magixFlow: MutableSharedFlow<MagixMessage>) = ConnectionAcceptor {
     RSocketRequestHandler {
         //handler for request/stream
         requestStream { request: Payload ->
             val filter = magixJson.decodeFromString(MagixMessageFilter.serializer(), request.data.readText())
             magixFlow.filter(filter).map { message ->
-                val string = magixJson.encodeToString(genericMessageSerializer, message)
+                val string = magixJson.encodeToString(message)
                 buildPayload { data(string) }
             }
         }
         fireAndForget { request: Payload ->
-            val message = magixJson.decodeFromString(genericMessageSerializer, request.data.readText())
+            val message = magixJson.decodeFromString<MagixMessage>(request.data.readText())
             magixFlow.emit(message)
         }
         // bi-directional connection
         requestChannel { request: Payload, input: Flow<Payload> ->
             input.onEach {
-                magixFlow.emit(magixJson.decodeFromString(genericMessageSerializer, it.data.readText()))
+                magixFlow.emit(magixJson.decodeFromString(it.data.readText()))
             }.launchIn(this@magixAcceptor)
 
             val filter = magixJson.decodeFromString(MagixMessageFilter.serializer(), request.data.readText())
 
             magixFlow.filter(filter).map { message ->
-                val string = magixJson.encodeToString(genericMessageSerializer, message)
+                val string = magixJson.encodeToString(message)
                 buildPayload { data(string) }
             }
         }
@@ -86,7 +81,7 @@ private fun ApplicationCall.buildFilter(): MagixMessageFilter {
 /**
  * Attache magix http/sse and websocket-based rsocket event loop + statistics page to existing [MutableSharedFlow]
  */
-public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMessage>, route: String = "/") {
+public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, route: String = "/") {
     if (pluginOrNull(WebSockets) == null) {
         install(WebSockets)
     }
@@ -126,7 +121,7 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
                             magixFlow.replayCache.forEach { message ->
                                 li {
                                     code {
-                                        +magixJson.encodeToString(genericMessageSerializer, message)
+                                        +magixJson.encodeToString(message)
                                     }
                                 }
                             }
@@ -138,14 +133,14 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
             get("sse") {
                 val filter = call.buildFilter()
                 val sseFlow = magixFlow.filter(filter).map {
-                    val data = magixJson.encodeToString(genericMessageSerializer, it)
+                    val data = magixJson.encodeToString(it)
                     val id = UUID.randomUUID()
                     SseEvent(data, id = id.toString(), event = "message")
                 }
                 call.respondSse(sseFlow)
             }
             post("broadcast") {
-                val message = call.receive<GenericMagixMessage>()
+                val message = call.receive<MagixMessage>()
                 magixFlow.emit(message)
             }
             //rSocket server. Filter from Payload
@@ -158,6 +153,6 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<GenericMagixMess
  * Create a new loop [MutableSharedFlow] with given [buffer] and setup magix module based on it
  */
 public fun Application.magixModule(route: String = "/", buffer: Int = 100) {
-    val magixFlow = MutableSharedFlow<GenericMagixMessage>(buffer)
+    val magixFlow = MutableSharedFlow<MagixMessage>(buffer)
     magixModule(magixFlow, route)
 }

@@ -8,8 +8,7 @@ import kotlinx.serialization.Serializable
 import ru.mipt.npm.controls.api.get
 import ru.mipt.npm.controls.api.getOrReadProperty
 import ru.mipt.npm.controls.manager.DeviceManager
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.MagixMessage
+import ru.mipt.npm.magix.api.*
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
@@ -59,33 +58,39 @@ public data class TangoPayload(
     val argin: Meta? = null,
     val argout: Meta? = null,
     val data: Meta? = null,
-    val errors: List<String>? = null
+    val errors: List<String>? = null,
 )
 
+internal val tangoMagixFormat = MagixFormat(
+    TangoPayload.serializer(),
+    setOf("tango")
+)
+
+
 public fun DeviceManager.launchTangoMagix(
-    endpoint: MagixEndpoint<TangoPayload>,
+    endpoint: MagixEndpoint,
     endpointID: String = TANGO_MAGIX_FORMAT,
 ): Job {
-    suspend fun respond(request: MagixMessage<TangoPayload>, payloadBuilder: (TangoPayload) -> TangoPayload) {
+
+    suspend fun respond(request: MagixMessage, payload: TangoPayload, payloadBuilder: (TangoPayload) -> TangoPayload) {
         endpoint.broadcast(
-            request.copy(
-                id = generateId(request),
-                parentId = request.id,
-                origin = endpointID,
-                payload = payloadBuilder(request.payload)
-            )
+            tangoMagixFormat,
+            id = generateId(request),
+            parentId = request.id,
+            origin = endpointID,
+            payload = payloadBuilder(payload)
         )
     }
 
 
     return context.launch {
-        endpoint.subscribe().onEach { request ->
+        endpoint.subscribe(tangoMagixFormat).onEach { (request, payload) ->
             try {
-                val device = get(request.payload.device)
-                when (request.payload.action) {
+                val device = get(payload.device)
+                when (payload.action) {
                     TangoAction.read -> {
-                        val value = device.getOrReadProperty(request.payload.name)
-                        respond(request) { requestPayload ->
+                        val value = device.getOrReadProperty(payload.name)
+                        respond(request, payload) { requestPayload ->
                             requestPayload.copy(
                                 value = value,
                                 quality = TangoQuality.VALID
@@ -93,12 +98,12 @@ public fun DeviceManager.launchTangoMagix(
                         }
                     }
                     TangoAction.write -> {
-                        request.payload.value?.let { value ->
-                            device.writeProperty(request.payload.name, value)
+                        payload.value?.let { value ->
+                            device.writeProperty(payload.name, value)
                         }
                         //wait for value to be written and return final state
-                        val value = device.getOrReadProperty(request.payload.name)
-                        respond(request) { requestPayload ->
+                        val value = device.getOrReadProperty(payload.name)
+                        respond(request, payload) { requestPayload ->
                             requestPayload.copy(
                                 value = value,
                                 quality = TangoQuality.VALID
@@ -106,8 +111,8 @@ public fun DeviceManager.launchTangoMagix(
                         }
                     }
                     TangoAction.exec -> {
-                        val result = device.execute(request.payload.name, request.payload.argin)
-                        respond(request) { requestPayload ->
+                        val result = device.execute(payload.name, payload.argin)
+                        respond(request, payload) { requestPayload ->
                             requestPayload.copy(
                                 argout = result,
                                 quality = TangoQuality.VALID
@@ -119,12 +124,11 @@ public fun DeviceManager.launchTangoMagix(
             } catch (ex: Exception) {
                 logger.error(ex) { "Error while responding to message" }
                 endpoint.broadcast(
-                    request.copy(
-                        id = generateId(request),
-                        parentId = request.id,
-                        origin = endpointID,
-                        payload = request.payload.copy(quality = TangoQuality.WARNING)
-                    )
+                    tangoMagixFormat,
+                    id = generateId(request),
+                    parentId = request.id,
+                    origin = endpointID,
+                    payload = payload.copy(quality = TangoQuality.WARNING)
                 )
             }
         }.launchIn(this)

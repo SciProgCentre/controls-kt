@@ -33,7 +33,7 @@ import ru.mipt.npm.controls.api.getOrNull
 import ru.mipt.npm.controls.manager.DeviceManager
 import ru.mipt.npm.controls.manager.respondHubMessage
 import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.server.GenericMagixMessage
+import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.server.launchMagixServerRawRSocket
 import ru.mipt.npm.magix.server.magixModule
 import space.kscience.dataforge.meta.toMeta
@@ -212,7 +212,7 @@ public fun Application.deviceManagerModule(
         }
     }
 
-    val magixFlow = MutableSharedFlow<GenericMagixMessage>(
+    val magixFlow = MutableSharedFlow<MagixMessage>(
         buffer,
         extraBufferCapacity = buffer
     )

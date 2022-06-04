@@ -5,7 +5,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonElement
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
@@ -13,7 +12,7 @@ import ru.mipt.npm.magix.api.MagixMessageFilter
 public class XodusMagixStorage(
     scope: CoroutineScope,
     private val store: PersistentEntityStore,
-    endpoint: MagixEndpoint<JsonElement>,
+    endpoint: MagixEndpoint,
     filter: MagixMessageFilter = MagixMessageFilter(),
 ) : AutoCloseable {
 
@@ -21,22 +20,22 @@ public class XodusMagixStorage(
     private val subscriptionJob = endpoint.subscribe(filter).onEach { message ->
         store.executeInTransaction { transaction ->
             transaction.newEntity(MAGIC_MESSAGE_ENTITY_TYPE).apply {
-                setProperty(MagixMessage<*>::origin.name, message.origin)
-                setProperty(MagixMessage<*>::format.name, message.format)
+                setProperty(MagixMessage::origin.name, message.origin)
+                setProperty(MagixMessage::format.name, message.format)
 
-                setBlobString(MagixMessage<*>::payload.name, MagixEndpoint.magixJson.encodeToString(message.payload))
+                setBlobString(MagixMessage::payload.name, MagixEndpoint.magixJson.encodeToString(message.payload))
 
                 message.target?.let {
-                    setProperty(MagixMessage<*>::target.name, it)
+                    setProperty(MagixMessage::target.name, it)
                 }
                 message.id?.let {
-                    setProperty(MagixMessage<*>::id.name, it)
+                    setProperty(MagixMessage::id.name, it)
                 }
                 message.parentId?.let {
-                    setProperty(MagixMessage<*>::parentId.name, it)
+                    setProperty(MagixMessage::parentId.name, it)
                 }
                 message.user?.let {
-                    setBlobString(MagixMessage<*>::user.name, MagixEndpoint.magixJson.encodeToString(it))
+                    setBlobString(MagixMessage::user.name, MagixEndpoint.magixJson.encodeToString(it))
                 }
             }
         }

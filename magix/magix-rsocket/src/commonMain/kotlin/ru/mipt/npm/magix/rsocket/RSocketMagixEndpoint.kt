@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
@@ -25,27 +24,24 @@ import ru.mipt.npm.magix.api.filter
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
-public class RSocketMagixEndpoint<T>(
-    payloadSerializer: KSerializer<T>,
+public class RSocketMagixEndpoint(
     private val rSocket: RSocket,
     private val coroutineContext: CoroutineContext,
-) : MagixEndpoint<T> {
-
-    private val serializer = MagixMessage.serializer(payloadSerializer)
+) : MagixEndpoint {
 
     override fun subscribe(
         filter: MagixMessageFilter,
-    ): Flow<MagixMessage<T>> {
+    ): Flow<MagixMessage> {
         val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(filter)) }
         val flow = rSocket.requestStream(payload)
         return flow.map {
-            MagixEndpoint.magixJson.decodeFromString(serializer, it.data.readText())
+            MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
         }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
-    override suspend fun broadcast(message: MagixMessage<T>) {
+    override suspend fun broadcast(message: MagixMessage) {
         withContext(coroutineContext) {
-            val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(serializer, message)) }
+            val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message)) }
             rSocket.fireAndForget(payload)
         }
     }
@@ -63,13 +59,12 @@ internal fun buildConnector(rSocketConfig: RSocketConnectorBuilder.ConnectionCon
 /**
  * Build a websocket based endpoint connected to [host], [port] and given routing [path]
  */
-public suspend fun <T> MagixEndpoint.Companion.rSocketWithWebSockets(
+public suspend fun MagixEndpoint.Companion.rSocketWithWebSockets(
     host: String,
-    payloadSerializer: KSerializer<T>,
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     path: String = "/rsocket",
     rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
-): RSocketMagixEndpoint<T> {
+): RSocketMagixEndpoint {
     val client = HttpClient {
         install(WebSockets)
         install(RSocketSupport) {
@@ -84,5 +79,5 @@ public suspend fun <T> MagixEndpoint.Companion.rSocketWithWebSockets(
         client.close()
     }
 
-    return RSocketMagixEndpoint(payloadSerializer, rSocket, coroutineContext)
+    return RSocketMagixEndpoint(rSocket, coroutineContext)
 }

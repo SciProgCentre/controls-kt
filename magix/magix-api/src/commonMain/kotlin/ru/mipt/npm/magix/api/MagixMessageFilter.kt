@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 public data class MagixMessageFilter(
-    val format: List<String?>? = null,
-    val origin: List<String?>? = null,
-    val target: List<String?>? = null,
+    val format: Collection<String?>? = null,
+    val origin: Collection<String?>? = null,
+    val target: Collection<String?>? = null,
 ) {
     public companion object {
         public val ALL: MagixMessageFilter = MagixMessageFilter()
@@ -18,7 +18,7 @@ public data class MagixMessageFilter(
 /**
  * Filter a [Flow] of messages based on given filter
  */
-public fun <T> Flow<MagixMessage<T>>.filter(filter: MagixMessageFilter): Flow<MagixMessage<T>> {
+public fun Flow<MagixMessage>.filter(filter: MagixMessageFilter): Flow<MagixMessage> {
     if (filter == MagixMessageFilter.ALL) {
         return this
     }
