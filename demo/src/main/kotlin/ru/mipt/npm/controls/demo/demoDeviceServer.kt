@@ -67,7 +67,7 @@ suspend fun MagixEndpoint.startDemoDeviceServer(): ApplicationEngine = embeddedS
     val cosFlow = MutableSharedFlow<Meta?>()// = device.cos.flow()
 
     launch {
-        subscribe(controlsMagixFormat).collect { (magix, payload) ->
+        subscribe(controlsMagixFormat).collect { (_, payload) ->
             (payload as? PropertyChangedMessage)?.let { message ->
                 when (message.property) {
                     "sin" -> sinFlow.emit(message.value)

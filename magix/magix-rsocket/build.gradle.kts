@@ -26,9 +26,13 @@ kotlin {
                 implementation("io.rsocket.kotlin:rsocket-ktor-client:$rsocketVersion")
             }
         }
-        jvmMain{
-            dependencies{
-                implementation("io.ktor:ktor-network:$ktorVersion")
+        jvmMain {
+            dependencies {
+                implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
+            }
+        }
+        linuxX64Main{
+            dependencies {
                 implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
             }
         }

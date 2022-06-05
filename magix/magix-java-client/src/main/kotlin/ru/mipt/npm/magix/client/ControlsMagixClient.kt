@@ -2,7 +2,6 @@ package ru.mipt.npm.magix.client
 
 import kotlinx.coroutines.jdk9.asPublisher
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.KSerializer
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
@@ -36,7 +35,6 @@ internal class ControlsMagixClient<T>(
         fun <T> rSocketWs(
             host: String,
             port: Int,
-            payloadSerializer: KSerializer<T>,
             path: String = "/rsocket"
         ): ControlsMagixClient<T> {
             val endpoint = runBlocking {

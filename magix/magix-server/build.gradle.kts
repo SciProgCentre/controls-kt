@@ -19,7 +19,7 @@ val rsocketVersion: String by rootProject.extra
 val ktorVersion: String  = ru.mipt.npm.gradle.KScienceVersions.ktorVersion
 
 dependencies{
-    api(project(":magix:magix-api"))
+    api(projects.magix.magixApi)
     api("io.ktor:ktor-server-cio:$ktorVersion")
     api("io.ktor:ktor-server-websockets:$ktorVersion")
     api("io.ktor:ktor-server-content-negotiation:$ktorVersion")
