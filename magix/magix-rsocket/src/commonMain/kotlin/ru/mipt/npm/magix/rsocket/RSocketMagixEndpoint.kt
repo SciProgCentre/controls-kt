@@ -2,6 +2,7 @@ package ru.mipt.npm.magix.rsocket
 
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.utils.io.core.Closeable
 import io.rsocket.kotlin.RSocket
 import io.rsocket.kotlin.core.RSocketConnector
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
@@ -9,13 +10,10 @@ import io.rsocket.kotlin.ktor.client.RSocketSupport
 import io.rsocket.kotlin.ktor.client.rSocket
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
@@ -27,7 +25,7 @@ import kotlin.coroutines.coroutineContext
 public class RSocketMagixEndpoint(
     private val rSocket: RSocket,
     private val coroutineContext: CoroutineContext,
-) : MagixEndpoint {
+) : MagixEndpoint, Closeable {
 
     override fun subscribe(
         filter: MagixMessageFilter,
@@ -39,11 +37,15 @@ public class RSocketMagixEndpoint(
         }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
-    override suspend fun broadcast(message: MagixMessage) {
-        withContext(coroutineContext) {
-            val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message)) }
-            rSocket.fireAndForget(payload)
+    override suspend fun broadcast(message: MagixMessage): Unit = withContext(coroutineContext) {
+        val payload = buildPayload {
+            data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message))
         }
+        rSocket.fireAndForget(payload)
+    }
+
+    override fun close() {
+        rSocket.cancel()
     }
 
     public companion object

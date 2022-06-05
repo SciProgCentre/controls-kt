@@ -44,7 +44,7 @@ suspend fun main(): Unit = coroutineScope {
 
     logger.info("Starting client")
     //Create zmq magix endpoint and wait for to finish
-    ZmqMagixEndpoint("tcp://localhost").use { client ->
+    ZmqMagixEndpoint("localhost","tcp").use { client ->
         logger.info("Starting subscription")
         client.subscribe().onEach {
             println(it.payload)

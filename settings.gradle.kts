@@ -57,7 +57,8 @@ include(
 //    ":magix:magix-storage",
     ":magix:magix-storage:magix-storage-xodus",
     ":controls-magix-client",
-    ":motors",
     ":demo:all-things",
     ":demo:car",
+    ":demo:motors",
+    ":demo:echo"
 )

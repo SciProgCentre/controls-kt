@@ -25,3 +25,20 @@ public suspend fun MagixEndpoint.Companion.rSocketWithTcp(
 
     return RSocketMagixEndpoint(rSocket, coroutineContext)
 }
+
+
+public suspend fun MagixEndpoint.Companion.rSocketStreamWithTcp(
+    host: String,
+    port: Int = DEFAULT_MAGIX_RAW_PORT,
+    tcpConfig: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
+    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
+): RSocketStreamMagixEndpoint {
+    val transport = TcpClientTransport(
+        hostname = host,
+        port = port,
+        configure = tcpConfig
+    )
+    val rSocket = buildConnector(rSocketConfig).connect(transport)
+
+    return RSocketStreamMagixEndpoint(rSocket, coroutineContext)
+}

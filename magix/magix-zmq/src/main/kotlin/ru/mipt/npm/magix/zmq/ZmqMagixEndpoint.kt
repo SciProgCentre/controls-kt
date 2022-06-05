@@ -4,8 +4,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -19,6 +17,7 @@ import kotlin.coroutines.coroutineContext
 
 public class ZmqMagixEndpoint(
     private val host: String,
+    private val protocol: String,
     private val pubPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
     private val pullPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
     private val coroutineContext: CoroutineContext = Dispatchers.IO,
@@ -28,7 +27,7 @@ public class ZmqMagixEndpoint(
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage> {
         val socket = zmqContext.createSocket(SocketType.SUB)
-        socket.connect("$host:$pubPort")
+        socket.connect("$protocol://$host:$pubPort")
         socket.subscribe("")
 
         return channelFlow {
@@ -40,7 +39,7 @@ public class ZmqMagixEndpoint(
                     //This is a blocking call.
                     val string: String? = socket.recvStr()
                     if (string != null) {
-                        val message = MagixEndpoint.magixJson.decodeFromString<MagixMessage>(string)
+                        val message = MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), string)
                         send(message)
                     }
                 } catch (t: Throwable) {
@@ -58,12 +57,12 @@ public class ZmqMagixEndpoint(
 
     private val publishSocket by lazy {
         zmqContext.createSocket(SocketType.PUSH).apply {
-            connect("$host:$pullPort")
+            connect("$protocol://$host:$pullPort")
         }
     }
 
     override suspend fun broadcast(message: MagixMessage): Unit = withContext(coroutineContext) {
-        val string = MagixEndpoint.magixJson.encodeToString(message)
+        val string = MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message)
         publishSocket.send(string)
     }
 
@@ -72,12 +71,14 @@ public class ZmqMagixEndpoint(
     }
 }
 
-public suspend fun <T> MagixEndpoint.Companion.zmq(
+public suspend fun MagixEndpoint.Companion.zmq(
     host: String,
+    protocol: String = "tcp",
     pubPort: Int = DEFAULT_MAGIX_ZMQ_PUB_PORT,
     pullPort: Int = DEFAULT_MAGIX_ZMQ_PULL_PORT,
 ): ZmqMagixEndpoint = ZmqMagixEndpoint(
     host,
+    protocol,
     pubPort,
     pullPort,
     coroutineContext = coroutineContext

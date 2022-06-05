@@ -62,6 +62,7 @@ public class TcpPort private constructor(
         futureChannel.await().write(ByteBuffer.wrap(data))
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun close() {
         listenerJob.cancel()
         if(futureChannel.isCompleted){

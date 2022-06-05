@@ -9,6 +9,7 @@ import io.rsocket.kotlin.transport.ktor.tcp.TcpServer
 import io.rsocket.kotlin.transport.ktor.tcp.TcpServerTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.slf4j.LoggerFactory
 import ru.mipt.npm.magix.api.MagixEndpoint
@@ -39,15 +40,16 @@ public fun CoroutineScope.launchMagixServerRawRSocket(
  */
 public fun CoroutineScope.startMagixServer(
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
-    buffer: Int = 100,
+    buffer: Int = 1000,
     enableRawRSocket: Boolean = true,
     enableZmq: Boolean = true,
     applicationConfiguration: Application.(MutableSharedFlow<MagixMessage>) -> Unit = {},
 ): ApplicationEngine {
     val logger = LoggerFactory.getLogger("magix-server")
     val magixFlow = MutableSharedFlow<MagixMessage>(
-        buffer,
-        extraBufferCapacity = buffer
+        replay = buffer,
+        extraBufferCapacity = buffer,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
     if (enableRawRSocket) {
