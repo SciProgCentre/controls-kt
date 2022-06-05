@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-    id("org.openjfx.javafxplugin")
+    id("org.openjfx.javafxplugin") version "0.0.10"
     application
 }
 
@@ -19,9 +19,9 @@ dependencies {
     implementation(projects.magix.magixServer)
     implementation(projects.magix.magixRsocket)
     implementation(projects.controlsMagixClient)
-    implementation(projects.controlsXodus)
-    implementation(projects.controlsMongo)
-    implementation(projects.controlsStorage)
+    implementation(projects.controlsStorage.controlsXodus)
+    implementation(projects.magix.magixStorage.magixStorageXodus)
+//    implementation(projects.controlsMongo)
 
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")
@@ -31,7 +31,7 @@ dependencies {
     implementation("org.jetbrains.xodus:xodus-entity-store:1.3.232")
     implementation("org.jetbrains.xodus:xodus-environment:1.3.232")
     implementation("org.jetbrains.xodus:xodus-vfs:1.3.232")
-    implementation("org.litote.kmongo:kmongo-coroutine-serialization:4.4.0")
+//    implementation("org.litote.kmongo:kmongo-coroutine-serialization:4.4.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

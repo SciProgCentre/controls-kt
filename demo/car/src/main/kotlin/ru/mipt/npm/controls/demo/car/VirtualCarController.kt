@@ -8,28 +8,20 @@ import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import ru.mipt.npm.controls.api.DeviceMessage
 import ru.mipt.npm.controls.client.connectToMagix
-import ru.mipt.npm.controls.controllers.DeviceManager
-import ru.mipt.npm.controls.controllers.install
 import ru.mipt.npm.controls.demo.car.IVirtualCar.Companion.acceleration
-import ru.mipt.npm.controls.mongo.DefaultAsynchronousMongoClientFactory
-import ru.mipt.npm.controls.storage.store
+import ru.mipt.npm.controls.manager.DeviceManager
+import ru.mipt.npm.controls.manager.install
 import ru.mipt.npm.controls.storage.storeMessages
-import ru.mipt.npm.controls.xodus.XODUS_STORE_PROPERTY
-import ru.mipt.npm.controls.xodus.XodusEventStorage
+import ru.mipt.npm.controls.xodus.XodusDeviceMessageStorage
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.rsocket.rSocketWithTcp
 import ru.mipt.npm.magix.server.startMagixServer
+import ru.mipt.npm.magix.storage.xodus.storeInXodus
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import tornadofx.*
 import java.nio.file.Paths
-
-internal object VirtualCarControllerConfig {
-    val deviceEntityStorePath = Paths.get(".messages")
-    val magixEntityStorePath = Paths.get(".server_messages")
-}
 
 class VirtualCarController : Controller(), ContextAware {
 
@@ -37,7 +29,8 @@ class VirtualCarController : Controller(), ContextAware {
     var magixVirtualCar: MagixVirtualCar? = null
     var magixServer: ApplicationEngine? = null
     var xodusStorageJob: Job? = null
-    var mongoStorageJob: Job? = null
+    var storageEndpoint: MagixEndpoint? = null
+    //var mongoStorageJob: Job? = null
 
     override val context = Context("demoDevice") {
         plugin(DeviceManager)
@@ -45,7 +38,7 @@ class VirtualCarController : Controller(), ContextAware {
 
     private val deviceManager = context.fetch(DeviceManager, Meta {
         "xodusConfig" put {
-            "entityStorePath" put VirtualCarControllerConfig.deviceEntityStorePath.toString()
+            "entityStorePath" put deviceEntityStorePath.toString()
         }
     })
 
@@ -54,19 +47,19 @@ class VirtualCarController : Controller(), ContextAware {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
 
             //starting magix event loop and connect it to entity store
-            magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
-                store(flow, XodusEventStorage, Meta {
-                    XODUS_STORE_PROPERTY put VirtualCarControllerConfig.magixEntityStorePath.toString()
-                })
-                store(flow, DefaultAsynchronousMongoClientFactory)
+            magixServer = startMagixServer(enableRawRSocket = true, enableZmq = true)
+
+            storageEndpoint = MagixEndpoint.rSocketWithTcp("localhost").apply {
+                storeInXodus(this@launch, magixEntityStorePath)
             }
+
             magixVirtualCar = deviceManager.install("magix-virtual-car", MagixVirtualCar)
             //connect to device entity store
-            xodusStorageJob = deviceManager.storeMessages(XodusEventStorage)
+            xodusStorageJob = deviceManager.storeMessages(XodusDeviceMessageStorage)
             //Create mongo client and connect to MongoDB
-            mongoStorageJob = deviceManager.storeMessages(DefaultAsynchronousMongoClientFactory)
+            //mongoStorageJob = deviceManager.storeMessages(DefaultAsynchronousMongoClientFactory)
             //Launch device client and connect it to the server
-            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost", DeviceMessage.serializer())
+            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint)
         }
     }
@@ -80,6 +73,11 @@ class VirtualCarController : Controller(), ContextAware {
         virtualCar?.close()
         logger.info { "Virtual car server stopped" }
         context.close()
+    }
+
+    companion object {
+        val deviceEntityStorePath = Paths.get(".messages")
+        val magixEntityStorePath = Paths.get(".server_messages")
     }
 }
 
@@ -113,8 +111,12 @@ class VirtualCarControllerView : View(title = " Virtual car controller remote") 
             action {
                 controller.virtualCar?.run {
                     launch {
-                        acceleration.write(Vector2D(accelerationXProperty.get(),
-                            accelerationYProperty.get()))
+                        acceleration.write(
+                            Vector2D(
+                                accelerationXProperty.get(),
+                                accelerationYProperty.get()
+                            )
+                        )
                     }
                 }
             }

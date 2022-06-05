@@ -34,9 +34,9 @@ public suspend fun <T> MagixEndpoint.broadcast(
     origin: String = format.defaultFormat,
 ) {
     val message = MagixMessage(
-        origin = origin,
-        payload = magixJson.encodeToJsonElement(format.serializer, payload),
         format = format.defaultFormat,
+        payload = magixJson.encodeToJsonElement(format.serializer, payload),
+        origin = origin,
         target = target,
         id = id,
         parentId = parentId,

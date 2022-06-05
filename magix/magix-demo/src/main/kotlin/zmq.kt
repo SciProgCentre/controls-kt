@@ -23,7 +23,7 @@ suspend fun MagixEndpoint.sendJson(
     parentId: String? = null,
     user: JsonElement? = null,
     builder: JsonObjectBuilder.() -> Unit
-): Unit = broadcast(MagixMessage(origin, buildJsonObject(builder), format, target, id, parentId, user))
+): Unit = broadcast(MagixMessage(format, buildJsonObject(builder), origin, target, id, parentId, user))
 
 internal const val numberOfMessages = 100
 

@@ -18,9 +18,9 @@ public fun <T, R> CoroutineScope.launchMagixConverter(
 ): Job = endpoint.subscribe(filter).onEach { message->
     val newPayload = transformer(message.payload)
     val transformed: MagixMessage = MagixMessage(
-        newOrigin ?: message.origin,
-        newPayload,
         outputFormat,
+        newPayload,
+        newOrigin ?: message.origin,
         message.target,
         message.id,
         message.parentId,

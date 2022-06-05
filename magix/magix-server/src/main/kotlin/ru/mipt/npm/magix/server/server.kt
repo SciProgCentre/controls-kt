@@ -34,7 +34,7 @@ public fun CoroutineScope.launchMagixServerRawRSocket(
 }
 
 /**
- * A combined RSocket/TCP server
+ * A combined RSocket/TCP/ZMQ server
  * @param applicationConfiguration optional additional configuration for magix loop server
  */
 public fun CoroutineScope.startMagixServer(
