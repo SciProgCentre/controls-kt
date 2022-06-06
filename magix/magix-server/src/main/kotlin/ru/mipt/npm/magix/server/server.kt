@@ -42,7 +42,10 @@ public fun CoroutineScope.startMagixServer(
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     buffer: Int = 1000,
     enableRawRSocket: Boolean = true,
+    rawRSocketPort: Int = DEFAULT_MAGIX_RAW_PORT,
     enableZmq: Boolean = true,
+    zmqPubSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
+    zmqPullSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
     applicationConfiguration: Application.(MutableSharedFlow<MagixMessage>) -> Unit = {},
 ): ApplicationEngine {
     val logger = LoggerFactory.getLogger("magix-server")
@@ -54,14 +57,11 @@ public fun CoroutineScope.startMagixServer(
 
     if (enableRawRSocket) {
         //Start tcpRSocket server
-        val rawRSocketPort = DEFAULT_MAGIX_RAW_PORT
         logger.info("Starting magix raw rsocket server on port $rawRSocketPort")
         launchMagixServerRawRSocket(magixFlow, rawRSocketPort)
     }
     if (enableZmq) {
         //Start ZMQ server socket pair
-        val zmqPubSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT
-        val zmqPullSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT
         logger.info("Starting magix zmq server on pub port $zmqPubSocketPort and pull port $zmqPullSocketPort")
         launchMagixServerZmqSocket(
             magixFlow,

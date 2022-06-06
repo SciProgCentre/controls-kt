@@ -23,6 +23,11 @@ public interface MagixEndpoint {
         message: MagixMessage,
     )
 
+    /**
+     * Close the endpoint and the associated connection if it exists
+     */
+    public fun close()
+
     public companion object {
         /**
          * A default port for HTTP/WS connections

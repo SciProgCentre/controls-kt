@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
-import ru.mipt.npm.magix.rsocket.rSocketStreamWithTcp
+import ru.mipt.npm.magix.rsocket.rSocketStreamWithWebSockets
 import ru.mipt.npm.magix.server.startMagixServer
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -59,7 +59,7 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
 @OptIn(ExperimentalTime::class)
 suspend fun main(): Unit = coroutineScope {
     launch(Dispatchers.Default) {
-        val server = startMagixServer(enableRawRSocket = true, enableZmq = true) { flow ->
+        val server = startMagixServer(enableRawRSocket = false, enableZmq = false) { flow ->
             //echo each message
             flow.onEach { message ->
                 if (message.parentId == null) {
@@ -72,7 +72,7 @@ suspend fun main(): Unit = coroutineScope {
 
 
         val responseTime = measureTime {
-            MagixEndpoint.rSocketStreamWithTcp("localhost").use {
+            MagixEndpoint.rSocketStreamWithWebSockets("localhost").use {
                 it.collectEcho(this, 5000)
             }
         }

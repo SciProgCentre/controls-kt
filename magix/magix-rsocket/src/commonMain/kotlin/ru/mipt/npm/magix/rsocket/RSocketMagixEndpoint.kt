@@ -14,7 +14,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.encodeToString
 import ru.mipt.npm.magix.api.MagixEndpoint
 import ru.mipt.npm.magix.api.MagixMessage
 import ru.mipt.npm.magix.api.MagixMessageFilter
@@ -30,7 +29,7 @@ public class RSocketMagixEndpoint(
     override fun subscribe(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage> {
-        val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(filter)) }
+        val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), filter)) }
         val flow = rSocket.requestStream(payload)
         return flow.map {
             MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())

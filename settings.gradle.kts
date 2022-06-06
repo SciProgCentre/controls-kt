@@ -1,4 +1,5 @@
 rootProject.name = "controls-kt"
+
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 enableFeaturePreview("VERSION_CATALOGS")
 
@@ -53,11 +54,13 @@ include(
     ":magix:magix-rsocket",
     ":magix:magix-java-client",
     ":magix:magix-zmq",
-    ":magix:magix-demo",
+    ":magix:magix-rabbit",
+
 //    ":magix:magix-storage",
     ":magix:magix-storage:magix-storage-xodus",
     ":controls-magix-client",
     ":demo:all-things",
+    ":demo:magix-demo",
     ":demo:car",
     ":demo:motors",
     ":demo:echo"
