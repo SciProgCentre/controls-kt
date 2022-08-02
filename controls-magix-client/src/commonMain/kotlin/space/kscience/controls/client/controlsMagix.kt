@@ -5,13 +5,13 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import ru.mipt.npm.magix.api.*
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.hubMessageFlow
 import space.kscience.controls.manager.respondHubMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
+import space.kscience.magix.api.*
 
 
 public val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(

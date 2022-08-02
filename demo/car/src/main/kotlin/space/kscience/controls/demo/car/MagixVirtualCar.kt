@@ -1,9 +1,6 @@
 package space.kscience.controls.demo.car
 
 import kotlinx.coroutines.launch
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.subscribe
-import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.controlsMagixFormat
 import space.kscience.dataforge.context.Context
@@ -12,6 +9,9 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.subscribe
+import space.kscience.magix.rsocket.rSocketWithWebSockets
 import kotlin.time.ExperimentalTime
 
 class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) {

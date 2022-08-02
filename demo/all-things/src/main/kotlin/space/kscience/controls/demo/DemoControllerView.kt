@@ -8,10 +8,6 @@ import javafx.stage.Stage
 import kotlinx.coroutines.launch
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.rsocket.rSocketWithTcp
-import ru.mipt.npm.magix.rsocket.rSocketWithWebSockets
-import ru.mipt.npm.magix.server.startMagixServer
 import space.kscience.controls.client.connectToMagix
 import space.kscience.controls.demo.DemoDevice.Companion.cosScale
 import space.kscience.controls.demo.DemoDevice.Companion.sinScale
@@ -22,6 +18,10 @@ import space.kscience.controls.opcua.server.OpcUaServer
 import space.kscience.controls.opcua.server.endpoint
 import space.kscience.controls.opcua.server.serveDevices
 import space.kscience.dataforge.context.*
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.rsocket.rSocketWithTcp
+import space.kscience.magix.rsocket.rSocketWithWebSockets
+import space.kscience.magix.server.startMagixServer
 import tornadofx.*
 import java.awt.Desktop
 import java.net.URI

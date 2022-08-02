@@ -1,9 +1,9 @@
 plugins {
-    id("ru.mipt.npm.gradle.project")
+    id("space.kscience.gradle.project")
 }
 
 val dataforgeVersion: String by extra("0.6.0-dev-12")
-val ktorVersion: String by extra(ru.mipt.npm.gradle.KScienceVersions.ktorVersion)
+val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 
 allprojects {

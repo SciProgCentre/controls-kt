@@ -8,10 +8,6 @@ import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.rsocket.rSocketWithTcp
-import ru.mipt.npm.magix.server.startMagixServer
-import ru.mipt.npm.magix.storage.xodus.storeInXodus
 import space.kscience.controls.client.connectToMagix
 import space.kscience.controls.demo.car.IVirtualCar.Companion.acceleration
 import space.kscience.controls.manager.DeviceManager
@@ -20,6 +16,10 @@ import space.kscience.controls.storage.storeMessages
 import space.kscience.controls.xodus.XodusDeviceMessageStorage
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.rsocket.rSocketWithTcp
+import space.kscience.magix.server.startMagixServer
+import space.kscience.magix.storage.xodus.storeInXodus
 import tornadofx.*
 import java.nio.file.Paths
 

@@ -5,8 +5,8 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
-import ru.mipt.npm.magix.api.MagixEndpoint
 import space.kscience.controls.api.DeviceMessage
+import space.kscience.magix.api.MagixEndpoint
 
 
 //internal fun Frame.toEnvelope(): Envelope {

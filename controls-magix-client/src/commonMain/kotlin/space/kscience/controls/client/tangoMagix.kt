@@ -5,13 +5,13 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import ru.mipt.npm.magix.api.*
 import space.kscience.controls.api.get
 import space.kscience.controls.api.getOrReadProperty
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
+import space.kscience.magix.api.*
 
 public const val TANGO_MAGIX_FORMAT: String = "tango"
 

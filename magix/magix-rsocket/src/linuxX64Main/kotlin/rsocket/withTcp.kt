@@ -3,9 +3,9 @@ package rsocket
 import io.ktor.network.sockets.SocketOptions
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
 import io.rsocket.kotlin.transport.ktor.tcp.TcpClientTransport
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.rsocket.RSocketMagixEndpoint
-import ru.mipt.npm.magix.rsocket.buildConnector
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.rsocket.RSocketMagixEndpoint
+import space.kscience.magix.rsocket.buildConnector
 import kotlin.coroutines.coroutineContext
 
 

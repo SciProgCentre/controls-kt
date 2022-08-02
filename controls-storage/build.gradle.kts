@@ -1,5 +1,5 @@
 plugins {
-    id("ru.mipt.npm.gradle.mpp")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
@@ -24,5 +24,5 @@ kotlin {
 }
 
 readme{
-    maturity = ru.mipt.npm.gradle.Maturity.PROTOTYPE
+    maturity = space.kscience.gradle.Maturity.PROTOTYPE
 }

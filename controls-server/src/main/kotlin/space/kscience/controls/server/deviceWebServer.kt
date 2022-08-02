@@ -26,10 +26,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.MagixMessage
-import ru.mipt.npm.magix.server.launchMagixServerRawRSocket
-import ru.mipt.npm.magix.server.magixModule
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyGetMessage
 import space.kscience.controls.api.PropertySetMessage
@@ -39,6 +35,10 @@ import space.kscience.controls.manager.respondHubMessage
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.server.launchMagixServerRawRSocket
+import space.kscience.magix.server.magixModule
 
 /**
  * Create and start a web server for several devices

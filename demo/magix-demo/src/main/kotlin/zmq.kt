@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.MagixMessage
-import ru.mipt.npm.magix.server.startMagixServer
-import ru.mipt.npm.magix.zmq.ZmqMagixEndpoint
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.server.startMagixServer
+import space.kscince.magix.zmq.ZmqMagixEndpoint
 import java.awt.Desktop
 import java.net.URI
 

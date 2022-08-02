@@ -1,5 +1,5 @@
 plugins {
-    id("ru.mipt.npm.gradle.jvm")
+    id("space.kscience.gradle.jvm")
     `maven-publish`
     application
 }
@@ -15,7 +15,7 @@ kotlin{
 }
 
 kscience{
-    useFx(ru.mipt.npm.gradle.FXModule.CONTROLS, configuration = ru.mipt.npm.gradle.DependencyConfiguration.IMPLEMENTATION)
+    useFx(space.kscience.gradle.FXModule.CONTROLS, configuration = space.kscience.gradle.DependencyConfiguration.IMPLEMENTATION)
 }
 
 val ktorVersion: String by rootProject.extra

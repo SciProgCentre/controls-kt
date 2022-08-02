@@ -11,12 +11,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.subscribe
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.controlsMagixFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.subscribe
 import space.kscience.plotly.layout
 import space.kscience.plotly.models.Trace
 import space.kscience.plotly.plot

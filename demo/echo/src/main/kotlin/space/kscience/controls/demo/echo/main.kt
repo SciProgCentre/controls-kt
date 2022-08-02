@@ -5,11 +5,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.JsonObject
-import ru.mipt.npm.magix.api.MagixEndpoint
-import ru.mipt.npm.magix.api.MagixMessage
-import ru.mipt.npm.magix.api.MagixMessageFilter
-import ru.mipt.npm.magix.rsocket.rSocketStreamWithWebSockets
-import ru.mipt.npm.magix.server.startMagixServer
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.api.MagixMessageFilter
+import space.kscience.magix.rsocket.rSocketStreamWithWebSockets
+import space.kscience.magix.server.startMagixServer
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 

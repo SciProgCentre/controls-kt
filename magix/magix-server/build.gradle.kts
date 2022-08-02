@@ -1,5 +1,5 @@
 plugins {
-    id("ru.mipt.npm.gradle.jvm")
+    id("space.kscience.gradle.jvm")
     `maven-publish`
     application
 }
@@ -16,7 +16,7 @@ kscience {
 
 val dataforgeVersion: String by rootProject.extra
 val rsocketVersion: String by rootProject.extra
-val ktorVersion: String  = ru.mipt.npm.gradle.KScienceVersions.ktorVersion
+val ktorVersion: String  = space.kscience.gradle.KScienceVersions.ktorVersion
 
 dependencies{
     api(projects.magix.magixApi)
