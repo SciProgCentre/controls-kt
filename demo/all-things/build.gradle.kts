@@ -42,5 +42,5 @@ javafx {
 }
 
 application {
-    mainClass.set("ru.mipt.npm.controls.demo.DemoControllerViewKt")
+    mainClass.set("space.kscience.controls.demo.DemoControllerViewKt")
 }

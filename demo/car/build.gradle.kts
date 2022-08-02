@@ -47,5 +47,5 @@ javafx {
 }
 
 application {
-    mainClass.set("ru.mipt.npm.controls.demo.car.VirtualCarControllerKt")
+    mainClass.set("space.kscience.controls.demo.car.VirtualCarControllerKt")
 }

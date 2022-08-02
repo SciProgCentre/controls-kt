@@ -3,8 +3,8 @@ package ru.mipt.npm.devices.pimotionmaster
 import javafx.beans.property.ObjectPropertyBase
 import javafx.beans.property.Property
 import javafx.beans.property.ReadOnlyProperty
-import ru.mipt.npm.controls.api.Device
-import ru.mipt.npm.controls.spec.*
+import space.kscience.controls.api.Device
+import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import tornadofx.*

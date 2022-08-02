@@ -5,9 +5,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import ru.mipt.npm.controls.api.Socket
-import ru.mipt.npm.controls.ports.AbstractPort
-import ru.mipt.npm.controls.ports.withDelimiter
+import space.kscience.controls.api.Socket
+import space.kscience.controls.ports.AbstractPort
+import space.kscience.controls.ports.withDelimiter
 import space.kscience.dataforge.context.*
 import kotlin.math.abs
 import kotlin.time.Duration

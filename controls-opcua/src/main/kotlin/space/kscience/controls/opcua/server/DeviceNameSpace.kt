@@ -1,0 +1,212 @@
+package space.kscience.controls.opcua.server
+
+import kotlinx.coroutines.launch
+import kotlinx.datetime.toJavaInstant
+import kotlinx.serialization.json.Json
+import org.eclipse.milo.opcua.sdk.core.AccessLevel
+import org.eclipse.milo.opcua.sdk.core.Reference
+import org.eclipse.milo.opcua.sdk.server.Lifecycle
+import org.eclipse.milo.opcua.sdk.server.OpcUaServer
+import org.eclipse.milo.opcua.sdk.server.api.DataItem
+import org.eclipse.milo.opcua.sdk.server.api.ManagedNamespaceWithLifecycle
+import org.eclipse.milo.opcua.sdk.server.api.MonitoredItem
+import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode
+import org.eclipse.milo.opcua.sdk.server.nodes.UaNode
+import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
+import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel
+import org.eclipse.milo.opcua.stack.core.AttributeId
+import org.eclipse.milo.opcua.stack.core.Identifiers
+import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
+import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
+import space.kscience.controls.api.Device
+import space.kscience.controls.api.DeviceHub
+import space.kscience.controls.api.PropertyDescriptor
+import space.kscience.controls.api.onPropertyChange
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.plus
+import space.kscience.dataforge.values.ValueType
+
+
+public operator fun Device.get(propertyDescriptor: PropertyDescriptor): Meta? = getProperty(propertyDescriptor.name)
+
+public suspend fun Device.read(propertyDescriptor: PropertyDescriptor): Meta = readProperty(propertyDescriptor.name)
+
+/*
+https://github.com/eclipse/milo/blob/master/milo-examples/server-examples/src/main/java/org/eclipse/milo/examples/server/ExampleNamespace.java
+ */
+
+public class DeviceNameSpace(
+    server: OpcUaServer,
+    public val deviceManager: DeviceManager
+) : ManagedNamespaceWithLifecycle(server, NAMESPACE_URI) {
+
+    private val subscription = SubscriptionModel(server, this)
+
+    init {
+        lifecycleManager.addLifecycle(subscription)
+
+        lifecycleManager.addStartupTask {
+            deviceManager.devices.forEach { (deviceName, device) ->
+                val tokenAsString = deviceName.toString()
+                val deviceFolder = UaFolderNode(
+                    this.nodeContext,
+                    newNodeId(tokenAsString),
+                    newQualifiedName(tokenAsString),
+                    LocalizedText.english(tokenAsString)
+                )
+                deviceFolder.addReference(
+                    Reference(
+                        deviceFolder.nodeId,
+                        Identifiers.Organizes,
+                        Identifiers.ObjectsFolder.expanded(),
+                        false
+                    )
+                )
+                deviceFolder.registerDeviceNodes(deviceName.asName(), device)
+                this.nodeManager.addNode(deviceFolder)
+            }
+        }
+
+        lifecycleManager.addLifecycle(object : Lifecycle {
+            override fun startup() {
+                server.addressSpaceManager.register(this@DeviceNameSpace)
+            }
+
+            override fun shutdown() {
+                server.addressSpaceManager.unregister(this@DeviceNameSpace)
+            }
+        })
+    }
+
+    private fun UaFolderNode.registerDeviceNodes(deviceName: Name, device: Device) {
+        val nodes = device.propertyDescriptors.associate { descriptor ->
+            val propertyName = descriptor.name
+
+
+            val node: UaVariableNode = UaVariableNode.UaVariableNodeBuilder(nodeContext).apply {
+                //for now use DF path as id
+                nodeId = newNodeId("${deviceName.tokens.joinToString("/")}/$propertyName")
+                when {
+                    descriptor.readable && descriptor.writable -> {
+                        setAccessLevel(AccessLevel.READ_WRITE)
+                        setUserAccessLevel(AccessLevel.READ_WRITE)
+                    }
+                    descriptor.writable -> {
+                        setAccessLevel(AccessLevel.WRITE_ONLY)
+                        setUserAccessLevel(AccessLevel.WRITE_ONLY)
+                    }
+                    descriptor.readable -> {
+                        setAccessLevel(AccessLevel.READ_ONLY)
+                        setUserAccessLevel(AccessLevel.READ_ONLY)
+                    }
+                    else -> {
+                        setAccessLevel(AccessLevel.NONE)
+                        setUserAccessLevel(AccessLevel.NONE)
+                    }
+                }
+
+                browseName = newQualifiedName(propertyName)
+                displayName = LocalizedText.english(propertyName)
+                dataType = if (descriptor.metaDescriptor.children.isNotEmpty()) {
+                    Identifiers.String
+                } else when (descriptor.metaDescriptor.valueTypes?.first()) {
+                    null, ValueType.STRING, ValueType.NULL -> Identifiers.String
+                    ValueType.NUMBER -> Identifiers.Number
+                    ValueType.BOOLEAN -> Identifiers.Boolean
+                    ValueType.LIST -> Identifiers.ArrayItemType
+                }
+
+
+                setTypeDefinition(Identifiers.BaseDataVariableType)
+            }.build()
+
+
+            device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
+                node.value = it
+            }
+
+            /**
+             * Subscribe to node value changes
+             */
+            node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any ->
+                if (attributeId == AttributeId.Value) {
+                    val meta: Meta = when (value) {
+                        is Meta -> value
+                        is Boolean -> Meta(value)
+                        is Number -> Meta(value)
+                        is String -> Json.decodeFromString(MetaSerializer, value)
+                        else -> return@addAttributeObserver //TODO("other types not implemented")
+                    }
+                    deviceManager.context.launch {
+                        device.writeProperty(propertyName, meta)
+                    }
+                }
+            }
+
+            nodeManager.addNode(node)
+            addOrganizes(node)
+            propertyName to node
+        }
+
+        //Subscribe on properties updates
+        device.onPropertyChange {
+            nodes[property]?.let { node ->
+                val sourceTime = time?.let { DateTime(it.toJavaInstant()) }
+                node.value = value.toOpc(sourceTime = sourceTime)
+            }
+        }
+        //recursively add sub-devices
+        if (device is DeviceHub) {
+            registerHub(device, deviceName)
+        }
+    }
+
+    private fun UaNode.registerHub(hub: DeviceHub, namePrefix: Name) {
+        hub.devices.forEach { (deviceName, device) ->
+            val tokenAsString = deviceName.toString()
+            val deviceFolder = UaFolderNode(
+                this.nodeContext,
+                newNodeId(tokenAsString),
+                newQualifiedName(tokenAsString),
+                LocalizedText.english(tokenAsString)
+            )
+            deviceFolder.addReference(
+                Reference(
+                    deviceFolder.nodeId,
+                    Identifiers.Organizes,
+                    Identifiers.ObjectsFolder.expanded(),
+                    false
+                )
+            )
+            deviceFolder.registerDeviceNodes(namePrefix + deviceName, device)
+            this.nodeManager.addNode(deviceFolder)
+        }
+    }
+
+    override fun onDataItemsCreated(dataItems: List<DataItem?>?) {
+        subscription.onDataItemsCreated(dataItems)
+    }
+
+    override fun onDataItemsModified(dataItems: List<DataItem?>?) {
+        subscription.onDataItemsModified(dataItems)
+    }
+
+    override fun onDataItemsDeleted(dataItems: List<DataItem?>?) {
+        subscription.onDataItemsDeleted(dataItems)
+    }
+
+    override fun onMonitoringModeChanged(monitoredItems: List<MonitoredItem?>?) {
+        subscription.onMonitoringModeChanged(monitoredItems)
+    }
+
+    public companion object {
+        public const val NAMESPACE_URI: String = "urn:space:kscience:controls:opcua:server"
+    }
+}
+
+public fun OpcUaServer.serveDevices(deviceManager: DeviceManager): DeviceNameSpace =
+    DeviceNameSpace(this, deviceManager).apply { startup() }

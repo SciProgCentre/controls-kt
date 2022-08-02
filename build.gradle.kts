@@ -7,13 +7,13 @@ val ktorVersion: String by extra(ru.mipt.npm.gradle.KScienceVersions.ktorVersion
 val rsocketVersion by extra("0.15.4")
 
 allprojects {
-    group = "ru.mipt.npm"
-    version = "0.1.1"
+    group = "space.kscience"
+    version = "0.1.1-SNAPSHOT"
 }
 
 ksciencePublish {
     github("controls.kt")
-    space()
+    space("https://maven.pkg.jetbrains.space/mipt-npm/p/controls/maven")
 }
 
 apiValidation {

@@ -11,10 +11,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
-import ru.mipt.npm.controls.api.DeviceHub
-import ru.mipt.npm.controls.api.PropertyDescriptor
-import ru.mipt.npm.controls.ports.*
-import ru.mipt.npm.controls.spec.*
+import space.kscience.controls.api.DeviceHub
+import space.kscience.controls.api.PropertyDescriptor
+import space.kscience.controls.ports.*
+import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double

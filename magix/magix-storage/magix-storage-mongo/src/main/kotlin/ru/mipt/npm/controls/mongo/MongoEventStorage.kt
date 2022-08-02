@@ -1,4 +1,4 @@
-package ru.mipt.npm.controls.mongo
+package space.kscience.controls.mongo
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -6,9 +6,9 @@ import org.litote.kmongo.coroutine.CoroutineClient
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.coroutine.insertOne
 import org.litote.kmongo.reactivestreams.KMongo
-import ru.mipt.npm.controls.api.DeviceMessage
-import ru.mipt.npm.controls.api.PropertyChangedMessage
-import ru.mipt.npm.controls.storage.EventStorage
+import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.storage.EventStorage
 import ru.mipt.npm.magix.server.GenericMagixMessage
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory

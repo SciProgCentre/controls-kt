@@ -6,10 +6,10 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import ru.mipt.npm.controls.api.PropertyChangedMessage
-import ru.mipt.npm.controls.xodus.XodusDeviceMessageStorage
-import ru.mipt.npm.controls.xodus.query
-import ru.mipt.npm.controls.xodus.writeMessage
+import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.xodus.XodusDeviceMessageStorage
+import space.kscience.controls.xodus.query
+import space.kscience.controls.xodus.writeMessage
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName

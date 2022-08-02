@@ -28,5 +28,5 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 application {
-    mainClass.set("ru.mipt.npm.controls.demo.echo.MainKt")
+    mainClass.set("space.kscience.controls.demo.echo.MainKt")
 }

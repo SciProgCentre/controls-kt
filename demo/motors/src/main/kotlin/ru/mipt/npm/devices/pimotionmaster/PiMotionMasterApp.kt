@@ -11,11 +11,11 @@ import javafx.scene.layout.VBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import ru.mipt.npm.controls.manager.DeviceManager
-import ru.mipt.npm.controls.manager.installing
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.maxPosition
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.minPosition
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.position
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.manager.installing
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.fetch
 import tornadofx.*
