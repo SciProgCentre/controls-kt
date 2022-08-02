@@ -111,8 +111,7 @@ public class XodusDeviceMessageStorage(
         internal const val DEVICE_MESSAGE_ENTITY_TYPE = "controls-kt.message"
         public val XODUS_STORE_PROPERTY: Name = Name.of("xodus", "storagePath")
 
-
-        override fun invoke(meta: Meta, context: Context): XodusDeviceMessageStorage {
+        override fun build(context: Context, meta: Meta): XodusDeviceMessageStorage {
             val io = context.fetch(IOPlugin)
             val storePath = io.workDirectory.resolve(
                 meta[XODUS_STORE_PROPERTY]?.string

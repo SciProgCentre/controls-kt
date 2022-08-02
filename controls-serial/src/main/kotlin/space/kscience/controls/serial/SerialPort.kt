@@ -77,7 +77,7 @@ public class SerialPort private constructor(
             return SerialPort(context, jssc, coroutineContext)
         }
 
-        override fun invoke(meta: Meta, context: Context): Port {
+        override fun build(context: Context, meta: Meta): Port {
             val name by meta.string { error("Serial port name not defined") }
             val baudRate by meta.int(BAUDRATE_9600)
             val dataBits by meta.int(DATABITS_8)

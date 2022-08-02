@@ -65,7 +65,7 @@ public class KtorTcpPort internal constructor(
             return KtorTcpPort(context, host, port, coroutineContext)
         }
 
-        override fun invoke(meta: Meta, context: Context): Port {
+        override fun build(context: Context, meta: Meta): Port {
             val host = meta["host"].string ?: "localhost"
             val port = meta["port"].int ?: error("Port value for TCP port is not defined in $meta")
             return open(context, host, port)

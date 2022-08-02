@@ -15,7 +15,7 @@ import space.kscience.dataforge.context.logger
 //TODO replace by plugin?
 public fun DeviceManager.storage(
     factory: Factory<DeviceMessageStorage>,
-): DeviceMessageStorage = factory(meta, context)
+): DeviceMessageStorage = factory.build(context, meta)
 
 /**
  * Begin to store DeviceMessages from this DeviceManager
@@ -28,7 +28,7 @@ public fun DeviceManager.storeMessages(
     factory: Factory<DeviceMessageStorage>,
     filterCondition: suspend (DeviceMessage) -> Boolean = { true },
 ): Job {
-    val storage = factory(meta, context)
+    val storage = factory.build(context, meta)
     logger.debug { "Message storage with meta = $meta created" }
 
     return hubMessageFlow(context).filter(filterCondition).onEach { message ->

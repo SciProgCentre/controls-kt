@@ -31,7 +31,7 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
         override val tag: PluginTag = PluginTag("devices", group = PluginTag.DATAFORGE_GROUP)
         override val type: KClass<out DeviceManager> = DeviceManager::class
 
-        override fun invoke(meta: Meta, context: Context): DeviceManager = DeviceManager()
+        override fun build(context: Context, meta: Meta): DeviceManager = DeviceManager()
     }
 }
 

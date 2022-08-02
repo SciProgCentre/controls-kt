@@ -35,7 +35,7 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDe
 
     companion object : DeviceSpec<DemoDevice>(), Factory<DemoDevice> {
 
-        override fun invoke(meta: Meta, context: Context): DemoDevice = DemoDevice(context, meta)
+        override fun build(context: Context, meta: Meta): DemoDevice = DemoDevice(context, meta)
 
         // register virtual properties based on actual object state
         val timeScale by mutableProperty(MetaConverter.double, DemoDevice::timeScaleState) {

@@ -110,6 +110,6 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
     }
 
     companion object : Factory<VirtualCar> {
-        override fun invoke(meta: Meta, context: Context): VirtualCar = VirtualCar(context, meta)
+        override fun build(context: Context, meta: Meta): VirtualCar = VirtualCar(context, meta)
     }
 }

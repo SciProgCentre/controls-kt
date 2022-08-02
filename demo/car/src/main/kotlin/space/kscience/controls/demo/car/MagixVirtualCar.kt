@@ -43,6 +43,6 @@ class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) 
     }
 
     companion object : Factory<MagixVirtualCar> {
-        override fun invoke(meta: Meta, context: Context): MagixVirtualCar = MagixVirtualCar(context, meta)
+        override fun build(context: Context, meta: Meta): MagixVirtualCar = MagixVirtualCar(context, meta)
     }
 }

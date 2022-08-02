@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.transform
 /**
  * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
  */
-public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> {
+public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
 
-    val output = BytePacketBuilder(expectedMessageSize)
+    val output = BytePacketBuilder()
     var matcherPosition = 0
 
     return transform { chunk ->
@@ -40,12 +40,12 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray, expectedMessageSi
 /**
  * Transform byte fragments into utf-8 phrases using utf-8 delimiter
  */
-public fun Flow<ByteArray>.withDelimiter(delimiter: String, expectedMessageSize: Int = 32): Flow<String> {
-    return withDelimiter(delimiter.encodeToByteArray(), expectedMessageSize).map { it.decodeToString() }
+public fun Flow<ByteArray>.withDelimiter(delimiter: String): Flow<String> {
+    return withDelimiter(delimiter.encodeToByteArray()).map { it.decodeToString() }
 }
 
 /**
  * A flow of delimited phrases
  */
-public suspend fun Port.delimitedIncoming(delimiter: ByteArray, expectedMessageSize: Int = 32): Flow<ByteArray> =
-    receiving().withDelimiter(delimiter, expectedMessageSize)
+public suspend fun Port.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> =
+    receiving().withDelimiter(delimiter)

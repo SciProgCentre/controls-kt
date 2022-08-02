@@ -135,7 +135,7 @@ class PiMotionMasterDevice(
 
     companion object : DeviceSpec<PiMotionMasterDevice>(), Factory<PiMotionMasterDevice> {
 
-        override fun invoke(meta: Meta, context: Context): PiMotionMasterDevice = PiMotionMasterDevice(context)
+        override fun build(context: Context, meta: Meta): PiMotionMasterDevice = PiMotionMasterDevice(context)
 
         val connected by booleanProperty(descriptorBuilder = {
             info = "True if the connection address is defined and the device is initialized"
