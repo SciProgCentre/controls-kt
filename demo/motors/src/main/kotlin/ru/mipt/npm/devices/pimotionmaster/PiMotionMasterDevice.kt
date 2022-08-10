@@ -17,11 +17,11 @@ import space.kscience.controls.ports.*
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.asValue
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import space.kscience.dataforge.names.NameToken
-import space.kscience.dataforge.values.asValue
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.time.Duration

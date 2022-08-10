@@ -3,8 +3,8 @@ package space.kscience.controls.spec
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.metaDescriptor
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.transformations.MetaConverter
-import space.kscience.dataforge.values.ValueType
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 

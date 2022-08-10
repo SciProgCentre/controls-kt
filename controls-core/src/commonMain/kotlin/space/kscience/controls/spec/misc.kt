@@ -1,12 +1,7 @@
 package space.kscience.controls.spec
 
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.enum
-import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.transformations.MetaConverter
-import space.kscience.dataforge.values.asValue
-import space.kscience.dataforge.values.double
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration

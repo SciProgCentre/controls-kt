@@ -25,10 +25,10 @@ import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.plus
-import space.kscience.dataforge.values.ValueType
 
 
 public operator fun Device.get(propertyDescriptor: PropertyDescriptor): Meta? = getProperty(propertyDescriptor.name)

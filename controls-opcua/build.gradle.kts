@@ -4,7 +4,7 @@ plugins {
 
 val ktorVersion: String by rootProject.extra
 
-val miloVersion: String = "0.6.3"
+val miloVersion: String = "0.6.7"
 
 dependencies {
     api(project(":controls-core"))

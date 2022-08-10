@@ -3,8 +3,8 @@ package space.kscience.controls.storage
 import space.kscience.dataforge.context.ContextBuilder
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.meta.string
-import space.kscience.dataforge.values.set
 import java.nio.file.Path
 import kotlin.io.path.Path
 

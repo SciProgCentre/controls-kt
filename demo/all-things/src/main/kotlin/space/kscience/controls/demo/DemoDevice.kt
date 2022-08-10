@@ -6,9 +6,9 @@ import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.value
 import space.kscience.dataforge.meta.transformations.MetaConverter
-import space.kscience.dataforge.values.ValueType
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime

@@ -2,7 +2,7 @@ plugins {
     id("space.kscience.gradle.project")
 }
 
-val dataforgeVersion: String by extra("0.6.0-dev-12")
+val dataforgeVersion: String by extra("0.6.0-dev-13")
 val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 
