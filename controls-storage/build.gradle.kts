@@ -5,21 +5,16 @@ plugins {
 
 val dataforgeVersion: String by rootProject.extra
 
-kotlin {
-    sourceSets {
-        commonMain {
-            dependencies {
-                api(projects.controlsCore)
-            }
-        }
-
-        jvmMain {
-            dependencies {
-                api(projects.magix.magixApi)
-                api(projects.controlsMagixClient)
-                api(projects.magix.magixServer)
-            }
-        }
+kscience{
+    jvm()
+    js()
+    dependencies {
+        api(projects.controlsCore)
+    }
+    dependencies(jvmMain){
+        api(projects.magix.magixApi)
+        api(projects.controlsMagixClient)
+        api(projects.magix.magixServer)
     }
 }
 

@@ -1,10 +1,15 @@
 plugins {
     id("space.kscience.gradle.jvm")
-    `maven-publish`
     application
+    id("org.openjfx.javafxplugin")
 }
 
 //TODO to be moved to a separate project
+
+javafx {
+    version = "17"
+    modules = listOf("javafx.controls")
+}
 
 application{
     mainClass.set("ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt")
@@ -12,10 +17,6 @@ application{
 
 kotlin{
     explicitApi = null
-}
-
-kscience{
-    useFx(space.kscience.gradle.FXModule.CONTROLS, configuration = space.kscience.gradle.DependencyConfiguration.IMPLEMENTATION)
 }
 
 val ktorVersion: String by rootProject.extra

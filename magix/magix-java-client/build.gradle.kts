@@ -12,10 +12,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk9:${KScienceVersions.coroutinesVersion}")
 }
 
-java {
-    sourceCompatibility = KScienceVersions.JVM_TARGET
-    targetCompatibility = KScienceVersions.JVM_TARGET
-}
+//java {
+//    sourceCompatibility = KScienceVersions.JVM_TARGET
+//    targetCompatibility = KScienceVersions.JVM_TARGET
+//}
 
 
 //FIXME https://youtrack.jetbrains.com/issue/KT-52815/Compiler-option-Xjdk-release-fails-to-compile-mixed-projects

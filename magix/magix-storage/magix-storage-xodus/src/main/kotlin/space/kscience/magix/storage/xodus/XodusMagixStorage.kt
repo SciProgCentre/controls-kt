@@ -46,7 +46,7 @@ public class XodusMagixStorage(
         }
     }.launchIn(scope)
 
-    private fun Entity.parseMagixMessage(): MagixMessage =             MagixMessage(
+    private fun Entity.parseMagixMessage(): MagixMessage = MagixMessage(
         format = getProperty(MagixMessage::format.name).toString(),
         payload = getBlobString(MagixMessage::payload.name)?.let {
             magixJson.parseToJsonElement(it)

@@ -19,6 +19,7 @@ pluginManagement {
         id("space.kscience.gradle.mpp") version toolsVersion
         id("space.kscience.gradle.jvm") version toolsVersion
         id("space.kscience.gradle.js") version toolsVersion
+        id("org.openjfx.javafxplugin") version "0.0.13"
     }
 }
 

@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-    id("org.openjfx.javafxplugin") version "0.0.10"
+    id("org.openjfx.javafxplugin") version "0.0.13"
     application
 }
 
@@ -37,7 +37,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 javafx {
-    version = "14"
+    version = "17"
     modules("javafx.controls")
 }
 

@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-val xodusVersion = "2.0.1"
+val xodusVersion: String by rootProject.extra
 
 kscience{
     useCoroutines()
