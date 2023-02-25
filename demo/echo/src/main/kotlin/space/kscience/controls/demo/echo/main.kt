@@ -1,11 +1,12 @@
 package space.kscience.controls.demo.echo
 
-import io.ktor.server.application.log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.JsonObject
+import org.slf4j.LoggerFactory
 import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.rsocket.rSocketStreamWithWebSockets
@@ -59,16 +60,17 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
 @OptIn(ExperimentalTime::class)
 suspend fun main(): Unit = coroutineScope {
     launch(Dispatchers.Default) {
-        val server = startMagixServer(enableRawRSocket = false, enableZmq = false) { flow ->
+        val server = startMagixServer(MagixFlowPlugin { _, flow ->
+            val logger = LoggerFactory.getLogger("echo")
             //echo each message
             flow.onEach { message ->
                 if (message.parentId == null) {
                     val m = message.copy(origin = "loop", parentId = message.id, id = message.id + ".response")
-                    log.info("echo: $m")
+                    logger.info(m.toString())
                     flow.emit(m)
                 }
             }.launchIn(this)
-        }
+        })
 
 
         val responseTime = measureTime {

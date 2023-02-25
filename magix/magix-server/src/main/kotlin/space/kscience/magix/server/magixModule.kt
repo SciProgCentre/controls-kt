@@ -8,15 +8,10 @@ import io.ktor.server.request.receive
 import io.ktor.server.routing.*
 import io.ktor.server.util.getValue
 import io.ktor.server.websocket.WebSockets
-import io.rsocket.kotlin.ConnectionAcceptor
-import io.rsocket.kotlin.RSocketRequestHandler
 import io.rsocket.kotlin.ktor.server.RSocketSupport
 import io.rsocket.kotlin.ktor.server.rSocket
-import io.rsocket.kotlin.payload.Payload
-import io.rsocket.kotlin.payload.buildPayload
-import io.rsocket.kotlin.payload.data
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.html.*
 import kotlinx.serialization.encodeToString
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
@@ -25,45 +20,6 @@ import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
 import java.util.*
 
-
-internal fun CoroutineScope.magixAcceptor(
-    magixFlow: MutableSharedFlow<MagixMessage>,
-): ConnectionAcceptor = ConnectionAcceptor {
-    RSocketRequestHandler(coroutineContext) {
-        //handler for request/stream
-        requestStream { request: Payload ->
-            val filter = magixJson.decodeFromString(MagixMessageFilter.serializer(), request.data.readText())
-            magixFlow.filter(filter).map { message ->
-                val string = magixJson.encodeToString(MagixMessage.serializer(), message)
-                buildPayload { data(string) }
-            }
-        }
-        //single send
-        fireAndForget { request: Payload ->
-            val message = magixJson.decodeFromString(MagixMessage.serializer(), request.data.readText())
-            magixFlow.emit(message)
-        }
-        // bi-directional connection
-        requestChannel { request: Payload, input: Flow<Payload> ->
-            input.onEach {
-                magixFlow.emit(magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText()))
-            }.launchIn(this)
-
-            val filterText = request.data.readText()
-
-            val filter = if(filterText.isNotBlank()){
-                magixJson.decodeFromString(MagixMessageFilter.serializer(), filterText)
-            } else {
-                MagixMessageFilter()
-            }
-
-            magixFlow.filter(filter).map { message ->
-                val string = magixJson.encodeToString(message)
-                buildPayload { data(string) }
-            }
-        }
-    }
-}
 
 /**
  * Create a message filter from call parameters
@@ -84,7 +40,7 @@ private fun ApplicationCall.buildFilter(): MagixMessageFilter {
 }
 
 /**
- * Attache magix http/sse and websocket-based rsocket event loop + statistics page to existing [MutableSharedFlow]
+ * Attach magix http/sse and websocket-based rsocket event loop + statistics page to existing [MutableSharedFlow]
  */
 public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, route: String = "/") {
     if (pluginOrNull(WebSockets) == null) {
@@ -149,7 +105,7 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, r
                 magixFlow.emit(message)
             }
             //rSocket server. Filter from Payload
-            rSocket("rsocket", acceptor = application.magixAcceptor(magixFlow))
+            rSocket("rsocket", acceptor = RSocketMagix.acceptor( application, magixFlow))
         }
     }
 }

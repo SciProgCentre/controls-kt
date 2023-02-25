@@ -9,6 +9,8 @@ import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.server.RSocketMagix
+import space.kscience.magix.server.ZmqMagix
 import space.kscience.magix.server.startMagixServer
 import space.kscince.magix.zmq.ZmqMagixEndpoint
 import java.awt.Desktop
@@ -22,7 +24,7 @@ suspend fun MagixEndpoint.sendJson(
     id: String? = null,
     parentId: String? = null,
     user: JsonElement? = null,
-    builder: JsonObjectBuilder.() -> Unit
+    builder: JsonObjectBuilder.() -> Unit,
 ): Unit = broadcast(MagixMessage(format, buildJsonObject(builder), origin, target, id, parentId, user))
 
 internal const val numberOfMessages = 100
@@ -30,10 +32,7 @@ internal const val numberOfMessages = 100
 suspend fun main(): Unit = coroutineScope {
     val logger = LoggerFactory.getLogger("magix-demo")
     logger.info("Starting magix server")
-    val server = startMagixServer(
-        buffer = 10,
-        enableRawRSocket = false //Disable rsocket to avoid kotlin 1.5 compatibility issue
-    )
+    val server = startMagixServer(RSocketMagix(), ZmqMagix(), buffer = 10)
 
     server.apply {
         val host = "localhost"//environment.connectors.first().host
@@ -44,7 +43,7 @@ suspend fun main(): Unit = coroutineScope {
 
     logger.info("Starting client")
     //Create zmq magix endpoint and wait for to finish
-    ZmqMagixEndpoint("localhost","tcp").use { client ->
+    ZmqMagixEndpoint("localhost", "tcp").use { client ->
         logger.info("Starting subscription")
         client.subscribe().onEach {
             println(it.payload)

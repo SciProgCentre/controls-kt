@@ -36,8 +36,8 @@ import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
-import space.kscience.magix.server.launchMagixServerRawRSocket
 import space.kscience.magix.server.magixModule
 
 /**
@@ -47,26 +47,23 @@ public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
     host: String = "localhost",
-): ApplicationEngine {
-
-    return this.embeddedServer(CIO, port, host) {
-        install(WebSockets)
+): ApplicationEngine = embeddedServer(CIO, port, host) {
+    install(WebSockets)
 //        install(CORS) {
 //            anyHost()
 //        }
-        install(StatusPages) {
-            exception<IllegalArgumentException> { call, cause ->
-                call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
-            }
+    install(StatusPages) {
+        exception<IllegalArgumentException> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
         }
-        deviceManagerModule(manager)
-        routing {
-            get("/") {
-                call.respondRedirect("/dashboard")
-            }
+    }
+    deviceManagerModule(manager)
+    routing {
+        get("/") {
+            call.respondRedirect("/dashboard")
         }
-    }.start()
-}
+    }
+}.start()
 
 public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
     environment.monitor.subscribe(ApplicationStarted, callback)
@@ -77,9 +74,9 @@ public val WEB_SERVER_TARGET: Name = "@webServer".asName()
 
 public fun Application.deviceManagerModule(
     manager: DeviceManager,
+    vararg plugins: MagixFlowPlugin,
     deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
     route: String = "/",
-    rawSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_RAW_PORT,
     buffer: Int = 100,
 ) {
     if (pluginOrNull(WebSockets) == null) {
@@ -217,6 +214,8 @@ public fun Application.deviceManagerModule(
         extraBufferCapacity = buffer
     )
 
-    launchMagixServerRawRSocket(magixFlow, rawSocketPort)
+    plugins.forEach {
+        it.start(this, magixFlow)
+    }
     magixModule(magixFlow)
 }
