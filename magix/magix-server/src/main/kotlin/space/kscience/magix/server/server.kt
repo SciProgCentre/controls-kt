@@ -70,6 +70,7 @@ public fun CoroutineScope.startMagixServer(
         )
     }
 
+    @Suppress("ExtractKtorModule")
     return embeddedServer(CIO, host = "localhost", port = port) {
         magixModule(magixFlow)
         applicationConfiguration(magixFlow)

@@ -23,6 +23,14 @@ public abstract class DeviceSpec<D : Device> {
     private val _actions = HashMap<String, DeviceActionSpec<D, *, *>>()
     public val actions: Map<String, DeviceActionSpec<D, *, *>> get() = _actions
 
+
+    public open suspend fun D.onOpen(){
+    }
+
+    public open fun D.onClose(){
+    }
+
+
     public fun <T : Any, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P {
         _properties[deviceProperty.name] = deviceProperty
         return deviceProperty

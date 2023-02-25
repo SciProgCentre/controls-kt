@@ -11,26 +11,12 @@ import space.kscience.dataforge.meta.descriptors.value
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.ExperimentalTime
 
 
 class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDevice, context, meta) {
     private var timeScaleState = 5000.0
     private var sinScaleState = 1.0
     private var cosScaleState = 1.0
-
-    @OptIn(ExperimentalTime::class)
-    override suspend fun open() {
-        super.open()
-        launch {
-            sinScale.read()
-            cosScale.read()
-            timeScale.read()
-        }
-        doRecurring(50.milliseconds) {
-            coordinates.read()
-        }
-    }
 
 
     companion object : DeviceSpec<DemoDevice>(), Factory<DemoDevice> {
@@ -70,6 +56,20 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDe
                 "time" put time.toEpochMilli()
                 "x" put read(sin)
                 "y" put read(cos)
+            }
+        }
+
+
+        override suspend fun DemoDevice.onOpen() {
+            launch {
+                sinScale.read()
+                cosScale.read()
+                timeScale.read()
+            }
+            doRecurring(50.milliseconds) {
+                sin.read()
+                cos.read()
+                coordinates.read()
             }
         }
 

@@ -22,7 +22,7 @@ public fun <D : DeviceBase<D>, R> D.readRecurring(interval: Duration, reader: su
 }
 
 /**
- * Do a recurring task on a device. The task could
+ * Do a recurring (with a fixed delay) task on a device.
  */
 public fun <D : DeviceBase<D>> D.doRecurring(interval: Duration, task: suspend D.() -> Unit): Job = launch {
     while (isActive) {

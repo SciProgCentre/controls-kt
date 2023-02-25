@@ -55,6 +55,7 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
+@Suppress("ExtractKtorModule")
 suspend fun MagixEndpoint.startDemoDeviceServer(): ApplicationEngine = embeddedServer(CIO, 9091) {
     install(WebSockets)
     install(RSocketSupport)

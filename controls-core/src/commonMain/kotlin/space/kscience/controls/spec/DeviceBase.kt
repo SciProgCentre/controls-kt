@@ -20,8 +20,8 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
     override val meta: Meta = Meta.EMPTY
 ) : Device {
 
-    public abstract val properties: Map<String, DevicePropertySpec<D, *>> //get() = spec.properties
-    public abstract val actions: Map<String, DeviceActionSpec<D, *, *>> //get() = spec.actions
+    public abstract val properties: Map<String, DevicePropertySpec<D, *>>
+    public abstract val actions: Map<String, DeviceActionSpec<D, *, *>>
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
         get() = properties.values.map { it.descriptor }
@@ -136,5 +136,15 @@ public open class DeviceBySpec<D : DeviceBySpec<D>>(
 ) : DeviceBase<D>(context, meta) {
     override val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
     override val actions: Map<String, DeviceActionSpec<D, *, *>> get() = spec.actions
+
+    override suspend fun open(): Unit = with(spec){
+        super.open()
+        self.onOpen()
+    }
+
+    override fun close(): Unit = with(spec){
+        self.onClose()
+        super.close()
+    }
 }
 

@@ -43,7 +43,7 @@ class DemoController : Controller(), ContextAware {
         plugin(DeviceManager)
     }
 
-    private val deviceManager = context.fetch(DeviceManager)
+    private val deviceManager = context.request(DeviceManager)
 
     fun init() {
         context.launch {

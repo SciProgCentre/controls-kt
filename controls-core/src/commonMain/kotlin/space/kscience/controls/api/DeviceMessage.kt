@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import space.kscience.dataforge.io.SimpleEnvelope
+import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMeta
@@ -221,4 +221,4 @@ public data class DeviceErrorMessage(
 
 public fun DeviceMessage.toMeta(): Meta = Json.encodeToJsonElement(this).toMeta()
 
-public fun DeviceMessage.toEnvelope(): SimpleEnvelope = SimpleEnvelope(toMeta(), null)
+public fun DeviceMessage.toEnvelope(): Envelope = Envelope(toMeta(), null)

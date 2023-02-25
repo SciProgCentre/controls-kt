@@ -6,7 +6,7 @@ plugins {
     id("space.kscience.gradle.project")
 }
 
-val dataforgeVersion: String by extra("0.6.0-dev-15")
+val dataforgeVersion: String by extra("0.6.1-dev-4")
 val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 val xodusVersion by extra("2.0.1")
@@ -14,6 +14,10 @@ val xodusVersion by extra("2.0.1")
 allprojects {
     group = "space.kscience"
     version = "0.1.1-SNAPSHOT"
+    repositories{
+        mavenCentral()
+        mavenLocal()
+    }
 }
 
 ksciencePublish {
