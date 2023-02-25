@@ -1,0 +1,3 @@
+[submodule "magix/rfc"]
+	path = magix/rfc
+	url = https://github.com/waltz-controls/rfc
