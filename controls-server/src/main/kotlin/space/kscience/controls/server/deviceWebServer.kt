@@ -40,14 +40,9 @@ import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.server.magixModule
 
-/**
- * Create and start a web server for several devices
- */
-public fun CoroutineScope.startDeviceServer(
-    manager: DeviceManager,
-    port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
-    host: String = "localhost",
-): ApplicationEngine = embeddedServer(CIO, port, host) {
+
+
+private fun Application.deviceServerModule(manager: DeviceManager) {
     install(WebSockets)
 //        install(CORS) {
 //            anyHost()
@@ -63,7 +58,16 @@ public fun CoroutineScope.startDeviceServer(
             call.respondRedirect("/dashboard")
         }
     }
-}.start()
+}
+
+/**
+ * Create and start a web server for several devices
+ */
+public fun CoroutineScope.startDeviceServer(
+    manager: DeviceManager,
+    port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
+    host: String = "localhost",
+): ApplicationEngine = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
 
 public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
     environment.monitor.subscribe(ApplicationStarted, callback)

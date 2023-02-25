@@ -21,9 +21,9 @@ import space.kscience.dataforge.context.*
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.rsocket.rSocketWithTcp
 import space.kscience.magix.rsocket.rSocketWithWebSockets
-import space.kscience.magix.server.RSocketMagix
-import space.kscience.magix.server.ZmqMagix
+import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
+import space.kscince.magix.zmq.ZmqMagixFlowPlugin
 import tornadofx.*
 import java.awt.Desktop
 import java.net.URI
@@ -51,7 +51,7 @@ class DemoController : Controller(), ContextAware {
         context.launch {
             device = deviceManager.install("demo", DemoDevice)
             //starting magix event loop
-            magixServer = startMagixServer(RSocketMagix(), ZmqMagix())
+            magixServer = startMagixServer(RSocketMagixFlowPlugin(), ZmqMagixFlowPlugin())
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint)

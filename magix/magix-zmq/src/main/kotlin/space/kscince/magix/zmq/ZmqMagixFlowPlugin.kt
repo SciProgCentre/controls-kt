@@ -1,4 +1,4 @@
-package space.kscience.magix.server
+package space.kscince.magix.zmq
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +14,7 @@ import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
 
 
-public class ZmqMagix(
+public class ZmqMagixFlowPlugin(
     public val localHost: String = "tcp://*",
     public val zmqPubSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
     public val zmqPullSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,

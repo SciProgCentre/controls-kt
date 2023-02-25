@@ -18,10 +18,10 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.rsocket.rSocketWithTcp
-import space.kscience.magix.server.RSocketMagix
-import space.kscience.magix.server.ZmqMagix
+import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
 import space.kscience.magix.storage.xodus.storeInXodus
+import space.kscince.magix.zmq.ZmqMagixFlowPlugin
 import tornadofx.*
 import java.nio.file.Paths
 
@@ -49,7 +49,7 @@ class VirtualCarController : Controller(), ContextAware {
             virtualCar = deviceManager.install("virtual-car", VirtualCar)
 
             //starting magix event loop and connect it to entity store
-            magixServer = startMagixServer(RSocketMagix(), ZmqMagix())
+            magixServer = startMagixServer(RSocketMagixFlowPlugin(), ZmqMagixFlowPlugin())
 
             storageEndpoint = MagixEndpoint.rSocketWithTcp("localhost").apply {
                 storeInXodus(this@launch, magixEntityStorePath)

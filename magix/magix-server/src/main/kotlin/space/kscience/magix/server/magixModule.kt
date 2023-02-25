@@ -105,7 +105,7 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, r
                 magixFlow.emit(message)
             }
             //rSocket server. Filter from Payload
-            rSocket("rsocket", acceptor = RSocketMagix.acceptor( application, magixFlow))
+            rSocket("rsocket", acceptor = RSocketMagixFlowPlugin.acceptor( application, magixFlow))
         }
     }
 }

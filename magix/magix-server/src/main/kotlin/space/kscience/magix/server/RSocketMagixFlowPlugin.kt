@@ -18,7 +18,7 @@ import space.kscience.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
 /**
  * Raw TCP magix server
  */
-public class RSocketMagix(public val port: Int = DEFAULT_MAGIX_RAW_PORT): MagixFlowPlugin {
+public class RSocketMagixFlowPlugin(public val port: Int = DEFAULT_MAGIX_RAW_PORT): MagixFlowPlugin {
     override fun start(scope: CoroutineScope, magixFlow: MutableSharedFlow<MagixMessage>): Job {
         val tcpTransport = TcpServerTransport(port = port)
         val rSocketJob: TcpServer = RSocketServer().bindIn(scope, tcpTransport, acceptor(scope, magixFlow))

@@ -28,6 +28,4 @@ dependencies{
 
     api("io.rsocket.kotlin:rsocket-ktor-server:$rsocketVersion")
     api("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
-
-    api("org.zeromq:jeromq:0.5.2")
 }
