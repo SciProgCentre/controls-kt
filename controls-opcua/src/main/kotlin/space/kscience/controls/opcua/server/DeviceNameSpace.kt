@@ -208,5 +208,8 @@ public class DeviceNameSpace(
     }
 }
 
+/**
+ *  Serve devices from [deviceManager] as OPC-UA
+ */
 public fun OpcUaServer.serveDevices(deviceManager: DeviceManager): DeviceNameSpace =
     DeviceNameSpace(this, deviceManager).apply { startup() }

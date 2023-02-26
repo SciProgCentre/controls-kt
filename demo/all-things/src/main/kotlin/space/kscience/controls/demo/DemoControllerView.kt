@@ -51,13 +51,18 @@ class DemoController : Controller(), ContextAware {
         context.launch {
             device = deviceManager.install("demo", DemoDevice)
             //starting magix event loop
-            magixServer = startMagixServer(RSocketMagixFlowPlugin(), ZmqMagixFlowPlugin())
+            magixServer = startMagixServer(
+                RSocketMagixFlowPlugin(), //TCP rsocket support
+                ZmqMagixFlowPlugin() //ZMQ support
+            )
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint)
+            //connect visualization to a magix endpoint
             val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
             visualizer = visualEndpoint.startDemoDeviceServer()
 
+            //serve devices as OPC-UA namespace
             opcUaServer.startup()
             opcUaServer.serveDevices(deviceManager)
         }
