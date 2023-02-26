@@ -15,8 +15,7 @@ allprojects {
     group = "space.kscience"
     version = "0.1.1-SNAPSHOT"
     repositories{
-        mavenCentral()
-        mavenLocal()
+        maven("https://maven.pkg.jetbrains.space/spc/p/sci/dev")
     }
 }
 
