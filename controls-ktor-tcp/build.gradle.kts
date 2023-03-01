@@ -5,6 +5,6 @@ plugins {
 val ktorVersion: String by rootProject.extra
 
 dependencies {
-    api(project(":controls-core"))
+    api(projects.controlsCore)
     api("io.ktor:ktor-network:$ktorVersion")
 }

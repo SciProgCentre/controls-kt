@@ -58,6 +58,9 @@ public class SerialPort private constructor(
 
     public companion object : PortFactory {
 
+        override val type: String = "com"
+
+
         /**
          * Construct ComPort with given parameters
          */

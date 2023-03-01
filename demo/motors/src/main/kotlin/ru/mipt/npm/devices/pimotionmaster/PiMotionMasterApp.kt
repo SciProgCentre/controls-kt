@@ -44,8 +44,8 @@ fun VBox.piMotionMasterAxis(
     label(axisName)
     coroutineScope.launch {
         with(axis) {
-            val min = minPosition.read()
-            val max = maxPosition.read()
+            val min: Double = minPosition.read()
+            val max: Double = maxPosition.read()
             val positionProperty = fxProperty(position)
             val startPosition = position.read()
             runLater {

@@ -87,7 +87,7 @@ class PiMotionMasterDevice(
     suspend fun getErrorCode(): Int = mutex.withLock {
         withTimeout(timeoutValue) {
             sendCommandInternal("ERR?")
-            val errorString = port?.receiving()?.withDelimiter("\n")?.first() ?: error("Not connected to device")
+            val errorString = port?.receiving()?.withStringDelimiter("\n")?.first() ?: error("Not connected to device")
             errorString.trim().toInt()
         }
     }
@@ -100,7 +100,7 @@ class PiMotionMasterDevice(
         try {
             withTimeout(timeoutValue) {
                 sendCommandInternal(command, *arguments)
-                val phrases = port?.receiving()?.withDelimiter("\n") ?: error("Not connected to device")
+                val phrases = port?.receiving()?.withStringDelimiter("\n") ?: error("Not connected to device")
                 phrases.transformWhile { line ->
                     emit(line)
                     line.endsWith(" \n")

@@ -57,7 +57,7 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
 
     /**
      * Set property [value] for a property with name [propertyName].
-     * In rare cases could suspend if the [Device] supports command queue and it is full at the moment.
+     * In rare cases could suspend if the [Device] supports command queue, and it is full at the moment.
      */
     public suspend fun writeProperty(propertyName: String, value: Meta)
 
@@ -101,7 +101,7 @@ public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
  *
  * TODO currently this
  */
-public fun Device.getProperties(): Meta = Meta {
+public fun Device.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {
         setMeta(Name.parse(descriptor.name), getProperty(descriptor.name))
     }

@@ -7,4 +7,4 @@ import kotlinx.coroutines.runBlocking
  */
 public operator fun <D : DeviceBase<D>, T : Any> D.get(
     propertySpec: DevicePropertySpec<D, T>
-): T = runBlocking { read(propertySpec) }
+): T? = runBlocking { read(propertySpec) }

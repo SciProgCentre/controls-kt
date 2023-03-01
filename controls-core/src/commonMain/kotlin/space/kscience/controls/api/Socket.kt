@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 /**
- * A generic bi-directional sender/receiver object
+ * A generic bidirectional sender/receiver object
  */
 public interface Socket<T> : Closeable {
     /**

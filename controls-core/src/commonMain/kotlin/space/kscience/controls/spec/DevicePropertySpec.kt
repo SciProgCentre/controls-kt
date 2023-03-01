@@ -35,7 +35,7 @@ public interface DevicePropertySpec<in D : Device, T> {
      * Read physical value from the given [device]
      */
     @InternalDeviceAPI
-    public suspend fun read(device: D): T
+    public suspend fun read(device: D): T?
 }
 
 /**
@@ -44,8 +44,8 @@ public interface DevicePropertySpec<in D : Device, T> {
 public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
 
 @OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta =
-    converter.objectToMeta(read(device))
+public suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
+    read(device)?.let(converter::objectToMeta)
 
 
 public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {

@@ -42,7 +42,7 @@ dependencyResolutionManagement {
 
 include(
     ":controls-core",
-    ":controls-tcp",
+    ":controls-ktor-tcp",
     ":controls-serial",
     ":controls-server",
     ":controls-opcua",
@@ -64,5 +64,6 @@ include(
     ":demo:magix-demo",
     ":demo:car",
     ":demo:motors",
-    ":demo:echo"
+    ":demo:echo",
+    ":demo:mks-pdr900"
 )

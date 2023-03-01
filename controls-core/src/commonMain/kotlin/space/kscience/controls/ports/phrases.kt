@@ -40,12 +40,11 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> 
 /**
  * Transform byte fragments into utf-8 phrases using utf-8 delimiter
  */
-public fun Flow<ByteArray>.withDelimiter(delimiter: String): Flow<String> {
+public fun Flow<ByteArray>.withStringDelimiter(delimiter: String): Flow<String> {
     return withDelimiter(delimiter.encodeToByteArray()).map { it.decodeToString() }
 }
 
 /**
  * A flow of delimited phrases
  */
-public suspend fun Port.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> =
-    receiving().withDelimiter(delimiter)
+public fun Port.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> = receiving().withDelimiter(delimiter)

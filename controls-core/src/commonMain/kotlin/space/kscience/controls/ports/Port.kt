@@ -6,11 +6,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import space.kscience.controls.api.Socket
 import space.kscience.dataforge.context.*
+import space.kscience.dataforge.misc.Type
 import kotlin.coroutines.CoroutineContext
 
 public interface Port : ContextAware, Socket<ByteArray>
 
-public typealias PortFactory = Factory<Port>
+@Type(PortFactory.TYPE)
+public interface PortFactory: Factory<Port>{
+    public val type: String
+
+    public companion object{
+        public const val TYPE: String = "controls.port"
+    }
+}
 
 public abstract class AbstractPort(
     override val context: Context,
@@ -64,12 +72,10 @@ public abstract class AbstractPort(
 
     /**
      * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
-     * In order to form phrases some condition should used on top of it.
+     * In order to form phrases some condition should be used on top of it.
      * For example [delimitedIncoming] generates phrases with fixed delimiter.
      */
-    override fun receiving(): Flow<ByteArray> {
-        return incoming.receiveAsFlow()
-    }
+    override fun receiving(): Flow<ByteArray> = incoming.receiveAsFlow()
 
     override fun close() {
         outgoing.close()

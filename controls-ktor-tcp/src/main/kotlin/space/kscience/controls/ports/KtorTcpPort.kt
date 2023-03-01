@@ -55,7 +55,10 @@ public class KtorTcpPort internal constructor(
         super.close()
     }
 
-    public companion object: PortFactory {
+    public companion object : PortFactory {
+
+        override val type: String = "tcp"
+
         public fun open(
             context: Context,
             host: String,

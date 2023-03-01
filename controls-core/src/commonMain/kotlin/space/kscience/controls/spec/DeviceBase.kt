@@ -17,10 +17,17 @@ import kotlin.coroutines.CoroutineContext
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceBase<D : DeviceBase<D>>(
     override val context: Context = Global,
-    override val meta: Meta = Meta.EMPTY
+    override val meta: Meta = Meta.EMPTY,
 ) : Device {
 
+    /**
+     * Collection of property specifications
+     */
     public abstract val properties: Map<String, DevicePropertySpec<D, *>>
+
+    /**
+     * Collection of action specifications
+     */
     public abstract val actions: Map<String, DeviceActionSpec<D, *, *>>
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
@@ -33,6 +40,9 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
     }
 
+    /**
+     * Logical state store
+     */
     private val logicalState: HashMap<String, Meta?> = HashMap()
 
     private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow()
@@ -99,13 +109,17 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
         actions[action]?.executeWithMeta(self, argument)
 
     /**
-     * Read typed value and update/push event if needed
+     * Read typed value and update/push event if needed.
+     * Return null if property read is not successful or property is undefined.
      */
-    public suspend fun <T> DevicePropertySpec<D, T>.read(): T {
-        val res = read(self)
+    public suspend fun <T> DevicePropertySpec<D, T>.readOrNull(): T? {
+        val res = read(self) ?: return null
         updateLogical(name, converter.objectToMeta(res))
         return res
     }
+
+    public suspend fun <T> DevicePropertySpec<D, T>.read(): T =
+        readOrNull() ?: error("Failed to read property $name state")
 
     public fun <T> DevicePropertySpec<D, T>.get(): T? = getProperty(name)?.let(converter::metaToObject)
 
@@ -121,6 +135,13 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
         }
     }
 
+    /**
+     * Reset logical state of a property
+     */
+    public suspend fun DevicePropertySpec<D, *>.invalidate() {
+        invalidate(name)
+    }
+
     public suspend operator fun <I, O> DeviceActionSpec<D, I, O>.invoke(input: I? = null): O? = execute(self, input)
 
 }
@@ -132,17 +153,17 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
 public open class DeviceBySpec<D : DeviceBySpec<D>>(
     public val spec: DeviceSpec<in D>,
     context: Context = Global,
-    meta: Meta = Meta.EMPTY
+    meta: Meta = Meta.EMPTY,
 ) : DeviceBase<D>(context, meta) {
     override val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
     override val actions: Map<String, DeviceActionSpec<D, *, *>> get() = spec.actions
 
-    override suspend fun open(): Unit = with(spec){
+    override suspend fun open(): Unit = with(spec) {
         super.open()
         self.onOpen()
     }
 
-    override fun close(): Unit = with(spec){
+    override fun close(): Unit = with(spec) {
         self.onClose()
         super.close()
     }

@@ -52,20 +52,20 @@ public class TcpPort private constructor(
                 }
                 if (num < 0) cancel("The input channel is exhausted")
             } catch (ex: Exception) {
-                logger.error(ex){"Channel read error"}
+                logger.error(ex) { "Channel read error" }
                 delay(1000)
             }
         }
     }
 
-    override suspend fun write(data: ByteArray) {
+    override suspend fun write(data: ByteArray): Unit = withContext(Dispatchers.IO){
         futureChannel.await().write(ByteBuffer.wrap(data))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun close() {
         listenerJob.cancel()
-        if(futureChannel.isCompleted){
+        if (futureChannel.isCompleted) {
             futureChannel.getCompleted().close()
         } else {
             futureChannel.cancel()
@@ -74,6 +74,9 @@ public class TcpPort private constructor(
     }
 
     public companion object : PortFactory {
+
+        override val type: String = "tcp"
+
         public fun open(
             context: Context,
             host: String,
