@@ -14,7 +14,11 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
+
+//TODO this device is not tested
 class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Device>(MksPdr900Device, context, meta) {
+
+    private val address by meta.int(253)
 
     private val portDelegate = lazy {
         val ports = context.request(Ports)
@@ -22,9 +26,6 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
     }
 
     private val port: SynchronousPort by portDelegate
-
-    private val address by meta.int(253)
-    private val channel by meta.int(5)
 
     private val responsePattern: Regex by lazy {
         ("@${address}ACK(.*);FF").toRegex()
@@ -62,7 +63,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         }
     }
 
-    public suspend fun readChannelData(): Double? {
+    public suspend fun readChannelData(channel: Int): Double? {
         val answer: String? = talk("PR$channel?")
         error.invalidate()
         return if (answer.isNullOrEmpty()) {
@@ -83,12 +84,18 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
 
 
     companion object : DeviceSpec<MksPdr900Device>(), Factory<MksPdr900Device> {
-        override fun build(context: Context, meta: Meta): MksPdr900Device = MksPdr900Device(context, meta)
 
+        const val DEFAULT_CHANNEL: Int = 5
+
+        override fun build(context: Context, meta: Meta): MksPdr900Device = MksPdr900Device(context, meta)
 
         val powerOn by booleanProperty(read = MksPdr900Device::readPowerOn, write = MksPdr900Device::writePowerOn)
 
-        val value by doubleProperty(read = MksPdr900Device::readChannelData)
+        val channel by logicalProperty(MetaConverter.int)
+
+        val value by doubleProperty(read = {
+            readChannelData(channel.get() ?: DEFAULT_CHANNEL)
+        })
 
         val error by logicalProperty(MetaConverter.string)
 

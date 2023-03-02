@@ -236,8 +236,7 @@ public fun <T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
 
             override val converter: MetaConverter<T> = converter
 
-            override suspend fun read(device: D): T? =
-                device.getProperty(propertyName)?.let(converter::metaToObject)
+            override suspend fun read(device: D): T? = device.getProperty(propertyName)?.let(converter::metaToObject)
 
             override suspend fun write(device: D, value: T): Unit =
                 device.writeProperty(propertyName, converter.objectToMeta(value))

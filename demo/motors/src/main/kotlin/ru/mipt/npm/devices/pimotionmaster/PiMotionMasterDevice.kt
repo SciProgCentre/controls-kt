@@ -194,9 +194,9 @@ class PiMotionMasterDevice(
         val disconnect by metaAction({
             info = "Disconnect the program from the device if it is connected"
         }) {
-            if (port != null) {
+            port?.let{
                 stop()
-                port?.close()
+                it.close()
             }
             port = null
             updateLogical(connected, false)
