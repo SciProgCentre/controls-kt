@@ -1,21 +1,16 @@
 plugins {
-    id("ru.mipt.npm.gradle.mpp")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
 kscience{
+    jvm()
+    js()
     useSerialization {
         json()
     }
-}
-
-kotlin {
-    sourceSets {
-        commonMain {
-            dependencies {
-                implementation(project(":magix:magix-rsocket"))
-                implementation(project(":controls-core"))
-            }
-        }
+    dependencies {
+        implementation(project(":magix:magix-rsocket"))
+        implementation(project(":controls-core"))
     }
 }

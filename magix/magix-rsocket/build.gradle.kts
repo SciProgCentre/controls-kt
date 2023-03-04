@@ -1,5 +1,5 @@
 plugins {
-    id("ru.mipt.npm.gradle.mpp")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
@@ -7,22 +7,31 @@ description = """
     Magix endpoint (client) based on RSocket
 """.trimIndent()
 
-kscience {
-    useSerialization {
-        json()
-    }
-}
-
 val ktorVersion: String by rootProject.extra
 val rsocketVersion: String by rootProject.extra
 
+kscience {
+    jvm()
+    js()
+    native()
+    useSerialization {
+        json()
+    }
+    dependencies {
+        api(projects.magix.magixApi)
+        implementation("io.ktor:ktor-client-core:$ktorVersion")
+        implementation("io.rsocket.kotlin:rsocket-ktor-client:$rsocketVersion")
+    }
+    dependencies(jvmMain) {
+        implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
+    }
+}
+
 kotlin {
     sourceSets {
-        commonMain {
+        getByName("linuxX64Main") {
             dependencies {
-                api(projects.magix.magixApi)
-                implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.rsocket.kotlin:rsocket-transport-ktor-client:$rsocketVersion")
+                implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
             }
         }
     }

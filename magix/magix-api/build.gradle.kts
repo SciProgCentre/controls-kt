@@ -1,9 +1,12 @@
 plugins {
-    id("ru.mipt.npm.gradle.mpp")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
 kscience {
+    jvm()
+    js()
+    native()
     useCoroutines()
     useSerialization{
         json()

@@ -4,49 +4,66 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 enableFeaturePreview("VERSION_CATALOGS")
 
 pluginManagement {
-    val toolsVersion = "0.10.4"
+
+    val toolsVersion: String by extra
 
     repositories {
-        maven("https://repo.kotlin.link")
-        mavenCentral()
+        mavenLocal()
         gradlePluginPortal()
+        mavenCentral()
+        maven("https://repo.kotlin.link")
     }
 
     plugins {
-        id("ru.mipt.npm.gradle.project") version toolsVersion
-        id("ru.mipt.npm.gradle.mpp") version toolsVersion
-        id("ru.mipt.npm.gradle.jvm") version toolsVersion
-        id("ru.mipt.npm.gradle.js") version toolsVersion
+        id("space.kscience.gradle.project") version toolsVersion
+        id("space.kscience.gradle.mpp") version toolsVersion
+        id("space.kscience.gradle.jvm") version toolsVersion
+        id("space.kscience.gradle.js") version toolsVersion
+        id("org.openjfx.javafxplugin") version "0.0.13"
     }
 }
 
 dependencyResolutionManagement {
+
+    val toolsVersion: String by extra
+
     repositories {
-        maven("https://repo.kotlin.link")
+        mavenLocal()
         mavenCentral()
+        maven("https://repo.kotlin.link")
     }
 
     versionCatalogs {
-        create("npm") {
-            from("ru.mipt.npm:version-catalog:0.10.4")
+        create("npmlibs") {
+            from("space.kscience:version-catalog:$toolsVersion")
         }
     }
 }
 
 include(
     ":controls-core",
-    ":controls-tcp",
+    ":controls-ktor-tcp",
     ":controls-serial",
     ":controls-server",
     ":controls-opcua",
-    ":demo",
+//    ":controls-mongo",
+    ":controls-storage",
+    ":controls-storage:controls-xodus",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",
     ":magix:magix-rsocket",
     ":magix:magix-java-client",
     ":magix:magix-zmq",
-    ":magix:magix-demo",
+    ":magix:magix-rabbit",
+
+//    ":magix:magix-storage",
+    ":magix:magix-storage:magix-storage-xodus",
     ":controls-magix-client",
-    ":motors"
+    ":demo:all-things",
+    ":demo:magix-demo",
+    ":demo:car",
+    ":demo:motors",
+    ":demo:echo",
+    ":demo:mks-pdr900"
 )
