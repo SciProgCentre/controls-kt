@@ -1,7 +1,6 @@
 rootProject.name = "controls-kt"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
-enableFeaturePreview("VERSION_CATALOGS")
 
 pluginManagement {
 
@@ -34,7 +33,7 @@ dependencyResolutionManagement {
     }
 
     versionCatalogs {
-        create("npmlibs") {
+        create("spclibs") {
             from("space.kscience:version-catalog:$toolsVersion")
         }
     }
@@ -56,6 +55,7 @@ include(
     ":magix:magix-java-client",
     ":magix:magix-zmq",
     ":magix:magix-rabbit",
+    ":magix:magix-mqtt",
 
 //    ":magix:magix-storage",
     ":magix:magix-storage:magix-storage-xodus",

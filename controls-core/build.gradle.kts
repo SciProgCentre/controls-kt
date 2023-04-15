@@ -15,6 +15,6 @@ kscience {
     }
     dependencies {
         api("space.kscience:dataforge-io:$dataforgeVersion")
-        api(npmlibs.kotlinx.datetime)
+        api(spclibs.kotlinx.datetime)
     }
 }

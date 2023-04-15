@@ -19,10 +19,12 @@ dependencies {
 
     implementation("ch.qos.logback:logback-classic:1.2.11")
 }
+kotlin{
+    jvmToolchain(11)
+}
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions {
-        jvmTarget = "11"
         freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }
 }

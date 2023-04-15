@@ -38,7 +38,7 @@ class VirtualCarController : Controller(), ContextAware {
         plugin(DeviceManager)
     }
 
-    private val deviceManager = context.fetch(DeviceManager, Meta {
+    private val deviceManager = context.request(DeviceManager, Meta {
         "xodusConfig" put {
             "entityStorePath" put deviceEntityStorePath.toString()
         }

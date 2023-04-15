@@ -11,7 +11,7 @@ dependencies {
 //    implementation("org.jetbrains.xodus:xodus-environment:$xodusVersion")
 //    implementation("org.jetbrains.xodus:xodus-vfs:$xodusVersion")
 
-    testImplementation(npmlibs.kotlinx.coroutines.test)
+    testImplementation(spclibs.kotlinx.coroutines.test)
 }
 
 readme{

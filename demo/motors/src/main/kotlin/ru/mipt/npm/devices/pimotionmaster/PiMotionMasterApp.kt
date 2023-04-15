@@ -17,7 +17,7 @@ import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.po
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installing
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.fetch
+import space.kscience.dataforge.context.request
 import tornadofx.*
 
 class PiMotionMasterApp : App(PiMotionMasterView::class)
@@ -29,7 +29,7 @@ class PiMotionMasterController : Controller() {
     }
 
     //initialize deviceManager plugin
-    val deviceManager: DeviceManager = context.fetch(DeviceManager)
+    val deviceManager: DeviceManager = context.request(DeviceManager)
 
     // install device
     val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
