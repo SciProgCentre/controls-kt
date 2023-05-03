@@ -1,6 +1,5 @@
 package space.kscience.controls.api
 
-import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -17,10 +16,11 @@ import space.kscience.dataforge.names.Name
 
 /**
  *  General interface describing a managed Device.
- *  Device is a supervisor scope encompassing all operations on a device. When canceled, cancels all running processes.
+ *  [Device] is a supervisor scope encompassing all operations on a device.
+ *  When canceled, cancels all running processes.
  */
 @Type(DEVICE_TARGET)
-public interface Device : Closeable, ContextAware, CoroutineScope {
+public interface Device : AutoCloseable, ContextAware, CoroutineScope {
 
     /**
      * Initial configuration meta for the device
@@ -97,9 +97,8 @@ public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
     getProperty(propertyName) ?: readProperty(propertyName)
 
 /**
- * Get a snapshot of logical state of the device
+ * Get a snapshot of the device logical state
  *
- * TODO currently this
  */
 public fun Device.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {

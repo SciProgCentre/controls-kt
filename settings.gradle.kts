@@ -45,6 +45,7 @@ include(
     ":controls-serial",
     ":controls-server",
     ":controls-opcua",
+    ":controls-modbus",
 //    ":controls-mongo",
     ":controls-storage",
     ":controls-storage:controls-xodus",

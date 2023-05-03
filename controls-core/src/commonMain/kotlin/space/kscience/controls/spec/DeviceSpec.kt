@@ -12,6 +12,8 @@ import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
+
+
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceSpec<D : Device> {
     //initializing meta property for everyone

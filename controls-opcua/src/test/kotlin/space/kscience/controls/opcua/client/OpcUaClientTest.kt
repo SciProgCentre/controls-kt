@@ -4,7 +4,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.junit.jupiter.api.Test
-import space.kscience.controls.opcua.client.OpcUaClientTest.DemoMiloDevice.Companion.randomDouble
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.controls.spec.doubleProperty
 import space.kscience.dataforge.meta.transformations.MetaConverter
@@ -21,10 +20,6 @@ class OpcUaClientTest {
             fun build(): DemoMiloDevice {
                 val config = MiloConfiguration {
                     endpointUrl = "opc.tcp://milo.digitalpetri.com:62541/milo"
-//                    username = MiloUsername{
-//                        username = "user1"
-//                        password = "password"
-//                    }
                 }
                 return DemoMiloDevice(config)
             }
@@ -41,7 +36,7 @@ class OpcUaClientTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testReadDouble() = runTest {
-        println(DemoMiloDevice.use { randomDouble.read() })
+        println(DemoMiloDevice.use { DemoMiloDevice.randomDouble.read() })
     }
 
 }

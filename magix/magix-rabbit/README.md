@@ -1,12 +1,12 @@
-# Module controls-storage
+# Module magix-rabbit
 
-
+RabbitMQ client magix endpoint
 
 ## Usage
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-storage:0.1.1-SNAPSHOT`.
+The Maven coordinates of this project are `space.kscience:magix-rabbit:0.1.1-SNAPSHOT`.
 
 **Gradle Groovy:**
 ```groovy
@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'space.kscience:controls-storage:0.1.1-SNAPSHOT'
+    implementation 'space.kscience:magix-rabbit:0.1.1-SNAPSHOT'
 }
 ```
 **Gradle Kotlin DSL:**
@@ -27,6 +27,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-storage:0.1.1-SNAPSHOT")
+    implementation("space.kscience:magix-rabbit:0.1.1-SNAPSHOT")
 }
 ```

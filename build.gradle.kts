@@ -35,6 +35,8 @@ ksciencePublish {
     space("https://maven.pkg.jetbrains.space/spc/p/controls/maven")
 }
 
+readme.readmeTemplate = file("docs/templates/README-TEMPLATE.md")
+
 apiValidation {
     validationDisabled = true
 }

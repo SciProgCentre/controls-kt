@@ -9,6 +9,9 @@ import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
 
+/**
+ * Process a message targeted at this [Device], assuming its name is [deviceTarget].
+ */
 public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMessage): DeviceMessage? = try {
     when (request) {
         is PropertyGetMessage -> {
@@ -66,6 +69,9 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
     DeviceMessage.error(ex, sourceDevice = deviceTarget, targetDevice = request.sourceDevice)
 }
 
+/**
+ * Process incoming [DeviceMessage], using hub naming to evaluate target.
+ */
 public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): DeviceMessage? {
     return try {
         val targetName = request.targetDevice ?: return null
@@ -77,7 +83,7 @@ public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): DeviceMe
 }
 
 /**
- * Collect all messages from given [DeviceHub], applying proper relative names
+ * Collect all messages from given [DeviceHub], applying proper relative names.
  */
 public fun DeviceHub.hubMessageFlow(scope: CoroutineScope): Flow<DeviceMessage> {
     

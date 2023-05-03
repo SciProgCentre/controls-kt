@@ -8,10 +8,7 @@ import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
-import space.kscience.dataforge.meta.Scheme
-import space.kscience.dataforge.meta.SchemeSpec
-import space.kscience.dataforge.meta.specOrNull
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.meta.*
 
 
 public sealed class MiloIdentity: Scheme()
@@ -35,6 +32,8 @@ public class MiloConfiguration : Scheme() {
 
     public var username: MiloUsername? by specOrNull(MiloUsername)
 
+    public var securityPolicy: SecurityPolicy by enum(SecurityPolicy.None)
+
     public companion object : SchemeSpec<MiloConfiguration>(::MiloConfiguration)
 }
 
@@ -50,7 +49,7 @@ public open class MiloDeviceBySpec<D : MiloDeviceBySpec<D>>(
     override val client: OpcUaClient by lazy {
         context.createMiloClient(
             config.endpointUrl,
-            securityPolicy = SecurityPolicy.None,
+            securityPolicy = config.securityPolicy,
             identityProvider = config.username?.let {
                 UsernameProvider(it.username,it.password)
             } ?: AnonymousProvider()

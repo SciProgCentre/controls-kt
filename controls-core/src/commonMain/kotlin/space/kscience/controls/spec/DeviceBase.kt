@@ -14,6 +14,9 @@ import space.kscience.dataforge.meta.Meta
 import kotlin.coroutines.CoroutineContext
 
 
+/**
+ * A base abstractions for [Device], introducing specifications for properties
+ */
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceBase<D : DeviceBase<D>>(
     override val context: Context = Global,

@@ -8,9 +8,6 @@ import space.kscience.dataforge.meta.string
 import java.nio.file.Path
 import kotlin.io.path.Path
 
-//TODO remove on DF 0.6
-
-internal val IOPlugin.Companion.WORK_DIRECTORY_KEY: String get() = ".dataforge"
 
 public val IOPlugin.workDirectory: Path
     get() {

@@ -1,0 +1,24 @@
+name: Gradle build
+
+on:
+  push:
+    branches: [ dev, master ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3.5.1
+        with:
+          java-version: '11'
+          distribution: 'liberica'
+          cache: 'gradle'
+      - name: Gradle Wrapper Validation
+        uses: gradle/wrapper-validation-action@v1.0.4
+      - name: Gradle Build
+        uses: gradle/gradle-build-action@v2.4.2
+        with:
+          arguments: test jvmTest

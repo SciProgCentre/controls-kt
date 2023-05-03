@@ -3,6 +3,7 @@ package space.kscience.controls.manager
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceHub
+import space.kscience.controls.api.getOrNull
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
@@ -12,6 +13,9 @@ import kotlin.collections.set
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 
+/**
+ * DataForge Context plugin that allows to manage devices locally
+ */
 public class DeviceManager : AbstractPlugin(), DeviceHub {
     override val tag: PluginTag get() = Companion.tag
 
@@ -36,6 +40,9 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
 }
 
 
+/**
+ * Register and start a device built by [factory] with current [Context] and [meta].
+ */
 public fun <D : Device> DeviceManager.install(name: String, factory: Factory<D>, meta: Meta = Meta.EMPTY): D {
     val device = factory(meta, context)
     registerDevice(NameToken(name), device)
@@ -45,6 +52,9 @@ public fun <D : Device> DeviceManager.install(name: String, factory: Factory<D>,
     return device
 }
 
+/**
+ * A delegate that initializes device on the first use
+ */
 public inline fun <D : Device> DeviceManager.installing(
     factory: Factory<D>,
     builder: MutableMeta.() -> Unit = {},
@@ -52,7 +62,15 @@ public inline fun <D : Device> DeviceManager.installing(
     val meta = Meta(builder)
     return ReadOnlyProperty { _, property ->
         val name = property.name
-        install(name, factory, meta)
+        val current = getOrNull(name)
+        if (current == null) {
+            install(name, factory, meta)
+        } else if (current.meta != meta) {
+            error("Meta mismatch. Current device meta: ${current.meta}, but factory meta is $meta")
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            current as D
+        }
     }
 }
 

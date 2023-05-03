@@ -27,7 +27,7 @@ public interface DevicePropertySpec<in D : Device, T> {
     public val descriptor: PropertyDescriptor
 
     /**
-     * Meta item converter for resulting type
+     * Meta item converter for the resulting type
      */
     public val converter: MetaConverter<T>
 
@@ -78,7 +78,7 @@ public interface DeviceActionSpec<in D : Device, I, O> {
 }
 
 /**
- * Action name, should be unique in device
+ * Action name. Should be unique in the device
  */
 public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
 
