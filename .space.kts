@@ -1,3 +1,3 @@
 job("Build and run tests") {
-    gradlew("amazoncorretto:17-alpine", "build")
+    gradlew("amazoncorretto:11-alpine", "build")
 }
