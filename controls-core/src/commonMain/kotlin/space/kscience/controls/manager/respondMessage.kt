@@ -41,6 +41,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
             ActionResultMessage(
                 action = request.action,
                 result = execute(request.action, request.argument),
+                requestId = request.requestId,
                 sourceDevice = deviceTarget,
                 targetDevice = request.sourceDevice
             )
