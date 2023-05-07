@@ -39,7 +39,7 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
     public val actionDescriptors: Collection<ActionDescriptor>
 
     /**
-     * Read physical state of property and update/push notifications if needed.
+     * Read the physical state of property and update/push notifications if needed.
      */
     public suspend fun readProperty(propertyName: String): Meta
 
@@ -71,7 +71,7 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
      * Send an action request and suspend caller while request is being processed.
      * Could return null if request does not return a meaningful answer.
      */
-    public suspend fun execute(action: String, argument: Meta? = null): Meta?
+    public suspend fun execute(actionName: String, argument: Meta? = null): Meta?
 
     /**
      * Initialize the device. This function suspends until the device is finished initialization

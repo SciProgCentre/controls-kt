@@ -10,7 +10,6 @@ import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
 
@@ -36,16 +35,13 @@ public interface DevicePropertySpec<in D : Device, T> {
      */
     @InternalDeviceAPI
     public suspend fun read(device: D): T?
+
 }
 
 /**
- * Property name, should be unique in device
+ * Property name should be unique in a device
  */
 public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
-
-@OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
-    read(device)?.let(converter::objectToMeta)
 
 
 public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
@@ -54,11 +50,7 @@ public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySp
      */
     @InternalDeviceAPI
     public suspend fun write(device: D, value: T)
-}
 
-@OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
-    write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
 }
 
 public interface DeviceActionSpec<in D : Device, I, O> {
@@ -82,29 +74,16 @@ public interface DeviceActionSpec<in D : Device, I, O> {
  */
 public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
 
-public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
-    device: D,
-    item: Meta?,
-): Meta? {
-    val arg = item?.let { inputConverter.metaToObject(item) }
-    val res = execute(device, arg)
-    return res?.let { outputConverter.objectToMeta(res) }
-}
+public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
+    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Can't convert result from meta")
 
 /**
  * Read typed value and update/push event if needed.
  * Return null if property read is not successful or property is undefined.
  */
-@OptIn(InternalDeviceAPI::class)
-public suspend fun <T, D : Device> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? {
-    val res = propertySpec.read(this) ?: return null
-    @Suppress("UNCHECKED_CAST")
-    (this as? DeviceBase<D>)?.updateLogical(propertySpec, res)
-    return res
-}
+public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
+    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::metaToObject)
 
-public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
-    readOrNull(propertySpec) ?: error("Failed to read property ${propertySpec.name} state")
 
 public operator fun <T, D : Device> D.get(propertySpec: DevicePropertySpec<D, T>): T? =
     getProperty(propertySpec.name)?.let(propertySpec.converter::metaToObject)
@@ -112,34 +91,17 @@ public operator fun <T, D : Device> D.get(propertySpec: DevicePropertySpec<D, T>
 /**
  * Write typed property state and invalidate logical state
  */
-@OptIn(InternalDeviceAPI::class)
 public suspend fun <T, D : Device> D.write(propertySpec: WritableDevicePropertySpec<D, T>, value: T) {
-    invalidate(propertySpec.name)
-    propertySpec.write(this, value)
-    //perform asynchronous read and update after write
-    launch {
-        read(propertySpec)
-    }
+    writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
 }
 
 /**
  * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope
  */
-public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySpec<D, T>, value: T): Unit {
-    launch {
-        write(propertySpec, value)
-    }
+public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySpec<D, T>, value: T): Job = launch {
+    write(propertySpec, value)
 }
 
-/**
- * Reset the logical state of a property
- */
-public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
-    invalidate(propertySpec.name)
-}
-
-public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I? = null): O? =
-    actionSpec.execute(this, input)
 
 /**
  * A type safe property change listener
@@ -153,3 +115,13 @@ public fun <D : Device, T> Device.onPropertyChange(
     .onEach { change ->
         change.callback(spec.converter.metaToObject(change.value))
     }.launchIn(this)
+
+/**
+ * Reset the logical state of a property
+ */
+public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
+    invalidate(propertySpec.name)
+}
+
+public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I? = null): O? =
+    actionSpec.execute(this, input)

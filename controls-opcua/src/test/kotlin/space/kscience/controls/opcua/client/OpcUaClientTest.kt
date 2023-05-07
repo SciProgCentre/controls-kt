@@ -28,8 +28,6 @@ class OpcUaClientTest {
                 return DemoOpcUaDevice(config)
             }
 
-            inline fun <R> use(block: (DemoOpcUaDevice) -> R): R = build().use(block)
-
             val randomDouble by doubleProperty(read = DemoOpcUaDevice::readRandomDouble)
 
         }
@@ -40,7 +38,7 @@ class OpcUaClientTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testReadDouble() = runTest {
-        DemoOpcUaDevice.use{
+        DemoOpcUaDevice.build().use{
             println(it.read(DemoOpcUaDevice.randomDouble))
         }
     }

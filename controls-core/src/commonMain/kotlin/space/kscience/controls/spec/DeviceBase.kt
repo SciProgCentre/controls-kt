@@ -13,10 +13,29 @@ import space.kscience.dataforge.meta.Meta
 import kotlin.coroutines.CoroutineContext
 
 
+@OptIn(InternalDeviceAPI::class)
+private suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
+    write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
+}
+
+@OptIn(InternalDeviceAPI::class)
+private suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
+    read(device)?.let(converter::objectToMeta)
+
+
+private suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
+    device: D,
+    item: Meta?,
+): Meta? {
+    val arg = item?.let { inputConverter.metaToObject(item) }
+    val res = execute(device, arg)
+    return res?.let { outputConverter.objectToMeta(res) }
+}
+
+
 /**
  * A base abstractions for [Device], introducing specifications for properties
  */
-@OptIn(InternalDeviceAPI::class)
 public abstract class DeviceBase<D : Device>(
     override val context: Context = Global,
     override val meta: Meta = Meta.EMPTY,
@@ -83,10 +102,17 @@ public abstract class DeviceBase<D : Device>(
      * The logical state is updated after read
      */
     override suspend fun readProperty(propertyName: String): Meta {
-        val newValue = properties[propertyName]?.readMeta(self)
-            ?: error("A property with name $propertyName is not registered in $this")
-        updateLogical(propertyName, newValue)
-        return newValue
+        val spec = properties[propertyName] ?: error("Property with name $propertyName not found")
+        val meta = spec.readMeta(self) ?: error("Failed to read property $propertyName")
+        updateLogical(propertyName, meta)
+        return meta
+    }
+
+    public suspend fun readPropertyOrNull(propertyName: String): Meta? {
+        val spec = properties[propertyName] ?: return null
+        val meta = spec.readMeta(self) ?: return null
+        updateLogical(propertyName, meta)
+        return meta
     }
 
     override fun getProperty(propertyName: String): Meta? = logicalState[propertyName]
@@ -98,40 +124,27 @@ public abstract class DeviceBase<D : Device>(
     }
 
     override suspend fun writeProperty(propertyName: String, value: Meta): Unit {
-        //If there is a physical property with a given name, invalidate logical property and write physical one
-        (properties[propertyName] as? WritableDevicePropertySpec<D, out Any?>)?.let {
-            invalidate(propertyName)
-            it.writeMeta(self, value)
-        } ?: run {
-            updateLogical(propertyName, value)
+        when (val property = properties[propertyName]) {
+            null -> {
+                //If there is a physical property with a given name, invalidate logical property and write physical one
+                updateLogical(propertyName, value)
+            }
+
+            is WritableDevicePropertySpec -> {
+                invalidate(propertyName)
+                property.writeMeta(self, value)
+            }
+
+            else -> {
+                error("Property $property is not writeable")
+            }
         }
     }
 
-    override suspend fun execute(action: String, argument: Meta?): Meta? =
-        actions[action]?.executeWithMeta(self, argument)
-
-}
-
-/**
- * A device generated from specification
- * @param D recursive self-type for properties and actions
- */
-public open class DeviceBySpec<D : Device>(
-    public val spec: DeviceSpec<in D>,
-    context: Context = Global,
-    meta: Meta = Meta.EMPTY,
-) : DeviceBase<D>(context, meta) {
-    override val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
-    override val actions: Map<String, DeviceActionSpec<D, *, *>> get() = spec.actions
-
-    override suspend fun open(): Unit = with(spec) {
-        super.open()
-        self.onOpen()
+    override suspend fun execute(actionName: String, argument: Meta?): Meta? {
+        val spec = actions[actionName] ?: error("Action with name $actionName not found")
+        return spec.executeWithMeta(self, argument)
     }
 
-    override fun close(): Unit = with(spec) {
-        self.onClose()
-        super.close()
-    }
 }
 
