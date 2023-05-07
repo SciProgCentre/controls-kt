@@ -75,7 +75,7 @@ public suspend fun MagixEndpoint.Companion.rSocketWithWebSockets(
 
     val rSocket = client.rSocket(host, port, path)
 
-    //Ensure client is closed after rSocket if finished
+    //Ensure the client is closed after rSocket if finished
     rSocket.coroutineContext[Job]?.invokeOnCompletion {
         client.close()
     }

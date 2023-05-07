@@ -108,6 +108,9 @@ public abstract class DeviceBase<D : Device>(
         return meta
     }
 
+    /**
+     * Read property if it exists and read correctly. Return null otherwise.
+     */
     public suspend fun readPropertyOrNull(propertyName: String): Meta? {
         val spec = properties[propertyName] ?: return null
         val meta = spec.readMeta(self) ?: return null

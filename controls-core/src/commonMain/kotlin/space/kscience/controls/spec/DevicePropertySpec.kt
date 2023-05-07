@@ -1,5 +1,6 @@
 package space.kscience.controls.spec
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
@@ -19,6 +20,9 @@ import space.kscience.dataforge.meta.transformations.MetaConverter
 @RequiresOptIn("This API should not be called outside of Device internals")
 public annotation class InternalDeviceAPI
 
+/**
+ * Specification for a device read-only property
+ */
 public interface DevicePropertySpec<in D : Device, T> {
     /**
      * Property descriptor
@@ -75,7 +79,7 @@ public interface DeviceActionSpec<in D : Device, I, O> {
 public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
 
 public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
-    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Can't convert result from meta")
+    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
 /**
  * Read typed value and update/push event if needed.
@@ -102,9 +106,8 @@ public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySp
     write(propertySpec, value)
 }
 
-
 /**
- * A type safe property change listener
+ * A type safe property change listener. Uses the device [CoroutineScope].
  */
 public fun <D : Device, T> Device.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
@@ -123,5 +126,8 @@ public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D,
     invalidate(propertySpec.name)
 }
 
+/**
+ * Execute the action with name according to [actionSpec]
+ */
 public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I? = null): O? =
     actionSpec.execute(this, input)

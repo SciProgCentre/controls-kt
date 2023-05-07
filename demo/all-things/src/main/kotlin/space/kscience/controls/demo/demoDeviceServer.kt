@@ -1,27 +1,24 @@
 package space.kscience.controls.demo
 
-import io.ktor.server.application.install
-import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.plugins.cors.routing.CORS
-import io.ktor.server.websocket.WebSockets
-import io.rsocket.kotlin.ktor.server.RSocketSupport
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.controlsMagixFormat
-import space.kscience.dataforge.meta.Meta
+import space.kscience.controls.spec.name
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
+import space.kscience.plotly.Plotly
 import space.kscience.plotly.layout
 import space.kscience.plotly.models.Trace
 import space.kscience.plotly.plot
 import space.kscience.plotly.server.PlotlyUpdateMode
-import space.kscience.plotly.server.plotlyModule
+import space.kscience.plotly.server.serve
 import space.kscience.plotly.trace
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -55,36 +52,26 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 }
 
 
-@Suppress("ExtractKtorModule")
-suspend fun MagixEndpoint.startDemoDeviceServer(): ApplicationEngine = embeddedServer(CIO, 9091) {
-    install(WebSockets)
-    install(RSocketSupport)
+fun CoroutineScope.startDemoDeviceServer(magixEndpoint: MagixEndpoint): ApplicationEngine {
+    //share subscription to a parse message only once
+    val subscription = magixEndpoint.subscribe(controlsMagixFormat).shareIn(this, SharingStarted.Lazily)
 
-    install(CORS) {
-        anyHost()
-    }
+    val sinFlow = subscription.mapNotNull {  (_, payload) ->
+        (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.sin.name }
+    }.map { it.value }
 
-    val sinFlow = MutableSharedFlow<Meta?>()// = device.sin.flow()
-    val cosFlow = MutableSharedFlow<Meta?>()// = device.cos.flow()
+    val cosFlow = subscription.mapNotNull {  (_, payload) ->
+        (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.cos.name }
+    }.map { it.value }
 
-    launch {
-        subscribe(controlsMagixFormat).collect { (_, payload) ->
-            (payload as? PropertyChangedMessage)?.let { message ->
-                when (message.property) {
-                    "sin" -> sinFlow.emit(message.value)
-                    "cos" -> cosFlow.emit(message.value)
-                }
-            }
-        }
-    }
+    val sinCosFlow = subscription.mapNotNull {  (_, payload) ->
+        (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.coordinates.name }
+    }.map { it.value }
 
-    plotlyModule{
+    return Plotly.serve(port = 9091, scope = this) {
         updateMode = PlotlyUpdateMode.PUSH
-        updateInterval = 50
+        updateInterval = 100
         page { container ->
-            val sinCosFlow = sinFlow.zip(cosFlow) { sin, cos ->
-                sin.double!! to cos.double!!
-            }
             link {
                 rel = "stylesheet"
                 href = "https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
@@ -134,7 +121,9 @@ suspend fun MagixEndpoint.startDemoDeviceServer(): ApplicationEngine = embeddedS
                         trace {
                             name = "non-synchronized"
                             launch {
-                                val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.windowed(30)
+                                val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.mapNotNull {
+                                    it["x"].double!! to it["y"].double!!
+                                }.windowed(30)
                                 updateXYFrom(flow)
                             }
                         }
@@ -144,5 +133,6 @@ suspend fun MagixEndpoint.startDemoDeviceServer(): ApplicationEngine = embeddedS
 
         }
     }
-}.apply { start() }
+
+}
 

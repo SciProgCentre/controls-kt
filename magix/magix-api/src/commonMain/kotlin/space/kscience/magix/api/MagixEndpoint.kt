@@ -9,7 +9,7 @@ import kotlinx.serialization.json.Json
 public interface MagixEndpoint {
 
     /**
-     * Subscribe to a [Flow] of messages
+     * Subscribe to a [Flow] of messages. Subscription is not guaranteed to be shared.
      */
     public fun subscribe(
         filter: MagixMessageFilter = MagixMessageFilter.ALL,

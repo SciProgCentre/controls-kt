@@ -56,12 +56,12 @@ class DemoController : Controller(), ContextAware {
                 RSocketMagixFlowPlugin(), //TCP rsocket support
                 ZmqMagixFlowPlugin() //ZMQ support
             )
-            //Launch device client and connect it to the server
+            //Launch a device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint)
             //connect visualization to a magix endpoint
             val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
-            visualizer = visualEndpoint.startDemoDeviceServer()
+            visualizer = startDemoDeviceServer(visualEndpoint)
 
             //serve devices as OPC-UA namespace
             opcUaServer.startup()

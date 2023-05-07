@@ -41,7 +41,7 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDe
 
         val cos by doubleProperty {
             val time = Instant.now()
-            kotlin.math.cos(time.toEpochMilli().toDouble() / timeScaleState) * sinScaleState
+            kotlin.math.cos(time.toEpochMilli().toDouble() / timeScaleState) * cosScaleState
         }
 
         val coordinates by metaProperty(
