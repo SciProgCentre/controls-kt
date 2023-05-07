@@ -45,7 +45,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
 
 
     public suspend fun writePowerOn(powerOnValue: Boolean) {
-        error.invalidate()
+        invalidate(error)
         if (powerOnValue) {
             val ans = talk("FP!ON")
             if (ans == "ON") {
@@ -65,7 +65,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
 
     public suspend fun readChannelData(channel: Int): Double? {
         val answer: String? = talk("PR$channel?")
-        error.invalidate()
+        invalidate(error)
         return if (answer.isNullOrEmpty()) {
             //            updateState(PortSensor.CONNECTED_STATE, false)
             updateLogical(error, "No connection")
@@ -94,7 +94,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         val channel by logicalProperty(MetaConverter.int)
 
         val value by doubleProperty(read = {
-            readChannelData(channel.get() ?: DEFAULT_CHANNEL)
+            readChannelData(get(channel) ?: DEFAULT_CHANNEL)
         })
 
         val error by logicalProperty(MetaConverter.string)

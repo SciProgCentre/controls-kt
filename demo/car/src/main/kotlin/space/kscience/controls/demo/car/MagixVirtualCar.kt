@@ -3,6 +3,7 @@ package space.kscience.controls.demo.car
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.controlsMagixFormat
+import space.kscience.controls.spec.write
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
@@ -21,7 +22,7 @@ class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) 
             (payload as? PropertyChangedMessage)?.let { message ->
                 if (message.sourceDevice == Name.parse("virtual-car")) {
                     when (message.property) {
-                        "acceleration" -> IVirtualCar.acceleration.write(Vector2D.metaToObject(message.value))
+                        "acceleration" -> write(IVirtualCar.acceleration, Vector2D.metaToObject(message.value))
                     }
                 }
             }

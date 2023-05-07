@@ -17,6 +17,7 @@ import space.kscience.controls.manager.install
 import space.kscience.controls.opcua.server.OpcUaServer
 import space.kscience.controls.opcua.server.endpoint
 import space.kscience.controls.opcua.server.serveDevices
+import space.kscience.controls.spec.write
 import space.kscience.dataforge.context.*
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.rsocket.rSocketWithTcp
@@ -125,9 +126,9 @@ class DemoControllerView : View(title = " Demo controller remote") {
             action {
                 controller.device?.run {
                     launch {
-                        timeScale.write(timeScaleSlider.value)
-                        sinScale.write(xScaleSlider.value)
-                        cosScale.write(yScaleSlider.value)
+                        write(timeScale, timeScaleSlider.value)
+                        write(sinScale, xScaleSlider.value)
+                        write(cosScale, yScaleSlider.value)
                     }
                 }
             }

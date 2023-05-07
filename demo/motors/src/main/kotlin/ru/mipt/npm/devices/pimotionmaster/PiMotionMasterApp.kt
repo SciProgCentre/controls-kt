@@ -16,6 +16,7 @@ import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.mi
 import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.position
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installing
+import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import tornadofx.*
@@ -44,10 +45,10 @@ fun VBox.piMotionMasterAxis(
     label(axisName)
     coroutineScope.launch {
         with(axis) {
-            val min: Double = minPosition.read()
-            val max: Double = maxPosition.read()
+            val min: Double = read(minPosition)
+            val max: Double = read(maxPosition)
             val positionProperty = fxProperty(position)
-            val startPosition = position.read()
+            val startPosition = read(position)
             runLater {
                 vbox {
                     hgrow = Priority.ALWAYS

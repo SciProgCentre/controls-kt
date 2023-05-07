@@ -62,21 +62,21 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<DemoDevice>(DemoDe
 
         override suspend fun DemoDevice.onOpen() {
             launch {
-                sinScale.read()
-                cosScale.read()
-                timeScale.read()
+                read(sinScale)
+                read(cosScale)
+                read(timeScale)
             }
             doRecurring(50.milliseconds) {
-                sin.read()
-                cos.read()
-                coordinates.read()
+                read(sin)
+                read(cos)
+                read(coordinates)
             }
         }
 
         val resetScale by action(MetaConverter.meta, MetaConverter.meta) {
-            timeScale.write(5000.0)
-            sinScale.write(1.0)
-            cosScale.write(1.0)
+            write(timeScale, 5000.0)
+            write(sinScale, 1.0)
+            write(cosScale, 1.0)
             null
         }
 

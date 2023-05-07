@@ -18,10 +18,10 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 
-public fun <T:Any> T?.toOptional(): Optional<T> = if(this == null) Optional.empty() else Optional.of(this)
+internal fun <T:Any> T?.toOptional(): Optional<T> = if(this == null) Optional.empty() else Optional.of(this)
 
 
-internal fun Context.createMiloClient(
+internal fun Context.createOpcUaClient(
     endpointUrl: String, //"opc.tcp://localhost:12686/milo"
     securityPolicy: SecurityPolicy = SecurityPolicy.Basic256Sha256,
     identityProvider: IdentityProvider = AnonymousProvider(),

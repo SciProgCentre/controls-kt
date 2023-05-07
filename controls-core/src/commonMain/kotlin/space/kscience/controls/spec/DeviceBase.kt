@@ -4,7 +4,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
@@ -18,7 +17,7 @@ import kotlin.coroutines.CoroutineContext
  * A base abstractions for [Device], introducing specifications for properties
  */
 @OptIn(InternalDeviceAPI::class)
-public abstract class DeviceBase<D : DeviceBase<D>>(
+public abstract class DeviceBase<D : Device>(
     override val context: Context = Global,
     override val meta: Meta = Meta.EMPTY,
 ) : Device {
@@ -75,7 +74,7 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
     /**
      * Update logical state using given [spec] and its convertor
      */
-    protected suspend fun <T> updateLogical(spec: DevicePropertySpec<D, T>, value: T) {
+    public suspend fun <T> updateLogical(spec: DevicePropertySpec<D, T>, value: T) {
         updateLogical(spec.name, spec.converter.objectToMeta(value))
     }
 
@@ -99,7 +98,7 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
     }
 
     override suspend fun writeProperty(propertyName: String, value: Meta): Unit {
-        //If there is a physical property with given name, invalidate logical property and write physical one
+        //If there is a physical property with a given name, invalidate logical property and write physical one
         (properties[propertyName] as? WritableDevicePropertySpec<D, out Any?>)?.let {
             invalidate(propertyName)
             it.writeMeta(self, value)
@@ -111,49 +110,13 @@ public abstract class DeviceBase<D : DeviceBase<D>>(
     override suspend fun execute(action: String, argument: Meta?): Meta? =
         actions[action]?.executeWithMeta(self, argument)
 
-    /**
-     * Read typed value and update/push event if needed.
-     * Return null if property read is not successful or property is undefined.
-     */
-    public suspend fun <T> DevicePropertySpec<D, T>.readOrNull(): T? {
-        val res = read(self) ?: return null
-        updateLogical(name, converter.objectToMeta(res))
-        return res
-    }
-
-    public suspend fun <T> DevicePropertySpec<D, T>.read(): T =
-        readOrNull() ?: error("Failed to read property $name state")
-
-    public fun <T> DevicePropertySpec<D, T>.get(): T? = getProperty(name)?.let(converter::metaToObject)
-
-    /**
-     * Write typed property state and invalidate logical state
-     */
-    public suspend fun <T> WritableDevicePropertySpec<D, T>.write(value: T) {
-        invalidate(name)
-        write(self, value)
-        //perform asynchronous read and update after write
-        launch {
-            read()
-        }
-    }
-
-    /**
-     * Reset logical state of a property
-     */
-    public suspend fun DevicePropertySpec<D, *>.invalidate() {
-        invalidate(name)
-    }
-
-    public suspend operator fun <I, O> DeviceActionSpec<D, I, O>.invoke(input: I? = null): O? = execute(self, input)
-
 }
 
 /**
  * A device generated from specification
  * @param D recursive self-type for properties and actions
  */
-public open class DeviceBySpec<D : DeviceBySpec<D>>(
+public open class DeviceBySpec<D : Device>(
     public val spec: DeviceSpec<in D>,
     context: Context = Global,
     meta: Meta = Meta.EMPTY,

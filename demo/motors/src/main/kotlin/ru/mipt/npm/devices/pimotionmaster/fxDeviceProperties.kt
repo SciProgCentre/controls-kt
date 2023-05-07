@@ -59,7 +59,7 @@ fun <D : Device, T : Any> D.fxProperty(spec: WritableDevicePropertySpec<D, T>): 
 
             onChange { newValue ->
                 if (newValue != null) {
-                    write(spec, newValue)
+                    set(spec, newValue)
                 }
             }
         }

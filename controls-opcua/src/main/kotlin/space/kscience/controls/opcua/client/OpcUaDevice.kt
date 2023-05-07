@@ -18,7 +18,7 @@ import kotlin.reflect.KProperty
 /**
  * An OPC-UA device backed by Eclipse Milo client
  */
-public interface MiloDevice : Device {
+public interface OpcUaDevice : Device {
     /**
      * The OPC-UA client initialized on first use
      */
@@ -29,7 +29,7 @@ public interface MiloDevice : Device {
  * Read OPC-UA value with timestamp
  * @param T the type of property to read. The value is coerced to it.
  */
-public suspend inline fun <reified T: Any> MiloDevice.readOpcWithTime(
+public suspend inline fun <reified T: Any> OpcUaDevice.readOpcWithTime(
     nodeId: NodeId,
     converter: MetaConverter<T>,
     magAge: Double = 500.0
@@ -50,7 +50,7 @@ public suspend inline fun <reified T: Any> MiloDevice.readOpcWithTime(
 /**
  * Read and coerce value from OPC-UA
  */
-public suspend inline fun <reified T> MiloDevice.readOpc(
+public suspend inline fun <reified T> OpcUaDevice.readOpc(
     nodeId: NodeId,
     converter: MetaConverter<T>,
     magAge: Double = 500.0
@@ -72,7 +72,7 @@ public suspend inline fun <reified T> MiloDevice.readOpc(
     return converter.metaToObject(meta) ?: error("Meta $meta could not be converted to ${T::class}")
 }
 
-public suspend inline fun <reified T> MiloDevice.writeOpc(
+public suspend inline fun <reified T> OpcUaDevice.writeOpc(
     nodeId: NodeId,
     converter: MetaConverter<T>,
     value: T
@@ -85,7 +85,7 @@ public suspend inline fun <reified T> MiloDevice.writeOpc(
 /**
  * A device-bound OPC-UA property. Does not trigger device properties change.
  */
-public inline fun <reified T> MiloDevice.opc(
+public inline fun <reified T> OpcUaDevice.opc(
     nodeId: NodeId,
     converter: MetaConverter<T>,
     magAge: Double = 500.0
@@ -104,7 +104,7 @@ public inline fun <reified T> MiloDevice.opc(
 /**
  * Register a mutable OPC-UA based [Double] property in a device spec
  */
-public fun MiloDevice.opcDouble(
+public fun OpcUaDevice.opcDouble(
     nodeId: NodeId,
     magAge: Double = 1.0
 ): ReadWriteProperty<Any?, Double> = opc<Double>(nodeId, MetaConverter.double, magAge)
@@ -112,7 +112,7 @@ public fun MiloDevice.opcDouble(
 /**
  * Register a mutable OPC-UA based [Int] property in a device spec
  */
-public fun MiloDevice.opcInt(
+public fun OpcUaDevice.opcInt(
     nodeId: NodeId,
     magAge: Double = 1.0
 ): ReadWriteProperty<Any?, Int> = opc(nodeId, MetaConverter.int, magAge)
@@ -120,7 +120,7 @@ public fun MiloDevice.opcInt(
 /**
  * Register a mutable OPC-UA based [String] property in a device spec
  */
-public fun MiloDevice.opcString(
+public fun OpcUaDevice.opcString(
     nodeId: NodeId,
     magAge: Double = 1.0
 ): ReadWriteProperty<Any?, String> = opc(nodeId, MetaConverter.string, magAge)

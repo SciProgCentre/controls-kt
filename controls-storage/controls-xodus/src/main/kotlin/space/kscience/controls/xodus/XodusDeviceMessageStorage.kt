@@ -13,11 +13,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.storage.DeviceMessageStorage
-import space.kscience.controls.storage.workDirectory
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
+import space.kscience.dataforge.io.workDirectory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string

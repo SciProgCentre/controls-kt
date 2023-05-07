@@ -13,6 +13,7 @@ kscience {
     useSerialization{
         json()
     }
+    useContextReceivers()
     dependencies {
         api("space.kscience:dataforge-io:$dataforgeVersion")
         api(spclibs.kotlinx.datetime)

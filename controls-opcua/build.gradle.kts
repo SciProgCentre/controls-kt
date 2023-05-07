@@ -12,7 +12,6 @@ dependencies {
 
     api("org.eclipse.milo:sdk-client:$miloVersion")
     api("org.eclipse.milo:bsd-parser:$miloVersion")
-
     api("org.eclipse.milo:sdk-server:$miloVersion")
 
     testImplementation(spclibs.kotlinx.coroutines.test)

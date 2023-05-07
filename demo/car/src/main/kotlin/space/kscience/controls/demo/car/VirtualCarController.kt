@@ -12,6 +12,7 @@ import space.kscience.controls.client.connectToMagix
 import space.kscience.controls.demo.car.IVirtualCar.Companion.acceleration
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
+import space.kscience.controls.spec.write
 import space.kscience.controls.storage.storeMessages
 import space.kscience.controls.xodus.XodusDeviceMessageStorage
 import space.kscience.dataforge.context.*
@@ -113,7 +114,8 @@ class VirtualCarControllerView : View(title = " Virtual car controller remote") 
             action {
                 controller.virtualCar?.run {
                     launch {
-                        acceleration.write(
+                        write(
+                            acceleration,
                             Vector2D(
                                 accelerationXProperty.get(),
                                 accelerationYProperty.get()

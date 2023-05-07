@@ -8,6 +8,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.doRecurring
+import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
@@ -78,9 +79,9 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
         //TODO apply friction. One can introduce rotation of the cabin and different friction coefficients along the axis
         launch {
             //update logical states
-            IVirtualCar.location.read()
-            IVirtualCar.speed.read()
-            IVirtualCar.acceleration.read()
+            read(IVirtualCar.location)
+            read(IVirtualCar.speed)
+            read(IVirtualCar.acceleration)
         }
 
     }

@@ -6,27 +6,31 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.junit.jupiter.api.Test
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.controls.spec.doubleProperty
+import space.kscience.controls.spec.read
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
 class OpcUaClientTest {
-    class DemoMiloDevice(config: MiloConfiguration) : MiloDeviceBySpec<DemoMiloDevice>(DemoMiloDevice, config) {
+    class DemoOpcUaDevice(config: MiloConfiguration) : OpcUaDeviceBySpec<DemoOpcUaDevice>(DemoOpcUaDevice, config) {
 
         //val randomDouble by opcDouble(NodeId(2, "Dynamic/RandomDouble"))
 
         suspend fun readRandomDouble() = readOpc(NodeId(2, "Dynamic/RandomDouble"), MetaConverter.double)
 
 
-        companion object : DeviceSpec<DemoMiloDevice>() {
-            fun build(): DemoMiloDevice {
+        companion object : DeviceSpec<DemoOpcUaDevice>() {
+            /**
+             * Build a device. This is not a part of the specification
+             */
+            fun build(): DemoOpcUaDevice {
                 val config = MiloConfiguration {
                     endpointUrl = "opc.tcp://milo.digitalpetri.com:62541/milo"
                 }
-                return DemoMiloDevice(config)
+                return DemoOpcUaDevice(config)
             }
 
-            inline fun <R> use(block: DemoMiloDevice.() -> R): R = build().use(block)
+            inline fun <R> use(block: (DemoOpcUaDevice) -> R): R = build().use(block)
 
-            val randomDouble by doubleProperty(read = DemoMiloDevice::readRandomDouble)
+            val randomDouble by doubleProperty(read = DemoOpcUaDevice::readRandomDouble)
 
         }
 
@@ -36,7 +40,9 @@ class OpcUaClientTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testReadDouble() = runTest {
-        println(DemoMiloDevice.use { DemoMiloDevice.randomDouble.read() })
+        DemoOpcUaDevice.use{
+            println(it.read(DemoOpcUaDevice.randomDouble))
+        }
     }
 
 }
