@@ -10,6 +10,12 @@ public data class MagixMessageFilter(
     val origin: Collection<String?>? = null,
     val target: Collection<String?>? = null,
 ) {
+
+    public fun accepts(message: MagixMessage): Boolean =
+        format?.contains(message.format) ?: true
+                && origin?.contains(message.origin) ?: true
+                && target?.contains(message.target) ?: true
+
     public companion object {
         public val ALL: MagixMessageFilter = MagixMessageFilter()
     }
@@ -22,9 +28,5 @@ public fun Flow<MagixMessage>.filter(filter: MagixMessageFilter): Flow<MagixMess
     if (filter == MagixMessageFilter.ALL) {
         return this
     }
-    return filter { message ->
-        filter.format?.contains(message.format) ?: true
-                && filter.origin?.contains(message.origin) ?: true
-                && filter.target?.contains(message.target) ?: true
-    }
+    return filter(filter::accepts)
 }

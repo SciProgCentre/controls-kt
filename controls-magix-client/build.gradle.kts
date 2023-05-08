@@ -14,9 +14,9 @@ kscience {
         json()
     }
     dependencies {
-        implementation(projects.magix.magixApi)
-        implementation(projects.controlsCore)
-        implementation("com.benasher44:uuid:0.7.0")
+        api(projects.magix.magixApi)
+        api(projects.controlsCore)
+        api("com.benasher44:uuid:0.7.0")
     }
 }
 

@@ -26,6 +26,7 @@ public class DeviceClient(
     private val send: suspend (DeviceMessage) -> Unit,
 ) : Device {
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = newCoroutineContext(context.coroutineContext)
 
     private val mutex = Mutex()

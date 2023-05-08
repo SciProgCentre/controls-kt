@@ -62,6 +62,7 @@ include(
     ":magix:magix-storage:magix-storage-xodus",
     ":controls-magix-client",
     ":demo:all-things",
+    ":demo:many-devices",
     ":demo:magix-demo",
     ":demo:car",
     ":demo:motors",

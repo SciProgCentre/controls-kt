@@ -19,9 +19,7 @@ public interface MagixEndpoint {
     /**
      * Send an event
      */
-    public suspend fun broadcast(
-        message: MagixMessage,
-    )
+    public suspend fun broadcast(message: MagixMessage)
 
     /**
      * Close the endpoint and the associated connection if it exists

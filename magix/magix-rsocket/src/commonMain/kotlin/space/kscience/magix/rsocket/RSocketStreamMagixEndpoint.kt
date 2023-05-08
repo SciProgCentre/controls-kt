@@ -26,7 +26,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 /**
- * RSocket endpoint based on established channel. This way it works a bit faster than [RSocketMagixEndpoint]
+ * RSocket endpoint based on an established channel. This way it works a bit faster than [RSocketMagixEndpoint]
  * for sending and receiving, but less flexible in terms of filters. One general [streamFilter] could be set
  * in constructor and applied on the loop side. Filters in [subscribe] are applied on the endpoint side on top
  * of received data.

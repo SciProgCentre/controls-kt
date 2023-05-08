@@ -49,7 +49,7 @@ public class RSocketMagixFlowPlugin(public val port: Int = DEFAULT_MAGIX_RAW_POR
                     val message = MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), request.data.readText())
                     magixFlow.emit(message)
                 }
-                // bi-directional connection
+                // bidirectional connection, not covered by a standard
                 requestChannel { request: Payload, input: Flow<Payload> ->
                     input.onEach {
                         magixFlow.emit(MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText()))

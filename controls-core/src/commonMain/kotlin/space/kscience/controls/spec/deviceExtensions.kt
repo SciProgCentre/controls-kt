@@ -1,10 +1,12 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.Device
 import kotlin.time.Duration
 
 /**
@@ -14,19 +16,23 @@ import kotlin.time.Duration
  *
  * The flow is canceled when the device scope is canceled
  */
-public fun <D : DeviceBase<D>, R> D.readRecurring(interval: Duration, reader: suspend D.() -> R): Flow<R> = flow {
+public fun <D : Device, R> D.readRecurring(interval: Duration, reader: suspend D.() -> R): Flow<R> = flow {
     while (isActive) {
-        kotlinx.coroutines.delay(interval)
-        emit(reader())
+        delay(interval)
+        launch {
+            emit(reader())
+        }
     }
 }
 
 /**
  * Do a recurring (with a fixed delay) task on a device.
  */
-public fun <D : DeviceBase<D>> D.doRecurring(interval: Duration, task: suspend D.() -> Unit): Job = launch {
+public fun <D : Device> D.doRecurring(interval: Duration, task: suspend D.() -> Unit): Job = launch {
     while (isActive) {
-        kotlinx.coroutines.delay(interval)
-        task()
+        delay(interval)
+        launch {
+            task()
+        }
     }
 }

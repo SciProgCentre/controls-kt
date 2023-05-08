@@ -23,7 +23,7 @@ public suspend fun MagixEndpoint.Companion.rSocketWithTcp(
     )
     val rSocket = buildConnector(rSocketConfig).connect(transport)
 
-    return RSocketMagixEndpoint(rSocket, coroutineContext)
+    return RSocketMagixEndpoint(rSocket)
 }
 
 
