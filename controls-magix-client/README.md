@@ -1,6 +1,6 @@
 # Module controls-magix-client
 
-
+Magix service for binding controls devices (both as RPC client and server
 
 ## Usage
 

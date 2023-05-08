@@ -13,7 +13,6 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
 
-
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceSpec<D : Device> {
     //initializing meta property for everyone
@@ -38,20 +37,24 @@ public abstract class DeviceSpec<D : Device> {
         return deviceProperty
     }
 
-    public fun <T> registerProperty(
-        converter: MetaConverter<T>,
-        readOnlyProperty: KProperty1<D, T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    ): DevicePropertySpec<D, T> {
-        val deviceProperty = object : DevicePropertySpec<D, T> {
-            override val descriptor: PropertyDescriptor =
-                PropertyDescriptor(readOnlyProperty.name).apply(descriptorBuilder)
-            override val converter: MetaConverter<T> = converter
-            override suspend fun read(device: D): T =
-                withContext(device.coroutineContext) { readOnlyProperty.get(device) }
-        }
-        return registerProperty(deviceProperty)
-    }
+//    public fun <T> registerProperty(
+//        converter: MetaConverter<T>,
+//        readOnlyProperty: KProperty1<D, T>,
+//        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+//    ): DevicePropertySpec<D, T> {
+//        val deviceProperty = object : DevicePropertySpec<D, T> {
+//
+//            override val descriptor: PropertyDescriptor = PropertyDescriptor(readOnlyProperty.name)
+//                .apply(descriptorBuilder)
+//
+//            override val converter: MetaConverter<T> = converter
+//
+//            override suspend fun read(device: D): T = withContext(device.coroutineContext) {
+//                readOnlyProperty.get(device)
+//            }
+//        }
+//        return registerProperty(deviceProperty)
+//    }
 
     public fun <T> property(
         converter: MetaConverter<T>,

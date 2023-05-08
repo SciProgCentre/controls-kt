@@ -35,6 +35,10 @@ Example view of a demo:
 
 ![](docs/pictures/demo-view.png)
 
+## Documentation
+
+* [Creating a device](docs/Device%20and%20DeviceSpec.md)
+
 ## Modules
 
 ${modules}

@@ -35,6 +35,10 @@ Example view of a demo:
 
 ![](docs/pictures/demo-view.png)
 
+## Documentation
+
+* [Creating a device](docs/Device%20and%20DeviceSpec.md)
+
 ## Modules
 
 
@@ -115,6 +119,11 @@ Example view of a demo:
 > **Maturity**: EXPERIMENTAL
 
 ### [demo/magix-demo](demo/magix-demo)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/many-devices](demo/many-devices)
 > 
 >
 > **Maturity**: EXPERIMENTAL

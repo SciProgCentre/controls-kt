@@ -147,6 +147,7 @@ class DemoControllerView : View(title = " Demo controller remote") {
     }
 }
 
+
 class DemoControllerApp : App(DemoControllerView::class) {
     private val controller: DemoController by inject()
 

@@ -49,7 +49,7 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
         val value by doubleProperty { randomValue }
 
         override suspend fun MassDevice.onOpen() {
-            doRecurring(200.milliseconds) {
+            doRecurring(2.milliseconds) {
                 read(value)
             }
         }
@@ -63,7 +63,7 @@ fun main() {
         RSocketMagixFlowPlugin()
     )
 
-    val numDevices = 1000
+    val numDevices = 100
 
     repeat(numDevices) {
         val deviceContext = Context("Device${it}") {
@@ -99,7 +99,7 @@ fun main() {
                         }.launchIn(this)
 
                         while (isActive) {
-                            delay(1000)
+                            delay(200)
                             val now = Clock.System.now()
                             x.strings = latest.keys
                             y.numbers = latest.values.map { now.minus(it).inWholeMilliseconds / 1000.0 }

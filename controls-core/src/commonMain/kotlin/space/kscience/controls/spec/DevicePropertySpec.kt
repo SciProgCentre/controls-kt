@@ -39,7 +39,6 @@ public interface DevicePropertySpec<in D : Device, T> {
      */
     @InternalDeviceAPI
     public suspend fun read(device: D): T?
-
 }
 
 /**
