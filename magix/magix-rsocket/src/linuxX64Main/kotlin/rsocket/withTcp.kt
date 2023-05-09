@@ -6,7 +6,6 @@ import io.rsocket.kotlin.transport.ktor.tcp.TcpClientTransport
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.rsocket.RSocketMagixEndpoint
 import space.kscience.magix.rsocket.buildConnector
-import kotlin.coroutines.coroutineContext
 
 
 /**
@@ -25,5 +24,5 @@ public suspend fun MagixEndpoint.Companion.rSocketWithTcp(
     )
     val rSocket = buildConnector(rSocketConfig).connect(transport)
 
-    return RSocketMagixEndpoint(rSocket, coroutineContext)
+    return RSocketMagixEndpoint(rSocket)
 }

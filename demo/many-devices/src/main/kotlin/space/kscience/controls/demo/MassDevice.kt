@@ -21,14 +21,13 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
-import space.kscience.magix.rsocket.rSocketWithTcp
-import space.kscience.magix.rsocket.rSocketWithWebSockets
+import space.kscience.magix.rsocket.rSocketStreamWithTcp
 import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
 import space.kscience.plotly.Plotly
+import space.kscience.plotly.bar
 import space.kscience.plotly.layout
 import space.kscience.plotly.plot
-import space.kscience.plotly.scatter
 import space.kscience.plotly.server.PlotlyUpdateMode
 import space.kscience.plotly.server.serve
 import space.kscience.plotly.server.show
@@ -49,7 +48,7 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
         val value by doubleProperty { randomValue }
 
         override suspend fun MassDevice.onOpen() {
-            doRecurring(2.milliseconds) {
+            doRecurring(100.milliseconds) {
                 read(value)
             }
         }
@@ -60,23 +59,25 @@ fun main() {
     val context = Context("Mass")
 
     context.startMagixServer(
-        RSocketMagixFlowPlugin()
+        RSocketMagixFlowPlugin(),
+//        ZmqMagixFlowPlugin()
     )
 
     val numDevices = 100
 
-    repeat(numDevices) {
-        val deviceContext = Context("Device${it}") {
-            plugin(DeviceManager)
-        }
+    context.launch(Dispatchers.IO) {
+        repeat(numDevices) {
+            val deviceContext = Context("Device${it}") {
+                plugin(DeviceManager)
+            }
 
-        val deviceManager = deviceContext.request(DeviceManager)
+            val deviceManager = deviceContext.request(DeviceManager)
 
-        deviceManager.install("device$it", MassDevice)
+            deviceManager.install("device$it", MassDevice)
 
-        deviceContext.launch(Dispatchers.Default) {
-            val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
-            deviceManager.connectToMagix(deviceEndpoint, "device$it")
+            val endpointId = "device$it"
+            val deviceEndpoint = MagixEndpoint.rSocketStreamWithTcp("localhost")
+            deviceManager.connectToMagix(deviceEndpoint, endpointId)
         }
     }
 
@@ -88,9 +89,9 @@ fun main() {
                 layout {
                     title = "Latest event"
                 }
-                scatter {
-                    launch(Dispatchers.Default) {
-                        val monitorEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
+                bar {
+                    launch(Dispatchers.Default){
+                        val monitorEndpoint = MagixEndpoint.rSocketStreamWithTcp("localhost")
 
                         val latest = ConcurrentHashMap<String, Instant>()
 
@@ -101,8 +102,9 @@ fun main() {
                         while (isActive) {
                             delay(200)
                             val now = Clock.System.now()
-                            x.strings = latest.keys
-                            y.numbers = latest.values.map { now.minus(it).inWholeMilliseconds / 1000.0 }
+                            val sorted = latest.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
+                            x.numbers = sorted.keys
+                            y.numbers = sorted.values.map { now.minus(it).inWholeMilliseconds / 1000.0 }
                         }
                     }
                 }

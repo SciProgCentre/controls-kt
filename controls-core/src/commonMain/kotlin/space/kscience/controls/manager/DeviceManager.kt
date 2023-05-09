@@ -11,7 +11,6 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
 import kotlin.collections.set
 import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KClass
 
 /**
  * DataForge Context plugin that allows to manage devices locally
@@ -33,7 +32,6 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
 
     public companion object : PluginFactory<DeviceManager> {
         override val tag: PluginTag = PluginTag("devices", group = PluginTag.DATAFORGE_GROUP)
-        override val type: KClass<out DeviceManager> = DeviceManager::class
 
         override fun build(context: Context, meta: Meta): DeviceManager = DeviceManager()
     }

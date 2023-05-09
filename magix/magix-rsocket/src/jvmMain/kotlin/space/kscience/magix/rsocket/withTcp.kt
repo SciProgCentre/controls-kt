@@ -4,6 +4,7 @@ import io.ktor.network.sockets.SocketOptions
 import io.rsocket.kotlin.core.RSocketConnectorBuilder
 import io.rsocket.kotlin.transport.ktor.tcp.TcpClientTransport
 import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixMessageFilter
 import kotlin.coroutines.coroutineContext
 
 
@@ -30,6 +31,7 @@ public suspend fun MagixEndpoint.Companion.rSocketWithTcp(
 public suspend fun MagixEndpoint.Companion.rSocketStreamWithTcp(
     host: String,
     port: Int = DEFAULT_MAGIX_RAW_PORT,
+    filter: MagixMessageFilter = MagixMessageFilter.ALL,
     tcpConfig: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
     rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
 ): RSocketStreamMagixEndpoint {
@@ -40,5 +42,5 @@ public suspend fun MagixEndpoint.Companion.rSocketStreamWithTcp(
     )
     val rSocket = buildConnector(rSocketConfig).connect(transport)
 
-    return RSocketStreamMagixEndpoint(rSocket, coroutineContext)
+    return RSocketStreamMagixEndpoint(rSocket, coroutineContext, filter)
 }

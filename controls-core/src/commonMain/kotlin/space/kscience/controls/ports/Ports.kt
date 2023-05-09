@@ -3,7 +3,6 @@ package space.kscience.controls.ports
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.string
-import kotlin.reflect.KClass
 
 /**
  * A DataForge plugin for managing ports
@@ -31,8 +30,6 @@ public class Ports : AbstractPlugin() {
     public companion object : PluginFactory<Ports> {
 
         override val tag: PluginTag = PluginTag("controls.ports", group = PluginTag.DATAFORGE_GROUP)
-
-        override val type: KClass<out Ports> = Ports::class
 
         override fun build(context: Context, meta: Meta): Ports = Ports()
 

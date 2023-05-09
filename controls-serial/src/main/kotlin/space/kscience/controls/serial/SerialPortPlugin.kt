@@ -7,7 +7,6 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import kotlin.reflect.KClass
 
 public class SerialPortPlugin : AbstractPlugin() {
 
@@ -21,8 +20,6 @@ public class SerialPortPlugin : AbstractPlugin() {
     public companion object : PluginFactory<SerialPortPlugin> {
 
         override val tag: PluginTag = PluginTag("controls.ports.serial", group = PluginTag.DATAFORGE_GROUP)
-
-        override val type: KClass<out SerialPortPlugin> = SerialPortPlugin::class
 
         override fun build(context: Context, meta: Meta): SerialPortPlugin = SerialPortPlugin()
 

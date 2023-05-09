@@ -143,5 +143,5 @@ val res = device.read(DemoDevice.sin)
 
 ## Other ways to create a device
 
-It is not obligatory to use `DeviceBySpec` to define a `Device`. One could directly implement the `Device` interface or use intermediate abstraction `DeviceBase`, which uses properties schema but allows to define it manually.
+It is not obligatory to use `DeviceBySpec` to define a `Device`. One could directly implement the `Device` interface or use intermediate abstraction `DeviceBase`, which uses properties' schema but allows to define it manually.
 

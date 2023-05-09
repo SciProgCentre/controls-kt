@@ -6,7 +6,6 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import kotlin.reflect.KClass
 
 public class KtorTcpPortPlugin : AbstractPlugin() {
 
@@ -20,8 +19,6 @@ public class KtorTcpPortPlugin : AbstractPlugin() {
     public companion object : PluginFactory<KtorTcpPortPlugin> {
 
         override val tag: PluginTag = PluginTag("controls.ports.serial", group = PluginTag.DATAFORGE_GROUP)
-
-        override val type: KClass<out KtorTcpPortPlugin> = KtorTcpPortPlugin::class
 
         override fun build(context: Context, meta: Meta): KtorTcpPortPlugin = KtorTcpPortPlugin()
 

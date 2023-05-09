@@ -26,7 +26,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 /**
- * RSocket endpoint based on an established channel. This way it works a bit faster than [RSocketMagixEndpoint]
+ * RSocket endpoint based on an established channel. This way it works a lot faster than [RSocketMagixEndpoint]
  * for sending and receiving, but less flexible in terms of filters. One general [streamFilter] could be set
  * in constructor and applied on the loop side. Filters in [subscribe] are applied on the endpoint side on top
  * of received data.
@@ -78,6 +78,7 @@ public suspend fun MagixEndpoint.Companion.rSocketStreamWithWebSockets(
     host: String,
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     path: String = "/rsocket",
+    filter: MagixMessageFilter = MagixMessageFilter.ALL,
     rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
 ): RSocketStreamMagixEndpoint {
     val client = HttpClient {
@@ -89,10 +90,10 @@ public suspend fun MagixEndpoint.Companion.rSocketStreamWithWebSockets(
 
     val rSocket = client.rSocket(host, port, path)
 
-    //Ensure client is closed after rSocket if finished
+    //Ensure the client is closed after rSocket if finished
     rSocket.coroutineContext[Job]?.invokeOnCompletion {
         client.close()
     }
 
-    return RSocketStreamMagixEndpoint(rSocket, coroutineContext)
+    return RSocketStreamMagixEndpoint(rSocket, coroutineContext, filter)
 }

@@ -16,6 +16,7 @@ dependencies {
     implementation(projects.magix.magixServer)
     implementation(projects.controlsMagixClient)
     implementation(projects.magix.magixRsocket)
+    implementation(projects.magix.magixZmq)
 
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("space.kscience:plotlykt-server:0.5.3")
@@ -35,5 +36,5 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 
 application {
-    mainClass.set("space.kscience.controls.demo.DemoControllerViewKt")
+    mainClass.set("space.kscience.controls.demo.MassDeviceKt")
 }
