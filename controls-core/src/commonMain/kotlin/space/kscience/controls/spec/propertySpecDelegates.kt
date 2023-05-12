@@ -1,5 +1,6 @@
 package space.kscience.controls.spec
 
+import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.metaDescriptor
 import space.kscience.dataforge.meta.Meta
@@ -10,7 +11,7 @@ import kotlin.properties.ReadOnlyProperty
 
 //read only delegates
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.booleanProperty(
+public fun <D : Device> DeviceSpec<D>.booleanProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Boolean?
@@ -35,7 +36,7 @@ private inline fun numberDescriptor(
     descriptorBuilder()
 }
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.numberProperty(
+public fun <D : Device> DeviceSpec<D>.numberProperty(
     name: String? = null,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     read: suspend D.() -> Number?
@@ -46,7 +47,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.numberProperty(
     read
 )
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.doubleProperty(
+public fun <D : Device> DeviceSpec<D>.doubleProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Double?
@@ -57,7 +58,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.doubleProperty(
     read
 )
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.stringProperty(
+public fun <D : Device> DeviceSpec<D>.stringProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> String?
@@ -73,7 +74,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.stringProperty(
     read
 )
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.metaProperty(
+public fun <D : Device> DeviceSpec<D>.metaProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Meta?
@@ -91,7 +92,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.metaProperty(
 
 //read-write delegates
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.booleanProperty(
+public fun <D : Device> DeviceSpec<D>.booleanProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Boolean?,
@@ -111,7 +112,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.booleanProperty(
     )
 
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.numberProperty(
+public fun <D : Device> DeviceSpec<D>.numberProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Number,
@@ -119,7 +120,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.numberProperty(
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, Number>>> =
     mutableProperty(MetaConverter.number, numberDescriptor(descriptorBuilder), name, read, write)
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.doubleProperty(
+public fun <D : Device> DeviceSpec<D>.doubleProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Double,
@@ -127,7 +128,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.doubleProperty(
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, Double>>> =
     mutableProperty(MetaConverter.double, numberDescriptor(descriptorBuilder), name, read, write)
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.stringProperty(
+public fun <D : Device> DeviceSpec<D>.stringProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> String,
@@ -135,7 +136,7 @@ public fun <D : DeviceBase<D>> DeviceSpec<D>.stringProperty(
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, String>>> =
     mutableProperty(MetaConverter.string, descriptorBuilder, name, read, write)
 
-public fun <D : DeviceBase<D>> DeviceSpec<D>.metaProperty(
+public fun <D : Device> DeviceSpec<D>.metaProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend D.() -> Meta,

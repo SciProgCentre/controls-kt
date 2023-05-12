@@ -18,22 +18,20 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
-import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
-public class RSocketMagixEndpoint(
-    private val rSocket: RSocket,
-    private val coroutineContext: CoroutineContext,
-) : MagixEndpoint, Closeable {
+public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint, Closeable {
 
     override fun subscribe(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage> {
-        val payload = buildPayload { data(MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), filter)) }
+        val payload = buildPayload {
+            data(MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), filter))
+        }
         val flow = rSocket.requestStream(payload)
         return flow.map {
             MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
-        }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
+        }.filter(filter).flowOn(rSocket.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
     override suspend fun broadcast(message: MagixMessage): Unit = withContext(coroutineContext) {
@@ -75,10 +73,10 @@ public suspend fun MagixEndpoint.Companion.rSocketWithWebSockets(
 
     val rSocket = client.rSocket(host, port, path)
 
-    //Ensure client is closed after rSocket if finished
+    //Ensure the client is closed after rSocket if finished
     rSocket.coroutineContext[Job]?.invokeOnCompletion {
         client.close()
     }
 
-    return RSocketMagixEndpoint(rSocket, coroutineContext)
+    return RSocketMagixEndpoint(rSocket)
 }

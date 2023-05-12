@@ -9,8 +9,14 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.misc.Type
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * Raw [ByteArray] port
+ */
 public interface Port : ContextAware, Socket<ByteArray>
 
+/**
+ * A specialized factory for [Port]
+ */
 @Type(PortFactory.TYPE)
 public interface PortFactory: Factory<Port>{
     public val type: String
@@ -20,6 +26,9 @@ public interface PortFactory: Factory<Port>{
     }
 }
 
+/**
+ * Common abstraction for [Port] based on [Channel]
+ */
 public abstract class AbstractPort(
     override val context: Context,
     coroutineContext: CoroutineContext = context.coroutineContext,
@@ -72,7 +81,7 @@ public abstract class AbstractPort(
 
     /**
      * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
-     * In order to form phrases some condition should be used on top of it.
+     * In order to form phrases, some condition should be used on top of it.
      * For example [delimitedIncoming] generates phrases with fixed delimiter.
      */
     override fun receiving(): Flow<ByteArray> = incoming.receiveAsFlow()

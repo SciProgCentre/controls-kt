@@ -66,7 +66,9 @@ internal val tangoMagixFormat = MagixFormat(
     setOf("tango")
 )
 
-
+/**
+ * Controls-kt device binding for Tango-flavored magix loop
+ */
 public fun DeviceManager.launchTangoMagix(
     endpoint: MagixEndpoint,
     endpointID: String = TANGO_MAGIX_FORMAT,

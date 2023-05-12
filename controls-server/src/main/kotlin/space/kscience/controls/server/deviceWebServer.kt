@@ -43,10 +43,6 @@ import space.kscience.magix.server.magixModule
 
 
 private fun Application.deviceServerModule(manager: DeviceManager) {
-    install(WebSockets)
-//        install(CORS) {
-//            anyHost()
-//        }
     install(StatusPages) {
         exception<IllegalArgumentException> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, cause.message ?: "")

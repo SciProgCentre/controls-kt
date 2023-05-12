@@ -1,5 +1,6 @@
 package space.kscience.controls.spec
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
@@ -10,7 +11,6 @@ import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
 
@@ -20,6 +20,9 @@ import space.kscience.dataforge.meta.transformations.MetaConverter
 @RequiresOptIn("This API should not be called outside of Device internals")
 public annotation class InternalDeviceAPI
 
+/**
+ * Specification for a device read-only property
+ */
 public interface DevicePropertySpec<in D : Device, T> {
     /**
      * Property descriptor
@@ -27,7 +30,7 @@ public interface DevicePropertySpec<in D : Device, T> {
     public val descriptor: PropertyDescriptor
 
     /**
-     * Meta item converter for resulting type
+     * Meta item converter for the resulting type
      */
     public val converter: MetaConverter<T>
 
@@ -39,13 +42,9 @@ public interface DevicePropertySpec<in D : Device, T> {
 }
 
 /**
- * Property name, should be unique in device
+ * Property name should be unique in a device
  */
 public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
-
-@OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
-    read(device)?.let(converter::objectToMeta)
 
 
 public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
@@ -54,11 +53,7 @@ public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySp
      */
     @InternalDeviceAPI
     public suspend fun write(device: D, value: T)
-}
 
-@OptIn(InternalDeviceAPI::class)
-public suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
-    write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
 }
 
 public interface DeviceActionSpec<in D : Device, I, O> {
@@ -78,45 +73,40 @@ public interface DeviceActionSpec<in D : Device, I, O> {
 }
 
 /**
- * Action name, should be unique in device
+ * Action name. Should be unique in the device
  */
 public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
 
-public suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
-    device: D,
-    item: Meta?,
-): Meta? {
-    val arg = item?.let { inputConverter.metaToObject(item) }
-    val res = execute(device, arg)
-    return res?.let { outputConverter.objectToMeta(res) }
-}
+public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
+    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
+
+/**
+ * Read typed value and update/push event if needed.
+ * Return null if property read is not successful or property is undefined.
+ */
+public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
+    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::metaToObject)
 
 
-public suspend fun <D : DeviceBase<D>, T : Any> D.read(
-    propertySpec: DevicePropertySpec<D, T>,
-): T = propertySpec.read()
+public operator fun <T, D : Device> D.get(propertySpec: DevicePropertySpec<D, T>): T? =
+    getProperty(propertySpec.name)?.let(propertySpec.converter::metaToObject)
 
-public suspend fun <D : Device, T : Any> D.read(
-    propertySpec: DevicePropertySpec<D, T>,
-): T = propertySpec.converter.metaToObject(readProperty(propertySpec.name))
-    ?: error("Property meta converter returned null")
-
-public fun <D : Device, T> D.write(
-    propertySpec: WritableDevicePropertySpec<D, T>,
-    value: T,
-): Job = launch {
+/**
+ * Write typed property state and invalidate logical state
+ */
+public suspend fun <T, D : Device> D.write(propertySpec: WritableDevicePropertySpec<D, T>, value: T) {
     writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
 }
 
-public fun <D : DeviceBase<D>, T> D.write(
-    propertySpec: WritableDevicePropertySpec<D, T>,
-    value: T,
-): Job = launch {
-    propertySpec.write(value)
+/**
+ * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope
+ */
+public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySpec<D, T>, value: T): Job = launch {
+    write(propertySpec, value)
 }
 
 /**
- * A type safe property change listener
+ * A type safe property change listener. Uses the device [CoroutineScope].
  */
 public fun <D : Device, T> Device.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
@@ -127,3 +117,16 @@ public fun <D : Device, T> Device.onPropertyChange(
     .onEach { change ->
         change.callback(spec.converter.metaToObject(change.value))
     }.launchIn(this)
+
+/**
+ * Reset the logical state of a property
+ */
+public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
+    invalidate(propertySpec.name)
+}
+
+/**
+ * Execute the action with name according to [actionSpec]
+ */
+public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I? = null): O? =
+    actionSpec.execute(this, input)

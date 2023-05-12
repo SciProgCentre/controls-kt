@@ -3,8 +3,10 @@ package space.kscience.controls.ports
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.string
-import kotlin.reflect.KClass
 
+/**
+ * A DataForge plugin for managing ports
+ */
 public class Ports : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
@@ -15,6 +17,9 @@ public class Ports : AbstractPlugin() {
 
     private val portCache = mutableMapOf<Meta, Port>()
 
+    /**
+     * Create a new [Port] according to specification
+     */
     public fun buildPort(meta: Meta): Port = portCache.getOrPut(meta) {
         val type by meta.string { error("Port type is not defined") }
         val factory = portFactories.values.firstOrNull { it.type == type }
@@ -25,8 +30,6 @@ public class Ports : AbstractPlugin() {
     public companion object : PluginFactory<Ports> {
 
         override val tag: PluginTag = PluginTag("controls.ports", group = PluginTag.DATAFORGE_GROUP)
-
-        override val type: KClass<out Ports> = Ports::class
 
         override fun build(context: Context, meta: Meta): Ports = Ports()
 

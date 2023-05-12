@@ -3,58 +3,191 @@
 # Controls.kt
 
 Controls.kt (former DataForge-control) is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
-This repository contains a prototype of API and simple implementation 
+This repository contains a prototype of API and simple implementation
 of a slow control system, including a demo.
 
-Controls.kt uses some concepts and modules of DataForge, 
-such as `Meta` (immutable tree-like structure) and `Meta` (which 
-includes a scalar value, or a tree of values, easily convertable to/from JSON 
-if needed).  
+Controls.kt uses some concepts and modules of DataForge,
+such as `Meta` (tree-like value structure).
 
 To learn more about DataForge, please consult the following URLs:
- * [Kotlin multiplatform implementation of DataForge](https://github.com/mipt-npm/dataforge-core)  
- * [DataForge documentation](http://npm.mipt.ru/dataforge/) 
- * [Original implementation of DataForge](https://bitbucket.org/Altavir/dataforge/src/default/)
+* [Kotlin multiplatform implementation of DataForge](https://github.com/mipt-npm/dataforge-core)
+* [DataForge documentation](http://npm.mipt.ru/dataforge/)
+* [Original implementation of DataForge](https://bitbucket.org/Altavir/dataforge/src/default/)
 
 DataForge-control is a [Kotlin-multiplatform](https://kotlinlang.org/docs/reference/multiplatform.html)
-application. Asynchronous operations are implemented with 
+application. Asynchronous operations are implemented with
 [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) library.
 
 ## Materials and publications
 
 * Video - [A general overview seminar](https://youtu.be/LO-qjWgXMWc)
 * Video - [A seminar about the system mechanics](https://youtu.be/wES0RV5GpoQ)
-* Article - [A Novel Solution for Controlling Hardware Components of Accelerators and Beamlines](https://www.preprints.org/manuscript/202108.0336/v1) 
+* Article - [A Novel Solution for Controlling Hardware Components of Accelerators and Beamlines](https://www.preprints.org/manuscript/202108.0336/v1)
 
 ### Features
 Among other things, you can:
-- Describe devices and their properties. 
+- Describe devices and their properties.
 - Collect data from devices and execute arbitrary actions supported by a device.
 - Property values can be cached in the system and requested from devices as needed, asynchronously.
 - Connect devices to event bus via bidirectional message flows.
 
-### `dataforge-control-core` module packages
+Example view of a demo:
 
-- `api` - defines API for device management. The main class here is 
-[`Device`](controls-core/src/commonMain/kotlin/ru/mipt/npm/controls/api/Device.kt).
-Generally, a Device has Properties that can be read and written. Also, some Actions
-can optionally be applied on a device (may or may not affect properties). 
+![](docs/pictures/demo-view.png)
 
-- `base` - contains baseline `Device` implementation 
-[`DeviceBase`](controls-core/src/commonMain/kotlin/ru/mipt/npm/controls/base/DeviceBase.kt)
-and property implementation, including property asynchronous flows.
+## Documentation
 
-- `controllers` - implements Message Controller that can be attached to the event bus, Message 
-and Property flows.
+* [Creating a device](docs/Device%20and%20DeviceSpec.md)
+
+## Modules
+
+
+### [controls-core](controls-core)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+>
+> **Features:**
+> - [device](controls-core/src/commonMain/kotlin/space/kscience/controls/api/Device.kt) : Device API with subscription (asynchronous and pseudo-synchronous properties)
+> - [deviceMessage](controls-core/src/commonMain/kotlin/space/kscience/controls/api/DeviceMessage.kt) : Specification for messages used to communicate between Controls-kt devices.
+> - [deviceHub](controls-core/src/commonMain/kotlin/space/kscience/controls/api/DeviceHub.kt) : Grouping of devices into local tree-like hubs.
+
+
+### [controls-ktor-tcp](controls-ktor-tcp)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-magix-client](controls-magix-client)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-modbus](controls-modbus)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-opcua](controls-opcua)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-serial](controls-serial)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-server](controls-server)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-storage](controls-storage)
+> 
+>
+> **Maturity**: PROTOTYPE
+
+### [demo](demo)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix](magix)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-storage/controls-xodus](controls-storage/controls-xodus)
+> 
+>
+> **Maturity**: PROTOTYPE
+
+### [demo/all-things](demo/all-things)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/car](demo/car)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/echo](demo/echo)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/magix-demo](demo/magix-demo)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/many-devices](demo/many-devices)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/mks-pdr900](demo/mks-pdr900)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/motors](demo/motors)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-api](magix/magix-api)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-java-client](magix/magix-java-client)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-mqtt](magix/magix-mqtt)
+> 
+>
+> **Maturity**: PROTOTYPE
+
+### [magix/magix-rabbit](magix/magix-rabbit)
+> 
+>
+> **Maturity**: PROTOTYPE
+
+### [magix/magix-rsocket](magix/magix-rsocket)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-server](magix/magix-server)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-storage](magix/magix-storage)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-zmq](magix/magix-zmq)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [magix/magix-storage/magix-storage-xodus](magix/magix-storage/magix-storage-xodus)
+> 
+>
+> **Maturity**: PROTOTYPE
+
 
 ### `demo` module
 
 The demo includes a simple mock device with a few properties changing as `sin` and `cos` of
-the current time. The device is configurable via a simple TornadoFX-based control panel. 
-You can run a demo by executing `application/run` Gradle task. 
+the current time. The device is configurable via a simple TornadoFX-based control panel.
+You can run a demo by executing `application/run` Gradle task.
 
 The graphs are displayed using [plotly.kt](https://github.com/mipt-npm/plotly.kt) library.
-
-Example view of a demo:
-
-![](docs/pictures/demo-view.png)

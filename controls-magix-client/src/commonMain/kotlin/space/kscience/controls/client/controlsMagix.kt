@@ -32,7 +32,7 @@ public fun DeviceManager.connectToMagix(
     endpoint: MagixEndpoint,
     endpointID: String = controlsMagixFormat.defaultFormat,
 ): Job = context.launch {
-    endpoint.subscribe(controlsMagixFormat).onEach { (request, payload) ->
+    endpoint.subscribe(controlsMagixFormat, targetFilter = listOf(endpointID)).onEach { (request, payload) ->
         val responsePayload = respondHubMessage(payload)
         if (responsePayload != null) {
             endpoint.broadcast(
@@ -44,7 +44,7 @@ public fun DeviceManager.connectToMagix(
             )
         }
     }.catch { error ->
-        logger.error(error) { "Error while responding to message" }
+        logger.error(error) { "Error while responding to message: ${error.message}" }
     }.launchIn(this)
 
     hubMessageFlow(this).onEach { payload ->
@@ -55,7 +55,7 @@ public fun DeviceManager.connectToMagix(
             id = "df[${payload.hashCode()}]"
         )
     }.catch { error ->
-        logger.error(error) { "Error while sending a message" }
+        logger.error(error) { "Error while sending a message: ${error.message}" }
     }.launchIn(this)
 }
 

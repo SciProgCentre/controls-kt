@@ -1,6 +1,5 @@
 package space.kscience.controls.api
 
-import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -17,10 +16,11 @@ import space.kscience.dataforge.names.Name
 
 /**
  *  General interface describing a managed Device.
- *  Device is a supervisor scope encompassing all operations on a device. When canceled, cancels all running processes.
+ *  [Device] is a supervisor scope encompassing all operations on a device.
+ *  When canceled, cancels all running processes.
  */
 @Type(DEVICE_TARGET)
-public interface Device : Closeable, ContextAware, CoroutineScope {
+public interface Device : AutoCloseable, ContextAware, CoroutineScope {
 
     /**
      * Initial configuration meta for the device
@@ -39,7 +39,7 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
     public val actionDescriptors: Collection<ActionDescriptor>
 
     /**
-     * Read physical state of property and update/push notifications if needed.
+     * Read the physical state of property and update/push notifications if needed.
      */
     public suspend fun readProperty(propertyName: String): Meta
 
@@ -71,7 +71,7 @@ public interface Device : Closeable, ContextAware, CoroutineScope {
      * Send an action request and suspend caller while request is being processed.
      * Could return null if request does not return a meaningful answer.
      */
-    public suspend fun execute(action: String, argument: Meta? = null): Meta?
+    public suspend fun execute(actionName: String, argument: Meta? = null): Meta?
 
     /**
      * Initialize the device. This function suspends until the device is finished initialization
@@ -97,9 +97,8 @@ public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
     getProperty(propertyName) ?: readProperty(propertyName)
 
 /**
- * Get a snapshot of logical state of the device
+ * Get a snapshot of the device logical state
  *
- * TODO currently this
  */
 public fun Device.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {

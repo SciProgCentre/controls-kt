@@ -35,9 +35,12 @@ dependencies {
 //    implementation("org.litote.kmongo:kmongo-coroutine-serialization:4.4.0")
 }
 
+kotlin{
+    jvmToolchain(11)
+}
+
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions {
-        jvmTarget = "11"
         freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }
 }

@@ -125,12 +125,15 @@ public data class DescriptionMessage(
 
 /**
  * A request to execute an action. [targetDevice] is mandatory
+ *
+ * @param requestId action request id that should be returned in a response
  */
 @Serializable
 @SerialName("action.execute")
 public data class ActionExecuteMessage(
     public val action: String,
     public val argument: Meta?,
+    public val requestId: String,
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
@@ -141,12 +144,15 @@ public data class ActionExecuteMessage(
 
 /**
  * Asynchronous action result. [sourceDevice] is mandatory
+ *
+ * @param requestId request id passed in the request
  */
 @Serializable
 @SerialName("action.result")
 public data class ActionResultMessage(
     public val action: String,
     public val result: Meta?,
+    public val requestId: String,
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,

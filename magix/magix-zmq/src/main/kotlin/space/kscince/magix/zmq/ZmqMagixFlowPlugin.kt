@@ -24,13 +24,13 @@ public class ZmqMagixFlowPlugin(
             val logger = LoggerFactory.getLogger("magix-server-zmq")
 
             ZContext().use { context ->
-                //launch publishing job
+                //launch the publishing job
                 val pubSocket = context.createSocket(SocketType.PUB)
                 pubSocket.bind("$localHost:$zmqPubSocketPort")
                 magixFlow.onEach { message ->
                     val string = MagixEndpoint.magixJson.encodeToString(message)
                     pubSocket.send(string)
-                    logger.debug("Published: $string")
+                    logger.trace("Published: $string")
                 }.launchIn(this)
 
                 //launch pulling job
@@ -41,7 +41,7 @@ public class ZmqMagixFlowPlugin(
                 while (isActive) {
                     val string: String? = pullSocket.recvStr()
                     if (string != null) {
-                        logger.debug("Received: $string")
+                        logger.trace("Received: $string")
                         val message = MagixEndpoint.magixJson.decodeFromString<MagixMessage>(string)
                         magixFlow.emit(message)
                     }

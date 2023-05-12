@@ -13,7 +13,7 @@ dependencies {
     api(projects.magix.magixApi)
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
 
-    testImplementation(npmlibs.kotlinx.coroutines.test)
+    testImplementation(spclibs.kotlinx.coroutines.test)
 }
 
 readme{

@@ -39,7 +39,7 @@ class PiMotionMasterDevice(
 
     fun disconnect() {
         runBlocking {
-            disconnect.invoke()
+            execute(disconnect)
         }
     }
 
@@ -60,7 +60,7 @@ class PiMotionMasterDevice(
 
     fun connect(host: String, port: Int) {
         runBlocking {
-            connect(Meta {
+            execute(connect, Meta {
                 "host" put host
                 "port" put port
             })
@@ -176,7 +176,7 @@ class PiMotionMasterDevice(
 //        connector.open()
             //Initialize axes
             if (portSpec != null) {
-                val idn = identity.read()
+                val idn = read(identity)
                 failIfError { "Can't connect to $portSpec. Error code: $it" }
                 logger.info { "Connected to $idn on $portSpec" }
                 val ids = request("SAI?").map { it.trim() }
@@ -185,7 +185,7 @@ class PiMotionMasterDevice(
                     axes = ids.associateWith { Axis(this, it) }
                 }
                 Meta(ids.map { it.asValue() }.asValue())
-                initialize()
+                execute(initialize)
                 failIfError()
             }
             null
@@ -195,7 +195,7 @@ class PiMotionMasterDevice(
             info = "Disconnect the program from the device if it is connected"
         }) {
             port?.let{
-                stop()
+                execute(stop)
                 it.close()
             }
             port = null
@@ -237,7 +237,7 @@ class PiMotionMasterDevice(
         }
 
         suspend fun move(target: Double) {
-            move(target.asMeta())
+            execute(move, target.asMeta())
         }
 
         companion object : DeviceSpec<Axis>() {
@@ -336,15 +336,15 @@ class PiMotionMasterDevice(
 
             val move by metaAction {
                 val target = it.double ?: it?.get("target").double ?: error("Unacceptable target value $it")
-                closedLoop.write(true)
+                write(closedLoop, true)
                 //optionally set velocity
                 it?.get("velocity").double?.let { v ->
-                    velocity.write(v)
+                    write(velocity, v)
                 }
-                targetPosition.write(target)
+                write(targetPosition, target)
                 //read `onTarget` and `position` properties in a cycle until movement is complete
-                while (!onTarget.read()) {
-                    position.read()
+                while (!read(onTarget)) {
+                    read(position)
                     delay(200)
                 }
                 null

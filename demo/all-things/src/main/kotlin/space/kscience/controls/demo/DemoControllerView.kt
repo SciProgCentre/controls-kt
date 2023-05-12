@@ -17,6 +17,7 @@ import space.kscience.controls.manager.install
 import space.kscience.controls.opcua.server.OpcUaServer
 import space.kscience.controls.opcua.server.endpoint
 import space.kscience.controls.opcua.server.serveDevices
+import space.kscience.controls.spec.write
 import space.kscience.dataforge.context.*
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.rsocket.rSocketWithTcp
@@ -55,12 +56,12 @@ class DemoController : Controller(), ContextAware {
                 RSocketMagixFlowPlugin(), //TCP rsocket support
                 ZmqMagixFlowPlugin() //ZMQ support
             )
-            //Launch device client and connect it to the server
+            //Launch a device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint)
             //connect visualization to a magix endpoint
             val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
-            visualizer = visualEndpoint.startDemoDeviceServer()
+            visualizer = startDemoDeviceServer(visualEndpoint)
 
             //serve devices as OPC-UA namespace
             opcUaServer.startup()
@@ -125,9 +126,9 @@ class DemoControllerView : View(title = " Demo controller remote") {
             action {
                 controller.device?.run {
                     launch {
-                        timeScale.write(timeScaleSlider.value)
-                        sinScale.write(xScaleSlider.value)
-                        cosScale.write(yScaleSlider.value)
+                        write(timeScale, timeScaleSlider.value)
+                        write(sinScale, xScaleSlider.value)
+                        write(cosScale, yScaleSlider.value)
                     }
                 }
             }
@@ -145,6 +146,7 @@ class DemoControllerView : View(title = " Demo controller remote") {
         }
     }
 }
+
 
 class DemoControllerApp : App(DemoControllerView::class) {
     private val controller: DemoController by inject()
