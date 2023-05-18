@@ -10,6 +10,8 @@ import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.string
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.nio.channels.ByteChannel
+import java.nio.channels.DatagramChannel
 import java.nio.channels.SocketChannel
 import kotlin.coroutines.CoroutineContext
 
@@ -21,19 +23,17 @@ internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
     return response
 }
 
-public class TcpPort private constructor(
+/**
+ * A port based on nio [ByteChannel]
+ */
+public class ChannelPort (
     context: Context,
-    public val host: String,
-    public val port: Int,
     coroutineContext: CoroutineContext = context.coroutineContext,
+    channelBuilder: suspend () -> ByteChannel,
 ) : AbstractPort(context, coroutineContext), AutoCloseable {
 
-    override fun toString(): String = "port[tcp:$host:$port]"
-
-    private val futureChannel: Deferred<SocketChannel> = this.scope.async(Dispatchers.IO) {
-        SocketChannel.open(InetSocketAddress(host, port)).apply {
-            configureBlocking(false)
-        }
+    private val futureChannel: Deferred<ByteChannel> = this.scope.async(Dispatchers.IO) {
+        channelBuilder()
     }
 
     /**
@@ -58,7 +58,7 @@ public class TcpPort private constructor(
         }
     }
 
-    override suspend fun write(data: ByteArray): Unit = withContext(Dispatchers.IO){
+    override suspend fun write(data: ByteArray): Unit = withContext(Dispatchers.IO) {
         futureChannel.await().write(ByteBuffer.wrap(data))
     }
 
@@ -72,24 +72,56 @@ public class TcpPort private constructor(
         }
         super.close()
     }
+}
 
-    public companion object : PortFactory {
+/**
+ * A [PortFactory] for TCP connections
+ */
+public object TcpPort : PortFactory {
 
-        override val type: String = "tcp"
+    override val type: String = "tcp"
 
-        public fun open(
-            context: Context,
-            host: String,
-            port: Int,
-            coroutineContext: CoroutineContext = context.coroutineContext,
-        ): TcpPort {
-            return TcpPort(context, host, port, coroutineContext)
+    public fun open(
+        context: Context,
+        host: String,
+        port: Int,
+        coroutineContext: CoroutineContext = context.coroutineContext,
+    ): ChannelPort = ChannelPort(context,coroutineContext){
+        SocketChannel.open(InetSocketAddress(host, port)).apply {
+            configureBlocking(false)
         }
+    }
 
-        override fun build(context: Context, meta: Meta): Port {
-            val host = meta["host"].string ?: "localhost"
-            val port = meta["port"].int ?: error("Port value for TCP port is not defined in $meta")
-            return open(context, host, port)
+    override fun build(context: Context, meta: Meta): ChannelPort {
+        val host = meta["host"].string ?: "localhost"
+        val port = meta["port"].int ?: error("Port value for TCP port is not defined in $meta")
+        return open(context, host, port)
+    }
+}
+
+
+/**
+ * A [PortFactory] for UDP connections
+ */
+public object UdpPort : PortFactory {
+
+    override val type: String = "udp"
+
+    public fun open(
+        context: Context,
+        host: String,
+        port: Int,
+        coroutineContext: CoroutineContext = context.coroutineContext,
+    ): ChannelPort = ChannelPort(context,coroutineContext){
+        DatagramChannel.open().apply {
+            bind(InetSocketAddress(host, port))
+            configureBlocking(false)
         }
+    }
+
+    override fun build(context: Context, meta: Meta): ChannelPort {
+        val host = meta["host"].string ?: "localhost"
+        val port = meta["port"].int ?: error("Port value for UDP port is not defined in $meta")
+        return open(context, host, port)
     }
 }
