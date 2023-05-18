@@ -43,6 +43,7 @@ include(
     ":controls-core",
     ":controls-ktor-tcp",
     ":controls-serial",
+    ":controls-pi",
     ":controls-server",
     ":controls-opcua",
     ":controls-modbus",
