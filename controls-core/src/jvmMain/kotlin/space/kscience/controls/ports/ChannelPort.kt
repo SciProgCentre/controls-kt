@@ -15,7 +15,7 @@ import java.nio.channels.DatagramChannel
 import java.nio.channels.SocketChannel
 import kotlin.coroutines.CoroutineContext
 
-internal fun ByteBuffer.readArray(limit: Int = limit()): ByteArray {
+public fun ByteBuffer.toArray(limit: Int = limit()): ByteArray {
     rewind()
     val response = ByteArray(limit)
     get(response)
@@ -48,7 +48,7 @@ public class ChannelPort (
             try {
                 val num = channel.read(buffer)
                 if (num > 0) {
-                    receive(buffer.readArray(num))
+                    receive(buffer.toArray(num))
                 }
                 if (num < 0) cancel("The input channel is exhausted")
             } catch (ex: Exception) {
