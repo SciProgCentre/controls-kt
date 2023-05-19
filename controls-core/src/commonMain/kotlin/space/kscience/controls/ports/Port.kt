@@ -82,7 +82,7 @@ public abstract class AbstractPort(
     /**
      * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
      * In order to form phrases, some condition should be used on top of it.
-     * For example [delimitedIncoming] generates phrases with fixed delimiter.
+     * For example [stringsDelimitedIncoming] generates phrases with fixed delimiter.
      */
     override fun receiving(): Flow<ByteArray> = incoming.receiveAsFlow()
 

@@ -48,3 +48,8 @@ public fun Flow<ByteArray>.withStringDelimiter(delimiter: String): Flow<String> 
  * A flow of delimited phrases
  */
 public fun Port.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> = receiving().withDelimiter(delimiter)
+
+/**
+ * A flow of delimited phrases with string content
+ */
+public fun Port.stringsDelimitedIncoming(delimiter: String): Flow<String> = receiving().withStringDelimiter(delimiter)

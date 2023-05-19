@@ -1,6 +1,7 @@
 package space.kscience.controls.pi
 
 import com.pi4j.Pi4J
+import com.pi4j.io.serial.Baud
 import com.pi4j.io.serial.Serial
 import com.pi4j.io.serial.SerialConfigBuilder
 import com.pi4j.ktx.io.serial
@@ -13,6 +14,9 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.enum
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
 import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 
@@ -54,10 +58,16 @@ public class PiSerialPort(
         override val type: String get() = "pi"
 
         public fun open(context: Context, device: String, block: SerialConfigBuilder.() -> Unit): PiSerialPort =
-            PiSerialPort(context) { Pi4J.newAutoContext().serial(device, block) }
+            PiSerialPort(context) {
+                Pi4J.newAutoContext().serial(device, block)
+            }
 
         override fun build(context: Context, meta: Meta): Port = PiSerialPort(context) {
-            Pi4J.newAutoContext().serial()
+            val device: String = meta["device"].string ?: error("Device name not defined")
+            val baudRate: Baud = meta["baudRate"].enum<Baud>() ?: Baud._9600
+            Pi4J.newAutoContext().serial(device) {
+                baud8N1(baudRate)
+            }
         }
 
     }
