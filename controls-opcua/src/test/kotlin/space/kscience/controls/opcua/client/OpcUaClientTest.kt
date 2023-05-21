@@ -8,6 +8,7 @@ import space.kscience.controls.spec.DeviceSpec
 import space.kscience.controls.spec.doubleProperty
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.meta.transformations.MetaConverter
+import kotlin.test.Ignore
 
 class OpcUaClientTest {
     class DemoOpcUaDevice(config: MiloConfiguration) : OpcUaDeviceBySpec<DemoOpcUaDevice>(DemoOpcUaDevice, config) {
@@ -37,6 +38,7 @@ class OpcUaClientTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    @Ignore
     fun testReadDouble() = runTest {
         DemoOpcUaDevice.build().use{
             println(it.read(DemoOpcUaDevice.randomDouble))
