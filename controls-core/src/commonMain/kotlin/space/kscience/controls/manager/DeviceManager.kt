@@ -37,18 +37,20 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
     }
 }
 
-
-/**
- * Register and start a device built by [factory] with current [Context] and [meta].
- */
-public fun <D : Device> DeviceManager.install(name: String, factory: Factory<D>, meta: Meta = Meta.EMPTY): D {
-    val device = factory(meta, context)
+public fun <D : Device> DeviceManager.install(name: String, device: D): D {
     registerDevice(NameToken(name), device)
     device.launch {
         device.open()
     }
     return device
 }
+
+
+/**
+ * Register and start a device built by [factory] with current [Context] and [meta].
+ */
+public fun <D : Device> DeviceManager.install(name: String, factory: Factory<D>, meta: Meta = Meta.EMPTY): D =
+    install(name, factory(meta, context))
 
 /**
  * A delegate that initializes device on the first use

@@ -2,10 +2,7 @@ package space.kscience.controls.spec
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.Device
@@ -106,17 +103,29 @@ public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySp
 }
 
 /**
+ * A type safe flow of property changes for given property
+ */
+public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<T> = messageFlow
+    .filterIsInstance<PropertyChangedMessage>()
+    .filter { it.property == spec.name }
+    .mapNotNull { spec.converter.metaToObject(it.value) }
+
+/**
  * A type safe property change listener. Uses the device [CoroutineScope].
  */
-public fun <D : Device, T> Device.onPropertyChange(
+public fun <D : Device, T> D.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
-    callback: suspend PropertyChangedMessage.(T?) -> Unit,
+    callback: suspend PropertyChangedMessage.(T) -> Unit,
 ): Job = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
     .onEach { change ->
-        change.callback(spec.converter.metaToObject(change.value))
+        val newValue = spec.converter.metaToObject(change.value)
+        if (newValue != null) {
+            change.callback(newValue)
+        }
     }.launchIn(this)
+
 
 /**
  * Reset the logical state of a property
