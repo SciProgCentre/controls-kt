@@ -12,8 +12,8 @@ import tornadofx.*
 /**
  * Bind a FX property to a device property with a given [spec]
  */
-fun <D : Device, T : Any> Device.fxProperty(
-    spec: DevicePropertySpec<D, T>
+fun <D : Device, T : Any> D.fxProperty(
+    spec: DevicePropertySpec<D, T>,
 ): ReadOnlyProperty<T> = object : ObjectPropertyBase<T>() {
     override fun getBean(): Any = this
     override fun getName(): String = spec.name
@@ -21,16 +21,12 @@ fun <D : Device, T : Any> Device.fxProperty(
     init {
         //Read incoming changes
         onPropertyChange(spec) {
-            if (it != null) {
-                runLater {
-                    try {
-                        set(it)
-                    } catch (ex: Throwable) {
-                        logger.info { "Failed to set property $name to $it" }
-                    }
+            runLater {
+                try {
+                    set(it)
+                } catch (ex: Throwable) {
+                    logger.info { "Failed to set property $name to $it" }
                 }
-            } else {
-                invalidated()
             }
         }
     }
