@@ -162,7 +162,7 @@ class PiMotionMasterDevice(
             send("STP")
         }
 
-        val connect by metaAction(descriptorBuilder = {
+        val connect by action(MetaConverter.meta, MetaConverter.unit, descriptorBuilder = {
             info = "Connect to specific port and initialize axis"
         }) { portSpec ->
             //Clear current actions if present
@@ -171,36 +171,32 @@ class PiMotionMasterDevice(
             }
             //Update port
             //address = portSpec.node
-            port = portFactory(portSpec ?: Meta.EMPTY, context)
+            port = portFactory(portSpec, context)
             updateLogical(connected, true)
 //        connector.open()
             //Initialize axes
-            if (portSpec != null) {
-                val idn = read(identity)
-                failIfError { "Can't connect to $portSpec. Error code: $it" }
-                logger.info { "Connected to $idn on $portSpec" }
-                val ids = request("SAI?").map { it.trim() }
-                if (ids != axes.keys.toList()) {
-                    //re-define axes if needed
-                    axes = ids.associateWith { Axis(this, it) }
-                }
-                Meta(ids.map { it.asValue() }.asValue())
-                execute(initialize)
-                failIfError()
+            val idn = read(identity)
+            failIfError { "Can't connect to $portSpec. Error code: $it" }
+            logger.info { "Connected to $idn on $portSpec" }
+            val ids = request("SAI?").map { it.trim() }
+            if (ids != axes.keys.toList()) {
+                //re-define axes if needed
+                axes = ids.associateWith { Axis(this, it) }
             }
-            null
+            Meta(ids.map { it.asValue() }.asValue())
+            execute(initialize)
+            failIfError()
         }
 
-        val disconnect by metaAction({
+        val disconnect by unitAction({
             info = "Disconnect the program from the device if it is connected"
         }) {
-            port?.let{
+            port?.let {
                 execute(stop)
                 it.close()
             }
             port = null
             updateLogical(connected, false)
-            null
         }
 
 
@@ -212,7 +208,7 @@ class PiMotionMasterDevice(
 
     class Axis(
         val mm: PiMotionMasterDevice,
-        val axisId: String
+        val axisId: String,
     ) : DeviceBySpec<Axis>(Axis, mm.context) {
 
         /**
@@ -244,7 +240,7 @@ class PiMotionMasterDevice(
 
             private fun axisBooleanProperty(
                 command: String,
-                descriptorBuilder: PropertyDescriptor.() -> Unit = {}
+                descriptorBuilder: PropertyDescriptor.() -> Unit = {},
             ) = booleanProperty(
                 read = {
                     readAxisBoolean("$command?")
@@ -257,7 +253,7 @@ class PiMotionMasterDevice(
 
             private fun axisNumberProperty(
                 command: String,
-                descriptorBuilder: PropertyDescriptor.() -> Unit = {}
+                descriptorBuilder: PropertyDescriptor.() -> Unit = {},
             ) = doubleProperty(
                 read = {
                     mm.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
@@ -334,11 +330,11 @@ class PiMotionMasterDevice(
                 info = "Velocity value for closed-loop operation"
             }
 
-            val move by metaAction {
-                val target = it.double ?: it?.get("target").double ?: error("Unacceptable target value $it")
+            val move by action(MetaConverter.meta, MetaConverter.unit) {
+                val target = it.double ?: it["target"].double ?: error("Unacceptable target value $it")
                 write(closedLoop, true)
                 //optionally set velocity
-                it?.get("velocity").double?.let { v ->
+                it["velocity"].double?.let { v ->
                     write(velocity, v)
                 }
                 write(targetPosition, target)
@@ -347,7 +343,6 @@ class PiMotionMasterDevice(
                     read(position)
                     delay(200)
                 }
-                null
             }
 
         }
