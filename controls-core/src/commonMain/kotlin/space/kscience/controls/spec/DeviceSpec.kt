@@ -12,6 +12,13 @@ import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
+public object UnitMetaConverter: MetaConverter<Unit>{
+    override fun metaToObject(meta: Meta): Unit = Unit
+
+    override fun objectToMeta(obj: Unit): Meta = Meta.EMPTY
+}
+
+public val MetaConverter.Companion.unit: MetaConverter<Unit> get() = UnitMetaConverter
 
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceSpec<D : Device> {
@@ -165,7 +172,7 @@ public abstract class DeviceSpec<D : Device> {
         outputConverter: MetaConverter<O>,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
-        execute: suspend D.(I?) -> O?,
+        execute: suspend D.(I) -> O,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
             val actionName = name ?: property.name
@@ -175,7 +182,7 @@ public abstract class DeviceSpec<D : Device> {
                 override val inputConverter: MetaConverter<I> = inputConverter
                 override val outputConverter: MetaConverter<O> = outputConverter
 
-                override suspend fun execute(device: D, input: I?): O? = withContext(device.coroutineContext) {
+                override suspend fun execute(device: D, input: I): O = withContext(device.coroutineContext) {
                     device.execute(input)
                 }
             }
@@ -191,7 +198,7 @@ public abstract class DeviceSpec<D : Device> {
     public fun metaAction(
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
-        execute: suspend D.(Meta?) -> Meta?,
+        execute: suspend D.(Meta) -> Meta,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
         action(
             MetaConverter.Companion.meta,
@@ -209,15 +216,14 @@ public abstract class DeviceSpec<D : Device> {
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
         execute: suspend D.() -> Unit,
-    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
+    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
         action(
-            MetaConverter.Companion.meta,
-            MetaConverter.Companion.meta,
+            MetaConverter.Companion.unit,
+            MetaConverter.Companion.unit,
             descriptorBuilder,
             name
         ) {
             execute()
-            null
         }
 }
 

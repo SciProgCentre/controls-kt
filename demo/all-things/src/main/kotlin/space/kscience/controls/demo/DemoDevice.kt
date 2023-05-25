@@ -68,11 +68,10 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
         }
 
 
-        val resetScale by action(MetaConverter.meta, MetaConverter.meta) {
+        val resetScale by unitAction {
             write(timeScale, 5000.0)
             write(sinScale, 1.0)
             write(cosScale, 1.0)
-            null
         }
 
         override suspend fun IDemoDevice.onOpen() {

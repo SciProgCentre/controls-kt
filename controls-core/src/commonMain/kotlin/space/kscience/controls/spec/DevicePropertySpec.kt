@@ -66,7 +66,7 @@ public interface DeviceActionSpec<in D : Device, I, O> {
     /**
      * Execute action on a device
      */
-    public suspend fun execute(device: D, input: I?): O?
+    public suspend fun execute(device: D, input: I): O
 }
 
 /**
@@ -137,5 +137,8 @@ public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D,
 /**
  * Execute the action with name according to [actionSpec]
  */
-public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I? = null): O? =
+public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I): O =
     actionSpec.execute(this, input)
+
+public suspend fun <O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, Unit, O>): O =
+    actionSpec.execute(this, Unit)

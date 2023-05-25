@@ -25,9 +25,9 @@ private suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D)
 
 private suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
     device: D,
-    item: Meta?,
+    item: Meta,
 ): Meta? {
-    val arg = item?.let { inputConverter.metaToObject(item) }
+    val arg: I = inputConverter.metaToObject(item) ?: error("Failed to convert $item with $inputConverter")
     val res = execute(device, arg)
     return res?.let { outputConverter.objectToMeta(res) }
 }
@@ -146,7 +146,7 @@ public abstract class DeviceBase<D : Device>(
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val spec = actions[actionName] ?: error("Action with name $actionName not found")
-        return spec.executeWithMeta(self, argument)
+        return spec.executeWithMeta(self, argument ?: Meta.EMPTY)
     }
 
 }
