@@ -87,9 +87,7 @@ public object TcpPort : PortFactory {
         port: Int,
         coroutineContext: CoroutineContext = context.coroutineContext,
     ): ChannelPort = ChannelPort(context,coroutineContext){
-        SocketChannel.open(InetSocketAddress(host, port)).apply {
-            configureBlocking(false)
-        }
+        SocketChannel.open(InetSocketAddress(host, port))
     }
 
     override fun build(context: Context, meta: Meta): ChannelPort {
@@ -115,7 +113,6 @@ public object UdpPort : PortFactory {
     ): ChannelPort = ChannelPort(context,coroutineContext){
         DatagramChannel.open().apply {
             connect(InetSocketAddress(host, port))
-            configureBlocking(false)
         }
     }
 

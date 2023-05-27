@@ -18,10 +18,10 @@ public interface Port : ContextAware, Socket<ByteArray>
  * A specialized factory for [Port]
  */
 @Type(PortFactory.TYPE)
-public interface PortFactory: Factory<Port>{
+public interface PortFactory : Factory<Port> {
     public val type: String
 
-    public companion object{
+    public companion object {
         public const val TYPE: String = "controls.port"
     }
 }
@@ -53,11 +53,9 @@ public abstract class AbstractPort(
     /**
      * Internal method to receive data synchronously
      */
-    protected fun receive(data: ByteArray) {
-        scope.launch {
-            logger.debug { "${this@AbstractPort} RECEIVED: ${data.decodeToString()}" }
-            incoming.send(data)
-        }
+    protected suspend fun receive(data: ByteArray) {
+        logger.debug { "${this@AbstractPort} RECEIVED: ${data.decodeToString()}" }
+        incoming.send(data)
     }
 
     private val sendJob = scope.launch {
