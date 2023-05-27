@@ -1,5 +1,6 @@
 plugins {
     id("space.kscience.gradle.jvm")
+    `maven-publish`
 }
 
 description = """
