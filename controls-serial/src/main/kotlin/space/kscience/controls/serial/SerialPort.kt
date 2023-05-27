@@ -2,6 +2,7 @@ package space.kscience.controls.serial
 
 import jssc.SerialPort.*
 import jssc.SerialPortEventListener
+import kotlinx.coroutines.launch
 import space.kscience.controls.ports.AbstractPort
 import space.kscience.controls.ports.Port
 import space.kscience.controls.ports.PortFactory
@@ -27,7 +28,7 @@ public class SerialPort private constructor(
         if (event.isRXCHAR) {
             val chars = event.eventValue
             val bytes = jssc.readBytes(chars)
-            receive(bytes)
+            scope.launch { receive(bytes) }
         }
     }
 
