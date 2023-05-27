@@ -114,7 +114,7 @@ public object UdpPort : PortFactory {
         coroutineContext: CoroutineContext = context.coroutineContext,
     ): ChannelPort = ChannelPort(context,coroutineContext){
         DatagramChannel.open().apply {
-            bind(InetSocketAddress(host, port))
+            connect(InetSocketAddress(host, port))
             configureBlocking(false)
         }
     }
