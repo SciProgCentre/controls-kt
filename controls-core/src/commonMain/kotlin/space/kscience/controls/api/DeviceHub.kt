@@ -14,26 +14,24 @@ public interface DeviceHub : Provider {
 
     override val defaultChainTarget: String get() = Device.DEVICE_TARGET
 
-    override fun content(target: String): Map<Name, Any> {
-        if (target == Device.DEVICE_TARGET) {
-            return buildMap {
-                fun putAll(prefix: Name, hub: DeviceHub) {
-                    hub.devices.forEach {
-                        put(prefix + it.key, it.value)
-                    }
-                }
-
-                devices.forEach {
-                    val name = it.key.asName()
-                    put(name, it.value)
-                    (it.value as? DeviceHub)?.let { hub ->
-                        putAll(name, hub)
-                    }
+    override fun content(target: String): Map<Name, Any> = if (target == Device.DEVICE_TARGET) {
+        buildMap {
+            fun putAll(prefix: Name, hub: DeviceHub) {
+                hub.devices.forEach {
+                    put(prefix + it.key, it.value)
                 }
             }
-        } else {
-            throw IllegalArgumentException("Target $target is not supported for $this")
+
+            devices.forEach {
+                val name = it.key.asName()
+                put(name, it.value)
+                (it.value as? DeviceHub)?.let { hub ->
+                    putAll(name, hub)
+                }
+            }
         }
+    } else {
+        emptyMap()
     }
 
     public companion object
