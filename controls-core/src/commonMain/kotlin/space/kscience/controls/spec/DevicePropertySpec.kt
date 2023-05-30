@@ -126,6 +126,25 @@ public fun <D : Device, T> D.onPropertyChange(
         }
     }.launchIn(this)
 
+/**
+ * Call [callback] on initial property value and each value change
+ */
+public fun <D : Device, T> D.useProperty(
+    spec: DevicePropertySpec<D, T>,
+    callback: suspend (T) -> Unit,
+): Job = launch {
+    callback(read(spec))
+    messageFlow
+        .filterIsInstance<PropertyChangedMessage>()
+        .filter { it.property == spec.name }
+        .collect { change ->
+            val newValue = spec.converter.metaToObject(change.value)
+            if (newValue != null) {
+                callback(newValue)
+            }
+        }
+}
+
 
 /**
  * Reset the logical state of a property
