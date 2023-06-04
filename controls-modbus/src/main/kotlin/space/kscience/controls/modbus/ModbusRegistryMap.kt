@@ -1,7 +1,6 @@
 package space.kscience.controls.modbus
 
 import space.kscience.dataforge.io.IOFormat
-import space.kscience.dataforge.io.IOReader
 
 
 public sealed class ModbusRegistryKey {
@@ -38,7 +37,7 @@ public sealed class ModbusRegistryKey {
     public data class InputRange<T>(
         override val address: Int,
         override val count: Int,
-        public val format: IOReader<T>,
+        public val format: IOFormat<T>,
     ) : ModbusRegistryKey() {
         public val endAddress: Int get() = address + count
 
@@ -97,7 +96,7 @@ public abstract class ModbusRegistryMap {
     protected fun <T> input(
         address: Int,
         count: Int,
-        reader: IOReader<T>,
+        reader: IOFormat<T>,
         description: String = "",
     ): ModbusRegistryKey.InputRange<T> =
         register(ModbusRegistryKey.InputRange(address, count, reader), description)
@@ -108,7 +107,7 @@ public abstract class ModbusRegistryMap {
     protected fun <T> inputByOffset(
         offset: Int,
         count: Int,
-        reader: IOReader<T>,
+        reader: IOFormat<T>,
         description: String = "",
     ): ModbusRegistryKey.InputRange<T> =
         register(ModbusRegistryKey.InputRange(20000 + offset, count, reader), description)
