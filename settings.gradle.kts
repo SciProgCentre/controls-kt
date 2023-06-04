@@ -41,7 +41,7 @@ dependencyResolutionManagement {
 
 include(
     ":controls-core",
-    ":controls-ktor-tcp",
+    ":controls-ports-ktor",
     ":controls-serial",
     ":controls-pi",
     ":controls-server",

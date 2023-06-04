@@ -4,10 +4,7 @@ import kotlinx.coroutines.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.int
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.meta.*
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.ByteChannel
@@ -26,7 +23,7 @@ public fun ByteBuffer.toArray(limit: Int = limit()): ByteArray {
 /**
  * A port based on nio [ByteChannel]
  */
-public class ChannelPort (
+public class ChannelPort(
     context: Context,
     coroutineContext: CoroutineContext = context.coroutineContext,
     channelBuilder: suspend () -> ByteChannel,
@@ -86,7 +83,7 @@ public object TcpPort : PortFactory {
         host: String,
         port: Int,
         coroutineContext: CoroutineContext = context.coroutineContext,
-    ): ChannelPort = ChannelPort(context,coroutineContext){
+    ): ChannelPort = ChannelPort(context, coroutineContext) {
         SocketChannel.open(InetSocketAddress(host, port))
     }
 
@@ -105,20 +102,30 @@ public object UdpPort : PortFactory {
 
     override val type: String = "udp"
 
+    /**
+     * Connect a datagram channel to a remote host/port. If [localPort] is provided, it is used to bind local port for receiving messages.
+     */
     public fun open(
         context: Context,
-        host: String,
-        port: Int,
+        remoteHost: String,
+        remotePort: Int,
+        localPort: Int? = null,
+        localHost: String = "localhost",
         coroutineContext: CoroutineContext = context.coroutineContext,
-    ): ChannelPort = ChannelPort(context,coroutineContext){
+    ): ChannelPort = ChannelPort(context, coroutineContext) {
         DatagramChannel.open().apply {
-            connect(InetSocketAddress(host, port))
+            //bind the channel to a local port to receive messages
+            localPort?.let { bind(InetSocketAddress(localHost, localPort)) }
+            //connect to remote port to send messages
+            connect(InetSocketAddress(remoteHost, remotePort))
         }
     }
 
     override fun build(context: Context, meta: Meta): ChannelPort {
-        val host = meta["host"].string ?: "localhost"
-        val port = meta["port"].int ?: error("Port value for UDP port is not defined in $meta")
-        return open(context, host, port)
+        val remoteHost by meta.string { error("Remote host is not specified") }
+        val remotePort by meta.number { error("Remote port is not specified") }
+        val localHost: String? by meta.string()
+        val localPort: Int? by meta.int()
+        return open(context, remoteHost, remotePort.toInt(), localPort, localHost ?: "localhost")
     }
 }

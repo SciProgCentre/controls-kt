@@ -12,7 +12,7 @@ val ktorVersion: String by rootProject.extra
 
 dependencies {
     implementation(projects.controlsCore)
-    implementation(projects.controlsKtorTcp)
+    implementation(projects.controlsPortsKtor)
     implementation(projects.magix.magixServer)
     implementation("io.ktor:ktor-server-cio:$ktorVersion")
     implementation("io.ktor:ktor-server-websockets:$ktorVersion")
