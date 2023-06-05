@@ -3,6 +3,7 @@ package space.kscience.controls.ports
 import kotlinx.coroutines.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.*
 import java.net.InetSocketAddress
@@ -118,6 +119,7 @@ public object UdpPort : PortFactory {
             localPort?.let { bind(InetSocketAddress(localHost, localPort)) }
             //connect to remote port to send messages
             connect(InetSocketAddress(remoteHost, remotePort))
+            context.logger.info { "Connected to UDP $remotePort on $remoteHost" }
         }
     }
 

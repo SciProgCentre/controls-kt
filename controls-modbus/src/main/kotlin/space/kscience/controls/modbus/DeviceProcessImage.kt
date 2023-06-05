@@ -45,7 +45,7 @@ public class DeviceToModbusMapping<D : Device> private constructor(
     }
 }
 
-public fun <D: Device> DeviceToModbusMapping(block: DeviceToModbusMapping.Builder<D>.()->Unit): DeviceToModbusMapping<D> =
+public inline fun <D: Device> DeviceToModbusMapping(block: DeviceToModbusMapping.Builder<D>.()->Unit): DeviceToModbusMapping<D> =
     DeviceToModbusMapping.Builder<D>().apply(block).build()
 
 @Suppress("UNCHECKED_CAST")
@@ -143,3 +143,6 @@ public fun <D : Device> D.toProcessImage(mapping: DeviceToModbusMapping<D>): Pro
     }
     return image
 }
+
+public inline fun <D : Device> D.toProcessImage(block: DeviceToModbusMapping.Builder<D>.()->Unit): ProcessImage =
+    toProcessImage(DeviceToModbusMapping(block))
