@@ -1,5 +1,7 @@
 package space.kscience.controls.opcua.client
 
+import kotlinx.datetime.toJavaInstant
+import kotlinx.datetime.toKotlinInstant
 import org.eclipse.milo.opcua.binaryschema.AbstractCodec
 import org.eclipse.milo.opcua.binaryschema.parser.BsdParser
 import org.eclipse.milo.opcua.stack.core.UaSerializationException
@@ -66,7 +68,7 @@ internal fun opcToMeta(value: Any?): Meta = when (value) {
     is Boolean -> Meta(value.asValue())
     is String -> Meta(value.asValue())
     is Char -> Meta(value.toString().asValue())
-    is DateTime -> value.javaInstant.toMeta()
+    is DateTime -> value.javaInstant.toKotlinInstant().toMeta()
     is UUID -> Meta(value.toString().asValue())
     is QualifiedName -> Meta {
         "namespaceIndex" put value.namespaceIndex
@@ -79,9 +81,9 @@ internal fun opcToMeta(value: Any?): Meta = when (value) {
     is DataValue -> Meta {
         "value" put opcToMeta(value.value) // need SerializationContext to do that properly
         value.statusCode?.value?.let { "status" put Meta(it.asValue()) }
-        value.sourceTime?.javaInstant?.let { "sourceTime" put it.toMeta() }
+        value.sourceTime?.javaInstant?.let { "sourceTime" put it.toKotlinInstant().toMeta() }
         value.sourcePicoseconds?.let { "sourcePicoseconds" put Meta(it.asValue()) }
-        value.serverTime?.javaInstant?.let { "serverTime" put it.toMeta() }
+        value.serverTime?.javaInstant?.let { "serverTime" put it.toKotlinInstant().toMeta() }
         value.serverPicoseconds?.let { "serverPicoseconds" put Meta(it.asValue()) }
     }
     is ByteString -> Meta(value.bytesOrEmpty().asValue())
@@ -145,7 +147,7 @@ internal class MetaStructureCodec(
             "Float" -> member.value?.numberOrNull?.toFloat()
             "Double" -> member.value?.numberOrNull?.toDouble()
             "String" -> member.string
-            "DateTime" -> DateTime(member.instant())
+            "DateTime" -> DateTime(member.instant().toJavaInstant())
             "Guid" -> member.string?.let { UUID.fromString(it) }
             "ByteString" -> member.value?.list?.let { list ->
                 ByteString(list.map { it.number.toByte() }.toByteArray())

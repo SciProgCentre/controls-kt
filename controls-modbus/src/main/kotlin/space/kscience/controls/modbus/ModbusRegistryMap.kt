@@ -142,6 +142,7 @@ public abstract class ModbusRegistryMap {
         }
 
         public fun print(map: ModbusRegistryMap, to: Appendable = System.out) {
+            validate(map)
             map.entries.entries.sortedBy { it.key.address }.forEach { (key, description) ->
                 val typeString = when (key) {
                     is ModbusRegistryKey.Coil -> "Coil"
