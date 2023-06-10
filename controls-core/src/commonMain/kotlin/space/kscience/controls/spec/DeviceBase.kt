@@ -1,15 +1,16 @@
 package space.kscience.controls.spec
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.misc.DFExperimental
 import kotlin.coroutines.CoroutineContext
 
 
@@ -37,7 +38,7 @@ private suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta
  * A base abstractions for [Device], introducing specifications for properties
  */
 public abstract class DeviceBase<D : Device>(
-    override val context: Context = Global,
+    final override val context: Context,
     override val meta: Meta = Meta.EMPTY,
 ) : Device {
 
@@ -58,8 +59,15 @@ public abstract class DeviceBase<D : Device>(
         get() = actions.values.map { it.descriptor }
 
     override val coroutineContext: CoroutineContext by lazy {
-        context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
+        context.newCoroutineContext(
+            SupervisorJob(context.coroutineContext[Job]) +
+                    CoroutineName("Device $this") +
+                    CoroutineExceptionHandler { _, throwable ->
+                        logger.error(throwable) { "Exception in device $this job" }
+                    }
+        )
     }
+
 
     /**
      * Logical state store
@@ -148,6 +156,24 @@ public abstract class DeviceBase<D : Device>(
         val spec = actions[actionName] ?: error("Action with name $actionName not found")
         return spec.executeWithMeta(self, argument ?: Meta.EMPTY)
     }
+
+    @DFExperimental
+    override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.INIT
+        protected set
+
+    @OptIn(DFExperimental::class)
+    override suspend fun open() {
+        super.open()
+        lifecycleState = DeviceLifecycleState.OPEN
+    }
+
+    @OptIn(DFExperimental::class)
+    override fun close() {
+        lifecycleState = DeviceLifecycleState.CLOSED
+        super.close()
+    }
+
+    abstract override fun toString(): String
 
 }
 

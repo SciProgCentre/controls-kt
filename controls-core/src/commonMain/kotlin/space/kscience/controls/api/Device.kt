@@ -9,10 +9,21 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
+import space.kscience.dataforge.context.info
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.misc.Type
 import space.kscience.dataforge.names.Name
 
+/**
+ * A lifecycle state of a device
+ */
+public enum class DeviceLifecycleState{
+    INIT,
+    OPEN,
+    CLOSED
+}
 
 /**
  *  General interface describing a managed Device.
@@ -79,11 +90,15 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
     public suspend fun open(): Unit = Unit
 
     /**
-     * Close and terminate the device. This function does not wait for device to be closed.
+     * Close and terminate the device. This function does not wait for the device to be closed.
      */
     override fun close() {
+        logger.info { "Device $this is closed" }
         cancel("The device is closed")
     }
+
+    @DFExperimental
+    public val lifecycleState: DeviceLifecycleState
 
     public companion object {
         public const val DEVICE_TARGET: String = "device"

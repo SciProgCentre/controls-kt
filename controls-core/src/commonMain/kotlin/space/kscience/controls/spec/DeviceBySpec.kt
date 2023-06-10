@@ -2,7 +2,6 @@ package space.kscience.controls.spec
 
 import space.kscience.controls.api.Device
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.Meta
 
 /**
@@ -11,7 +10,7 @@ import space.kscience.dataforge.meta.Meta
  */
 public open class DeviceBySpec<D : Device>(
     public val spec: DeviceSpec<in D>,
-    context: Context = Global,
+    context: Context,
     meta: Meta = Meta.EMPTY,
 ) : DeviceBase<D>(context, meta) {
     override val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
@@ -26,4 +25,6 @@ public open class DeviceBySpec<D : Device>(
         self.onClose()
         super.close()
     }
+
+    override fun toString(): String = "Device(spec=$spec)"
 }
