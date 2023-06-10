@@ -22,7 +22,7 @@ public open class ModbusDeviceBySpec<D: Device>(
 ) : ModbusDevice, DeviceBySpec<D>(spec, context, meta){
     override suspend fun open() {
         master.connect()
-        super<ModbusDevice>.open()
+        super<DeviceBySpec>.open()
     }
 
     override fun close() {
