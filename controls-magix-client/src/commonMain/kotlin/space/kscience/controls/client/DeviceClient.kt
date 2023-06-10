@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.broadcast
@@ -95,6 +96,9 @@ public class DeviceClient(
             it.action == actionName && it.requestId == id
         }.result
     }
+
+    @DFExperimental
+    override val lifecycleState: DeviceLifecycleState = DeviceLifecycleState.OPEN
 }
 
 /**
