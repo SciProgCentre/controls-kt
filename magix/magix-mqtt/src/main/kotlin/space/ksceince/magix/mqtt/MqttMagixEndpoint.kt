@@ -17,7 +17,8 @@ import java.util.*
 public class MqttMagixEndpoint(
     serverHost: String,
     clientId: String = UUID.randomUUID().toString(),
-    public val topic: String = DEFAULT_MAGIX_TOPIC_NAME,
+    private val broadcastTopicBuilder: (MagixMessage) -> String = { DEFAULT_MAGIX_TOPIC_NAME },
+    private val subscribeTopicBuilder: (MagixMessageFilter) -> String = { DEFAULT_MAGIX_TOPIC_NAME },
     public val qos: MqttQos = MqttQos.AT_LEAST_ONCE,
 ) : MagixEndpoint, AutoCloseable {
 
@@ -36,7 +37,7 @@ public class MqttMagixEndpoint(
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage> = callbackFlow {
         connection.await()
         client.subscribeWith()
-            .topicFilter(topic)
+            .topicFilter(subscribeTopicBuilder(filter))
             .qos(qos)
             .callback { published ->
                 val message = MagixEndpoint.magixJson.decodeFromString(
@@ -54,7 +55,7 @@ public class MqttMagixEndpoint(
 
     override suspend fun broadcast(message: MagixMessage) {
         connection.await()
-        client.publishWith().topic(topic).qos(qos).payload(
+        client.publishWith().topic(broadcastTopicBuilder(message)).qos(qos).payload(
             MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message).encodeToByteArray()
         ).send()
     }

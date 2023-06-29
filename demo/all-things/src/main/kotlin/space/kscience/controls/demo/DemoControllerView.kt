@@ -36,8 +36,9 @@ class DemoController : Controller(), ContextAware {
     var visualizer: ApplicationEngine? = null
     var opcUaServer: OpcUaServer = OpcUaServer {
         setApplicationName(LocalizedText.english("space.kscience.controls.opcua"))
+
         endpoint {
-            setBindPort(9999)
+            setBindPort(4840)
             //use default endpoint
         }
     }
