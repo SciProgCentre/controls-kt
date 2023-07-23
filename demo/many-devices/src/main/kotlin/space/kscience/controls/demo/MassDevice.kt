@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.client.connectToMagix
 import space.kscience.controls.client.controlsMagixFormat
 import space.kscience.controls.manager.DeviceManager
@@ -21,7 +20,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
-import space.kscience.magix.rsocket.rSocketStreamWithTcp
+import space.kscience.magix.rsocket.rSocketWithWebSockets
 import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
 import space.kscience.plotly.Plotly
@@ -31,8 +30,10 @@ import space.kscience.plotly.plot
 import space.kscience.plotly.server.PlotlyUpdateMode
 import space.kscience.plotly.server.serve
 import space.kscience.plotly.server.show
+import space.kscince.magix.zmq.ZmqMagixFlowPlugin
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 
@@ -48,7 +49,7 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
         val value by doubleProperty { randomValue }
 
         override suspend fun MassDevice.onOpen() {
-            doRecurring(100.milliseconds) {
+            doRecurring(50.milliseconds) {
                 read(value)
             }
         }
@@ -60,13 +61,13 @@ fun main() {
 
     context.startMagixServer(
         RSocketMagixFlowPlugin(),
-//        ZmqMagixFlowPlugin()
+        ZmqMagixFlowPlugin()
     )
 
     val numDevices = 100
 
-    context.launch(Dispatchers.IO) {
-        repeat(numDevices) {
+    repeat(numDevices) {
+        context.launch(Dispatchers.IO) {
             val deviceContext = Context("Device${it}") {
                 plugin(DeviceManager)
             }
@@ -76,7 +77,7 @@ fun main() {
             deviceManager.install("device$it", MassDevice)
 
             val endpointId = "device$it"
-            val deviceEndpoint = MagixEndpoint.rSocketStreamWithTcp("localhost")
+            val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
             deviceManager.connectToMagix(deviceEndpoint, endpointId)
         }
     }
@@ -90,21 +91,21 @@ fun main() {
                     title = "Latest event"
                 }
                 bar {
-                    launch(Dispatchers.Default){
-                        val monitorEndpoint = MagixEndpoint.rSocketStreamWithTcp("localhost")
+                    launch(Dispatchers.IO) {
+                        val monitorEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
-                        val latest = ConcurrentHashMap<String, Instant>()
+                        val latest = ConcurrentHashMap<String, Duration>()
 
                         monitorEndpoint.subscribe(controlsMagixFormat).onEach { (magixMessage, payload) ->
-                            latest[magixMessage.origin] = payload.time ?: Clock.System.now()
+                            latest[magixMessage.origin] = Clock.System.now() - payload.time!!
                         }.launchIn(this)
 
                         while (isActive) {
                             delay(200)
-                            val now = Clock.System.now()
                             val sorted = latest.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
+                            latest.clear()
                             x.numbers = sorted.keys
-                            y.numbers = sorted.values.map { now.minus(it).inWholeMilliseconds / 1000.0 }
+                            y.numbers = sorted.values.map { it.inWholeMilliseconds / 1000.0 + 0.0001 }
                         }
                     }
                 }

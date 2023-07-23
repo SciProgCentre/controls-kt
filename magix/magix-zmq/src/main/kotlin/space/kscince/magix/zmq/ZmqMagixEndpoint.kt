@@ -23,7 +23,6 @@ public class ZmqMagixEndpoint(
 ) : MagixEndpoint, AutoCloseable {
     private val zmqContext by lazy { ZContext() }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage> {
         val socket = zmqContext.createSocket(SocketType.SUB)
         socket.connect("$protocol://$host:$pubPort")

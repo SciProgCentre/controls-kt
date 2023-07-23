@@ -40,16 +40,12 @@ fun <D : Device, T : Any> D.fxProperty(spec: WritableDevicePropertySpec<D, T>): 
         init {
             //Read incoming changes
             onPropertyChange(spec) {
-                if (it != null) {
-                    runLater {
-                        try {
-                            set(it)
-                        } catch (ex: Throwable) {
-                            logger.info { "Failed to set property $name to $it" }
-                        }
+                runLater {
+                    try {
+                        set(it)
+                    } catch (ex: Throwable) {
+                        logger.info { "Failed to set property $name to $it" }
                     }
-                } else {
-                    invalidated()
                 }
             }
 

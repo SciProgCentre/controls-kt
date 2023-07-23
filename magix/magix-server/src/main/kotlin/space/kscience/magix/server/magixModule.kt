@@ -104,8 +104,11 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, r
                 val message = call.receive<MagixMessage>()
                 magixFlow.emit(message)
             }
-            //rSocket server. Filter from Payload
-            rSocket("rsocket", acceptor = RSocketMagixFlowPlugin.acceptor( application, magixFlow))
+            //rSocket WS server. Filter from Payload
+            rSocket(
+                "rsocket",
+                acceptor = RSocketMagixFlowPlugin.acceptor(application, magixFlow) { magixFlow.emit(it) }
+            )
         }
     }
 }

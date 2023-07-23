@@ -1,7 +1,7 @@
 package space.kscience.controls.opcua.client
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
-import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider
+import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder
 import org.eclipse.milo.opcua.sdk.client.api.identity.UsernameProvider
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
 import space.kscience.controls.api.Device
@@ -12,12 +12,12 @@ import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.*
 
 
-public sealed class MiloIdentity: Scheme()
+public sealed class MiloIdentity : Scheme()
 
 public class MiloUsername : MiloIdentity() {
 
-    public var username: String by string{ error("Username not defined") }
-    public var password: String by string{ error("Password not defined") }
+    public var username: String by string { error("Username not defined") }
+    public var password: String by string { error("Password not defined") }
 
     public companion object : SchemeSpec<MiloUsername>(::MiloUsername)
 }
@@ -35,6 +35,12 @@ public class MiloConfiguration : Scheme() {
 
     public var securityPolicy: SecurityPolicy by enum(SecurityPolicy.None)
 
+    internal fun configureClient(builder: OpcUaClientConfigBuilder) {
+        username?.let {
+            builder.setIdentityProvider(UsernameProvider(it.username, it.password))
+        }
+    }
+
     public companion object : SchemeSpec<MiloConfiguration>(::MiloConfiguration)
 }
 
@@ -51,9 +57,7 @@ public open class OpcUaDeviceBySpec<D : Device>(
         context.createOpcUaClient(
             config.endpointUrl,
             securityPolicy = config.securityPolicy,
-            identityProvider = config.username?.let {
-                UsernameProvider(it.username,it.password)
-            } ?: AnonymousProvider()
+            opcClientConfig = { config.configureClient(this) }
         ).apply {
             connect().get()
         }

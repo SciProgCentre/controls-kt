@@ -1,7 +1,7 @@
 package space.kscince.magix.zmq
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.decodeFromString
@@ -19,7 +19,12 @@ public class ZmqMagixFlowPlugin(
     public val zmqPubSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
     public val zmqPullSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
 ) : MagixFlowPlugin {
-    override fun start(scope: CoroutineScope, magixFlow: MutableSharedFlow<MagixMessage>): Job =
+
+    override fun start(
+        scope: CoroutineScope,
+        receive: Flow<MagixMessage>,
+        sendMessage: suspend (MagixMessage) -> Unit,
+    ): Job =
         scope.launch(Dispatchers.IO) {
             val logger = LoggerFactory.getLogger("magix-server-zmq")
 
@@ -27,7 +32,7 @@ public class ZmqMagixFlowPlugin(
                 //launch the publishing job
                 val pubSocket = context.createSocket(SocketType.PUB)
                 pubSocket.bind("$localHost:$zmqPubSocketPort")
-                magixFlow.onEach { message ->
+                receive.onEach { message ->
                     val string = MagixEndpoint.magixJson.encodeToString(message)
                     pubSocket.send(string)
                     logger.trace("Published: $string")
@@ -43,7 +48,7 @@ public class ZmqMagixFlowPlugin(
                     if (string != null) {
                         logger.trace("Received: $string")
                         val message = MagixEndpoint.magixJson.decodeFromString<MagixMessage>(string)
-                        magixFlow.emit(message)
+                        sendMessage(message)
                     }
                 }
             }

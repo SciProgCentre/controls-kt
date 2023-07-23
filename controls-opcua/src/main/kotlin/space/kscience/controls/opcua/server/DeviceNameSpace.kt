@@ -12,6 +12,7 @@ import org.eclipse.milo.opcua.sdk.server.api.ManagedNamespaceWithLifecycle
 import org.eclipse.milo.opcua.sdk.server.api.MonitoredItem
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode
 import org.eclipse.milo.opcua.sdk.server.nodes.UaNode
+import org.eclipse.milo.opcua.sdk.server.nodes.UaNodeContext
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
 import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel
 import org.eclipse.milo.opcua.stack.core.AttributeId
@@ -27,7 +28,6 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaSerializer
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.plus
 
 
@@ -50,25 +50,7 @@ public class DeviceNameSpace(
         lifecycleManager.addLifecycle(subscription)
 
         lifecycleManager.addStartupTask {
-            deviceManager.devices.forEach { (deviceName, device) ->
-                val tokenAsString = deviceName.toString()
-                val deviceFolder = UaFolderNode(
-                    this.nodeContext,
-                    newNodeId(tokenAsString),
-                    newQualifiedName(tokenAsString),
-                    LocalizedText.english(tokenAsString)
-                )
-                deviceFolder.addReference(
-                    Reference(
-                        deviceFolder.nodeId,
-                        Identifiers.Organizes,
-                        Identifiers.ObjectsFolder.expanded(),
-                        false
-                    )
-                )
-                deviceFolder.registerDeviceNodes(deviceName.asName(), device)
-                this.nodeManager.addNode(deviceFolder)
-            }
+            nodeContext.registerHub(deviceManager, Name.EMPTY)
         }
 
         lifecycleManager.addLifecycle(object : Lifecycle {
@@ -88,7 +70,7 @@ public class DeviceNameSpace(
 
 
             val node: UaVariableNode = UaVariableNode.UaVariableNodeBuilder(nodeContext).apply {
-                //for now use DF path as id
+                //for now, use DF paths as ids
                 nodeId = newNodeId("${deviceName.tokens.joinToString("/")}/$propertyName")
                 when {
                     descriptor.readable && descriptor.writable -> {
@@ -161,15 +143,15 @@ public class DeviceNameSpace(
         }
         //recursively add sub-devices
         if (device is DeviceHub) {
-            registerHub(device, deviceName)
+            nodeContext.registerHub(device, deviceName)
         }
     }
 
-    private fun UaNode.registerHub(hub: DeviceHub, namePrefix: Name) {
+    private fun UaNodeContext.registerHub(hub: DeviceHub, namePrefix: Name) {
         hub.devices.forEach { (deviceName, device) ->
             val tokenAsString = deviceName.toString()
             val deviceFolder = UaFolderNode(
-                this.nodeContext,
+                this,
                 newNodeId(tokenAsString),
                 newQualifiedName(tokenAsString),
                 LocalizedText.english(tokenAsString)

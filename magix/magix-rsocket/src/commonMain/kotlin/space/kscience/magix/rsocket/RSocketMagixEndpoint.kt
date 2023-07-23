@@ -10,7 +10,10 @@ import io.rsocket.kotlin.ktor.client.RSocketSupport
 import io.rsocket.kotlin.ktor.client.rSocket
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -18,7 +21,6 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
-import kotlin.coroutines.coroutineContext
 
 public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint, Closeable {
 
@@ -34,7 +36,7 @@ public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint,
         }.filter(filter).flowOn(rSocket.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
-    override suspend fun broadcast(message: MagixMessage): Unit = withContext(coroutineContext) {
+    override suspend fun broadcast(message: MagixMessage): Unit  {
         val payload = buildPayload {
             data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message))
         }
