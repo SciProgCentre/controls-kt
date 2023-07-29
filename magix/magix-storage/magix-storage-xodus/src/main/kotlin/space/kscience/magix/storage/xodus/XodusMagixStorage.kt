@@ -5,7 +5,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
 import space.kscience.magix.api.MagixMessage
@@ -13,6 +15,7 @@ import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.storage.MagixHistory
 import space.kscience.magix.storage.MagixPayloadFilter
 import space.kscience.magix.storage.MagixUsernameFilter
+import space.kscience.magix.storage.test
 import java.nio.file.Path
 import kotlin.sequences.Sequence
 
@@ -33,7 +36,7 @@ public class XodusMagixStorage(
                 setProperty(MagixMessage::sourceEndpoint.name, message.sourceEndpoint)
                 setProperty(MagixMessage::format.name, message.format)
 
-                setBlobString(MagixMessage::payload.name, MagixEndpoint.magixJson.encodeToString(message.payload))
+                setBlobString(MagixMessage::payload.name, magixJson.encodeToString(message.payload))
 
                 message.targetEndpoint?.let {
                     setProperty(MagixMessage::targetEndpoint.name, it)
@@ -104,7 +107,7 @@ public class XodusMagixStorage(
 
     override suspend fun findMessages(
         magixFilter: MagixMessageFilter?,
-        payloadFilters: List<MagixPayloadFilter>,
+        payloadFilter: MagixPayloadFilter?,
         userFilter: MagixUsernameFilter?,
         callback: (Sequence<MagixMessage>) -> Unit,
     ): Unit = store.executeInReadonlyTransaction { transaction ->
@@ -139,17 +142,24 @@ public class XodusMagixStorage(
             res
         } ?: all
 
-        val filteredByUser: EntityIterable = userFilter?.let { userFilter->
+        val filteredByUser: EntityIterable = userFilter?.let { userFilter ->
             filteredByMagix.intersect(
                 transaction.find(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::user.name, userFilter.userName)
             )
         } ?: filteredByMagix
 
 
-        filteredByUser.se
+        val sequence = filteredByUser.asSequence().map { it.parseMagixMessage() }
 
+        val filteredSequence = if (payloadFilter == null) {
+            sequence
+        } else {
+            sequence.filter {
+                payloadFilter.test(it.payload)
+            }
+        }
 
-        block(sequence)
+        callback(filteredSequence)
     }
 
     override fun close() {

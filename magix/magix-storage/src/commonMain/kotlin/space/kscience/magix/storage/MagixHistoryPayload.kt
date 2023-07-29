@@ -23,7 +23,7 @@ public sealed class MagixHistoryPayload
 @SerialName("history.request")
 public data class HistoryRequestPayload(
     val magixFilter: MagixMessageFilter? = null,
-    val payloadFilters: List<MagixPayloadFilter> = emptyList(),
+    val payloadFilter: MagixPayloadFilter? = null,
     val userFilter: MagixUsernameFilter? = null,
     val pageSize: Int? = null
 ) : MagixHistoryPayload()

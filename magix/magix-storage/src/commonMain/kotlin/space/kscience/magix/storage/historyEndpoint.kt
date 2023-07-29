@@ -57,7 +57,7 @@ public fun MagixEndpoint.launchHistory(
 
     if (payload is HistoryRequestPayload) {
         val realPageSize = payload.pageSize ?: pageSize
-        history.findMessages(payload.magixFilter, payload.payloadFilters, payload.userFilter) { sequence ->
+        history.findMessages(payload.magixFilter, payload.payloadFilter, payload.userFilter) { sequence ->
             // start from -1 because increment always happens first
             var pageNumber = -1
 

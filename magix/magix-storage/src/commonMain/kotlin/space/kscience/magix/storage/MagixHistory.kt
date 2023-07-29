@@ -14,10 +14,6 @@ public sealed class MagixPayloadFilter {
     @SerialName("eq")
     public class Equals(public val path: String, public val value: JsonElement) : MagixPayloadFilter()
 
-    @SerialName("not")
-    public class Not(public val argument: MagixPayloadFilter) : MagixPayloadFilter()
-
-
 //    @SerialName("like")
 //    public class Like(public val path: String, public val value: String) : MagixPayloadFilter()
 
@@ -31,16 +27,20 @@ public sealed class MagixPayloadFilter {
         public val from: LocalDateTime,
         public val to: LocalDateTime,
     ) : MagixPayloadFilter()
+
+
+    @SerialName("not")
+    public class Not(public val argument: MagixPayloadFilter) : MagixPayloadFilter()
+
+    @SerialName("and")
+    public class And(public val left: MagixPayloadFilter, public val right: MagixPayloadFilter) : MagixPayloadFilter()
+
+    @SerialName("or")
+    public class Or(public val left: MagixPayloadFilter, public val right: MagixPayloadFilter) : MagixPayloadFilter()
 }
 
 public fun MagixPayloadFilter.test(element: JsonElement): Boolean {
     TODO()
-//    when (this) {
-//        is MagixPayloadFilter.DateTimeInRange -> TODO()
-//        is MagixPayloadFilter.Equals -> TODO()
-//        is MagixPayloadFilter.Not -> !(argument.test(element))
-//        is MagixPayloadFilter.NumberInRange -> element.jsonObject[path]
-//    }
 }
 
 public fun Sequence<JsonElement>.filter(magixPayloadFilter: MagixPayloadFilter): Sequence<JsonElement> = filter {
@@ -63,12 +63,12 @@ public interface MagixHistory {
      * closes all transactions after use.
      *
      * @param magixFilter magix header filter.
-     * @param payloadFilters filters for payload fields.
+     * @param payloadFilter filter for payload fields.
      * @param userFilter filters user names ("user.name").
      */
     public suspend fun findMessages(
         magixFilter: MagixMessageFilter? = null,
-        payloadFilters: List<MagixPayloadFilter> = emptyList(),
+        payloadFilter: MagixPayloadFilter? = null,
         userFilter: MagixUsernameFilter? = null,
         callback: (Sequence<MagixMessage>) -> Unit,
     )

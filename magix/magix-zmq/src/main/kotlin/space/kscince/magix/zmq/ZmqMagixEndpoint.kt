@@ -21,7 +21,6 @@ public class ZmqMagixEndpoint(
     private val pullPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
     private val coroutineContext: CoroutineContext = Dispatchers.IO,
     private val zmqContext: ZContext = ZContext()
-
 ) : MagixEndpoint, AutoCloseable {
 
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage> {
