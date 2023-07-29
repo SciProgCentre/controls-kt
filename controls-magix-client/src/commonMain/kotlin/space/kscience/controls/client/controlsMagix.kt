@@ -42,7 +42,7 @@ public fun DeviceManager.connectToMagix(
         if (responsePayload != null) {
             endpoint.broadcast(
                 format = controlsMagixFormat,
-                target = request.origin,
+                target = request.sourceEndpoint,
                 origin = endpointID,
                 payload = responsePayload,
                 id = generateId(request),

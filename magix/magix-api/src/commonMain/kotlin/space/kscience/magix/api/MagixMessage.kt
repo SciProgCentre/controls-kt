@@ -27,8 +27,8 @@ import kotlinx.serialization.json.JsonElement
 public data class MagixMessage(
     val format: String,
     val payload: JsonElement,
-    val origin: String,
-    val target: String? = null,
+    val sourceEndpoint: String,
+    val targetEndpoint: String? = null,
     val id: String? = null,
     val parentId: String? = null,
     val user: JsonElement? = null,

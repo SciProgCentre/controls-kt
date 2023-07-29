@@ -80,7 +80,7 @@ public class MqttMagixEndpoint(
         //TODO add target name escaping
 
         internal val defaultBroadcastTopicBuilder: (MagixMessage) -> String = { message ->
-            message.target?.let { "$DEFAULT_MAGIX_TOPIC_NAME/it" } ?: DEFAULT_MAGIX_TOPIC_NAME
+            message.targetEndpoint?.let { "$DEFAULT_MAGIX_TOPIC_NAME/it" } ?: DEFAULT_MAGIX_TOPIC_NAME
         }
 
         internal val defaultSubscribeTopicBuilder: (MagixMessageFilter) -> String = { filter ->

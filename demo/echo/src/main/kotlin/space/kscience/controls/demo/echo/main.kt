@@ -44,8 +44,8 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
                 MagixMessage(
                     format = "test",
                     payload = JsonObject(emptyMap()),
-                    origin = "test",
-                    target = "loop",
+                    sourceEndpoint = "test",
+                    targetEndpoint = "loop",
                     id = it.toString()
                 )
             )
@@ -65,7 +65,7 @@ suspend fun main(): Unit = coroutineScope {
             //echo each message
             flow.onEach { message ->
                 if (message.parentId == null) {
-                    val m = message.copy(origin = "loop", parentId = message.id, id = message.id + ".response")
+                    val m = message.copy(sourceEndpoint = "loop", parentId = message.id, id = message.id + ".response")
                     logger.info(m.toString())
                     send(m)
                 }

@@ -30,13 +30,13 @@ public class XodusMagixStorage(
     internal val subscriptionJob = endpoint.subscribe(filter).onEach { message ->
         store.executeInTransaction { transaction ->
             transaction.newEntity(MAGIC_MESSAGE_ENTITY_TYPE).apply {
-                setProperty(MagixMessage::origin.name, message.origin)
+                setProperty(MagixMessage::sourceEndpoint.name, message.sourceEndpoint)
                 setProperty(MagixMessage::format.name, message.format)
 
                 setBlobString(MagixMessage::payload.name, MagixEndpoint.magixJson.encodeToString(message.payload))
 
-                message.target?.let {
-                    setProperty(MagixMessage::target.name, it)
+                message.targetEndpoint?.let {
+                    setProperty(MagixMessage::targetEndpoint.name, it)
                 }
                 message.id?.let {
                     setProperty(MagixMessage::id.name, it)
@@ -63,8 +63,8 @@ public class XodusMagixStorage(
         payload = getBlobString(MagixMessage::payload.name)?.let {
             magixJson.parseToJsonElement(it)
         } ?: JsonObject(emptyMap()),
-        origin = getProperty(MagixMessage::origin.name).toString(),
-        target = getProperty(MagixMessage::target.name)?.toString(),
+        sourceEndpoint = getProperty(MagixMessage::sourceEndpoint.name).toString(),
+        targetEndpoint = getProperty(MagixMessage::targetEndpoint.name)?.toString(),
         id = getProperty(MagixMessage::id.name)?.toString(),
         parentId = getProperty(MagixMessage::parentId.name)?.toString(),
         user = getBlobString(MagixMessage::user.name)?.let {
@@ -129,10 +129,10 @@ public class XodusMagixStorage(
             transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::format.name, mf.format)?.let {
                 res = res.intersect(it)
             }
-            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::origin.name, mf.origin)?.let {
+            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::sourceEndpoint.name, mf.origin)?.let {
                 res = res.intersect(it)
             }
-            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::target.name, mf.target)?.let {
+            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::targetEndpoint.name, mf.target)?.let {
                 res = res.intersect(it)
             }
 

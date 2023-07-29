@@ -16,8 +16,8 @@ public data class MagixMessageFilter(
 
     public fun accepts(message: MagixMessage): Boolean =
         format?.contains(message.format) ?: true
-                && origin?.contains(message.origin) ?: true
-                && target?.contains(message.target) ?: true
+                && origin?.contains(message.sourceEndpoint) ?: true
+                && target?.contains(message.targetEndpoint) ?: true
 
     public companion object {
         public val ALL: MagixMessageFilter = MagixMessageFilter()

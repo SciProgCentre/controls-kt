@@ -20,8 +20,8 @@ public fun <T, R> CoroutineScope.launchMagixConverter(
     val transformed: MagixMessage = MagixMessage(
         outputFormat,
         newPayload,
-        newOrigin ?: message.origin,
-        message.target,
+        newOrigin ?: message.sourceEndpoint,
+        message.targetEndpoint,
         message.id,
         message.parentId,
         message.user

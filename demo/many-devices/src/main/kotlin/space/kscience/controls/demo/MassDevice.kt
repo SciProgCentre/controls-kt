@@ -97,7 +97,7 @@ fun main() {
                         val latest = ConcurrentHashMap<String, Duration>()
 
                         monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
-                            latest[magixMessage.origin] = Clock.System.now() - payload.time!!
+                            latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time!!
                         }.launchIn(this)
 
                         while (isActive) {
