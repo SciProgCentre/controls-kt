@@ -22,7 +22,7 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
     scope.launch {
         subscribe(
             MagixMessageFilter(
-                origin = listOf("loop")
+                source = listOf("loop")
             )
         ).collect { message ->
             if (message.id?.endsWith(".response") == true) {

@@ -10,13 +10,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class MagixMessageFilter(
     val format: Collection<String>? = null,
-    val origin: Collection<String>? = null,
+    val source: Collection<String>? = null,
     val target: Collection<String>? = null,
 ) {
 
     public fun accepts(message: MagixMessage): Boolean =
         format?.contains(message.format) ?: true
-                && origin?.contains(message.sourceEndpoint) ?: true
+                && source?.contains(message.sourceEndpoint) ?: true
                 && target?.contains(message.targetEndpoint) ?: true
 
     public companion object {

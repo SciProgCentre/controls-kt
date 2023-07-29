@@ -28,7 +28,7 @@ public fun <T> MagixEndpoint.subscribe(
     originFilter: Collection<String>? = null,
     targetFilter: Collection<String>? = null,
 ): Flow<Pair<MagixMessage, T>> = subscribe(
-    MagixMessageFilter(format = format.formats, origin = originFilter, target = targetFilter)
+    MagixMessageFilter(format = format.formats, source = originFilter, target = targetFilter)
 ).map {
     val value: T = magixJson.decodeFromJsonElement(format.serializer, it.payload)
     it to value

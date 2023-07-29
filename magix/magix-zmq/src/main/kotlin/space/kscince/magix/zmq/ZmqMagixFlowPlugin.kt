@@ -18,6 +18,7 @@ public class ZmqMagixFlowPlugin(
     public val localHost: String = "tcp://*",
     public val zmqPubSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PUB_PORT,
     public val zmqPullSocketPort: Int = MagixEndpoint.DEFAULT_MAGIX_ZMQ_PULL_PORT,
+    private val zContext: ZContext = ZContext()
 ) : MagixFlowPlugin {
 
     override fun start(
@@ -27,7 +28,7 @@ public class ZmqMagixFlowPlugin(
     ): Job = scope.launch(Dispatchers.IO) {
         val logger = LoggerFactory.getLogger("magix-server-zmq")
 
-        ZContext().use { context ->
+        zContext.use { context ->
             //launch the publishing job
             val pubSocket = context.createSocket(SocketType.PUB)
             pubSocket.bind("$localHost:$zmqPubSocketPort")

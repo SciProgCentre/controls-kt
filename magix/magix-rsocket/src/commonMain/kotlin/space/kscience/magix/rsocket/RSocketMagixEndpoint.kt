@@ -36,7 +36,7 @@ public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint,
         }.filter(filter).flowOn(rSocket.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
-    override suspend fun broadcast(message: MagixMessage): Unit  {
+    override suspend fun broadcast(message: MagixMessage): Unit {
         val payload = buildPayload {
             data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message))
         }
@@ -51,11 +51,12 @@ public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint,
 }
 
 
-internal fun buildConnector(rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit) =
-    RSocketConnector {
-        reconnectable(10)
-        connectionConfig(rSocketConfig)
-    }
+internal fun buildConnector(
+    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit,
+) = RSocketConnector {
+    reconnectable(5)
+    connectionConfig(rSocketConfig)
+}
 
 /**
  * Build a websocket based endpoint connected to [host], [port] and given routing [path]

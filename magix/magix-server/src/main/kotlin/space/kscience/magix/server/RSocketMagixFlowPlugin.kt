@@ -35,8 +35,11 @@ public class RSocketMagixFlowPlugin(
         receive: Flow<MagixMessage>,
         sendMessage: suspend (MagixMessage) -> Unit,
     ): Job {
-        val tcpTransport =
-            TcpServerTransport(hostname = serverHost, port = serverPort, configure = transportConfiguration)
+        val tcpTransport = TcpServerTransport(
+            hostname = serverHost,
+            port = serverPort,
+            configure = transportConfiguration
+        )
         val rSocketJob: TcpServer = RSocketServer(rsocketConfiguration)
             .bindIn(scope, tcpTransport, acceptor(scope, receive, sendMessage))
 
@@ -60,7 +63,7 @@ public class RSocketMagixFlowPlugin(
                         MagixMessageFilter.serializer(),
                         request.data.readText()
                     )
-                    request.close()
+
                     receive.filter(filter).map { message ->
                         val string = MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message)
                         buildPayload { data(string) }
@@ -72,7 +75,7 @@ public class RSocketMagixFlowPlugin(
                         MagixMessage.serializer(),
                         request.data.readText()
                     )
-                    request.close()
+
                     sendMessage(message)
                 }
                 // bidirectional connection, used for streaming connection
@@ -81,12 +84,12 @@ public class RSocketMagixFlowPlugin(
                         sendMessage(
                             MagixEndpoint.magixJson.decodeFromString(
                                 MagixMessage.serializer(),
-                                inputPayload.use{ it.data.readText()}
+                                inputPayload.use { it.data.readText() }
                             )
                         )
                     }.launchIn(this)
 
-                    val filterText = request.use { it.data.readText()}
+                    val filterText = request.use { it.data.readText() }
 
                     val filter = if (filterText.isNotBlank()) {
                         MagixEndpoint.magixJson.decodeFromString(MagixMessageFilter.serializer(), filterText)

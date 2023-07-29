@@ -66,7 +66,7 @@ public interface MagixHistory {
      * @param payloadFilter filter for payload fields.
      * @param userFilter filters user names ("user.name").
      */
-    public suspend fun findMessages(
+    public suspend fun useMessages(
         magixFilter: MagixMessageFilter? = null,
         payloadFilter: MagixPayloadFilter? = null,
         userFilter: MagixUsernameFilter? = null,

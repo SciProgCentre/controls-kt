@@ -1,11 +1,10 @@
 package space.kscience.controls.demo
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import space.kscience.controls.client.connectToMagix
 import space.kscience.controls.client.magixFormat
@@ -20,6 +19,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
+import space.kscience.magix.rsocket.rSocketWithTcp
 import space.kscience.magix.rsocket.rSocketWithWebSockets
 import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
@@ -31,7 +31,6 @@ import space.kscience.plotly.server.PlotlyUpdateMode
 import space.kscience.plotly.server.serve
 import space.kscience.plotly.server.show
 import space.kscince.magix.zmq.ZmqMagixFlowPlugin
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -49,14 +48,15 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
         val value by doubleProperty { randomValue }
 
         override suspend fun MassDevice.onOpen() {
-            doRecurring(50.milliseconds) {
+            doRecurring(10.milliseconds) {
                 read(value)
             }
         }
     }
 }
 
-fun main() {
+@OptIn(DelicateCoroutinesApi::class)
+suspend fun main() {
     val context = Context("Mass")
 
     context.startMagixServer(
@@ -67,7 +67,7 @@ fun main() {
     val numDevices = 100
 
     repeat(numDevices) {
-        context.launch(Dispatchers.IO) {
+        context.launch(newFixedThreadPoolContext(2, "Device${it}")) {
             val deviceContext = Context("Device${it}") {
                 plugin(DeviceManager)
             }
@@ -77,7 +77,7 @@ fun main() {
             deviceManager.install("device$it", MassDevice)
 
             val endpointId = "device$it"
-            val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
             deviceManager.connectToMagix(deviceEndpoint, endpointId)
         }
     }
@@ -94,18 +94,24 @@ fun main() {
                     launch(Dispatchers.IO) {
                         val monitorEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
-                        val latest = ConcurrentHashMap<String, Duration>()
+                        val mutex = Mutex()
+
+                        val latest = HashMap<String, Duration>()
 
                         monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
-                            latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time!!
+                            mutex.withLock {
+                                latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time!!
+                            }
                         }.launchIn(this)
 
                         while (isActive) {
                             delay(200)
-                            val sorted = latest.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
-                            latest.clear()
-                            x.numbers = sorted.keys
-                            y.numbers = sorted.values.map { it.inWholeMilliseconds / 1000.0 + 0.0001 }
+                            mutex.withLock {
+                                val sorted = latest.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
+                                latest.clear()
+                                x.numbers = sorted.keys
+                                y.numbers = sorted.values.map { it.inWholeMilliseconds / 1000.0 + 0.0001 }
+                            }
                         }
                     }
                 }

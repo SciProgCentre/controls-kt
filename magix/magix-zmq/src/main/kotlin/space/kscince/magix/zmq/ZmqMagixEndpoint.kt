@@ -13,6 +13,7 @@ import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 
 public class ZmqMagixEndpoint(
     private val host: String,
@@ -69,8 +70,7 @@ public class ZmqMagixEndpoint(
     }
 }
 
-public fun MagixEndpoint.Companion.zmq(
-    scope: CoroutineScope,
+public suspend fun MagixEndpoint.Companion.zmq(
     host: String,
     protocol: String = "tcp",
     pubPort: Int = DEFAULT_MAGIX_ZMQ_PUB_PORT,
@@ -80,5 +80,5 @@ public fun MagixEndpoint.Companion.zmq(
     protocol,
     pubPort,
     pullPort,
-    coroutineContext = scope.coroutineContext
+    coroutineContext = coroutineContext
 )
