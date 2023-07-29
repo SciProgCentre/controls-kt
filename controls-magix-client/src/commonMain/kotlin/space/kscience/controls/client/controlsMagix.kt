@@ -14,15 +14,20 @@ import space.kscience.dataforge.context.logger
 import space.kscience.magix.api.*
 
 
-public val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(
+internal val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(
     DeviceMessage.serializer(),
     setOf("controls-kt", "dataforge")
 )
 
+/**
+ * A magix message format to work with Controls-kt data
+ */
+public val DeviceManager.Companion.magixFormat: MagixFormat<DeviceMessage> get() = controlsMagixFormat
+
 internal fun generateId(request: MagixMessage): String = if (request.id != null) {
     "${request.id}.response"
 } else {
-    "df[${request.payload.hashCode()}"
+    "controls[${request.payload.hashCode().toString(16)}"
 }
 
 /**
@@ -37,6 +42,7 @@ public fun DeviceManager.connectToMagix(
         if (responsePayload != null) {
             endpoint.broadcast(
                 format = controlsMagixFormat,
+                target = request.origin,
                 origin = endpointID,
                 payload = responsePayload,
                 id = generateId(request),

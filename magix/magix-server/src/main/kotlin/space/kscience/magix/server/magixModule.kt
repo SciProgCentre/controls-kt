@@ -47,24 +47,24 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, r
         install(WebSockets)
     }
 
+    if (pluginOrNull(RSocketSupport) == null) {
+        install(RSocketSupport)
+    }
+
+
 //    if (pluginOrNull(CORS) == null) {
 //        install(CORS) {
 //            //TODO consider more safe policy
 //            anyHost()
 //        }
 //    }
-    if (pluginOrNull(ContentNegotiation) == null) {
-        install(ContentNegotiation) {
-            json()
-        }
-    }
 
-    if (pluginOrNull(RSocketSupport) == null) {
-        install(RSocketSupport)
-    }
 
     routing {
         route(route) {
+            install(ContentNegotiation){
+                json()
+            }
             get("state") {
                 call.respondHtml {
                     head {

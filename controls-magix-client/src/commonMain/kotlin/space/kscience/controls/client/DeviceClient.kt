@@ -6,6 +6,7 @@ import kotlinx.coroutines.newCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
+import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
@@ -105,8 +106,8 @@ public class DeviceClient(
  * Connect to a remote device via this client.
  */
 public fun MagixEndpoint.remoteDevice(context: Context, magixTarget: String, deviceName: Name): DeviceClient {
-    val subscription = subscribe(controlsMagixFormat, originFilter = listOf(magixTarget)).map { it.second }
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(magixTarget)).map { it.second }
     return DeviceClient(context, deviceName, subscription) {
-        broadcast(controlsMagixFormat, it, magixTarget, id = stringUID())
+        broadcast(DeviceManager.magixFormat, it, magixTarget, id = stringUID())
     }
 }

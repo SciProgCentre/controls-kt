@@ -6,6 +6,11 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
 
+/**
+ * A format for [MagixMessage] that allows to decode typed payload
+ *
+ * @param formats allowed values of the format field that are processed. The first value is the primary format for sending.
+ */
 public data class MagixFormat<T>(
     val serializer: KSerializer<T>,
     val formats: Set<String>,
@@ -13,10 +18,15 @@ public data class MagixFormat<T>(
     val defaultFormat: String get() = formats.firstOrNull() ?: "magix"
 }
 
+/**
+ * Subscribe for messages in given endpoint using [format] to declare format filter as well as automatic decoding.
+ *
+ * @return a flow of pairs (raw message, decoded message). Raw messages are to be used to extract headers.
+ */
 public fun <T> MagixEndpoint.subscribe(
     format: MagixFormat<T>,
-    originFilter: Collection<String?>? = null,
-    targetFilter: Collection<String?>? = null,
+    originFilter: Collection<String>? = null,
+    targetFilter: Collection<String>? = null,
 ): Flow<Pair<MagixMessage, T>> = subscribe(
     MagixMessageFilter(format = format.formats, origin = originFilter, target = targetFilter)
 ).map {
@@ -24,6 +34,10 @@ public fun <T> MagixEndpoint.subscribe(
     it to value
 }
 
+/**
+ * Send a message using given [format] to encode the message payload. The format field is also taken from [format].
+ *
+ */
 public suspend fun <T> MagixEndpoint.broadcast(
     format: MagixFormat<T>,
     payload: T,

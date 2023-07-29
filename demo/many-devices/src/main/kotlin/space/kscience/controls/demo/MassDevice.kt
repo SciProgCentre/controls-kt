@@ -8,7 +8,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import space.kscience.controls.client.connectToMagix
-import space.kscience.controls.client.controlsMagixFormat
+import space.kscience.controls.client.magixFormat
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.*
@@ -96,7 +96,7 @@ fun main() {
 
                         val latest = ConcurrentHashMap<String, Duration>()
 
-                        monitorEndpoint.subscribe(controlsMagixFormat).onEach { (magixMessage, payload) ->
+                        monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
                             latest[magixMessage.origin] = Clock.System.now() - payload.time!!
                         }.launchIn(this)
 

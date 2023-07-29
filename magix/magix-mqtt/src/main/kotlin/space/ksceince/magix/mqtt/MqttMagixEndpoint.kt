@@ -77,6 +77,7 @@ public class MqttMagixEndpoint(
     public companion object {
         public const val DEFAULT_MAGIX_TOPIC_NAME: String = "magix"
 
+        //TODO add target name escaping
 
         internal val defaultBroadcastTopicBuilder: (MagixMessage) -> String = { message ->
             message.target?.let { "$DEFAULT_MAGIX_TOPIC_NAME/it" } ?: DEFAULT_MAGIX_TOPIC_NAME

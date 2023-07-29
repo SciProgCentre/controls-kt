@@ -58,8 +58,7 @@ include(
     ":magix:magix-zmq",
     ":magix:magix-rabbit",
     ":magix:magix-mqtt",
-
-//    ":magix:magix-storage",
+    ":magix:magix-storage",
     ":magix:magix-storage:magix-storage-xodus",
     ":controls-magix-client",
     ":demo:all-things",
