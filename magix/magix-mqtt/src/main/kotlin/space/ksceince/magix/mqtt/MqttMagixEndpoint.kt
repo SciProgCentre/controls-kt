@@ -14,7 +14,7 @@ import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import java.util.*
 
-`/**
+/**
  * MQTT5 endpoint for magix.
  *
  * @param broadcastTopicBuilder defines how the topic is constructed from broadcast message structure.

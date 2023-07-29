@@ -1,25 +1,30 @@
 package space.kscience.magix.storage.xodus
 
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.PersistentEntityStores
+import jetbrains.exodus.entitystore.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.*
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
+import space.kscience.magix.storage.MagixHistory
+import space.kscience.magix.storage.MagixPayloadFilter
+import space.kscience.magix.storage.MagixUsernameFilter
 import java.nio.file.Path
+import kotlin.sequences.Sequence
 
+/**
+ * Attach a Xodus storage process to the given endpoint.
+ */
 public class XodusMagixStorage(
     scope: CoroutineScope,
     private val store: PersistentEntityStore,
     endpoint: MagixEndpoint,
-    filter: MagixMessageFilter = MagixMessageFilter(),
-) : AutoCloseable {
+    filter: MagixMessageFilter = MagixMessageFilter.ALL,
+) : MagixHistory, AutoCloseable {
 
     //TODO consider message buffering
     internal val subscriptionJob = endpoint.subscribe(filter).onEach { message ->
@@ -40,7 +45,14 @@ public class XodusMagixStorage(
                     setProperty(MagixMessage::parentId.name, it)
                 }
                 message.user?.let {
-                    setBlobString(MagixMessage::user.name, MagixEndpoint.magixJson.encodeToString(it))
+                    setProperty(
+                        MagixMessage::user.name,
+                        when (it) {
+                            is JsonObject -> it["name"]?.jsonPrimitive?.content ?: "@error"
+                            is JsonPrimitive -> it.content
+                            else -> "@error"
+                        }
+                    )
                 }
             }
         }
@@ -60,6 +72,10 @@ public class XodusMagixStorage(
         },
     )
 
+
+    /**
+     * Access all messages in a given format
+     */
     public fun readByFormat(
         format: String,
         block: (Sequence<MagixMessage>) -> Unit,
@@ -74,12 +90,65 @@ public class XodusMagixStorage(
         block(sequence)
     }
 
+    /**
+     * Access all messages as
+     */
     public fun readAll(
         block: (Sequence<MagixMessage>) -> Unit,
     ): Unit = store.executeInReadonlyTransaction { transaction ->
         val sequence = transaction.getAll(MAGIC_MESSAGE_ENTITY_TYPE).asSequence().map { entity ->
             entity.parseMagixMessage()
         }
+        block(sequence)
+    }
+
+    override suspend fun findMessages(
+        magixFilter: MagixMessageFilter?,
+        payloadFilters: List<MagixPayloadFilter>,
+        userFilter: MagixUsernameFilter?,
+        callback: (Sequence<MagixMessage>) -> Unit,
+    ): Unit = store.executeInReadonlyTransaction { transaction ->
+        val all = transaction.getAll(MAGIC_MESSAGE_ENTITY_TYPE)
+
+        fun StoreTransaction.findAllIn(
+            entityType: String,
+            field: String,
+            values: Collection<String>?,
+        ): EntityIterable? {
+            var union: EntityIterable? = null
+            values?.forEach {
+                val filter = transaction.find(entityType, field, it)
+                union = union?.union(filter) ?: filter
+            }
+            return union
+        }
+
+        // filter by magix filter
+        val filteredByMagix: EntityIterable = magixFilter?.let { mf ->
+            var res = all
+            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::format.name, mf.format)?.let {
+                res = res.intersect(it)
+            }
+            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::origin.name, mf.origin)?.let {
+                res = res.intersect(it)
+            }
+            transaction.findAllIn(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::target.name, mf.target)?.let {
+                res = res.intersect(it)
+            }
+
+            res
+        } ?: all
+
+        val filteredByUser: EntityIterable = userFilter?.let { userFilter->
+            filteredByMagix.intersect(
+                transaction.find(MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::user.name, userFilter.userName)
+            )
+        } ?: filteredByMagix
+
+
+        filteredByUser.se
+
+
         block(sequence)
     }
 
