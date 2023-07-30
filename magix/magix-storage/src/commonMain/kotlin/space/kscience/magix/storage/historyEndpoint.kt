@@ -5,7 +5,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.broadcast
@@ -22,7 +23,7 @@ internal fun generateId(request: MagixMessage): String = if (request.id != null)
  *
  * @param scope the [CoroutineScope] in which the responding process runs.
  * @param history the history database.
- * @param targetFilter filters the request messages by target if defined.
+ * @param endpointName the name of this endpoint that is used as a filter.
  * @param pageSize maximum messages per page in the response. The default is 100.
  * @param user user block for outgoing messages if defined.
  * @param origin tag for outgoing messages if defined.
@@ -30,17 +31,21 @@ internal fun generateId(request: MagixMessage): String = if (request.id != null)
 public fun MagixEndpoint.launchHistory(
     scope: CoroutineScope,
     history: MagixHistory,
-    targetFilter: Collection<String>? = null,
+    endpointName: String? = null,
     pageSize: Int = 100,
-    user: JsonObject? = null,
+    user: JsonElement? = endpointName?.let { JsonPrimitive(endpointName) },
     origin: String = MagixHistory.HISTORY_PAYLOAD_FORMAT,
-): Job = subscribe(MagixHistory.magixFormat, targetFilter = targetFilter).onEach { (request, payload) ->
+): Job = subscribe(
+    MagixHistory.magixFormat,
+    targetFilter = endpointName?.let { setOf(it) }
+).onEach { (request, payload) ->
 
     fun send(chunk: List<MagixMessage>, pageNumber: Int, end: Boolean) {
         scope.launch {
             val sendPayload = HistoryResponsePayload(
                 chunk,
-                pageNumber
+                pageNumber,
+                lastPage = end
             )
             broadcast(
                 format = MagixHistory.magixFormat,

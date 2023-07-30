@@ -12,10 +12,7 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
-import space.kscience.magix.storage.MagixHistory
-import space.kscience.magix.storage.MagixPayloadFilter
-import space.kscience.magix.storage.MagixUsernameFilter
-import space.kscience.magix.storage.test
+import space.kscience.magix.storage.*
 import java.nio.file.Path
 import kotlin.sequences.Sequence
 
@@ -149,15 +146,18 @@ public class XodusMagixStorage(
     scope: CoroutineScope,
     private val store: PersistentEntityStore,
     endpoint: MagixEndpoint,
-    filter: MagixMessageFilter = MagixMessageFilter.ALL,
+    endpointName: String? = null,
+    subscriptionFilter: MagixMessageFilter = MagixMessageFilter.ALL,
 ) : AutoCloseable {
 
     public val history: XodusMagixHistory = XodusMagixHistory(store)
 
     //TODO consider message buffering
-    internal val subscriptionJob = endpoint.subscribe(filter).onEach { message ->
+    private val subscriptionJob = endpoint.subscribe(subscriptionFilter).onEach { message ->
         history.sendMessage(message)
     }.launchIn(scope)
+
+    private val broadcastJob = endpoint.launchHistory(scope, history, endpointName = endpointName)
 
 
     /**
@@ -204,14 +204,16 @@ public class XodusMagixStorage(
 public fun MagixEndpoint.storeInXodus(
     scope: CoroutineScope,
     xodusStore: PersistentEntityStore,
+    endpointName: String? = null,
     filter: MagixMessageFilter = MagixMessageFilter(),
-): XodusMagixStorage = XodusMagixStorage(scope, xodusStore, this, filter)
+): XodusMagixStorage = XodusMagixStorage(scope, xodusStore, this, endpointName, filter)
 
 public fun MagixEndpoint.storeInXodus(
     scope: CoroutineScope,
     path: Path,
+    endpointName: String? = null,
     filter: MagixMessageFilter = MagixMessageFilter(),
 ): XodusMagixStorage {
     val store = PersistentEntityStores.newInstance(path.toFile())
-    return XodusMagixStorage(scope, store, this, filter)
+    return XodusMagixStorage(scope, store, this, endpointName, filter)
 }

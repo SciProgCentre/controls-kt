@@ -16,7 +16,7 @@ import space.kscience.magix.api.*
 
 internal val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(
     DeviceMessage.serializer(),
-    setOf("controls-kt", "dataforge")
+    setOf("controls-kt")
 )
 
 /**

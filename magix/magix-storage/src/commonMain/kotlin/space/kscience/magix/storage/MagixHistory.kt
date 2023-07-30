@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
 import space.kscience.magix.api.MagixFormat
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -39,8 +40,27 @@ public sealed class MagixPayloadFilter {
     public class Or(public val left: MagixPayloadFilter, public val right: MagixPayloadFilter) : MagixPayloadFilter()
 }
 
-public fun MagixPayloadFilter.test(element: JsonElement): Boolean {
-    TODO()
+private fun JsonElement.takeElement(path: String): JsonElement? = if (path.isEmpty()) {
+    this
+} else {
+    val separatorIndex = path.indexOf(".")
+    if (separatorIndex == -1) {
+        jsonObject[path]
+    } else {
+        val firstSegment = path.substring(0, separatorIndex)
+        val remaining = path.substring(separatorIndex + 1, path.length)
+        jsonObject[firstSegment]?.takeElement(remaining)
+    }
+
+}
+
+public fun MagixPayloadFilter.test(element: JsonElement): Boolean = when (this) {
+    is MagixPayloadFilter.Equals -> element.takeElement(path) == value
+    is MagixPayloadFilter.DateTimeInRange -> TODO()
+    is MagixPayloadFilter.NumberInRange -> TODO()
+    is MagixPayloadFilter.Not -> !argument.test(element)
+    is MagixPayloadFilter.And -> left.test(element) && right.test(element)
+    is MagixPayloadFilter.Or -> left.test(element) || right.test(element)
 }
 
 public fun Sequence<JsonElement>.filter(magixPayloadFilter: MagixPayloadFilter): Sequence<JsonElement> = filter {
