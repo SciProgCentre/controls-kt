@@ -6,12 +6,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonPrimitive
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
+import space.kscience.magix.api.userName
 import space.kscience.magix.storage.*
 import java.nio.file.Path
 import kotlin.sequences.Sequence
@@ -31,7 +30,7 @@ private fun Entity.parseMagixMessage(): MagixMessage = MagixMessage(
     },
 )
 
-public class XodusMagixHistory(private val store: PersistentEntityStore) : MagixHistory {
+public class XodusMagixHistory(private val store: PersistentEntityStore) : WriteableMagixHistory {
 
     public fun writeMessage(storeTransaction: StoreTransaction, message: MagixMessage) {
         storeTransaction.newEntity(XodusMagixStorage.MAGIC_MESSAGE_ENTITY_TYPE).apply {
@@ -49,20 +48,13 @@ public class XodusMagixHistory(private val store: PersistentEntityStore) : Magix
             message.parentId?.let {
                 setProperty(MagixMessage::parentId.name, it)
             }
-            message.user?.let {
-                setProperty(
-                    MagixMessage::user.name,
-                    when (it) {
-                        is JsonObject -> it["name"]?.jsonPrimitive?.content ?: "@error"
-                        is JsonPrimitive -> it.content
-                        else -> "@error"
-                    }
-                )
+            message.userName?.let {
+                setProperty(MagixMessage::user.name, it)
             }
         }
     }
 
-    public fun sendMessage(message: MagixMessage) {
+    override suspend fun send(message: MagixMessage) {
         store.executeInTransaction { transaction ->
             writeMessage(transaction, message)
         }
@@ -139,6 +131,7 @@ public class XodusMagixHistory(private val store: PersistentEntityStore) : Magix
     }
 }
 
+
 /**
  * Attach a Xodus storage process to the given endpoint.
  */
@@ -154,7 +147,7 @@ public class XodusMagixStorage(
 
     //TODO consider message buffering
     private val subscriptionJob = endpoint.subscribe(subscriptionFilter).onEach { message ->
-        history.sendMessage(message)
+        history.send(message)
     }.launchIn(scope)
 
     private val broadcastJob = endpoint.launchHistory(scope, history, endpointName = endpointName)

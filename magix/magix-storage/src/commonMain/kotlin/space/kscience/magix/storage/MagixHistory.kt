@@ -4,7 +4,9 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import space.kscience.magix.api.MagixFormat
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -56,8 +58,17 @@ private fun JsonElement.takeElement(path: String): JsonElement? = if (path.isEmp
 
 public fun MagixPayloadFilter.test(element: JsonElement): Boolean = when (this) {
     is MagixPayloadFilter.Equals -> element.takeElement(path) == value
-    is MagixPayloadFilter.DateTimeInRange -> TODO()
-    is MagixPayloadFilter.NumberInRange -> TODO()
+    is MagixPayloadFilter.DateTimeInRange ->  {
+        element.takeElement(path)?.jsonPrimitive?.content?.let {
+            LocalDateTime.parse(it) in from..to
+        } ?: false
+    }
+    is MagixPayloadFilter.NumberInRange -> {
+        element.takeElement(path)?.jsonPrimitive?.doubleOrNull?.let {
+            it in (from.toDouble()..to.toDouble())
+        } ?: false
+    }
+
     is MagixPayloadFilter.Not -> !argument.test(element)
     is MagixPayloadFilter.And -> left.test(element) && right.test(element)
     is MagixPayloadFilter.Or -> left.test(element) || right.test(element)
@@ -101,5 +112,9 @@ public interface MagixHistory {
             setOf(HISTORY_PAYLOAD_FORMAT)
         )
     }
+}
+
+public interface WriteableMagixHistory: MagixHistory{
+    public suspend fun send(message: MagixMessage)
 }
 

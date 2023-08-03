@@ -15,6 +15,7 @@ kscience {
     useSerialization {
         json()
     }
+    useCoroutines()
     dependencies {
         api(projects.magix.magixApi)
         api(spclibs.kotlinx.datetime)
