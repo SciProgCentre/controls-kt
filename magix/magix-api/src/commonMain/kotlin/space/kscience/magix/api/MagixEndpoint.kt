@@ -28,22 +28,22 @@ public interface MagixEndpoint {
 
     public companion object {
         /**
-         * A default port for HTTP/WS services
+         * A default port for HTTP/WS connections
          */
         public const val DEFAULT_MAGIX_HTTP_PORT: Int = 7777
 
         /**
-         * A default port for raw TCP services
+         * A default port for raw TCP connections
          */
         public const val DEFAULT_MAGIX_RAW_PORT: Int = 7778
 
         /**
-         * A default PUB port for ZMQ services
+         * A default PUB port for ZMQ connections
          */
         public const val DEFAULT_MAGIX_ZMQ_PUB_PORT: Int = 7781
 
         /**
-         * A default PULL port for ZMQ services
+         * A default PULL port for ZMQ connections
          */
         public const val DEFAULT_MAGIX_ZMQ_PULL_PORT: Int = 7782
 

@@ -73,7 +73,7 @@ public class ChannelPort(
 }
 
 /**
- * A [PortFactory] for TCP services
+ * A [PortFactory] for TCP connections
  */
 public object TcpPort : PortFactory {
 
@@ -97,7 +97,7 @@ public object TcpPort : PortFactory {
 
 
 /**
- * A [PortFactory] for UDP services
+ * A [PortFactory] for UDP connections
  */
 public object UdpPort : PortFactory {
 
