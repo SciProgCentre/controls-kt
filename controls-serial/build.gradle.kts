@@ -5,5 +5,5 @@ plugins {
 
 dependencies{
     api(project(":controls-core"))
-    implementation("org.scream3r:jssc:2.8.0")
+    implementation("com.fazecast:jSerialComm:2.10.3")
 }

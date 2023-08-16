@@ -1,4 +1,4 @@
-package space.kscience.magix.connections
+package space.kscience.magix.services
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
