@@ -53,11 +53,6 @@ Example view of a demo:
 > - [deviceHub](controls-core/src/commonMain/kotlin/space/kscience/controls/api/DeviceHub.kt) : Grouping of devices into local tree-like hubs.
 
 
-### [controls-ktor-tcp](controls-ktor-tcp)
-> 
->
-> **Maturity**: EXPERIMENTAL
-
 ### [controls-magix-client](controls-magix-client)
 > 
 >
@@ -69,6 +64,16 @@ Example view of a demo:
 > **Maturity**: EXPERIMENTAL
 
 ### [controls-opcua](controls-opcua)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-pi](controls-pi)
+> 
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-ports-ktor](controls-ports-ktor)
 > 
 >
 > **Maturity**: EXPERIMENTAL

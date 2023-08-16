@@ -54,3 +54,8 @@ public interface MagixEndpoint {
         }
     }
 }
+
+/**
+ * An alias for [MagixEndpoint.broadcast]
+ */
+public suspend fun MagixEndpoint.send(message: MagixMessage): Unit = broadcast(message)
