@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixFormat
-import space.kscience.magix.api.broadcast
+import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
 
 /**
@@ -67,12 +67,12 @@ public fun CoroutineScope.launchMagixRegistry(
         if (payload is MagixRegistryRequestMessage) {
             try {
                 val value = registry.request(payload.propertyName, magixMessage.user)
-                endpoint.broadcast(
+                endpoint.send(
                     MagixRegistryMessage.format,
                     MagixRegistryValueMessage(payload.propertyName, value ?: JsonNull)
                 )
             } catch (ex: Exception){
-                endpoint.broadcast(
+                endpoint.send(
                     MagixRegistryMessage.format,
                     MagixRegistryErrorMessage(payload.propertyName, ex::class.simpleName, ex.message)
                 )

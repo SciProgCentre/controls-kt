@@ -38,7 +38,7 @@ public fun <T> MagixEndpoint.subscribe(
  * Send a message using given [format] to encode the message payload. The format field is also taken from [format].
  *
  */
-public suspend fun <T> MagixEndpoint.broadcast(
+public suspend fun <T> MagixEndpoint.send(
     format: MagixFormat<T>,
     payload: T,
     target: String? = null,

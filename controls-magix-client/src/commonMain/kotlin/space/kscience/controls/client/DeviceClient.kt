@@ -12,7 +12,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
-import space.kscience.magix.api.broadcast
+import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
 import kotlin.coroutines.CoroutineContext
 
@@ -108,6 +108,6 @@ public class DeviceClient(
 public fun MagixEndpoint.remoteDevice(context: Context, magixTarget: String, deviceName: Name): DeviceClient {
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(magixTarget)).map { it.second }
     return DeviceClient(context, deviceName, subscription) {
-        broadcast(DeviceManager.magixFormat, it, magixTarget, id = stringUID())
+        send(DeviceManager.magixFormat, it, magixTarget, id = stringUID())
     }
 }

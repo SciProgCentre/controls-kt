@@ -75,7 +75,7 @@ public fun DeviceManager.launchTangoMagix(
 ): Job {
 
     suspend fun respond(request: MagixMessage, payload: TangoPayload, payloadBuilder: (TangoPayload) -> TangoPayload) {
-        endpoint.broadcast(
+        endpoint.send(
             tangoMagixFormat,
             id = generateId(request),
             parentId = request.id,
@@ -125,7 +125,7 @@ public fun DeviceManager.launchTangoMagix(
                 }
             } catch (ex: Exception) {
                 logger.error(ex) { "Error while responding to message" }
-                endpoint.broadcast(
+                endpoint.send(
                     tangoMagixFormat,
                     id = generateId(request),
                     parentId = request.id,

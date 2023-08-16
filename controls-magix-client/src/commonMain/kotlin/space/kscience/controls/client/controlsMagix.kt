@@ -40,7 +40,7 @@ public fun DeviceManager.connectToMagix(
     endpoint.subscribe(controlsMagixFormat, targetFilter = listOf(endpointID)).onEach { (request, payload) ->
         val responsePayload = respondHubMessage(payload)
         if (responsePayload != null) {
-            endpoint.broadcast(
+            endpoint.send(
                 format = controlsMagixFormat,
                 target = request.sourceEndpoint,
                 origin = endpointID,
@@ -54,7 +54,7 @@ public fun DeviceManager.connectToMagix(
     }.launchIn(this)
 
     hubMessageFlow(this).onEach { payload ->
-        endpoint.broadcast(
+        endpoint.send(
             format = controlsMagixFormat,
             origin = endpointID,
             payload = payload,

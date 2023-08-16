@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
-import space.kscience.magix.api.broadcast
+import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
 
 internal fun generateId(request: MagixMessage): String = if (request.id != null) {
@@ -47,7 +47,7 @@ public fun MagixEndpoint.launchHistory(
                 pageNumber,
                 lastPage = end
             )
-            broadcast(
+            send(
                 format = MagixHistory.magixFormat,
                 payload = sendPayload,
                 target = request.sourceEndpoint,
