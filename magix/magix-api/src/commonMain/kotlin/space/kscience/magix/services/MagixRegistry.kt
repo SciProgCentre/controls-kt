@@ -2,7 +2,9 @@ package space.kscience.magix.services
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -57,6 +59,9 @@ public class MagixRegistryErrorMessage(
     public val errorMessage: String? = null,
 ) : MagixRegistryMessage()
 
+/**
+ * Launch a magix registry loop service based on local registry
+ */
 public fun CoroutineScope.launchMagixRegistry(
     endpoint: MagixEndpoint,
     registry: MagixRegistry,
@@ -71,7 +76,7 @@ public fun CoroutineScope.launchMagixRegistry(
                     MagixRegistryMessage.format,
                     MagixRegistryValueMessage(payload.propertyName, value ?: JsonNull)
                 )
-            } catch (ex: Exception){
+            } catch (ex: Exception) {
                 endpoint.send(
                     MagixRegistryMessage.format,
                     MagixRegistryErrorMessage(payload.propertyName, ex::class.simpleName, ex.message)
@@ -79,3 +84,28 @@ public fun CoroutineScope.launchMagixRegistry(
             }
         }
     }.launchIn(this)
+
+/**
+ * Request a property with given name and return a [Flow] of pairs (sourceEndpoint, value).
+ *
+ * Flow is ordered by response receive time.
+ * The subscriber can terminate the flow at any moment to stop subscription, or use it indefinitely to continue observing changes.
+ * To request a single value, use [Flow.first] function.
+ *
+ * If [targetEndpoint] field is provided, send request only to given endpoint.
+ */
+public suspend fun MagixEndpoint.getProperty(
+    propertyName: String,
+    user: JsonElement? = null,
+    targetEndpoint: String? = null,
+): Flow<Pair<String, JsonElement>> {
+    send(MagixRegistryMessage.format, MagixRegistryRequestMessage(propertyName), target = targetEndpoint, user = user)
+    return subscribe(
+        MagixRegistryMessage.format,
+        originFilter = targetEndpoint?.let { setOf(it) }
+    ).mapNotNull { (message, response) ->
+        if (response is MagixRegistryValueMessage && response.propertyName == propertyName) {
+            message.sourceEndpoint to response.value
+        } else null
+    }
+}
