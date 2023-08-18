@@ -20,13 +20,17 @@ import space.kscience.magix.api.subscribe
  */
 public interface MagixRegistry {
     /**
-     * Request a property with name [propertyName] and user authentication data [user].
+     * Request a property with name [propertyName].
      *
      * Return a property value in its generic form or null if it is not present.
      *
      * Throw exception access is denied, or request failed.
      */
-    public suspend fun request(propertyName: String, user: JsonElement? = null): JsonElement?
+    public suspend fun get(propertyName: String): JsonElement?
+}
+
+public interface MutableMagixRegistry {
+    public suspend fun set(propertyName: String, value: JsonElement?, user: JsonElement?)
 }
 
 @Serializable
@@ -48,7 +52,7 @@ public class MagixRegistryRequestMessage(
 @SerialName("registry.value")
 public class MagixRegistryValueMessage(
     override val propertyName: String,
-    public val value: JsonElement,
+    public val value: JsonElement?,
 ) : MagixRegistryMessage()
 
 @Serializable
@@ -59,29 +63,58 @@ public class MagixRegistryErrorMessage(
     public val errorMessage: String? = null,
 ) : MagixRegistryMessage()
 
+@Serializable
+@SerialName("registry.modify")
+public class MagixRegistryModifyMessage(
+    override val propertyName: String,
+    public val value: JsonElement,
+) : MagixRegistryMessage()
+
 /**
  * Launch a magix registry loop service based on local registry
  */
 public fun CoroutineScope.launchMagixRegistry(
+    endpointName: String,
     endpoint: MagixEndpoint,
     registry: MagixRegistry,
     originFilter: Collection<String>? = null,
     targetFilter: Collection<String>? = null,
 ): Job = endpoint.subscribe(MagixRegistryMessage.format, originFilter, targetFilter)
     .onEach { (magixMessage, payload) ->
-        if (payload is MagixRegistryRequestMessage) {
-            try {
-                val value = registry.request(payload.propertyName, magixMessage.user)
-                endpoint.send(
-                    MagixRegistryMessage.format,
-                    MagixRegistryValueMessage(payload.propertyName, value ?: JsonNull)
-                )
-            } catch (ex: Exception) {
-                endpoint.send(
-                    MagixRegistryMessage.format,
-                    MagixRegistryErrorMessage(payload.propertyName, ex::class.simpleName, ex.message)
-                )
+        try {
+            when {
+                payload is MagixRegistryRequestMessage -> {
+                    endpoint.send(
+                        MagixRegistryMessage.format,
+                        MagixRegistryValueMessage(payload.propertyName, registry.get(payload.propertyName) ?: JsonNull),
+                        source = endpointName,
+                        target = magixMessage.sourceEndpoint,
+                        parentId = magixMessage.id
+                    )
+                }
+
+                payload is MagixRegistryModifyMessage && registry is MutableMagixRegistry -> {
+                    registry.set(payload.propertyName, payload.value, magixMessage.user)
+                    // Broadcast updates. Do not set target
+                    endpoint.send(
+                        MagixRegistryMessage.format,
+                        MagixRegistryValueMessage(
+                            payload.propertyName,
+                            registry.get(payload.propertyName)
+                        ),
+                        source = endpointName,
+                        parentId = magixMessage.id
+                    )
+                }
             }
+        } catch (ex: Exception) {
+            endpoint.send(
+                MagixRegistryMessage.format,
+                MagixRegistryErrorMessage(payload.propertyName, ex::class.simpleName, ex.message),
+                source = endpointName,
+                target = magixMessage.sourceEndpoint,
+                parentId = magixMessage.id
+            )
         }
     }.launchIn(this)
 
@@ -92,20 +125,29 @@ public fun CoroutineScope.launchMagixRegistry(
  * The subscriber can terminate the flow at any moment to stop subscription, or use it indefinitely to continue observing changes.
  * To request a single value, use [Flow.first] function.
  *
- * If [targetEndpoint] field is provided, send request only to given endpoint.
+ * If [registryEndpoint] field is provided, send request only to given endpoint.
+ *
+ * @param endpointName the name of endpoint requesting a property
  */
 public suspend fun MagixEndpoint.getProperty(
     propertyName: String,
+    endpointName: String,
     user: JsonElement? = null,
-    targetEndpoint: String? = null,
-): Flow<Pair<String, JsonElement>> {
-    send(MagixRegistryMessage.format, MagixRegistryRequestMessage(propertyName), target = targetEndpoint, user = user)
-    return subscribe(
+    registryEndpoint: String? = null,
+): Flow<Pair<String, JsonElement>> = subscribe(
+    MagixRegistryMessage.format,
+    originFilter = registryEndpoint?.let { setOf(it) }
+).mapNotNull { (message, response) ->
+    if (response is MagixRegistryValueMessage && response.propertyName == propertyName) {
+        message.sourceEndpoint to (response.value ?: return@mapNotNull null)
+    } else null
+}.also {
+    //send the initial request after subscription
+    send(
         MagixRegistryMessage.format,
-        originFilter = targetEndpoint?.let { setOf(it) }
-    ).mapNotNull { (message, response) ->
-        if (response is MagixRegistryValueMessage && response.propertyName == propertyName) {
-            message.sourceEndpoint to response.value
-        } else null
-    }
+        MagixRegistryRequestMessage(propertyName),
+        source = endpointName,
+        target = registryEndpoint,
+        user = user
+    )
 }

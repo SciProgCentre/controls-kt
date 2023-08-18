@@ -14,7 +14,7 @@ val rsocketVersion: String by rootProject.extra
 
 dependencies {
     implementation(projects.magix.magixServer)
-    implementation(projects.controlsMagixClient)
+    implementation(projects.controlsMagix)
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
 

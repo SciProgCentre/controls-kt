@@ -60,7 +60,7 @@ include(
     ":magix:magix-mqtt",
     ":magix:magix-storage",
     ":magix:magix-storage:magix-storage-xodus",
-    ":controls-magix-client",
+    ":controls-magix",
     ":demo:all-things",
     ":demo:many-devices",
     ":demo:magix-demo",

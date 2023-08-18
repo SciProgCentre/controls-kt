@@ -50,11 +50,11 @@ public fun MagixEndpoint.launchHistory(
             send(
                 format = MagixHistory.magixFormat,
                 payload = sendPayload,
+                source = origin,
                 target = request.sourceEndpoint,
                 id = generateId(request),
                 parentId = request.id,
                 user = user,
-                origin = origin,
             )
         }
     }

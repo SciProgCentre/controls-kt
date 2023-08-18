@@ -13,7 +13,7 @@ kscience{
     }
     dependencies(jvmMain){
         api(projects.magix.magixApi)
-        api(projects.controlsMagixClient)
+        api(projects.controlsMagix)
         api(projects.magix.magixServer)
     }
 }

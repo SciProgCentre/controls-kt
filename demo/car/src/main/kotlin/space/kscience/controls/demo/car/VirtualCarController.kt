@@ -8,7 +8,7 @@ import javafx.scene.layout.Priority
 import javafx.stage.Stage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import space.kscience.controls.client.connectToMagix
+import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.demo.car.IVirtualCar.Companion.acceleration
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
@@ -63,7 +63,7 @@ class VirtualCarController : Controller(), ContextAware {
             //mongoStorageJob = deviceManager.storeMessages(DefaultAsynchronousMongoClientFactory)
             //Launch device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
-            deviceManager.connectToMagix(deviceEndpoint)
+            deviceManager.launchMagixService(deviceEndpoint)
         }
     }
 

@@ -17,7 +17,7 @@ dependencies {
     implementation(projects.controlsCore)
     //implementation(projects.controlsServer)
     implementation(projects.magix.magixServer)
-    implementation(projects.controlsMagixClient)
+    implementation(projects.controlsMagix)
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
     implementation(projects.controlsOpcua)

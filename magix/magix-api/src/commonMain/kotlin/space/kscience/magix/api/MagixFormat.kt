@@ -41,16 +41,16 @@ public fun <T> MagixEndpoint.subscribe(
 public suspend fun <T> MagixEndpoint.send(
     format: MagixFormat<T>,
     payload: T,
+    source: String,
     target: String? = null,
     id: String? = null,
     parentId: String? = null,
     user: JsonElement? = null,
-    origin: String = format.defaultFormat,
 ) {
     val message = MagixMessage(
         format = format.defaultFormat,
         payload = magixJson.encodeToJsonElement(format.serializer, payload),
-        sourceEndpoint = origin,
+        sourceEndpoint = source,
         targetEndpoint = target,
         id = id,
         parentId = parentId,

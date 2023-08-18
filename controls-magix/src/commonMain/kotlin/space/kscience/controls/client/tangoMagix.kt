@@ -77,10 +77,10 @@ public fun DeviceManager.launchTangoMagix(
     suspend fun respond(request: MagixMessage, payload: TangoPayload, payloadBuilder: (TangoPayload) -> TangoPayload) {
         endpoint.send(
             tangoMagixFormat,
+            payload = payloadBuilder(payload),
+            source = endpointID,
             id = generateId(request),
-            parentId = request.id,
-            origin = endpointID,
-            payload = payloadBuilder(payload)
+            parentId = request.id
         )
     }
 
@@ -127,10 +127,10 @@ public fun DeviceManager.launchTangoMagix(
                 logger.error(ex) { "Error while responding to message" }
                 endpoint.send(
                     tangoMagixFormat,
+                    payload = payload.copy(quality = TangoQuality.WARNING),
+                    source = endpointID,
                     id = generateId(request),
-                    parentId = request.id,
-                    origin = endpointID,
-                    payload = payload.copy(quality = TangoQuality.WARNING)
+                    parentId = request.id
                 )
             }
         }.launchIn(this)

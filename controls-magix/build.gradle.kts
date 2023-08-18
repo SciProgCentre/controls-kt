@@ -4,7 +4,7 @@ plugins {
 }
 
 description = """
-    Magix service for binding controls devices (both as RPC client and server
+    Magix service for binding controls devices (both as RPC client and server)
 """.trimIndent()
 
 kscience {
@@ -16,7 +16,7 @@ kscience {
     dependencies {
         api(projects.magix.magixApi)
         api(projects.controlsCore)
-        api("com.benasher44:uuid:0.7.0")
+        api("com.benasher44:uuid:0.8.0")
     }
 }
 

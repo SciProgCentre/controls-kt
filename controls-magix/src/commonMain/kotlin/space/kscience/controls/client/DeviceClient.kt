@@ -19,7 +19,7 @@ import kotlin.coroutines.CoroutineContext
 private fun stringUID() = uuid4().leastSignificantBits.toString(16)
 
 /**
- * An implementation of device via RPC
+ * A remote accessible device that relies on connection via Magix
  */
 public class DeviceClient(
     override val context: Context,
@@ -103,11 +103,15 @@ public class DeviceClient(
 }
 
 /**
- * Connect to a remote device via this client.
+ * Connect to a remote device via this endpoint.
+ *
+ * @param context a [Context] to run device in
+ * @param endpointName the name of endpoint in Magix to connect to
+ * @param deviceName the name of device within endpoint
  */
-public fun MagixEndpoint.remoteDevice(context: Context, magixTarget: String, deviceName: Name): DeviceClient {
-    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(magixTarget)).map { it.second }
+public fun MagixEndpoint.remoteDevice(context: Context, endpointName: String, deviceName: Name): DeviceClient {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
     return DeviceClient(context, deviceName, subscription) {
-        send(DeviceManager.magixFormat, it, magixTarget, id = stringUID())
+        send(DeviceManager.magixFormat, it, endpointName, id = stringUID())
     }
 }

@@ -33,7 +33,7 @@ internal fun generateId(request: MagixMessage): String = if (request.id != null)
 /**
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
  */
-public fun DeviceManager.connectToMagix(
+public fun DeviceManager.launchMagixService(
     endpoint: MagixEndpoint,
     endpointID: String = controlsMagixFormat.defaultFormat,
 ): Job = context.launch {
@@ -42,9 +42,9 @@ public fun DeviceManager.connectToMagix(
         if (responsePayload != null) {
             endpoint.send(
                 format = controlsMagixFormat,
-                target = request.sourceEndpoint,
-                origin = endpointID,
                 payload = responsePayload,
+                source = endpointID,
+                target = request.sourceEndpoint,
                 id = generateId(request),
                 parentId = request.id
             )
@@ -56,8 +56,8 @@ public fun DeviceManager.connectToMagix(
     hubMessageFlow(this).onEach { payload ->
         endpoint.send(
             format = controlsMagixFormat,
-            origin = endpointID,
             payload = payload,
+            source = endpointID,
             id = "df[${payload.hashCode()}]"
         )
     }.catch { error ->

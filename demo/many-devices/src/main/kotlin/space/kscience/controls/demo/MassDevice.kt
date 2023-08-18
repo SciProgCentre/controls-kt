@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
-import space.kscience.controls.client.connectToMagix
+import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.magixFormat
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
@@ -78,7 +78,7 @@ suspend fun main() {
 
             val endpointId = "device$it"
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
-            deviceManager.connectToMagix(deviceEndpoint, endpointId)
+            deviceManager.launchMagixService(deviceEndpoint, endpointId)
         }
     }
 
