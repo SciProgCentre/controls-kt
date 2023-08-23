@@ -1,12 +1,14 @@
 [![JetBrains Research](https://jb.gg/badges/research.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 
-# Controls.kt
+[![DOI](https://zenodo.org/badge/240888288.svg)](https://zenodo.org/badge/latestdoi/240888288)
 
-Controls.kt (former DataForge-control) is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
+# Controls-kt
+
+Controls-kt (former DataForge-control) is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
 This repository contains a prototype of API and simple implementation
 of a slow control system, including a demo.
 
-Controls.kt uses some concepts and modules of DataForge,
+Controls-kt uses some concepts and modules of DataForge,
 such as `Meta` (tree-like value structure).
 
 To learn more about DataForge, please consult the following URLs:

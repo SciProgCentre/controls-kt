@@ -32,6 +32,7 @@ ksciencePublish {
             "https://maven.pkg.jetbrains.space/spc/p/sci/maven"
         }
     )
+    sonatype("https://oss.sonatype.org")
 }
 
 readme.readmeTemplate = file("docs/templates/README-TEMPLATE.md")
