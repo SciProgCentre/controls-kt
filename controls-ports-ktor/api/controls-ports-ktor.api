@@ -1,0 +1,47 @@
+public final class space/kscience/controls/ports/KtorPortsPlugin : space/kscience/dataforge/context/AbstractPlugin {
+	public static final field Companion Lspace/kscience/controls/ports/KtorPortsPlugin$Companion;
+	public fun <init> ()V
+	public fun content (Ljava/lang/String;)Ljava/util/Map;
+	public fun getTag ()Lspace/kscience/dataforge/context/PluginTag;
+}
+
+public final class space/kscience/controls/ports/KtorPortsPlugin$Companion : space/kscience/dataforge/context/PluginFactory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/ports/KtorPortsPlugin;
+	public fun getTag ()Lspace/kscience/dataforge/context/PluginTag;
+}
+
+public final class space/kscience/controls/ports/KtorTcpPort : space/kscience/controls/ports/AbstractPort, java/io/Closeable {
+	public static final field Companion Lspace/kscience/controls/ports/KtorTcpPort$Companion;
+	public fun close ()V
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getPort ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/controls/ports/KtorTcpPort$Companion : space/kscience/controls/ports/PortFactory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/ports/Port;
+	public fun getType ()Ljava/lang/String;
+	public final fun open (Lspace/kscience/dataforge/context/Context;Ljava/lang/String;ILkotlin/coroutines/CoroutineContext;)Lspace/kscience/controls/ports/KtorTcpPort;
+	public static synthetic fun open$default (Lspace/kscience/controls/ports/KtorTcpPort$Companion;Lspace/kscience/dataforge/context/Context;Ljava/lang/String;ILkotlin/coroutines/CoroutineContext;ILjava/lang/Object;)Lspace/kscience/controls/ports/KtorTcpPort;
+}
+
+public final class space/kscience/controls/ports/KtorUdpPort : space/kscience/controls/ports/AbstractPort, java/io/Closeable {
+	public static final field Companion Lspace/kscience/controls/ports/KtorUdpPort$Companion;
+	public fun close ()V
+	public final fun getLocalHost ()Ljava/lang/String;
+	public final fun getLocalPort ()Ljava/lang/Integer;
+	public final fun getRemoteHost ()Ljava/lang/String;
+	public final fun getRemotePort ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/controls/ports/KtorUdpPort$Companion : space/kscience/controls/ports/PortFactory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/ports/Port;
+	public fun getType ()Ljava/lang/String;
+	public final fun open (Lspace/kscience/dataforge/context/Context;Ljava/lang/String;ILjava/lang/Integer;Ljava/lang/String;Lkotlin/coroutines/CoroutineContext;)Lspace/kscience/controls/ports/KtorUdpPort;
+	public static synthetic fun open$default (Lspace/kscience/controls/ports/KtorUdpPort$Companion;Lspace/kscience/dataforge/context/Context;Ljava/lang/String;ILjava/lang/Integer;Ljava/lang/String;Lkotlin/coroutines/CoroutineContext;ILjava/lang/Object;)Lspace/kscience/controls/ports/KtorUdpPort;
+}
+

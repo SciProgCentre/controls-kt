@@ -29,10 +29,9 @@ ksciencePublish {
         if (isInDevelopment) {
             "https://maven.pkg.jetbrains.space/spc/p/sci/dev"
         } else {
-            "https://maven.pkg.jetbrains.space/spc/p/sci/release"
+            "https://maven.pkg.jetbrains.space/spc/p/sci/maven"
         }
     )
-    space("https://maven.pkg.jetbrains.space/spc/p/controls/maven")
 }
 
 readme.readmeTemplate = file("docs/templates/README-TEMPLATE.md")

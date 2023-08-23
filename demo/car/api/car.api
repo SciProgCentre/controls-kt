@@ -1,0 +1,111 @@
+public abstract interface class space/kscience/controls/demo/car/IVirtualCar : space/kscience/controls/api/Device {
+	public static final field Companion Lspace/kscience/controls/demo/car/IVirtualCar$Companion;
+	public abstract fun getAccelerationState ()Lspace/kscience/controls/demo/car/Vector2D;
+	public abstract fun getLocationState ()Lspace/kscience/controls/demo/car/Vector2D;
+	public abstract fun getSpeedState ()Lspace/kscience/controls/demo/car/Vector2D;
+	public abstract fun setAccelerationState (Lspace/kscience/controls/demo/car/Vector2D;)V
+	public abstract fun setLocationState (Lspace/kscience/controls/demo/car/Vector2D;)V
+	public abstract fun setSpeedState (Lspace/kscience/controls/demo/car/Vector2D;)V
+}
+
+public final class space/kscience/controls/demo/car/IVirtualCar$Companion : space/kscience/controls/spec/DeviceSpec {
+	public final fun getAcceleration ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getLocation ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getSpeed ()Lspace/kscience/controls/spec/DevicePropertySpec;
+}
+
+public final class space/kscience/controls/demo/car/MagixVirtualCar : space/kscience/controls/demo/car/VirtualCar {
+	public static final field Companion Lspace/kscience/controls/demo/car/MagixVirtualCar$Companion;
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)V
+	public fun open (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class space/kscience/controls/demo/car/MagixVirtualCar$Companion : space/kscience/dataforge/context/Factory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/car/MagixVirtualCar;
+}
+
+public final class space/kscience/controls/demo/car/Vector2D : space/kscience/dataforge/meta/MetaRepr {
+	public static final field CoordinatesMetaConverter Lspace/kscience/controls/demo/car/Vector2D$CoordinatesMetaConverter;
+	public fun <init> ()V
+	public fun <init> (DD)V
+	public synthetic fun <init> (DDILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()D
+	public final fun component2 ()D
+	public final fun copy (DD)Lspace/kscience/controls/demo/car/Vector2D;
+	public static synthetic fun copy$default (Lspace/kscience/controls/demo/car/Vector2D;DDILjava/lang/Object;)Lspace/kscience/controls/demo/car/Vector2D;
+	public final fun div (D)Lspace/kscience/controls/demo/car/Vector2D;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getX ()D
+	public final fun getY ()D
+	public fun hashCode ()I
+	public final fun setX (D)V
+	public final fun setY (D)V
+	public fun toMeta ()Lspace/kscience/dataforge/meta/Meta;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/controls/demo/car/Vector2D$CoordinatesMetaConverter : space/kscience/dataforge/meta/transformations/MetaConverter {
+	public synthetic fun metaToObject (Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun metaToObject (Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/car/Vector2D;
+	public synthetic fun objectToMeta (Ljava/lang/Object;)Lspace/kscience/dataforge/meta/Meta;
+	public fun objectToMeta (Lspace/kscience/controls/demo/car/Vector2D;)Lspace/kscience/dataforge/meta/Meta;
+}
+
+public class space/kscience/controls/demo/car/VirtualCar : space/kscience/controls/spec/DeviceBySpec, space/kscience/controls/demo/car/IVirtualCar {
+	public static final field Companion Lspace/kscience/controls/demo/car/VirtualCar$Companion;
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)V
+	public final fun applyForce-HG0u8IE (Lspace/kscience/controls/demo/car/Vector2D;J)V
+	public fun getAccelerationState ()Lspace/kscience/controls/demo/car/Vector2D;
+	public fun getLocationState ()Lspace/kscience/controls/demo/car/Vector2D;
+	public fun getSpeedState ()Lspace/kscience/controls/demo/car/Vector2D;
+	public fun open (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setAccelerationState (Lspace/kscience/controls/demo/car/Vector2D;)V
+	public fun setLocationState (Lspace/kscience/controls/demo/car/Vector2D;)V
+	public fun setSpeedState (Lspace/kscience/controls/demo/car/Vector2D;)V
+}
+
+public final class space/kscience/controls/demo/car/VirtualCar$Companion : space/kscience/dataforge/context/Factory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/car/VirtualCar;
+}
+
+public final class space/kscience/controls/demo/car/VirtualCarController : tornadofx/Controller, space/kscience/dataforge/context/ContextAware {
+	public static final field Companion Lspace/kscience/controls/demo/car/VirtualCarController$Companion;
+	public fun <init> ()V
+	public fun getContext ()Lspace/kscience/dataforge/context/Context;
+	public final fun getMagixServer ()Lio/ktor/server/engine/ApplicationEngine;
+	public final fun getMagixVirtualCar ()Lspace/kscience/controls/demo/car/MagixVirtualCar;
+	public final fun getStorageEndpoint ()Lspace/kscience/magix/api/MagixEndpoint;
+	public final fun getVirtualCar ()Lspace/kscience/controls/demo/car/VirtualCar;
+	public final fun getXodusStorageJob ()Lkotlinx/coroutines/Job;
+	public final fun init ()V
+	public final fun setMagixServer (Lio/ktor/server/engine/ApplicationEngine;)V
+	public final fun setMagixVirtualCar (Lspace/kscience/controls/demo/car/MagixVirtualCar;)V
+	public final fun setStorageEndpoint (Lspace/kscience/magix/api/MagixEndpoint;)V
+	public final fun setVirtualCar (Lspace/kscience/controls/demo/car/VirtualCar;)V
+	public final fun setXodusStorageJob (Lkotlinx/coroutines/Job;)V
+	public final fun shutdown ()V
+}
+
+public final class space/kscience/controls/demo/car/VirtualCarController$Companion {
+	public final fun getDeviceEntityStorePath ()Ljava/nio/file/Path;
+	public final fun getMagixEntityStorePath ()Ljava/nio/file/Path;
+}
+
+public final class space/kscience/controls/demo/car/VirtualCarControllerApp : tornadofx/App {
+	public fun <init> ()V
+	public fun start (Ljavafx/stage/Stage;)V
+	public fun stop ()V
+}
+
+public final class space/kscience/controls/demo/car/VirtualCarControllerKt {
+	public static final fun main ()V
+	public static synthetic fun main ([Ljava/lang/String;)V
+}
+
+public final class space/kscience/controls/demo/car/VirtualCarControllerView : tornadofx/View {
+	public fun <init> ()V
+	public fun getRoot ()Ljavafx/scene/Parent;
+}
+

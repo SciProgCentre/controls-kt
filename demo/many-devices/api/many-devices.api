@@ -1,0 +1,18 @@
+public final class space/kscience/controls/demo/MassDevice : space/kscience/controls/spec/DeviceBySpec {
+	public static final field Companion Lspace/kscience/controls/demo/MassDevice$Companion;
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)V
+}
+
+public final class space/kscience/controls/demo/MassDevice$Companion : space/kscience/controls/spec/DeviceSpec, space/kscience/dataforge/context/Factory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/MassDevice;
+	public final fun getValue ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public synthetic fun onOpen (Lspace/kscience/controls/api/Device;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onOpen (Lspace/kscience/controls/demo/MassDevice;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class space/kscience/controls/demo/MassDeviceKt {
+	public static final fun main (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun main ([Ljava/lang/String;)V
+}
+

@@ -1,0 +1,7 @@
+public final class ZmqKt {
+	public static final fun main (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun main ([Ljava/lang/String;)V
+	public static final fun sendJson (Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun sendJson$default (Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+

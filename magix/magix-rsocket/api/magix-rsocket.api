@@ -1,0 +1,37 @@
+public final class space/kscience/magix/rsocket/RSocketMagixEndpoint : java/io/Closeable, space/kscience/magix/api/MagixEndpoint {
+	public static final field Companion Lspace/kscience/magix/rsocket/RSocketMagixEndpoint$Companion;
+	public fun <init> (Lio/rsocket/kotlin/RSocket;)V
+	public fun broadcast (Lspace/kscience/magix/api/MagixMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun close ()V
+	public fun subscribe (Lspace/kscience/magix/api/MagixMessageFilter;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class space/kscience/magix/rsocket/RSocketMagixEndpoint$Companion {
+}
+
+public final class space/kscience/magix/rsocket/RSocketMagixEndpointKt {
+	public static final fun rSocketWithWebSockets (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun rSocketWithWebSockets$default (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILjava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class space/kscience/magix/rsocket/RSocketStreamMagixEndpoint : java/io/Closeable, space/kscience/magix/api/MagixEndpoint {
+	public fun <init> (Lio/rsocket/kotlin/RSocket;Lspace/kscience/magix/api/MagixMessageFilter;)V
+	public synthetic fun <init> (Lio/rsocket/kotlin/RSocket;Lspace/kscience/magix/api/MagixMessageFilter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun broadcast (Lspace/kscience/magix/api/MagixMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun close ()V
+	public final fun getStreamFilter ()Lspace/kscience/magix/api/MagixMessageFilter;
+	public fun subscribe (Lspace/kscience/magix/api/MagixMessageFilter;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class space/kscience/magix/rsocket/RSocketStreamMagixEndpointKt {
+	public static final fun rSocketStreamWithWebSockets (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILjava/lang/String;Lspace/kscience/magix/api/MagixMessageFilter;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun rSocketStreamWithWebSockets$default (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILjava/lang/String;Lspace/kscience/magix/api/MagixMessageFilter;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class space/kscience/magix/rsocket/WithTcpKt {
+	public static final fun rSocketStreamWithTcp (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILspace/kscience/magix/api/MagixMessageFilter;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun rSocketStreamWithTcp$default (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILspace/kscience/magix/api/MagixMessageFilter;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun rSocketWithTcp (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun rSocketWithTcp$default (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+

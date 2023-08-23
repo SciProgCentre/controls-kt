@@ -1,0 +1,77 @@
+public final class space/kscience/controls/demo/DemoController : tornadofx/Controller, space/kscience/dataforge/context/ContextAware {
+	public fun <init> ()V
+	public fun getContext ()Lspace/kscience/dataforge/context/Context;
+	public final fun getDevice ()Lspace/kscience/controls/demo/DemoDevice;
+	public final fun getMagixServer ()Lio/ktor/server/engine/ApplicationEngine;
+	public final fun getOpcUaServer ()Lorg/eclipse/milo/opcua/sdk/server/OpcUaServer;
+	public final fun getVisualizer ()Lio/ktor/server/engine/ApplicationEngine;
+	public final fun init ()V
+	public final fun setDevice (Lspace/kscience/controls/demo/DemoDevice;)V
+	public final fun setMagixServer (Lio/ktor/server/engine/ApplicationEngine;)V
+	public final fun setOpcUaServer (Lorg/eclipse/milo/opcua/sdk/server/OpcUaServer;)V
+	public final fun setVisualizer (Lio/ktor/server/engine/ApplicationEngine;)V
+	public final fun shutdown ()V
+}
+
+public final class space/kscience/controls/demo/DemoControllerApp : tornadofx/App {
+	public fun <init> ()V
+	public fun start (Ljavafx/stage/Stage;)V
+	public fun stop ()V
+}
+
+public final class space/kscience/controls/demo/DemoControllerView : tornadofx/View {
+	public fun <init> ()V
+	public fun getRoot ()Ljavafx/scene/Parent;
+}
+
+public final class space/kscience/controls/demo/DemoControllerViewKt {
+	public static final fun main ()V
+	public static synthetic fun main ([Ljava/lang/String;)V
+}
+
+public final class space/kscience/controls/demo/DemoDevice : space/kscience/controls/spec/DeviceBySpec, space/kscience/controls/demo/IDemoDevice {
+	public static final field Companion Lspace/kscience/controls/demo/DemoDevice$Companion;
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)V
+	public fun cosValue ()D
+	public fun getCosScaleState ()D
+	public fun getSinScaleState ()D
+	public fun getTimeScaleState ()D
+	public fun setCosScaleState (D)V
+	public fun setSinScaleState (D)V
+	public fun setTimeScaleState (D)V
+	public fun sinValue ()D
+}
+
+public final class space/kscience/controls/demo/DemoDevice$Companion : space/kscience/controls/spec/DeviceSpec, space/kscience/dataforge/context/Factory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/DemoDevice;
+	public final fun getCoordinates ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getCos ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getCosScale ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getResetScale ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getSin ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getSinScale ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getTimeScale ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public synthetic fun onOpen (Lspace/kscience/controls/api/Device;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onOpen (Lspace/kscience/controls/demo/IDemoDevice;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class space/kscience/controls/demo/DemoDeviceServerKt {
+	public static final fun startDemoDeviceServer (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/magix/api/MagixEndpoint;)Lio/ktor/server/engine/ApplicationEngine;
+	public static final fun updateFrom (Lspace/kscience/plotly/models/Trace;Ljava/lang/String;Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun updateXYFrom (Lspace/kscience/plotly/models/Trace;Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun windowed (Lkotlinx/coroutines/flow/Flow;I)Lkotlinx/coroutines/flow/Flow;
+}
+
+public abstract interface class space/kscience/controls/demo/IDemoDevice : space/kscience/controls/api/Device {
+	public abstract fun cosValue ()D
+	public abstract fun getCosScaleState ()D
+	public abstract fun getSinScaleState ()D
+	public abstract fun getTimeScaleState ()D
+	public abstract fun setCosScaleState (D)V
+	public abstract fun setSinScaleState (D)V
+	public abstract fun setTimeScaleState (D)V
+	public abstract fun sinValue ()D
+	public fun time ()Ljava/time/Instant;
+}
+

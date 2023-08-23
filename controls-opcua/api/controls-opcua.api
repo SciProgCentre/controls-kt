@@ -1,0 +1,82 @@
+public final class space/kscience/controls/opcua/client/MetaBsdParser : org/eclipse/milo/opcua/binaryschema/parser/BsdParser {
+	public fun <init> ()V
+}
+
+public final class space/kscience/controls/opcua/client/MetaBsdParserKt {
+	public static final fun toMeta (Lorg/eclipse/milo/opcua/stack/core/types/builtin/Variant;Lorg/eclipse/milo/opcua/stack/core/serialization/SerializationContext;)Lspace/kscience/dataforge/meta/Meta;
+}
+
+public final class space/kscience/controls/opcua/client/MiloConfiguration : space/kscience/dataforge/meta/Scheme {
+	public static final field Companion Lspace/kscience/controls/opcua/client/MiloConfiguration$Companion;
+	public fun <init> ()V
+	public final fun getEndpointUrl ()Ljava/lang/String;
+	public final fun getSecurityPolicy ()Lorg/eclipse/milo/opcua/stack/core/security/SecurityPolicy;
+	public final fun getUsername ()Lspace/kscience/controls/opcua/client/MiloUsername;
+	public final fun setEndpointUrl (Ljava/lang/String;)V
+	public final fun setSecurityPolicy (Lorg/eclipse/milo/opcua/stack/core/security/SecurityPolicy;)V
+	public final fun setUsername (Lspace/kscience/controls/opcua/client/MiloUsername;)V
+}
+
+public final class space/kscience/controls/opcua/client/MiloConfiguration$Companion : space/kscience/dataforge/meta/SchemeSpec {
+}
+
+public abstract class space/kscience/controls/opcua/client/MiloIdentity : space/kscience/dataforge/meta/Scheme {
+}
+
+public final class space/kscience/controls/opcua/client/MiloUsername : space/kscience/controls/opcua/client/MiloIdentity {
+	public static final field Companion Lspace/kscience/controls/opcua/client/MiloUsername$Companion;
+	public fun <init> ()V
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getUsername ()Ljava/lang/String;
+	public final fun setPassword (Ljava/lang/String;)V
+	public final fun setUsername (Ljava/lang/String;)V
+}
+
+public final class space/kscience/controls/opcua/client/MiloUsername$Companion : space/kscience/dataforge/meta/SchemeSpec {
+}
+
+public abstract interface class space/kscience/controls/opcua/client/OpcUaDevice : space/kscience/controls/api/Device {
+	public abstract fun getClient ()Lorg/eclipse/milo/opcua/sdk/client/OpcUaClient;
+}
+
+public class space/kscience/controls/opcua/client/OpcUaDeviceBySpec : space/kscience/controls/spec/DeviceBySpec, space/kscience/controls/opcua/client/OpcUaDevice {
+	public fun <init> (Lspace/kscience/controls/spec/DeviceSpec;Lspace/kscience/controls/opcua/client/MiloConfiguration;Lspace/kscience/dataforge/context/Context;)V
+	public synthetic fun <init> (Lspace/kscience/controls/spec/DeviceSpec;Lspace/kscience/controls/opcua/client/MiloConfiguration;Lspace/kscience/dataforge/context/Context;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public fun getClient ()Lorg/eclipse/milo/opcua/sdk/client/OpcUaClient;
+}
+
+public final class space/kscience/controls/opcua/client/OpcUaDeviceKt {
+	public static final fun opcDouble (Lspace/kscience/controls/opcua/client/OpcUaDevice;Lorg/eclipse/milo/opcua/stack/core/types/builtin/NodeId;D)Lkotlin/properties/ReadWriteProperty;
+	public static synthetic fun opcDouble$default (Lspace/kscience/controls/opcua/client/OpcUaDevice;Lorg/eclipse/milo/opcua/stack/core/types/builtin/NodeId;DILjava/lang/Object;)Lkotlin/properties/ReadWriteProperty;
+	public static final fun opcInt (Lspace/kscience/controls/opcua/client/OpcUaDevice;Lorg/eclipse/milo/opcua/stack/core/types/builtin/NodeId;D)Lkotlin/properties/ReadWriteProperty;
+	public static synthetic fun opcInt$default (Lspace/kscience/controls/opcua/client/OpcUaDevice;Lorg/eclipse/milo/opcua/stack/core/types/builtin/NodeId;DILjava/lang/Object;)Lkotlin/properties/ReadWriteProperty;
+	public static final fun opcString (Lspace/kscience/controls/opcua/client/OpcUaDevice;Lorg/eclipse/milo/opcua/stack/core/types/builtin/NodeId;D)Lkotlin/properties/ReadWriteProperty;
+	public static synthetic fun opcString$default (Lspace/kscience/controls/opcua/client/OpcUaDevice;Lorg/eclipse/milo/opcua/stack/core/types/builtin/NodeId;DILjava/lang/Object;)Lkotlin/properties/ReadWriteProperty;
+}
+
+public final class space/kscience/controls/opcua/server/DeviceNameSpace : org/eclipse/milo/opcua/sdk/server/api/ManagedNamespaceWithLifecycle {
+	public static final field Companion Lspace/kscience/controls/opcua/server/DeviceNameSpace$Companion;
+	public static final field NAMESPACE_URI Ljava/lang/String;
+	public fun <init> (Lorg/eclipse/milo/opcua/sdk/server/OpcUaServer;Lspace/kscience/controls/manager/DeviceManager;)V
+	public final fun getDeviceManager ()Lspace/kscience/controls/manager/DeviceManager;
+	public fun onDataItemsCreated (Ljava/util/List;)V
+	public fun onDataItemsDeleted (Ljava/util/List;)V
+	public fun onDataItemsModified (Ljava/util/List;)V
+	public fun onMonitoringModeChanged (Ljava/util/List;)V
+}
+
+public final class space/kscience/controls/opcua/server/DeviceNameSpace$Companion {
+}
+
+public final class space/kscience/controls/opcua/server/DeviceNameSpaceKt {
+	public static final fun get (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/api/PropertyDescriptor;)Lspace/kscience/dataforge/meta/Meta;
+	public static final fun read (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/api/PropertyDescriptor;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun serveDevices (Lorg/eclipse/milo/opcua/sdk/server/OpcUaServer;Lspace/kscience/controls/manager/DeviceManager;)Lspace/kscience/controls/opcua/server/DeviceNameSpace;
+}
+
+public final class space/kscience/controls/opcua/server/ServerUtilsKt {
+	public static final fun OpcUaServer (Lkotlin/jvm/functions/Function1;)Lorg/eclipse/milo/opcua/sdk/server/OpcUaServer;
+	public static final fun endpoint (Lorg/eclipse/milo/opcua/sdk/server/api/config/OpcUaServerConfigBuilder;Lkotlin/jvm/functions/Function1;)V
+}
+
