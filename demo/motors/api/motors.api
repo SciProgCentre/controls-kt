@@ -1,0 +1,115 @@
+public final class ru/mipt/npm/devices/pimotionmaster/FxDevicePropertiesKt {
+	public static final fun fxProperty (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/spec/DevicePropertySpec;)Ljavafx/beans/property/ReadOnlyProperty;
+	public static final fun fxProperty (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/spec/WritableDevicePropertySpec;)Ljavafx/beans/property/Property;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiDebugServerKt {
+	public static final fun getExceptionHandler ()Lkotlinx/coroutines/CoroutineExceptionHandler;
+	public static final fun launchPiDebugServer (Lspace/kscience/dataforge/context/Context;ILjava/util/List;)Lkotlinx/coroutines/Job;
+	public static final fun main ()V
+	public static synthetic fun main ([Ljava/lang/String;)V
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterApp : tornadofx/App {
+	public fun <init> ()V
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterAppKt {
+	public static final fun axisPane (Ljavafx/scene/Parent;Ljava/util/Map;Lkotlinx/coroutines/CoroutineScope;)V
+	public static final fun main ()V
+	public static synthetic fun main ([Ljava/lang/String;)V
+	public static final fun piMotionMasterAxis (Ljavafx/scene/layout/VBox;Ljava/lang/String;Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Axis;Lkotlinx/coroutines/CoroutineScope;)Ljavafx/scene/layout/HBox;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterController : tornadofx/Controller {
+	public fun <init> ()V
+	public final fun getContext ()Lspace/kscience/dataforge/context/Context;
+	public final fun getDeviceManager ()Lspace/kscience/controls/manager/DeviceManager;
+	public final fun getMotionMaster ()Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice : space/kscience/controls/spec/DeviceBySpec, space/kscience/controls/api/DeviceHub {
+	public static final field Companion Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Companion;
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/controls/ports/PortFactory;)V
+	public synthetic fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/controls/ports/PortFactory;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun connect (Ljava/lang/String;I)V
+	public final fun disconnect ()V
+	public final fun getAxes ()Ljava/util/Map;
+	public fun getDevices ()Ljava/util/Map;
+	public final fun getErrorCode (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getTimeoutValue-UwyO8pc ()J
+	public final fun setTimeoutValue-LRDsOJo (J)V
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Axis : space/kscience/controls/spec/DeviceBySpec {
+	public static final field Companion Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Axis$Companion;
+	public fun <init> (Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice;Ljava/lang/String;)V
+	public final fun getAxisId ()Ljava/lang/String;
+	public final fun getMm ()Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice;
+	public final fun move (DLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Axis$Companion : space/kscience/controls/spec/DeviceSpec {
+	public final fun getClosedLoop ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getEnabled ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getHalt ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getMaxPosition ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getMinPosition ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getMove ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getMoveToReference ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getOnTarget ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getOpenLoopTarget ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getPosition ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getReference ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getTargetPosition ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getVelocity ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Companion : space/kscience/controls/spec/DeviceSpec, space/kscience/dataforge/context/Factory {
+	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice;
+	public final fun getConnect ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getConnected ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getDisconnect ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getFirmwareVersion ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getIdentity ()Lspace/kscience/controls/spec/DevicePropertySpec;
+	public final fun getInitialize ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getStop ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getTimeout ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterView : tornadofx/View {
+	public fun <init> ()V
+	public final fun getDevice ()Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice;
+	public fun getRoot ()Ljavafx/scene/Parent;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterVirtualDevice : ru/mipt/npm/devices/pimotionmaster/VirtualDevice, space/kscience/dataforge/context/ContextAware {
+	public static final field Companion Lru/mipt/npm/devices/pimotionmaster/PiMotionMasterVirtualDevice$Companion;
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Ljava/util/List;Lkotlinx/coroutines/CoroutineScope;)V
+	public synthetic fun <init> (Lspace/kscience/dataforge/context/Context;Ljava/util/List;Lkotlinx/coroutines/CoroutineScope;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getContext ()Lspace/kscience/dataforge/context/Context;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterVirtualDevice$Companion {
+}
+
+public abstract class ru/mipt/npm/devices/pimotionmaster/VirtualDevice : space/kscience/controls/api/Socket {
+	public fun <init> (Lkotlinx/coroutines/CoroutineScope;)V
+	public fun close ()V
+	protected abstract fun evaluateRequest ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getScope ()Lkotlinx/coroutines/CoroutineScope;
+	public fun isOpen ()Z
+	public fun receiving ()Lkotlinx/coroutines/flow/Flow;
+	protected final fun respond ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected final fun respondInFuture-VtjQ1oo (JLkotlin/jvm/functions/Function1;)Lkotlinx/coroutines/Job;
+	public synthetic fun send (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun send ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected fun transformRequests (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class ru/mipt/npm/devices/pimotionmaster/VirtualPort : space/kscience/controls/ports/AbstractPort {
+	public fun <init> (Lru/mipt/npm/devices/pimotionmaster/VirtualDevice;Lspace/kscience/dataforge/context/Context;)V
+	public fun close ()V
+}
+

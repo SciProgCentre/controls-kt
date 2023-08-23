@@ -1,0 +1,23 @@
+public final class space/kscince/magix/zmq/ZmqMagixEndpoint : java/lang/AutoCloseable, space/kscience/magix/api/MagixEndpoint {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;IILkotlin/coroutines/CoroutineContext;Lorg/zeromq/ZContext;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;IILkotlin/coroutines/CoroutineContext;Lorg/zeromq/ZContext;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun broadcast (Lspace/kscience/magix/api/MagixMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun close ()V
+	public fun subscribe (Lspace/kscience/magix/api/MagixMessageFilter;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class space/kscince/magix/zmq/ZmqMagixEndpointKt {
+	public static final fun zmq (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;Ljava/lang/String;IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun zmq$default (Lspace/kscience/magix/api/MagixEndpoint$Companion;Ljava/lang/String;Ljava/lang/String;IILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class space/kscince/magix/zmq/ZmqMagixFlowPlugin : space/kscience/magix/api/MagixFlowPlugin {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;IILorg/zeromq/ZContext;)V
+	public synthetic fun <init> (Ljava/lang/String;IILorg/zeromq/ZContext;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getLocalHost ()Ljava/lang/String;
+	public final fun getZmqPubSocketPort ()I
+	public final fun getZmqPullSocketPort ()I
+	public fun start (Lkotlinx/coroutines/CoroutineScope;Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job;
+}
+

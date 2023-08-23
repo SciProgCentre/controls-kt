@@ -7,7 +7,8 @@ import kotlinx.coroutines.launch
 import kotlinx.html.div
 import kotlinx.html.link
 import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.client.controlsMagixFormat
+import space.kscience.controls.client.magixFormat
+import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.name
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
@@ -54,7 +55,7 @@ suspend fun Trace.updateXYFrom(flow: Flow<Iterable<Pair<Double, Double>>>) {
 
 fun CoroutineScope.startDemoDeviceServer(magixEndpoint: MagixEndpoint): ApplicationEngine {
     //share subscription to a parse message only once
-    val subscription = magixEndpoint.subscribe(controlsMagixFormat).shareIn(this, SharingStarted.Lazily)
+    val subscription = magixEndpoint.subscribe(DeviceManager.magixFormat).shareIn(this, SharingStarted.Lazily)
 
     val sinFlow = subscription.mapNotNull {  (_, payload) ->
         (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.sin.name }

@@ -19,7 +19,7 @@ dependencies {
     implementation(projects.magix.magixServer)
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
-    implementation(projects.controlsMagixClient)
+    implementation(projects.controlsMagix)
     implementation(projects.controlsStorage.controlsXodus)
     implementation(projects.magix.magixStorage.magixStorageXodus)
 //    implementation(projects.controlsMongo)

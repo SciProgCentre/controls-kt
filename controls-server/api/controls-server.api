@@ -1,0 +1,9 @@
+public final class space/kscience/controls/server/DeviceWebServerKt {
+	public static final fun deviceManagerModule (Lio/ktor/server/application/Application;Lspace/kscience/controls/manager/DeviceManager;[Lspace/kscience/magix/api/MagixFlowPlugin;Ljava/util/Collection;Ljava/lang/String;I)V
+	public static synthetic fun deviceManagerModule$default (Lio/ktor/server/application/Application;Lspace/kscience/controls/manager/DeviceManager;[Lspace/kscience/magix/api/MagixFlowPlugin;Ljava/util/Collection;Ljava/lang/String;IILjava/lang/Object;)V
+	public static final fun getWEB_SERVER_TARGET ()Lspace/kscience/dataforge/names/Name;
+	public static final fun startDeviceServer (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/controls/manager/DeviceManager;ILjava/lang/String;)Lio/ktor/server/engine/ApplicationEngine;
+	public static synthetic fun startDeviceServer$default (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/controls/manager/DeviceManager;ILjava/lang/String;ILjava/lang/Object;)Lio/ktor/server/engine/ApplicationEngine;
+	public static final fun whenStarted (Lio/ktor/server/engine/ApplicationEngine;Lkotlin/jvm/functions/Function1;)V
+}
+

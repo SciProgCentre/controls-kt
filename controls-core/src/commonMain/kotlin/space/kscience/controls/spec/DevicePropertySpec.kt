@@ -2,10 +2,7 @@ package space.kscience.controls.spec
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.Device
@@ -69,7 +66,7 @@ public interface DeviceActionSpec<in D : Device, I, O> {
     /**
      * Execute action on a device
      */
-    public suspend fun execute(device: D, input: I?): O?
+    public suspend fun execute(device: D, input: I): O
 }
 
 /**
@@ -106,17 +103,48 @@ public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySp
 }
 
 /**
+ * A type safe flow of property changes for given property
+ */
+public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<T> = messageFlow
+    .filterIsInstance<PropertyChangedMessage>()
+    .filter { it.property == spec.name }
+    .mapNotNull { spec.converter.metaToObject(it.value) }
+
+/**
  * A type safe property change listener. Uses the device [CoroutineScope].
  */
-public fun <D : Device, T> Device.onPropertyChange(
+public fun <D : Device, T> D.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
-    callback: suspend PropertyChangedMessage.(T?) -> Unit,
+    callback: suspend PropertyChangedMessage.(T) -> Unit,
 ): Job = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
     .onEach { change ->
-        change.callback(spec.converter.metaToObject(change.value))
+        val newValue = spec.converter.metaToObject(change.value)
+        if (newValue != null) {
+            change.callback(newValue)
+        }
     }.launchIn(this)
+
+/**
+ * Call [callback] on initial property value and each value change
+ */
+public fun <D : Device, T> D.useProperty(
+    spec: DevicePropertySpec<D, T>,
+    callback: suspend (T) -> Unit,
+): Job = launch {
+    callback(read(spec))
+    messageFlow
+        .filterIsInstance<PropertyChangedMessage>()
+        .filter { it.property == spec.name }
+        .collect { change ->
+            val newValue = spec.converter.metaToObject(change.value)
+            if (newValue != null) {
+                callback(newValue)
+            }
+        }
+}
+
 
 /**
  * Reset the logical state of a property
@@ -128,5 +156,8 @@ public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D,
 /**
  * Execute the action with name according to [actionSpec]
  */
-public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I? = null): O? =
+public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I): O =
     actionSpec.execute(this, input)
+
+public suspend fun <O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, Unit, O>): O =
+    actionSpec.execute(this, Unit)

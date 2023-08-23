@@ -8,7 +8,7 @@ import javafx.stage.Stage
 import kotlinx.coroutines.launch
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
-import space.kscience.controls.client.connectToMagix
+import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.demo.DemoDevice.Companion.cosScale
 import space.kscience.controls.demo.DemoDevice.Companion.sinScale
 import space.kscience.controls.demo.DemoDevice.Companion.timeScale
@@ -36,8 +36,9 @@ class DemoController : Controller(), ContextAware {
     var visualizer: ApplicationEngine? = null
     var opcUaServer: OpcUaServer = OpcUaServer {
         setApplicationName(LocalizedText.english("space.kscience.controls.opcua"))
+
         endpoint {
-            setBindPort(9999)
+            setBindPort(4840)
             //use default endpoint
         }
     }
@@ -58,7 +59,7 @@ class DemoController : Controller(), ContextAware {
             )
             //Launch a device client and connect it to the server
             val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
-            deviceManager.connectToMagix(deviceEndpoint)
+            deviceManager.launchMagixService(deviceEndpoint)
             //connect visualization to a magix endpoint
             val visualEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
             visualizer = startDemoDeviceServer(visualEndpoint)

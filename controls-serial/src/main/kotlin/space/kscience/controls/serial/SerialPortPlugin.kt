@@ -13,7 +13,7 @@ public class SerialPortPlugin : AbstractPlugin() {
     override val tag: PluginTag get() = Companion.tag
 
     override fun content(target: String): Map<Name, Any> = when(target){
-        PortFactory.TYPE -> mapOf(Name.EMPTY to SerialPort)
+        PortFactory.TYPE -> mapOf(Name.EMPTY to JSerialCommPort)
         else -> emptyMap()
     }
 

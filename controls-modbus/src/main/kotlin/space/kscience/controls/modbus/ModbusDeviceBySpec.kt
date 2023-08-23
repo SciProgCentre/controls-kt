@@ -17,8 +17,21 @@ public open class ModbusDeviceBySpec<D: Device>(
     spec: DeviceSpec<D>,
     override val clientId: Int,
     override val master: AbstractModbusMaster,
+    private val disposeMasterOnClose: Boolean = true,
     meta: Meta = Meta.EMPTY,
-) : ModbusDevice, DeviceBySpec<D>(spec, context, meta)
+) : ModbusDevice, DeviceBySpec<D>(spec, context, meta){
+    override suspend fun open() {
+        master.connect()
+        super<DeviceBySpec>.open()
+    }
+
+    override fun close() {
+        if(disposeMasterOnClose){
+            master.disconnect()
+        }
+        super<ModbusDevice>.close()
+    }
+}
 
 
 public class ModbusHub(

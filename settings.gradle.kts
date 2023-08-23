@@ -41,8 +41,9 @@ dependencyResolutionManagement {
 
 include(
     ":controls-core",
-    ":controls-ktor-tcp",
+    ":controls-ports-ktor",
     ":controls-serial",
+    ":controls-pi",
     ":controls-server",
     ":controls-opcua",
     ":controls-modbus",
@@ -53,14 +54,13 @@ include(
     ":magix:magix-api",
     ":magix:magix-server",
     ":magix:magix-rsocket",
-    ":magix:magix-java-client",
+    ":magix:magix-java-endpoint",
     ":magix:magix-zmq",
     ":magix:magix-rabbit",
     ":magix:magix-mqtt",
-
-//    ":magix:magix-storage",
+    ":magix:magix-storage",
     ":magix:magix-storage:magix-storage-xodus",
-    ":controls-magix-client",
+    ":controls-magix",
     ":demo:all-things",
     ":demo:many-devices",
     ":demo:magix-demo",

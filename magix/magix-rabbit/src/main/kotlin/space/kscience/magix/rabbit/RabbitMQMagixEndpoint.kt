@@ -27,7 +27,7 @@ public class RabbitMQMagixEndpoint(
     }
 
     override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage> = callbackFlow {
-        val deliverCallback: DeliverCallback = DeliverCallback { _: String, message: Delivery ->
+        val deliverCallback = DeliverCallback { _: String, message: Delivery ->
             val magixMessage = MagixEndpoint.magixJson.decodeFromString(
                 MagixMessage.serializer(), message.body.decodeToString()
             )

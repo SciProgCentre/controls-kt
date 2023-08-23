@@ -3,7 +3,6 @@ package space.kscience.controls.opcua.client
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder
 import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider
-import org.eclipse.milo.opcua.sdk.client.api.identity.IdentityProvider
 import org.eclipse.milo.opcua.stack.client.security.DefaultClientCertificateValidator
 import org.eclipse.milo.opcua.stack.core.security.DefaultTrustListManager
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
@@ -18,14 +17,14 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 
-internal fun <T:Any> T?.toOptional(): Optional<T> = if(this == null) Optional.empty() else Optional.of(this)
+internal fun <T : Any> T?.toOptional(): Optional<T> = Optional.ofNullable(this)
 
 
 internal fun Context.createOpcUaClient(
     endpointUrl: String, //"opc.tcp://localhost:12686/milo"
     securityPolicy: SecurityPolicy = SecurityPolicy.Basic256Sha256,
-    identityProvider: IdentityProvider = AnonymousProvider(),
-    endpointFilter: (EndpointDescription?) -> Boolean = { securityPolicy.uri == it?.securityPolicyUri }
+    endpointFilter: (EndpointDescription?) -> Boolean = { securityPolicy.uri == it?.securityPolicyUri },
+    opcClientConfig: OpcUaClientConfigBuilder.() -> Unit,
 ): OpcUaClient {
 
     val securityTempDir: Path = Paths.get(System.getProperty("java.io.tmpdir"), "client", "security")
@@ -47,14 +46,15 @@ internal fun Context.createOpcUaClient(
         }
     ) { configBuilder: OpcUaClientConfigBuilder ->
         configBuilder
-            .setApplicationName(LocalizedText.english("Controls.kt"))
-            .setApplicationUri("urn:ru.mipt:npm:controls:opcua")
+            .setApplicationName(LocalizedText.english("Controls-kt"))
+            .setApplicationUri("urn:space.kscience:controls:opcua")
 //            .setKeyPair(loader.getClientKeyPair())
 //            .setCertificate(loader.getClientCertificate())
 //            .setCertificateChain(loader.getClientCertificateChain())
             .setCertificateValidator(certificateValidator)
-            .setIdentityProvider(identityProvider)
+            .setIdentityProvider(AnonymousProvider())
             .setRequestTimeout(uint(5000))
+            .apply(opcClientConfig)
             .build()
     }
 //        .apply {

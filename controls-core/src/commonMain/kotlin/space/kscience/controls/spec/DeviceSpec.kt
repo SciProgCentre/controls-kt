@@ -12,6 +12,13 @@ import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
+public object UnitMetaConverter: MetaConverter<Unit>{
+    override fun metaToObject(meta: Meta): Unit = Unit
+
+    override fun objectToMeta(obj: Unit): Meta = Meta.EMPTY
+}
+
+public val MetaConverter.Companion.unit: MetaConverter<Unit> get() = UnitMetaConverter
 
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceSpec<D : Device> {
@@ -36,25 +43,6 @@ public abstract class DeviceSpec<D : Device> {
         _properties[deviceProperty.name] = deviceProperty
         return deviceProperty
     }
-
-//    public fun <T> registerProperty(
-//        converter: MetaConverter<T>,
-//        readOnlyProperty: KProperty1<D, T>,
-//        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-//    ): DevicePropertySpec<D, T> {
-//        val deviceProperty = object : DevicePropertySpec<D, T> {
-//
-//            override val descriptor: PropertyDescriptor = PropertyDescriptor(readOnlyProperty.name)
-//                .apply(descriptorBuilder)
-//
-//            override val converter: MetaConverter<T> = converter
-//
-//            override suspend fun read(device: D): T = withContext(device.coroutineContext) {
-//                readOnlyProperty.get(device)
-//            }
-//        }
-//        return registerProperty(deviceProperty)
-//    }
 
     public fun <T> property(
         converter: MetaConverter<T>,
@@ -89,7 +77,7 @@ public abstract class DeviceSpec<D : Device> {
             val deviceProperty = object : WritableDevicePropertySpec<D, T> {
 
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(property.name).apply {
-                    //TODO add type from converter
+                    //TODO add the type from converter
                     writable = true
                 }.apply(descriptorBuilder)
 
@@ -165,7 +153,7 @@ public abstract class DeviceSpec<D : Device> {
         outputConverter: MetaConverter<O>,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
-        execute: suspend D.(I?) -> O?,
+        execute: suspend D.(I) -> O,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
             val actionName = name ?: property.name
@@ -175,7 +163,7 @@ public abstract class DeviceSpec<D : Device> {
                 override val inputConverter: MetaConverter<I> = inputConverter
                 override val outputConverter: MetaConverter<O> = outputConverter
 
-                override suspend fun execute(device: D, input: I?): O? = withContext(device.coroutineContext) {
+                override suspend fun execute(device: D, input: I): O = withContext(device.coroutineContext) {
                     device.execute(input)
                 }
             }
@@ -191,7 +179,7 @@ public abstract class DeviceSpec<D : Device> {
     public fun metaAction(
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
-        execute: suspend D.(Meta?) -> Meta?,
+        execute: suspend D.(Meta) -> Meta,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
         action(
             MetaConverter.Companion.meta,
@@ -209,15 +197,14 @@ public abstract class DeviceSpec<D : Device> {
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
         execute: suspend D.() -> Unit,
-    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
+    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
         action(
-            MetaConverter.Companion.meta,
-            MetaConverter.Companion.meta,
+            MetaConverter.Companion.unit,
+            MetaConverter.Companion.unit,
             descriptorBuilder,
             name
         ) {
             execute()
-            null
         }
 }
 

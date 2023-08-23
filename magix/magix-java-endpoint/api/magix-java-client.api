@@ -1,0 +1,7 @@
+public abstract interface class space/kscience/magix/client/MagixClient {
+	public abstract fun broadcast (Lspace/kscience/magix/api/MagixMessage;)V
+	public static fun rSocketTcp (Ljava/lang/String;I)Lspace/kscience/magix/client/MagixClient;
+	public static fun rSocketWs (Ljava/lang/String;ILjava/lang/String;)Lspace/kscience/magix/client/MagixClient;
+	public abstract fun subscribe ()Ljava/util/concurrent/Flow$Publisher;
+}
+

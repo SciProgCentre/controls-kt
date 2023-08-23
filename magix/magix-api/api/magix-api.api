@@ -1,0 +1,271 @@
+public abstract interface class space/kscience/magix/api/MagixEndpoint {
+	public static final field Companion Lspace/kscience/magix/api/MagixEndpoint$Companion;
+	public static final field DEFAULT_MAGIX_HTTP_PORT I
+	public static final field DEFAULT_MAGIX_RAW_PORT I
+	public static final field DEFAULT_MAGIX_ZMQ_PUB_PORT I
+	public static final field DEFAULT_MAGIX_ZMQ_PULL_PORT I
+	public abstract fun broadcast (Lspace/kscience/magix/api/MagixMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun close ()V
+	public abstract fun subscribe (Lspace/kscience/magix/api/MagixMessageFilter;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun subscribe$default (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixMessageFilter;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class space/kscience/magix/api/MagixEndpoint$Companion {
+	public static final field DEFAULT_MAGIX_HTTP_PORT I
+	public static final field DEFAULT_MAGIX_RAW_PORT I
+	public static final field DEFAULT_MAGIX_ZMQ_PUB_PORT I
+	public static final field DEFAULT_MAGIX_ZMQ_PULL_PORT I
+	public final fun getMagixJson ()Lkotlinx/serialization/json/Json;
+}
+
+public final class space/kscience/magix/api/MagixEndpointKt {
+	public static final fun send (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class space/kscience/magix/api/MagixFlowPlugin {
+	public abstract fun start (Lkotlinx/coroutines/CoroutineScope;Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job;
+	public fun start (Lkotlinx/coroutines/CoroutineScope;Lkotlinx/coroutines/flow/MutableSharedFlow;)Lkotlinx/coroutines/Job;
+}
+
+public final class space/kscience/magix/api/MagixFormat {
+	public fun <init> (Lkotlinx/serialization/KSerializer;Ljava/util/Set;)V
+	public final fun component1 ()Lkotlinx/serialization/KSerializer;
+	public final fun component2 ()Ljava/util/Set;
+	public final fun copy (Lkotlinx/serialization/KSerializer;Ljava/util/Set;)Lspace/kscience/magix/api/MagixFormat;
+	public static synthetic fun copy$default (Lspace/kscience/magix/api/MagixFormat;Lkotlinx/serialization/KSerializer;Ljava/util/Set;ILjava/lang/Object;)Lspace/kscience/magix/api/MagixFormat;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultFormat ()Ljava/lang/String;
+	public final fun getFormats ()Ljava/util/Set;
+	public final fun getSerializer ()Lkotlinx/serialization/KSerializer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/magix/api/MagixFormatKt {
+	public static final fun send (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixFormat;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun send$default (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixFormat;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun subscribe (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixFormat;Ljava/util/Collection;Ljava/util/Collection;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun subscribe$default (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixFormat;Ljava/util/Collection;Ljava/util/Collection;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class space/kscience/magix/api/MagixMessage {
+	public static final field Companion Lspace/kscience/magix/api/MagixMessage$Companion;
+	public synthetic fun <init> (ILjava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;)V
+	public synthetic fun <init> (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Lkotlinx/serialization/json/JsonElement;
+	public final fun copy (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;)Lspace/kscience/magix/api/MagixMessage;
+	public static synthetic fun copy$default (Lspace/kscience/magix/api/MagixMessage;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;ILjava/lang/Object;)Lspace/kscience/magix/api/MagixMessage;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFormat ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getParentId ()Ljava/lang/String;
+	public final fun getPayload ()Lkotlinx/serialization/json/JsonElement;
+	public final fun getSourceEndpoint ()Ljava/lang/String;
+	public final fun getTargetEndpoint ()Ljava/lang/String;
+	public final fun getUser ()Lkotlinx/serialization/json/JsonElement;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/api/MagixMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/api/MagixMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/magix/api/MagixMessage$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/magix/api/MagixMessage;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/magix/api/MagixMessage;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/api/MagixMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/api/MagixMessageFilter {
+	public static final field Companion Lspace/kscience/magix/api/MagixMessageFilter$Companion;
+	public fun <init> ()V
+	public synthetic fun <init> (ILjava/util/Collection;Ljava/util/Collection;Ljava/util/Collection;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Ljava/util/Collection;Ljava/util/Collection;Ljava/util/Collection;)V
+	public synthetic fun <init> (Ljava/util/Collection;Ljava/util/Collection;Ljava/util/Collection;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun accepts (Lspace/kscience/magix/api/MagixMessage;)Z
+	public final fun component1 ()Ljava/util/Collection;
+	public final fun component2 ()Ljava/util/Collection;
+	public final fun component3 ()Ljava/util/Collection;
+	public final fun copy (Ljava/util/Collection;Ljava/util/Collection;Ljava/util/Collection;)Lspace/kscience/magix/api/MagixMessageFilter;
+	public static synthetic fun copy$default (Lspace/kscience/magix/api/MagixMessageFilter;Ljava/util/Collection;Ljava/util/Collection;Ljava/util/Collection;ILjava/lang/Object;)Lspace/kscience/magix/api/MagixMessageFilter;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFormat ()Ljava/util/Collection;
+	public final fun getSource ()Ljava/util/Collection;
+	public final fun getTarget ()Ljava/util/Collection;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/api/MagixMessageFilter;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/api/MagixMessageFilter$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/magix/api/MagixMessageFilter$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/magix/api/MagixMessageFilter;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/magix/api/MagixMessageFilter;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/api/MagixMessageFilter$Companion {
+	public final fun getALL ()Lspace/kscience/magix/api/MagixMessageFilter;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/api/MagixMessageFilterKt {
+	public static final fun filter (Lkotlinx/coroutines/flow/Flow;Lspace/kscience/magix/api/MagixMessageFilter;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class space/kscience/magix/api/MagixMessageKt {
+	public static final fun getUserName (Lspace/kscience/magix/api/MagixMessage;)Ljava/lang/String;
+}
+
+public final class space/kscience/magix/services/ConvertersKt {
+	public static final fun launchMagixConverter (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixMessageFilter;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/Job;
+	public static synthetic fun launchMagixConverter$default (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixMessageFilter;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/Job;
+}
+
+public final class space/kscience/magix/services/MagixPortalKt {
+	public static final fun launchMagixPortal (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixMessageFilter;Lspace/kscience/magix/api/MagixMessageFilter;)Lkotlinx/coroutines/Job;
+	public static synthetic fun launchMagixPortal$default (Lkotlinx/coroutines/CoroutineScope;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/api/MagixMessageFilter;Lspace/kscience/magix/api/MagixMessageFilter;ILjava/lang/Object;)Lkotlinx/coroutines/Job;
+}
+
+public abstract interface class space/kscience/magix/services/MagixRegistry {
+	public abstract fun get (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class space/kscience/magix/services/MagixRegistryErrorMessage : space/kscience/magix/services/MagixRegistryMessage {
+	public static final field Companion Lspace/kscience/magix/services/MagixRegistryErrorMessage$Companion;
+	public synthetic fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getErrorMessage ()Ljava/lang/String;
+	public final fun getErrorType ()Ljava/lang/String;
+	public fun getPropertyName ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/services/MagixRegistryErrorMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/services/MagixRegistryErrorMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/magix/services/MagixRegistryErrorMessage$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/magix/services/MagixRegistryErrorMessage;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/magix/services/MagixRegistryErrorMessage;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryErrorMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryKt {
+	public static final fun getProperty (Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun getProperty$default (Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun launchMagixRegistry (Lkotlinx/coroutines/CoroutineScope;Ljava/lang/String;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/services/MagixRegistry;Ljava/util/Collection;Ljava/util/Collection;)Lkotlinx/coroutines/Job;
+	public static synthetic fun launchMagixRegistry$default (Lkotlinx/coroutines/CoroutineScope;Ljava/lang/String;Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/magix/services/MagixRegistry;Ljava/util/Collection;Ljava/util/Collection;ILjava/lang/Object;)Lkotlinx/coroutines/Job;
+}
+
+public abstract class space/kscience/magix/services/MagixRegistryMessage {
+	public static final field Companion Lspace/kscience/magix/services/MagixRegistryMessage$Companion;
+	public synthetic fun <init> (ILkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public abstract fun getPropertyName ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/services/MagixRegistryMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/services/MagixRegistryMessage$Companion {
+	public final fun getFormat ()Lspace/kscience/magix/api/MagixFormat;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryModifyMessage : space/kscience/magix/services/MagixRegistryMessage {
+	public static final field Companion Lspace/kscience/magix/services/MagixRegistryModifyMessage$Companion;
+	public synthetic fun <init> (ILjava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;)V
+	public fun getPropertyName ()Ljava/lang/String;
+	public final fun getValue ()Lkotlinx/serialization/json/JsonElement;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/services/MagixRegistryModifyMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/services/MagixRegistryModifyMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/magix/services/MagixRegistryModifyMessage$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/magix/services/MagixRegistryModifyMessage;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/magix/services/MagixRegistryModifyMessage;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryModifyMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryRequestMessage : space/kscience/magix/services/MagixRegistryMessage {
+	public static final field Companion Lspace/kscience/magix/services/MagixRegistryRequestMessage$Companion;
+	public synthetic fun <init> (ILjava/lang/String;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;)V
+	public fun getPropertyName ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/services/MagixRegistryRequestMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/services/MagixRegistryRequestMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/magix/services/MagixRegistryRequestMessage$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/magix/services/MagixRegistryRequestMessage;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/magix/services/MagixRegistryRequestMessage;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryRequestMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryValueMessage : space/kscience/magix/services/MagixRegistryMessage {
+	public static final field Companion Lspace/kscience/magix/services/MagixRegistryValueMessage$Companion;
+	public synthetic fun <init> (ILjava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;)V
+	public fun getPropertyName ()Ljava/lang/String;
+	public final fun getValue ()Lkotlinx/serialization/json/JsonElement;
+	public static final synthetic fun write$Self (Lspace/kscience/magix/services/MagixRegistryValueMessage;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/magix/services/MagixRegistryValueMessage$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/magix/services/MagixRegistryValueMessage$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/magix/services/MagixRegistryValueMessage;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/magix/services/MagixRegistryValueMessage;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/magix/services/MagixRegistryValueMessage$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract interface class space/kscience/magix/services/MutableMagixRegistry {
+	public abstract fun set (Ljava/lang/String;Lkotlinx/serialization/json/JsonElement;Lkotlinx/serialization/json/JsonElement;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+

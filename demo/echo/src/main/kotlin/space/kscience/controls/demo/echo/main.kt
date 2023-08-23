@@ -22,7 +22,7 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
     scope.launch {
         subscribe(
             MagixMessageFilter(
-                origin = listOf("loop")
+                source = listOf("loop")
             )
         ).collect { message ->
             if (message.id?.endsWith(".response") == true) {
@@ -44,8 +44,8 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
                 MagixMessage(
                     format = "test",
                     payload = JsonObject(emptyMap()),
-                    origin = "test",
-                    target = "loop",
+                    sourceEndpoint = "test",
+                    targetEndpoint = "loop",
                     id = it.toString()
                 )
             )
@@ -60,14 +60,14 @@ private suspend fun MagixEndpoint.collectEcho(scope: CoroutineScope, n: Int) {
 @OptIn(ExperimentalTime::class)
 suspend fun main(): Unit = coroutineScope {
     launch(Dispatchers.Default) {
-        val server = startMagixServer(MagixFlowPlugin { _, flow ->
+        val server = startMagixServer(MagixFlowPlugin { _, flow, send ->
             val logger = LoggerFactory.getLogger("echo")
             //echo each message
             flow.onEach { message ->
                 if (message.parentId == null) {
-                    val m = message.copy(origin = "loop", parentId = message.id, id = message.id + ".response")
+                    val m = message.copy(sourceEndpoint = "loop", parentId = message.id, id = message.id + ".response")
                     logger.info(m.toString())
-                    flow.emit(m)
+                    send(m)
                 }
             }.launchIn(this)
         })

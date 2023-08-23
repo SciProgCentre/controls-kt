@@ -5,6 +5,10 @@ plugins {
 
 val dataforgeVersion: String by rootProject.extra
 
+description = """
+    An API for stand-alone Controls-kt device or a hub.
+""".trimIndent()
+
 kscience{
     jvm()
     js()
@@ -13,7 +17,7 @@ kscience{
     }
     dependencies(jvmMain){
         api(projects.magix.magixApi)
-        api(projects.controlsMagixClient)
+        api(projects.controlsMagix)
         api(projects.magix.magixServer)
     }
 }

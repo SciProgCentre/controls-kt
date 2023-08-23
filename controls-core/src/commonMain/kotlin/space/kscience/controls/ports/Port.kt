@@ -18,10 +18,10 @@ public interface Port : ContextAware, Socket<ByteArray>
  * A specialized factory for [Port]
  */
 @Type(PortFactory.TYPE)
-public interface PortFactory: Factory<Port>{
+public interface PortFactory : Factory<Port> {
     public val type: String
 
-    public companion object{
+    public companion object {
         public const val TYPE: String = "controls.port"
     }
 }
@@ -53,11 +53,9 @@ public abstract class AbstractPort(
     /**
      * Internal method to receive data synchronously
      */
-    protected fun receive(data: ByteArray) {
-        scope.launch {
-            logger.debug { "${this@AbstractPort} RECEIVED: ${data.decodeToString()}" }
-            incoming.send(data)
-        }
+    protected suspend fun receive(data: ByteArray) {
+        logger.debug { "${this@AbstractPort} RECEIVED: ${data.decodeToString()}" }
+        incoming.send(data)
     }
 
     private val sendJob = scope.launch {
@@ -82,7 +80,7 @@ public abstract class AbstractPort(
     /**
      * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
      * In order to form phrases, some condition should be used on top of it.
-     * For example [delimitedIncoming] generates phrases with fixed delimiter.
+     * For example [stringsDelimitedIncoming] generates phrases with fixed delimiter.
      */
     override fun receiving(): Flow<ByteArray> = incoming.receiveAsFlow()
 

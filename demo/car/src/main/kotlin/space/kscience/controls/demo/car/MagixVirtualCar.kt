@@ -2,7 +2,8 @@ package space.kscience.controls.demo.car
 
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.client.controlsMagixFormat
+import space.kscience.controls.client.magixFormat
+import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.write
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -18,7 +19,7 @@ import kotlin.time.ExperimentalTime
 class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) {
 
     private fun MagixEndpoint.launchMagixVirtualCarUpdate() = launch {
-        subscribe(controlsMagixFormat).collect { (_, payload) ->
+        subscribe(DeviceManager.magixFormat).collect { (_, payload) ->
             (payload as? PropertyChangedMessage)?.let { message ->
                 if (message.sourceDevice == Name.parse("virtual-car")) {
                     when (message.property) {

@@ -1,0 +1,5 @@
+public final class space/kscience/controls/demo/echo/MainKt {
+	public static final fun main (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun main ([Ljava/lang/String;)V
+}
+

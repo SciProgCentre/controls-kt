@@ -5,17 +5,18 @@ plugins {
 
 val xodusVersion: String by rootProject.extra
 
-kscience{
+kscience {
     useCoroutines()
 }
 
 dependencies {
-    api(projects.magix.magixApi)
+    api(projects.magix.magixStorage)
     implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
+//    implementation("org.jetbrains.xodus:dnq:2.0.0")
 
     testImplementation(spclibs.kotlinx.coroutines.test)
 }
 
-readme{
+readme {
     maturity = space.kscience.gradle.Maturity.PROTOTYPE
 }

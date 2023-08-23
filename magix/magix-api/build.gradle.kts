@@ -1,7 +1,13 @@
+import space.kscience.gradle.Maturity
+
 plugins {
     id("space.kscience.gradle.mpp")
     `maven-publish`
 }
+
+description = """
+    A kotlin API for magix standard and some zero-dependency magix services
+""".trimIndent()
 
 kscience {
     jvm()
@@ -13,3 +19,6 @@ kscience {
     }
 }
 
+readme{
+    maturity = Maturity.EXPERIMENTAL
+}

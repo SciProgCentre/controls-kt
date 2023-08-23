@@ -4,17 +4,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.serialization.Serializable
 
+/**
+ * A filter that allows receiving only messages with format, origin and target in given list.
+ */
 @Serializable
 public data class MagixMessageFilter(
-    val format: Collection<String?>? = null,
-    val origin: Collection<String?>? = null,
-    val target: Collection<String?>? = null,
+    val format: Collection<String>? = null,
+    val source: Collection<String>? = null,
+    val target: Collection<String>? = null,
 ) {
 
     public fun accepts(message: MagixMessage): Boolean =
         format?.contains(message.format) ?: true
-                && origin?.contains(message.origin) ?: true
-                && target?.contains(message.target) ?: true
+                && source?.contains(message.sourceEndpoint) ?: true
+                && target?.contains(message.targetEndpoint) ?: true
 
     public companion object {
         public val ALL: MagixMessageFilter = MagixMessageFilter()

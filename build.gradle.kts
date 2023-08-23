@@ -6,14 +6,14 @@ plugins {
     id("space.kscience.gradle.project")
 }
 
-val dataforgeVersion: String by extra("0.6.1")
+val dataforgeVersion: String by extra("0.6.2-dev-3")
 val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 val xodusVersion by extra("2.0.1")
 
 allprojects {
     group = "space.kscience"
-    version = "0.2.0-dev-1"
+    version = "0.2.0"
     repositories{
         maven("https://maven.pkg.jetbrains.space/spc/p/sci/dev")
     }
@@ -29,10 +29,9 @@ ksciencePublish {
         if (isInDevelopment) {
             "https://maven.pkg.jetbrains.space/spc/p/sci/dev"
         } else {
-            "https://maven.pkg.jetbrains.space/spc/p/sci/release"
+            "https://maven.pkg.jetbrains.space/spc/p/sci/maven"
         }
     )
-    space("https://maven.pkg.jetbrains.space/spc/p/controls/maven")
 }
 
 readme.readmeTemplate = file("docs/templates/README-TEMPLATE.md")

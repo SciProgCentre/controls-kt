@@ -47,24 +47,24 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, r
         install(WebSockets)
     }
 
+    if (pluginOrNull(RSocketSupport) == null) {
+        install(RSocketSupport)
+    }
+
+
 //    if (pluginOrNull(CORS) == null) {
 //        install(CORS) {
 //            //TODO consider more safe policy
 //            anyHost()
 //        }
 //    }
-    if (pluginOrNull(ContentNegotiation) == null) {
-        install(ContentNegotiation) {
-            json()
-        }
-    }
 
-    if (pluginOrNull(RSocketSupport) == null) {
-        install(RSocketSupport)
-    }
 
     routing {
         route(route) {
+            install(ContentNegotiation){
+                json()
+            }
             get("state") {
                 call.respondHtml {
                     head {
@@ -104,8 +104,11 @@ public fun Application.magixModule(magixFlow: MutableSharedFlow<MagixMessage>, r
                 val message = call.receive<MagixMessage>()
                 magixFlow.emit(message)
             }
-            //rSocket server. Filter from Payload
-            rSocket("rsocket", acceptor = RSocketMagixFlowPlugin.acceptor( application, magixFlow))
+            //rSocket WS server. Filter from Payload
+            rSocket(
+                "rsocket",
+                acceptor = RSocketMagixFlowPlugin.acceptor(application, magixFlow) { magixFlow.emit(it) }
+            )
         }
     }
 }

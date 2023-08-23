@@ -1,0 +1,199 @@
+public final class space/kscience/controls/client/ControlsMagixKt {
+	public static final fun getMagixFormat (Lspace/kscience/controls/manager/DeviceManager$Companion;)Lspace/kscience/magix/api/MagixFormat;
+	public static final fun launchMagixService (Lspace/kscience/controls/manager/DeviceManager;Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;)Lkotlinx/coroutines/Job;
+	public static synthetic fun launchMagixService$default (Lspace/kscience/controls/manager/DeviceManager;Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/Job;
+}
+
+public final class space/kscience/controls/client/DeviceClient : space/kscience/controls/api/Device {
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/names/Name;Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function2;)V
+	public fun execute (Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getActionDescriptors ()Ljava/util/Collection;
+	public fun getContext ()Lspace/kscience/dataforge/context/Context;
+	public fun getCoroutineContext ()Lkotlin/coroutines/CoroutineContext;
+	public fun getLifecycleState ()Lspace/kscience/controls/api/DeviceLifecycleState;
+	public fun getMessageFlow ()Lkotlinx/coroutines/flow/Flow;
+	public fun getProperty (Ljava/lang/String;)Lspace/kscience/dataforge/meta/Meta;
+	public fun getPropertyDescriptors ()Ljava/util/Collection;
+	public fun invalidate (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun readProperty (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun writeProperty (Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class space/kscience/controls/client/DeviceClientKt {
+	public static final fun remoteDevice (Lspace/kscience/magix/api/MagixEndpoint;Lspace/kscience/dataforge/context/Context;Ljava/lang/String;Lspace/kscience/dataforge/names/Name;)Lspace/kscience/controls/client/DeviceClient;
+}
+
+public final class space/kscience/controls/client/DoocsAction : java/lang/Enum {
+	public static final field Companion Lspace/kscience/controls/client/DoocsAction$Companion;
+	public static final field get Lspace/kscience/controls/client/DoocsAction;
+	public static final field names Lspace/kscience/controls/client/DoocsAction;
+	public static final field set Lspace/kscience/controls/client/DoocsAction;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lspace/kscience/controls/client/DoocsAction;
+	public static fun values ()[Lspace/kscience/controls/client/DoocsAction;
+}
+
+public final class space/kscience/controls/client/DoocsAction$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/DoocsPayload {
+	public static final field Companion Lspace/kscience/controls/client/DoocsPayload$Companion;
+	public synthetic fun <init> (ILspace/kscience/controls/client/DoocsAction;Ljava/lang/String;Lspace/kscience/controls/client/EqData;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Lspace/kscience/controls/client/DoocsAction;Ljava/lang/String;Lspace/kscience/controls/client/EqData;)V
+	public final fun component1 ()Lspace/kscience/controls/client/DoocsAction;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lspace/kscience/controls/client/EqData;
+	public final fun copy (Lspace/kscience/controls/client/DoocsAction;Ljava/lang/String;Lspace/kscience/controls/client/EqData;)Lspace/kscience/controls/client/DoocsPayload;
+	public static synthetic fun copy$default (Lspace/kscience/controls/client/DoocsPayload;Lspace/kscience/controls/client/DoocsAction;Ljava/lang/String;Lspace/kscience/controls/client/EqData;ILjava/lang/Object;)Lspace/kscience/controls/client/DoocsPayload;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAction ()Lspace/kscience/controls/client/DoocsAction;
+	public final fun getAddress ()Ljava/lang/String;
+	public final fun getData ()Lspace/kscience/controls/client/EqData;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/controls/client/DoocsPayload;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/controls/client/DoocsPayload$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/controls/client/DoocsPayload$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/controls/client/DoocsPayload;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/controls/client/DoocsPayload;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/DoocsPayload$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/EqData {
+	public static final field Companion Lspace/kscience/controls/client/EqData$Companion;
+	public synthetic fun <init> (IILjava/lang/String;Lspace/kscience/dataforge/meta/Meta;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/String;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (ILjava/lang/String;Lspace/kscience/dataforge/meta/Meta;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/String;)V
+	public synthetic fun <init> (ILjava/lang/String;Lspace/kscience/dataforge/meta/Meta;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun component5 ()Ljava/lang/Integer;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (ILjava/lang/String;Lspace/kscience/dataforge/meta/Meta;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/String;)Lspace/kscience/controls/client/EqData;
+	public static synthetic fun copy$default (Lspace/kscience/controls/client/EqData;ILjava/lang/String;Lspace/kscience/dataforge/meta/Meta;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/client/EqData;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getError ()Ljava/lang/Integer;
+	public final fun getEventId ()Ljava/lang/Integer;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getTime ()Ljava/lang/Long;
+	public final fun getType ()Ljava/lang/String;
+	public final fun getTypeId ()I
+	public final fun getValue ()Lspace/kscience/dataforge/meta/Meta;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/controls/client/EqData;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/controls/client/EqData$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/controls/client/EqData$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/controls/client/EqData;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/controls/client/EqData;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/EqData$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/TangoAction : java/lang/Enum {
+	public static final field Companion Lspace/kscience/controls/client/TangoAction$Companion;
+	public static final field exec Lspace/kscience/controls/client/TangoAction;
+	public static final field pipe Lspace/kscience/controls/client/TangoAction;
+	public static final field read Lspace/kscience/controls/client/TangoAction;
+	public static final field write Lspace/kscience/controls/client/TangoAction;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lspace/kscience/controls/client/TangoAction;
+	public static fun values ()[Lspace/kscience/controls/client/TangoAction;
+}
+
+public final class space/kscience/controls/client/TangoAction$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/TangoMagixKt {
+	public static final field TANGO_MAGIX_FORMAT Ljava/lang/String;
+	public static final fun launchTangoMagix (Lspace/kscience/controls/manager/DeviceManager;Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;)Lkotlinx/coroutines/Job;
+	public static synthetic fun launchTangoMagix$default (Lspace/kscience/controls/manager/DeviceManager;Lspace/kscience/magix/api/MagixEndpoint;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/Job;
+}
+
+public final class space/kscience/controls/client/TangoPayload {
+	public static final field Companion Lspace/kscience/controls/client/TangoPayload$Companion;
+	public synthetic fun <init> (ILspace/kscience/controls/client/TangoAction;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/controls/client/TangoQuality;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Ljava/util/List;Lkotlinx/serialization/internal/SerializationConstructorMarker;)V
+	public fun <init> (Lspace/kscience/controls/client/TangoAction;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/controls/client/TangoQuality;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Ljava/util/List;)V
+	public synthetic fun <init> (Lspace/kscience/controls/client/TangoAction;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/controls/client/TangoQuality;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lspace/kscience/controls/client/TangoAction;
+	public final fun component10 ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun component11 ()Ljava/util/List;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun component7 ()Lspace/kscience/controls/client/TangoQuality;
+	public final fun component8 ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun component9 ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun copy (Lspace/kscience/controls/client/TangoAction;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/controls/client/TangoQuality;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Ljava/util/List;)Lspace/kscience/controls/client/TangoPayload;
+	public static synthetic fun copy$default (Lspace/kscience/controls/client/TangoPayload;Lspace/kscience/controls/client/TangoAction;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/controls/client/TangoQuality;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Lspace/kscience/dataforge/meta/Meta;Ljava/util/List;ILjava/lang/Object;)Lspace/kscience/controls/client/TangoPayload;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAction ()Lspace/kscience/controls/client/TangoAction;
+	public final fun getArgin ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun getArgout ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun getData ()Lspace/kscience/dataforge/meta/Meta;
+	public final fun getDevice ()Ljava/lang/String;
+	public final fun getErrors ()Ljava/util/List;
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getQuality ()Lspace/kscience/controls/client/TangoQuality;
+	public final fun getTimestamp ()I
+	public final fun getValue ()Lspace/kscience/dataforge/meta/Meta;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public static final synthetic fun write$Self (Lspace/kscience/controls/client/TangoPayload;Lkotlinx/serialization/encoding/CompositeEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;)V
+}
+
+public final class space/kscience/controls/client/TangoPayload$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lspace/kscience/controls/client/TangoPayload$$serializer;
+	public fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lspace/kscience/controls/client/TangoPayload;
+	public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lspace/kscience/controls/client/TangoPayload;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/TangoPayload$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class space/kscience/controls/client/TangoQuality : java/lang/Enum {
+	public static final field ALARM Lspace/kscience/controls/client/TangoQuality;
+	public static final field Companion Lspace/kscience/controls/client/TangoQuality$Companion;
+	public static final field VALID Lspace/kscience/controls/client/TangoQuality;
+	public static final field WARNING Lspace/kscience/controls/client/TangoQuality;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lspace/kscience/controls/client/TangoQuality;
+	public static fun values ()[Lspace/kscience/controls/client/TangoQuality;
+}
+
+public final class space/kscience/controls/client/TangoQuality$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+

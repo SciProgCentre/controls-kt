@@ -1,0 +1,166 @@
+public final class space/kscience/controls/modbus/DeviceProcessImageBuilder {
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Lkotlin/jvm/functions/Function2;)Lcom/ghgande/j2mod/modbus/procimg/ObservableDigitalOut;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Lspace/kscience/controls/spec/WritableDevicePropertySpec;)Lcom/ghgande/j2mod/modbus/procimg/ObservableDigitalOut;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;Lkotlin/jvm/functions/Function2;)Lcom/ghgande/j2mod/modbus/procimg/DigitalIn;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;Lspace/kscience/controls/spec/DevicePropertySpec;)Lcom/ghgande/j2mod/modbus/procimg/DigitalIn;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRange;Lspace/kscience/controls/spec/WritableDevicePropertySpec;)V
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;Lkotlin/jvm/functions/Function2;)Lcom/ghgande/j2mod/modbus/procimg/ObservableRegister;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;Lspace/kscience/controls/spec/WritableDevicePropertySpec;)Lcom/ghgande/j2mod/modbus/procimg/ObservableRegister;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRange;Lspace/kscience/controls/spec/DevicePropertySpec;)V
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRegister;Lkotlin/jvm/functions/Function2;)Lcom/ghgande/j2mod/modbus/procimg/SimpleInputRegister;
+	public final fun bind (Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRegister;Lspace/kscience/controls/spec/DevicePropertySpec;)Lcom/ghgande/j2mod/modbus/procimg/SimpleInputRegister;
+	public static synthetic fun bind$default (Lspace/kscience/controls/modbus/DeviceProcessImageBuilder;Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lcom/ghgande/j2mod/modbus/procimg/ObservableDigitalOut;
+	public static synthetic fun bind$default (Lspace/kscience/controls/modbus/DeviceProcessImageBuilder;Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lcom/ghgande/j2mod/modbus/procimg/DigitalIn;
+	public static synthetic fun bind$default (Lspace/kscience/controls/modbus/DeviceProcessImageBuilder;Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lcom/ghgande/j2mod/modbus/procimg/ObservableRegister;
+	public static synthetic fun bind$default (Lspace/kscience/controls/modbus/DeviceProcessImageBuilder;Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRegister;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lcom/ghgande/j2mod/modbus/procimg/SimpleInputRegister;
+	public final fun bindAction (Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Lkotlin/jvm/functions/Function3;)Lcom/ghgande/j2mod/modbus/procimg/ObservableDigitalOut;
+	public final fun bindAction (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRange;Lkotlin/jvm/functions/Function3;)Ljava/util/List;
+	public final fun bindAction (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;Lkotlin/jvm/functions/Function3;)Lcom/ghgande/j2mod/modbus/procimg/ObservableRegister;
+	public final fun getImage ()Lcom/ghgande/j2mod/modbus/procimg/ProcessImageImplementation;
+}
+
+public final class space/kscience/controls/modbus/DeviceProcessImageKt {
+	public static final fun bindProcessImage (Lspace/kscience/controls/api/Device;ZLkotlin/jvm/functions/Function1;)Lcom/ghgande/j2mod/modbus/procimg/ProcessImage;
+	public static synthetic fun bindProcessImage$default (Lspace/kscience/controls/api/Device;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/ghgande/j2mod/modbus/procimg/ProcessImage;
+}
+
+public abstract interface class space/kscience/controls/modbus/ModbusDevice : space/kscience/controls/api/Device {
+	public abstract fun getClientId ()I
+	public abstract fun getMaster ()Lcom/ghgande/j2mod/modbus/facade/AbstractModbusMaster;
+	public fun getValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Ljava/lang/Object;Lkotlin/reflect/KProperty;)Z
+	public fun getValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;Ljava/lang/Object;Lkotlin/reflect/KProperty;)Z
+	public fun getValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRange;Ljava/lang/Object;Lkotlin/reflect/KProperty;)Ljava/lang/Object;
+	public fun getValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;Ljava/lang/Object;Lkotlin/reflect/KProperty;)S
+	public fun getValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRange;Ljava/lang/Object;Lkotlin/reflect/KProperty;)Ljava/lang/Object;
+	public fun getValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRegister;Ljava/lang/Object;Lkotlin/reflect/KProperty;)S
+	public fun setValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Ljava/lang/Object;Lkotlin/reflect/KProperty;Z)V
+	public fun setValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRange;Ljava/lang/Object;Lkotlin/reflect/KProperty;Ljava/lang/Object;)V
+	public fun setValue (Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;Ljava/lang/Object;Lkotlin/reflect/KProperty;S)V
+}
+
+public class space/kscience/controls/modbus/ModbusDeviceBySpec : space/kscience/controls/spec/DeviceBySpec, space/kscience/controls/modbus/ModbusDevice {
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/controls/spec/DeviceSpec;ILcom/ghgande/j2mod/modbus/facade/AbstractModbusMaster;ZLspace/kscience/dataforge/meta/Meta;)V
+	public synthetic fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/controls/spec/DeviceSpec;ILcom/ghgande/j2mod/modbus/facade/AbstractModbusMaster;ZLspace/kscience/dataforge/meta/Meta;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public fun getClientId ()I
+	public fun getMaster ()Lcom/ghgande/j2mod/modbus/facade/AbstractModbusMaster;
+	public fun open (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class space/kscience/controls/modbus/ModbusDeviceKt {
+	public static final fun modbusDoubleRegister (Lspace/kscience/controls/modbus/ModbusDevice;I)Lkotlin/properties/ReadWriteProperty;
+	public static final fun modbusRegister (Lspace/kscience/controls/modbus/ModbusDevice;I)Lkotlin/properties/ReadWriteProperty;
+	public static final fun readCoil (Lspace/kscience/controls/modbus/ModbusDevice;I)Z
+	public static final fun readCoils (Lspace/kscience/controls/modbus/ModbusDevice;II)Lcom/ghgande/j2mod/modbus/util/BitVector;
+	public static final fun readDoubleInput (Lspace/kscience/controls/modbus/ModbusDevice;I)D
+	public static final fun readDoubleRegister (Lspace/kscience/controls/modbus/ModbusDevice;I)D
+	public static final fun readHoldingRegister (Lspace/kscience/controls/modbus/ModbusDevice;I)S
+	public static final fun readHoldingRegisters (Lspace/kscience/controls/modbus/ModbusDevice;II)Ljava/util/List;
+	public static final fun readHoldingRegistersToBuffer (Lspace/kscience/controls/modbus/ModbusDevice;II)Ljava/nio/ByteBuffer;
+	public static final fun readHoldingRegistersToPacket (Lspace/kscience/controls/modbus/ModbusDevice;II)Lio/ktor/utils/io/core/ByteReadPacket;
+	public static final fun readInputDiscrete (Lspace/kscience/controls/modbus/ModbusDevice;I)Z
+	public static final fun readInputDiscretes (Lspace/kscience/controls/modbus/ModbusDevice;II)Lcom/ghgande/j2mod/modbus/util/BitVector;
+	public static final fun readInputRegister (Lspace/kscience/controls/modbus/ModbusDevice;I)S
+	public static final fun readInputRegisters (Lspace/kscience/controls/modbus/ModbusDevice;II)Ljava/util/List;
+	public static final fun readInputRegistersToBuffer (Lspace/kscience/controls/modbus/ModbusDevice;II)Ljava/nio/ByteBuffer;
+	public static final fun readInputRegistersToPacket (Lspace/kscience/controls/modbus/ModbusDevice;II)Lio/ktor/utils/io/core/ByteReadPacket;
+	public static final fun writeCoil (Lspace/kscience/controls/modbus/ModbusDevice;IZ)V
+	public static final fun writeCoil (Lspace/kscience/controls/modbus/ModbusDevice;Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;Z)V
+	public static final fun writeCoils (Lspace/kscience/controls/modbus/ModbusDevice;I[Z)V
+	public static final fun writeHoldingRegister (Lspace/kscience/controls/modbus/ModbusDevice;IS)I
+	public static final fun writeHoldingRegister (Lspace/kscience/controls/modbus/ModbusDevice;Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;S)I
+	public static final fun writeHoldingRegisters (Lspace/kscience/controls/modbus/ModbusDevice;ILjava/nio/ByteBuffer;)I
+	public static final fun writeHoldingRegisters (Lspace/kscience/controls/modbus/ModbusDevice;I[S)I
+	public static final fun writeShortRegister (Lspace/kscience/controls/modbus/ModbusDevice;IS)V
+}
+
+public final class space/kscience/controls/modbus/ModbusHub : java/lang/AutoCloseable, space/kscience/controls/api/DeviceHub {
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lkotlin/jvm/functions/Function0;Ljava/util/Map;)V
+	public fun close ()V
+	public final fun getContext ()Lspace/kscience/dataforge/context/Context;
+	public fun getDevices ()Ljava/util/Map;
+	public final fun getMaster ()Lcom/ghgande/j2mod/modbus/facade/AbstractModbusMaster;
+	public final fun getMasterBuilder ()Lkotlin/jvm/functions/Function0;
+	public final fun getSpecs ()Ljava/util/Map;
+}
+
+public abstract class space/kscience/controls/modbus/ModbusRegistryKey {
+	public abstract fun getAddress ()I
+	public fun getCount ()I
+}
+
+public final class space/kscience/controls/modbus/ModbusRegistryKey$Coil : space/kscience/controls/modbus/ModbusRegistryKey {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;
+	public static synthetic fun copy$default (Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;IILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getAddress ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput : space/kscience/controls/modbus/ModbusRegistryKey {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;
+	public static synthetic fun copy$default (Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;IILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getAddress ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/controls/modbus/ModbusRegistryKey$HoldingRange : space/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister {
+	public fun <init> (IILspace/kscience/dataforge/io/IOFormat;)V
+	public fun getCount ()I
+	public final fun getEndAddress ()I
+	public final fun getFormat ()Lspace/kscience/dataforge/io/IOFormat;
+	public fun toString ()Ljava/lang/String;
+}
+
+public class space/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister : space/kscience/controls/modbus/ModbusRegistryKey {
+	public fun <init> (I)V
+	public fun getAddress ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class space/kscience/controls/modbus/ModbusRegistryKey$InputRange : space/kscience/controls/modbus/ModbusRegistryKey$InputRegister {
+	public fun <init> (IILspace/kscience/dataforge/io/IOFormat;)V
+	public fun getCount ()I
+	public final fun getEndAddress ()I
+	public final fun getFormat ()Lspace/kscience/dataforge/io/IOFormat;
+	public fun toString ()Ljava/lang/String;
+}
+
+public class space/kscience/controls/modbus/ModbusRegistryKey$InputRegister : space/kscience/controls/modbus/ModbusRegistryKey {
+	public fun <init> (I)V
+	public fun getAddress ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class space/kscience/controls/modbus/ModbusRegistryMap {
+	public static final field Companion Lspace/kscience/controls/modbus/ModbusRegistryMap$Companion;
+	public fun <init> ()V
+	protected final fun coil (ILjava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;
+	public static synthetic fun coil$default (Lspace/kscience/controls/modbus/ModbusRegistryMap;ILjava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$Coil;
+	protected final fun discrete (ILjava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;
+	public static synthetic fun discrete$default (Lspace/kscience/controls/modbus/ModbusRegistryMap;ILjava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$DiscreteInput;
+	public final fun getEntries ()Ljava/util/Map;
+	protected final fun input (IILspace/kscience/dataforge/io/IOFormat;Ljava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRange;
+	protected final fun input (ILjava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRegister;
+	public static synthetic fun input$default (Lspace/kscience/controls/modbus/ModbusRegistryMap;IILspace/kscience/dataforge/io/IOFormat;Ljava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRange;
+	public static synthetic fun input$default (Lspace/kscience/controls/modbus/ModbusRegistryMap;ILjava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$InputRegister;
+	protected final fun register (IILspace/kscience/dataforge/io/IOFormat;Ljava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRange;
+	protected final fun register (ILjava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;
+	protected final fun register (Lspace/kscience/controls/modbus/ModbusRegistryKey;Ljava/lang/String;)Lspace/kscience/controls/modbus/ModbusRegistryKey;
+	public static synthetic fun register$default (Lspace/kscience/controls/modbus/ModbusRegistryMap;IILspace/kscience/dataforge/io/IOFormat;Ljava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRange;
+	public static synthetic fun register$default (Lspace/kscience/controls/modbus/ModbusRegistryMap;ILjava/lang/String;ILjava/lang/Object;)Lspace/kscience/controls/modbus/ModbusRegistryKey$HoldingRegister;
+}
+
+public final class space/kscience/controls/modbus/ModbusRegistryMap$Companion {
+	public final fun print (Lspace/kscience/controls/modbus/ModbusRegistryMap;Ljava/lang/Appendable;)V
+	public static synthetic fun print$default (Lspace/kscience/controls/modbus/ModbusRegistryMap$Companion;Lspace/kscience/controls/modbus/ModbusRegistryMap;Ljava/lang/Appendable;ILjava/lang/Object;)V
+	public final fun validate (Lspace/kscience/controls/modbus/ModbusRegistryMap;)V
+}
+

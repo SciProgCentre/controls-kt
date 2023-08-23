@@ -10,20 +10,16 @@ import io.rsocket.kotlin.ktor.client.rSocket
 import io.rsocket.kotlin.payload.Payload
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.map
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 
 /**
  * RSocket endpoint based on an established channel. This way it works a lot faster than [RSocketMagixEndpoint]
@@ -33,11 +29,10 @@ import kotlin.coroutines.coroutineContext
  */
 public class RSocketStreamMagixEndpoint(
     private val rSocket: RSocket,
-    private val coroutineContext: CoroutineContext,
     public val streamFilter: MagixMessageFilter = MagixMessageFilter(),
 ) : MagixEndpoint, Closeable {
 
-    private val output: MutableSharedFlow<MagixMessage> = MutableSharedFlow()
+    private val output: Channel<Payload> = Channel()
 
     private val input: Flow<Payload> by lazy {
         rSocket.requestChannel(
@@ -49,24 +44,22 @@ public class RSocketStreamMagixEndpoint(
                     )
                 )
             },
-            output.map { message ->
-                buildPayload {
-                    data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message))
-                }
-            }.flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
+            output.consumeAsFlow()
         )
     }
 
     override fun subscribe(
         filter: MagixMessageFilter,
-    ): Flow<MagixMessage> {
-        return input.map {
-            MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
-        }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
-    }
+    ): Flow<MagixMessage> = input.map {
+        MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
+    }.filter(filter)
 
     override suspend fun broadcast(message: MagixMessage): Unit {
-        output.emit(message)
+        output.send(
+            buildPayload {
+                data(MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message))
+            }
+        )
     }
 
     override fun close() {
@@ -95,5 +88,5 @@ public suspend fun MagixEndpoint.Companion.rSocketStreamWithWebSockets(
         client.close()
     }
 
-    return RSocketStreamMagixEndpoint(rSocket, coroutineContext, filter)
+    return RSocketStreamMagixEndpoint(rSocket, filter)
 }

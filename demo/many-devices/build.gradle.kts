@@ -14,12 +14,12 @@ val rsocketVersion: String by rootProject.extra
 
 dependencies {
     implementation(projects.magix.magixServer)
-    implementation(projects.controlsMagixClient)
+    implementation(projects.controlsMagix)
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
 
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("space.kscience:plotlykt-server:0.5.3")
+    implementation("space.kscience:plotlykt-server:0.6.0")
     implementation(spclibs.logback.classic)
 }
 

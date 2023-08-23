@@ -23,7 +23,7 @@ val ktorVersion: String by rootProject.extra
 val dataforgeVersion: String by extra
 
 dependencies {
-    implementation(project(":controls-ktor-tcp"))
-    implementation(project(":controls-magix-client"))
+    implementation(project(":controls-ports-ktor"))
+    implementation(projects.controlsMagix)
     implementation("no.tornado:tornadofx:1.7.20")
 }
