@@ -1,3 +1,5 @@
+import space.kscience.gradle.Maturity
+
 plugins {
     id("space.kscience.gradle.jvm")
     `maven-publish`
@@ -28,4 +30,8 @@ dependencies{
 
     api("io.rsocket.kotlin:rsocket-ktor-server:$rsocketVersion")
     api("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
+}
+
+readme{
+    maturity = Maturity.EXPERIMENTAL
 }

@@ -1,3 +1,5 @@
+import space.kscience.gradle.Maturity
+
 plugins {
     id("space.kscience.gradle.mpp")
     `maven-publish`
@@ -35,4 +37,8 @@ kotlin {
             }
         }
     }
+}
+
+readme {
+    maturity = Maturity.EXPERIMENTAL
 }

@@ -5,6 +5,10 @@ plugins {
 
 val dataforgeVersion: String by rootProject.extra
 
+description = """
+    An API for stand-alone Controls-kt device or a hub.
+""".trimIndent()
+
 kscience{
     jvm()
     js()

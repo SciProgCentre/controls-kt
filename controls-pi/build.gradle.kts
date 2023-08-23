@@ -3,6 +3,10 @@ plugins {
     `maven-publish`
 }
 
+description = """
+    Utils to work with controls-kt on Raspberry pi
+""".trimIndent()
+
 dependencies{
     api(project(":controls-core"))
     api("com.pi4j:pi4j-ktx:2.4.0") // Kotlin DSL

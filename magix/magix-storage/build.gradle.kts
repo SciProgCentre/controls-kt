@@ -1,3 +1,5 @@
+import space.kscience.gradle.Maturity
+
 plugins {
     id("space.kscience.gradle.mpp")
     `maven-publish`
@@ -20,4 +22,8 @@ kscience {
         api(projects.magix.magixApi)
         api(spclibs.kotlinx.datetime)
     }
+}
+
+readme{
+    maturity = Maturity.PROTOTYPE
 }

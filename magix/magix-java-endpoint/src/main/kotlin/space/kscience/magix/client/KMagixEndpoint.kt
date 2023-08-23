@@ -9,10 +9,10 @@ import space.kscience.magix.rsocket.rSocketWithTcp
 import space.kscience.magix.rsocket.rSocketWithWebSockets
 import java.util.concurrent.Flow
 
-internal class ControlsMagixClient<T>(
+internal class KMagixEndpoint<T>(
     private val endpoint: MagixEndpoint,
     private val filter: MagixMessageFilter,
-) : MagixClient<T> {
+) : JMagixEndpoint<T> {
 
     override fun broadcast(msg: MagixMessage): Unit = runBlocking {
         endpoint.broadcast(msg)
@@ -25,22 +25,22 @@ internal class ControlsMagixClient<T>(
         fun <T> rSocketTcp(
             host: String,
             port: Int,
-        ): ControlsMagixClient<T> {
+        ): KMagixEndpoint<T> {
             val endpoint = runBlocking {
                 MagixEndpoint.rSocketWithTcp(host, port)
             }
-            return ControlsMagixClient(endpoint, MagixMessageFilter())
+            return KMagixEndpoint(endpoint, MagixMessageFilter())
         }
 
         fun <T> rSocketWs(
             host: String,
             port: Int,
             path: String = "/rsocket"
-        ): ControlsMagixClient<T> {
+        ): KMagixEndpoint<T> {
             val endpoint = runBlocking {
                 MagixEndpoint.rSocketWithWebSockets(host, port, path)
             }
-            return ControlsMagixClient(endpoint, MagixMessageFilter())
+            return KMagixEndpoint(endpoint, MagixMessageFilter())
         }
     }
 }

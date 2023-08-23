@@ -54,7 +54,7 @@ include(
     ":magix:magix-api",
     ":magix:magix-server",
     ":magix:magix-rsocket",
-    ":magix:magix-java-client",
+    ":magix:magix-java-endpoint",
     ":magix:magix-zmq",
     ":magix:magix-rabbit",
     ":magix:magix-mqtt",

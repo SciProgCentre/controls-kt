@@ -12,7 +12,7 @@ import space.kscience.controls.spec.set
 import space.kscience.controls.spec.useProperty
 
 
-public class DeviceProcessImageBuilder<D : Device>(
+public class DeviceProcessImageBuilder<D : Device> internal constructor(
     private val device: D,
     public val image: ProcessImageImplementation,
 ) {
@@ -201,7 +201,9 @@ public class DeviceProcessImageBuilder<D : Device>(
 
 }
 
-
+/**
+ * Bind the device to Modbus slave (server) image.
+ */
 public fun <D : Device> D.bindProcessImage(
     openOnBind: Boolean = true,
     binding: DeviceProcessImageBuilder<D>.() -> Unit,

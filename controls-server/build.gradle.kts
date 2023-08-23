@@ -1,10 +1,12 @@
+import space.kscience.gradle.Maturity
+
 plugins {
     id("space.kscience.gradle.jvm")
     `maven-publish`
 }
 
 description = """
-   A magix event loop server with web server for visualization.
+   A combined Magix event loop server with web server for visualization.
 """.trimIndent()
 
 val dataforgeVersion: String by rootProject.extra
@@ -20,4 +22,8 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
     implementation("io.ktor:ktor-server-html-builder:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+}
+
+readme{
+    maturity = Maturity.PROTOTYPE
 }

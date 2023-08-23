@@ -1,12 +1,12 @@
-# Module magix-zmq
+# Module magix-java-endpoint
 
-ZMQ client endpoint for Magix
+Java API to work with magix endpoints without Kotlin
 
 ## Usage
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:magix-zmq:0.2.0`.
+The Maven coordinates of this project are `space.kscience:magix-java-endpoint:0.2.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -18,6 +18,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:magix-zmq:0.2.0")
+    implementation("space.kscience:magix-java-endpoint:0.2.0")
 }
 ```

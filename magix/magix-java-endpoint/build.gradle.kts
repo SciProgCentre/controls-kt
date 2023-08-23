@@ -1,11 +1,16 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import space.kscience.gradle.KScienceVersions
+import space.kscience.gradle.Maturity
 
 plugins {
     java
     id("space.kscience.gradle.jvm")
     `maven-publish`
 }
+
+description = """
+    Java API to work with magix endpoints without Kotlin
+""".trimIndent()
 
 dependencies {
     implementation(project(":magix:magix-rsocket"))
@@ -23,4 +28,8 @@ tasks.withType<KotlinCompile>{
     kotlinOptions {
         freeCompilerArgs -= "-Xjdk-release=11"
     }
+}
+
+readme{
+    maturity = Maturity.EXPERIMENTAL
 }

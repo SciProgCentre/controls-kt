@@ -33,6 +33,7 @@ import space.kscience.plotly.server.show
 import space.kscince.magix.zmq.ZmqMagixFlowPlugin
 import kotlin.random.Random
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.milliseconds
 
 
@@ -48,7 +49,7 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
         val value by doubleProperty { randomValue }
 
         override suspend fun MassDevice.onOpen() {
-            doRecurring(10.milliseconds) {
+            doRecurring((meta["delay"].int ?: 10).milliseconds) {
                 read(value)
             }
         }
@@ -68,6 +69,7 @@ suspend fun main() {
 
     repeat(numDevices) {
         context.launch(newFixedThreadPoolContext(2, "Device${it}")) {
+            delay(1)
             val deviceContext = Context("Device${it}") {
                 plugin(DeviceManager)
             }
@@ -89,6 +91,8 @@ suspend fun main() {
             plot(renderer = container) {
                 layout {
                     title = "Latest event"
+                    xaxis.title = "Device number"
+                    yaxis.title = "Maximum latency in ms"
                 }
                 bar {
                     launch(Dispatchers.IO) {
@@ -97,18 +101,23 @@ suspend fun main() {
                         val mutex = Mutex()
 
                         val latest = HashMap<String, Duration>()
+                        val max = HashMap<String, Duration>()
 
                         monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
                             mutex.withLock {
+                                val delay = Clock.System.now() - payload.time!!
                                 latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time!!
+                                max[magixMessage.sourceEndpoint] =
+                                    maxOf(delay, max[magixMessage.sourceEndpoint] ?: ZERO)
                             }
                         }.launchIn(this)
 
                         while (isActive) {
                             delay(200)
                             mutex.withLock {
-                                val sorted = latest.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
+                                val sorted = max.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
                                 latest.clear()
+                                max.clear()
                                 x.numbers = sorted.keys
                                 y.numbers = sorted.values.map { it.inWholeMilliseconds / 1000.0 + 0.0001 }
                             }
