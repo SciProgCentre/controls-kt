@@ -23,10 +23,7 @@ import space.kscience.magix.rsocket.rSocketWithTcp
 import space.kscience.magix.rsocket.rSocketWithWebSockets
 import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
-import space.kscience.plotly.Plotly
-import space.kscience.plotly.bar
-import space.kscience.plotly.layout
-import space.kscience.plotly.plot
+import space.kscience.plotly.*
 import space.kscience.plotly.server.PlotlyUpdateMode
 import space.kscience.plotly.server.serve
 import space.kscience.plotly.server.show
@@ -88,9 +85,10 @@ suspend fun main() {
         updateMode = PlotlyUpdateMode.PUSH
         updateInterval = 1000
         page { container ->
-            plot(renderer = container) {
+            plot(renderer = container, config = PlotlyConfig { saveAsSvg() }) {
                 layout {
-                    title = "Latest event"
+//                    title = "Latest event"
+
                     xaxis.title = "Device number"
                     yaxis.title = "Maximum latency in ms"
                 }
@@ -119,7 +117,7 @@ suspend fun main() {
                                 latest.clear()
                                 max.clear()
                                 x.numbers = sorted.keys
-                                y.numbers = sorted.values.map { it.inWholeMilliseconds / 1000.0 + 0.0001 }
+                                y.numbers = sorted.values.map { it.inWholeMicroseconds / 1000.0 + 0.0001 }
                             }
                         }
                     }

@@ -12,7 +12,7 @@ description = """
 dependencies {
     api(projects.magix.magixApi)
     api("org.slf4j:slf4j-api:2.0.6")
-    api("org.zeromq:jeromq:0.5.2")
+    api("org.zeromq:jeromq:0.5.3")
 }
 
 readme {
