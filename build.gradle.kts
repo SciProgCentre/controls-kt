@@ -13,7 +13,7 @@ val xodusVersion by extra("2.0.1")
 
 allprojects {
     group = "space.kscience"
-    version = "0.2.1-dev-1"
+    version = "0.2.1"
     repositories{
         maven("https://maven.pkg.jetbrains.space/spc/p/sci/dev")
     }
