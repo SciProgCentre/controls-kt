@@ -49,16 +49,16 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         if (powerOnValue) {
             val ans = talk("FP!ON")
             if (ans == "ON") {
-                updateLogical(powerOn, true)
+                propertyChanged(powerOn, true)
             } else {
-                updateLogical(error, "Failed to set power state")
+                propertyChanged(error, "Failed to set power state")
             }
         } else {
             val ans = talk("FP!OFF")
             if (ans == "OFF") {
-                updateLogical(powerOn, false)
+                propertyChanged(powerOn, false)
             } else {
-                updateLogical(error, "Failed to set power state")
+                propertyChanged(error, "Failed to set power state")
             }
         }
     }
@@ -68,13 +68,13 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         invalidate(error)
         return if (answer.isNullOrEmpty()) {
             //            updateState(PortSensor.CONNECTED_STATE, false)
-            updateLogical(error, "No connection")
+            propertyChanged(error, "No connection")
             null
         } else {
             val res = answer.toDouble()
             if (res <= 0) {
-                updateLogical(powerOn, false)
-                updateLogical(error, "No power")
+                propertyChanged(powerOn, false)
+                propertyChanged(error, "No power")
                 null
             } else {
                 res

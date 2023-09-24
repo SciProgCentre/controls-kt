@@ -87,7 +87,7 @@ public abstract class DeviceBase<D : Device>(
     /**
      * Update logical property state and notify listeners
      */
-    protected suspend fun updateLogical(propertyName: String, value: Meta?) {
+    protected suspend fun propertyChanged(propertyName: String, value: Meta?) {
         if (value != logicalState[propertyName]) {
             stateLock.withLock {
                 logicalState[propertyName] = value
@@ -99,10 +99,10 @@ public abstract class DeviceBase<D : Device>(
     }
 
     /**
-     * Update logical state using given [spec] and its convertor
+     * Notify the device that a property with [spec] value is changed
      */
-    public suspend fun <T> updateLogical(spec: DevicePropertySpec<D, T>, value: T) {
-        updateLogical(spec.name, spec.converter.objectToMeta(value))
+    protected suspend fun <T> propertyChanged(spec: DevicePropertySpec<D, T>, value: T) {
+        propertyChanged(spec.name, spec.converter.objectToMeta(value))
     }
 
     /**
@@ -112,7 +112,7 @@ public abstract class DeviceBase<D : Device>(
     override suspend fun readProperty(propertyName: String): Meta {
         val spec = properties[propertyName] ?: error("Property with name $propertyName not found")
         val meta = spec.readMeta(self) ?: error("Failed to read property $propertyName")
-        updateLogical(propertyName, meta)
+        propertyChanged(propertyName, meta)
         return meta
     }
 
@@ -122,7 +122,7 @@ public abstract class DeviceBase<D : Device>(
     public suspend fun readPropertyOrNull(propertyName: String): Meta? {
         val spec = properties[propertyName] ?: return null
         val meta = spec.readMeta(self) ?: return null
-        updateLogical(propertyName, meta)
+        propertyChanged(propertyName, meta)
         return meta
     }
 
@@ -137,13 +137,18 @@ public abstract class DeviceBase<D : Device>(
     override suspend fun writeProperty(propertyName: String, value: Meta): Unit {
         when (val property = properties[propertyName]) {
             null -> {
-                //If there is a physical property with a given name, invalidate logical property and write physical one
-                updateLogical(propertyName, value)
+                //If there are no physical properties with given name, write a logical one.
+                propertyChanged(propertyName, value)
             }
 
             is WritableDevicePropertySpec -> {
+                //if there is a writeable property with a given name, invalidate logical and write physical
                 invalidate(propertyName)
                 property.writeMeta(self, value)
+                // perform read after writing if the writer did not set the value
+                if (logicalState[propertyName] == null) {
+                    readPropertyOrNull(propertyName)
+                }
             }
 
             else -> {

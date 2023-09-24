@@ -22,7 +22,7 @@ public val MetaConverter.Companion.unit: MetaConverter<Unit> get() = UnitMetaCon
 
 @OptIn(InternalDeviceAPI::class)
 public abstract class DeviceSpec<D : Device> {
-    //initializing meta property for everyone
+    //initializing the metadata property for everyone
     private val _properties = hashMapOf<String, DevicePropertySpec<D, *>>(
         DeviceMetaPropertySpec.name to DeviceMetaPropertySpec
     )
