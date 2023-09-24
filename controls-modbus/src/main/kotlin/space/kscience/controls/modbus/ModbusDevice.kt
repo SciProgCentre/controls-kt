@@ -183,10 +183,6 @@ public fun ModbusDevice.writeHoldingRegisters(address: Int, buffer: ByteBuffer):
     return writeHoldingRegisters(address, array)
 }
 
-public fun ModbusDevice.writeShortRegister(address: Int, value: Short) {
-    master.writeSingleRegister(address, SimpleInputRegister(value.toInt()))
-}
-
 public fun ModbusDevice.modbusRegister(
     address: Int,
 ): ReadWriteProperty<ModbusDevice, Short> = object : ReadWriteProperty<ModbusDevice, Short> {

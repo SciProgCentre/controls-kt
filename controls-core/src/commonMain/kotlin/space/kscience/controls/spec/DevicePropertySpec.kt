@@ -115,6 +115,7 @@ public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<
  */
 public fun <D : Device, T> D.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
+    scope: CoroutineScope = this,
     callback: suspend PropertyChangedMessage.(T) -> Unit,
 ): Job = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
@@ -124,15 +125,16 @@ public fun <D : Device, T> D.onPropertyChange(
         if (newValue != null) {
             change.callback(newValue)
         }
-    }.launchIn(this)
+    }.launchIn(scope)
 
 /**
  * Call [callback] on initial property value and each value change
  */
 public fun <D : Device, T> D.useProperty(
     spec: DevicePropertySpec<D, T>,
+    scope: CoroutineScope = this,
     callback: suspend (T) -> Unit,
-): Job = launch {
+): Job = scope.launch {
     callback(read(spec))
     messageFlow
         .filterIsInstance<PropertyChangedMessage>()

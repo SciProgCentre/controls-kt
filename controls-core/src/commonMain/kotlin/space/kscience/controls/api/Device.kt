@@ -124,5 +124,5 @@ public fun Device.getAllProperties(): Meta = Meta {
 /**
  * Subscribe on property changes for the whole device
  */
-public fun Device.onPropertyChange(callback: suspend PropertyChangedMessage.() -> Unit): Job =
-    messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(this)
+public fun Device.onPropertyChange(scope: CoroutineScope = this, callback: suspend PropertyChangedMessage.() -> Unit): Job =
+    messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)
