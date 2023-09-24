@@ -147,7 +147,8 @@ public abstract class DeviceBase<D : Device>(
                 property.writeMeta(self, value)
                 // perform read after writing if the writer did not set the value
                 if (logicalState[propertyName] == null) {
-                    readPropertyOrNull(propertyName)
+                    val meta = property.readMeta(self)
+                    propertyChanged(propertyName, meta)
                 }
             }
 

@@ -3,6 +3,26 @@
 ## Unreleased
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 0.2.2-dev-1 - 2023-09-24
+
+### Changed
+- updating logical state in `DeviceBase` is now protected and called `propertyChanged()`
+- `DeviceBase` tries to read property after write if the writer does not set the value.
+
+## 0.2.1 - 2023-09-24
+
+### Added
 - Core interfaces for building a device server
 - Magix service for binding controls devices (both as RPC client and server)
 - A plugin for Controls-kt device server on top of modbus-rtu/modbus-tcp protocols
@@ -20,13 +40,3 @@
 - A magix event loop implementation in Kotlin. Includes HTTP/SSE and RSocket routes.
 - Magix history database API
 - ZMQ client endpoint for Magix
-
-### Changed
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
