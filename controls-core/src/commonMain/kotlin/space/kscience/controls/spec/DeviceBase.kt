@@ -1,14 +1,16 @@
 package space.kscience.controls.spec
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.newCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.debug
-import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
@@ -65,13 +67,7 @@ public abstract class DeviceBase<D : Device>(
         get() = actions.values.map { it.descriptor }
 
     override val coroutineContext: CoroutineContext by lazy {
-        context.newCoroutineContext(
-            SupervisorJob(context.coroutineContext[Job]) +
-                    CoroutineName("Device $this") +
-                    CoroutineExceptionHandler { _, throwable ->
-                        logger.error(throwable) { "Exception in device $this job" }
-                    }
-        )
+        context.newCoroutineContext(SupervisorJob(context.coroutineContext[Job]) + CoroutineName("Device $this"))
     }
 
 
