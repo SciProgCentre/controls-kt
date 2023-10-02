@@ -1,9 +1,9 @@
 package space.kscience.controls.modbus
 
 import com.ghgande.j2mod.modbus.procimg.*
-import io.ktor.utils.io.core.buildPacket
-import io.ktor.utils.io.core.readByteBuffer
-import io.ktor.utils.io.core.writeShort
+import io.ktor.utils.io.core.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.DevicePropertySpec
@@ -118,20 +118,46 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
     }
 
+    /**
+     * Trigger [block] if one of register changes.
+     */
+    private fun List<ObservableRegister>.onChange(block: (ByteReadPacket) -> Unit) {
+        var ready = false
+
+        forEach { register ->
+            register.addObserver { _, _ ->
+                ready = true
+            }
+        }
+
+        device.launch {
+            val builder = BytePacketBuilder()
+            while (isActive) {
+                delay(1)
+                if (ready) {
+                    val packet = builder.apply {
+                        forEach { value ->
+                            writeShort(value.toShort())
+                        }
+                    }.build()
+                    block(packet)
+                    ready = false
+                }
+            }
+        }
+    }
+
     public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: WritableDevicePropertySpec<D, T>) {
         val registers = List(key.count) {
             ObservableRegister()
         }
+
         registers.forEachIndexed { index, register ->
-            register.addObserver { _, _ ->
-                val packet = buildPacket {
-                    registers.forEach { value ->
-                        writeShort(value.toShort())
-                    }
-                }
-                device[propertySpec] = key.format.readObject(packet)
-            }
             image.addRegister(key.address + index, register)
+        }
+
+        registers.onChange { packet ->
+            device[propertySpec] = key.format.readObject(packet)
         }
 
         device.useProperty(propertySpec) { value ->
@@ -182,18 +208,15 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         val registers = List(key.count) {
             ObservableRegister()
         }
+
         registers.forEachIndexed { index, register ->
-            register.addObserver { _, _ ->
-                val packet = buildPacket {
-                    registers.forEach { value ->
-                        writeShort(value.toShort())
-                    }
-                }
-                device.launch {
-                    device.action(key.format.readObject(packet))
-                }
-            }
             image.addRegister(key.address + index, register)
+        }
+
+        registers.onChange { packet ->
+            device.launch {
+                device.action(key.format.readObject(packet))
+            }
         }
 
         return registers
@@ -205,11 +228,13 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
  * Bind the device to Modbus slave (server) image.
  */
 public fun <D : Device> D.bindProcessImage(
+    unitId: Int = 0,
     openOnBind: Boolean = true,
     binding: DeviceProcessImageBuilder<D>.() -> Unit,
 ): ProcessImage {
-    val image = SimpleProcessImage()
+    val image = SimpleProcessImage(unitId)
     DeviceProcessImageBuilder(this, image).apply(binding)
+    image.setLocked(true)
     if (openOnBind) {
         launch {
             open()

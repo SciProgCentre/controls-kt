@@ -7,18 +7,24 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
 import kotlin.coroutines.CoroutineContext
 
-
+/**
+ * Write a meta [item] to [device]
+ */
 @OptIn(InternalDeviceAPI::class)
 private suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
     write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
 }
 
+/**
+ * Read Meta item from the [device]
+ */
 @OptIn(InternalDeviceAPI::class)
 private suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
     read(device)?.let(converter::objectToMeta)
@@ -135,9 +141,14 @@ public abstract class DeviceBase<D : Device>(
     }
 
     override suspend fun writeProperty(propertyName: String, value: Meta): Unit {
+        //bypass property setting if it already has that value
+        if (logicalState[propertyName] == value) {
+            logger.debug { "Skipping setting $propertyName to $value because value is already set" }
+            return
+        }
         when (val property = properties[propertyName]) {
             null -> {
-                //If there are no physical properties with given name, write a logical one.
+                //If there are no registered physical properties with given name, write a logical one.
                 propertyChanged(propertyName, value)
             }
 
@@ -145,7 +156,7 @@ public abstract class DeviceBase<D : Device>(
                 //if there is a writeable property with a given name, invalidate logical and write physical
                 invalidate(propertyName)
                 property.writeMeta(self, value)
-                // perform read after writing if the writer did not set the value
+                // perform read after writing if the writer did not set the value and the value is still in invalid state
                 if (logicalState[propertyName] == null) {
                     val meta = property.readMeta(self)
                     propertyChanged(propertyName, meta)

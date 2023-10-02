@@ -61,7 +61,7 @@ public interface ModbusDevice : Device {
     }
 
     public operator fun <T> ModbusRegistryKey.HoldingRange<T>.getValue(thisRef: Any?, property: KProperty<*>): T {
-        val packet = readInputRegistersToPacket(address, count)
+        val packet = readHoldingRegistersToPacket(address, count)
         return format.readObject(packet)
     }
 
