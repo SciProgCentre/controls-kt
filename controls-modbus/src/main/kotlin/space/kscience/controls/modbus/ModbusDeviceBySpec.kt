@@ -15,7 +15,7 @@ import space.kscience.dataforge.names.NameToken
 public open class ModbusDeviceBySpec<D: Device>(
     context: Context,
     spec: DeviceSpec<D>,
-    override val clientId: Int,
+    override val unitId: Int,
     override val master: AbstractModbusMaster,
     private val disposeMasterOnClose: Boolean = true,
     meta: Meta = Meta.EMPTY,

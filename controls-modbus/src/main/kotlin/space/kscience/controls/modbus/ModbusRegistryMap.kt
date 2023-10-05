@@ -152,7 +152,7 @@ public abstract class ModbusRegistryMap {
                     val rangeString = if (key.count == 1) {
                         key.address.toString()
                     } else {
-                        "${key.address} - ${key.address + key.count}"
+                        "${key.address} - ${key.address + key.count - 1}"
                     }
                     to.appendLine("${typeString}\t$rangeString\t$description")
                 }
