@@ -12,7 +12,7 @@ import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
-public object UnitMetaConverter: MetaConverter<Unit>{
+public object UnitMetaConverter : MetaConverter<Unit> {
     override fun metaToObject(meta: Meta): Unit = Unit
 
     override fun objectToMeta(obj: Unit): Meta = Meta.EMPTY
@@ -127,7 +127,8 @@ public abstract class DeviceSpec<D : Device> {
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val propertyName = name ?: property.name
             val deviceProperty = object : WritableDevicePropertySpec<D, T> {
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply(descriptorBuilder)
+                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName, writable = true)
+                    .apply(descriptorBuilder)
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? = withContext(device.coroutineContext) { device.read() }
