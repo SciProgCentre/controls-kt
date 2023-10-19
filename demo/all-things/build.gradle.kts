@@ -12,7 +12,6 @@ repositories {
 
 val ktorVersion: String by rootProject.extra
 val rsocketVersion: String by rootProject.extra
-val visionforgeVersion: String by rootProject.extra
 
 dependencies {
     implementation(projects.controlsCore)
@@ -26,7 +25,6 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("no.tornado:tornadofx:1.7.20")
     implementation("space.kscience:plotlykt-server:0.6.0")
-    implementation("space.kscience:visionforge-plotly:$visionforgeVersion")
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
     implementation(spclibs.logback.classic)
 }
