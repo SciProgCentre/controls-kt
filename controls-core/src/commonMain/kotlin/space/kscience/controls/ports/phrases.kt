@@ -5,6 +5,7 @@ import io.ktor.utils.io.core.readBytes
 import io.ktor.utils.io.core.reset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.transform
 
 /**
@@ -15,6 +16,10 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> 
 
     val output = BytePacketBuilder()
     var matcherPosition = 0
+
+    onCompletion {
+        output.close()
+    }
 
     return transform { chunk ->
         chunk.forEach { byte ->

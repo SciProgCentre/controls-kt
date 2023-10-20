@@ -1,4 +1,3 @@
-import space.kscience.gradle.isInDevelopment
 import space.kscience.gradle.useApache2Licence
 import space.kscience.gradle.useSPCTeam
 
@@ -14,25 +13,18 @@ val xodusVersion by extra("2.0.1")
 
 allprojects {
     group = "space.kscience"
-    version = "0.2.2-dev-2"
+    version = "0.2.2-dev-3"
     repositories{
         maven("https://maven.pkg.jetbrains.space/spc/p/sci/dev")
     }
 }
 
 ksciencePublish {
-    pom("https://github.com/SciProgCentre/controls.kt") {
+    pom("https://github.com/SciProgCentre/controls-kt") {
         useApache2Licence()
         useSPCTeam()
     }
-    github("controls.kt", "SciProgCentre")
-    space(
-        if (isInDevelopment) {
-            "https://maven.pkg.jetbrains.space/spc/p/sci/dev"
-        } else {
-            "https://maven.pkg.jetbrains.space/spc/p/sci/maven"
-        }
-    )
+    repository("spc","https://maven.sciprog.center/kscience")
     sonatype("https://oss.sonatype.org")
 }
 
