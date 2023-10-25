@@ -50,6 +50,7 @@ include(
 //    ":controls-mongo",
     ":controls-storage",
     ":controls-storage:controls-xodus",
+    ":controls-constructor",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",

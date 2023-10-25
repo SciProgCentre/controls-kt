@@ -138,7 +138,7 @@ class PiMotionMasterDevice(
         override fun build(context: Context, meta: Meta): PiMotionMasterDevice = PiMotionMasterDevice(context)
 
         val connected by booleanProperty(descriptorBuilder = {
-            info = "True if the connection address is defined and the device is initialized"
+            description = "True if the connection address is defined and the device is initialized"
         }) {
             port != null
         }
@@ -201,7 +201,7 @@ class PiMotionMasterDevice(
 
 
         val timeout by mutableProperty(MetaConverter.duration, PiMotionMasterDevice::timeoutValue) {
-            info = "Timeout"
+            description = "Timeout"
         }
     }
 
@@ -267,7 +267,7 @@ class PiMotionMasterDevice(
             )
 
             val enabled by axisBooleanProperty("EAX") {
-                info = "Motor enable state."
+                description = "Motor enable state."
             }
 
             val halt by unitAction {
@@ -275,20 +275,20 @@ class PiMotionMasterDevice(
             }
 
             val targetPosition by axisNumberProperty("MOV") {
-                info = """
+                description = """
                 Sets a new absolute target position for the specified axis.
                 Servo mode must be switched on for the commanded axis prior to using this command (closed-loop operation).
             """.trimIndent()
             }
 
             val onTarget by booleanProperty({
-                info = "Queries the on-target state of the specified axis."
+                description = "Queries the on-target state of the specified axis."
             }) {
                 readAxisBoolean("ONT?")
             }
 
             val reference by booleanProperty({
-                info = "Get Referencing Result"
+                description = "Get Referencing Result"
             }) {
                 readAxisBoolean("FRF?")
             }
@@ -298,36 +298,36 @@ class PiMotionMasterDevice(
             }
 
             val minPosition by doubleProperty({
-                info = "Minimal position value for the axis"
+                description = "Minimal position value for the axis"
             }) {
                 mm.requestAndParse("TMN?", axisId)[axisId]?.toDoubleOrNull()
                     ?: error("Malformed `TMN?` response. Should include float value for $axisId")
             }
 
             val maxPosition by doubleProperty({
-                info = "Maximal position value for the axis"
+                description = "Maximal position value for the axis"
             }) {
                 mm.requestAndParse("TMX?", axisId)[axisId]?.toDoubleOrNull()
                     ?: error("Malformed `TMX?` response. Should include float value for $axisId")
             }
 
             val position by doubleProperty({
-                info = "The current axis position."
+                description = "The current axis position."
             }) {
                 mm.requestAndParse("POS?", axisId)[axisId]?.toDoubleOrNull()
                     ?: error("Malformed `POS?` response. Should include float value for $axisId")
             }
 
             val openLoopTarget by axisNumberProperty("OMA") {
-                info = "Position for open-loop operation."
+                description = "Position for open-loop operation."
             }
 
             val closedLoop by axisBooleanProperty("SVO") {
-                info = "Servo closed loop mode"
+                description = "Servo closed loop mode"
             }
 
             val velocity by axisNumberProperty("VEL") {
-                info = "Velocity value for closed-loop operation"
+                description = "Velocity value for closed-loop operation"
             }
 
             val move by action(MetaConverter.meta, MetaConverter.unit) {

@@ -14,7 +14,6 @@ import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
 import space.kscience.magix.rsocket.rSocketWithWebSockets
-import kotlin.time.ExperimentalTime
 
 class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) {
 
@@ -31,17 +30,13 @@ class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) 
     }
 
 
-    @OptIn(ExperimentalTime::class)
-    override suspend fun open() {
-        super.open()
+    override suspend fun onStart() {
 
         val magixEndpoint = MagixEndpoint.rSocketWithWebSockets(
             meta["magixServerHost"].string ?: "localhost",
         )
 
-        launch {
-            magixEndpoint.launchMagixVirtualCarUpdate()
-        }
+        magixEndpoint.launchMagixVirtualCarUpdate()
     }
 
     companion object : Factory<MagixVirtualCar> {

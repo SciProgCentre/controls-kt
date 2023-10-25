@@ -16,15 +16,14 @@ public open class DeviceBySpec<D : Device>(
     override val properties: Map<String, DevicePropertySpec<D, *>> get() = spec.properties
     override val actions: Map<String, DeviceActionSpec<D, *, *>> get() = spec.actions
 
-    override suspend fun open(): Unit = with(spec) {
-        super.open()
+    override suspend fun onStart(): Unit = with(spec) {
         self.onOpen()
     }
 
-    override fun close(): Unit = with(spec) {
+    override fun onStop(): Unit = with(spec){
         self.onClose()
-        super.close()
     }
+
 
     override fun toString(): String = "Device(spec=$spec)"
 }

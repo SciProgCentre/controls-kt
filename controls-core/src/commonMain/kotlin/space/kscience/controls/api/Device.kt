@@ -20,8 +20,19 @@ import space.kscience.dataforge.names.Name
  * A lifecycle state of a device
  */
 public enum class DeviceLifecycleState{
+    /**
+     * Device is initializing
+      */
     INIT,
+
+    /**
+     * The Device is initialized and running
+     */
     OPEN,
+
+    /**
+     * The Device is closed
+     */
     CLOSED
 }
 
@@ -31,12 +42,13 @@ public enum class DeviceLifecycleState{
  *  When canceled, cancels all running processes.
  */
 @Type(DEVICE_TARGET)
-public interface Device : AutoCloseable, ContextAware, CoroutineScope {
+public interface Device : ContextAware, CoroutineScope {
 
     /**
      * Initial configuration meta for the device
      */
     public val meta: Meta get() = Meta.EMPTY
+
 
     /**
      * List of supported property descriptors
@@ -87,12 +99,12 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
     /**
      * Initialize the device. This function suspends until the device is finished initialization
      */
-    public suspend fun open(): Unit = Unit
+    public suspend fun start(): Unit = Unit
 
     /**
      * Close and terminate the device. This function does not wait for the device to be closed.
      */
-    override fun close() {
+    public fun stop() {
         logger.info { "Device $this is closed" }
         cancel("The device is closed")
     }

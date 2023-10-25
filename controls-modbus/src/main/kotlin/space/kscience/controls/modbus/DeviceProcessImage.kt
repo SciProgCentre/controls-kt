@@ -237,7 +237,7 @@ public fun <D : Device> D.bindProcessImage(
     image.setLocked(true)
     if (openOnBind) {
         launch {
-            open()
+            start()
         }
     }
     return image

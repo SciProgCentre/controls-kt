@@ -73,11 +73,11 @@ public class DeviceNameSpace(
                 //for now, use DF paths as ids
                 nodeId = newNodeId("${deviceName.tokens.joinToString("/")}/$propertyName")
                 when {
-                    descriptor.readable && descriptor.writable -> {
+                    descriptor.readable && descriptor.mutable -> {
                         setAccessLevel(AccessLevel.READ_WRITE)
                         setUserAccessLevel(AccessLevel.READ_WRITE)
                     }
-                    descriptor.writable -> {
+                    descriptor.mutable -> {
                         setAccessLevel(AccessLevel.WRITE_ONLY)
                         setUserAccessLevel(AccessLevel.WRITE_ONLY)
                     }

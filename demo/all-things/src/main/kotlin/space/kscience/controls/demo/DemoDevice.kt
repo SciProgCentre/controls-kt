@@ -44,7 +44,7 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
             metaDescriptor {
                 type(ValueType.NUMBER)
             }
-            info = "Real to virtual time scale"
+            description = "Real to virtual time scale"
         }
 
         val sinScale by mutableProperty(MetaConverter.double, IDemoDevice::sinScaleState)

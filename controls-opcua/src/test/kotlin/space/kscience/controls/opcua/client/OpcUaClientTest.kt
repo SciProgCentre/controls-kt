@@ -40,9 +40,10 @@ class OpcUaClientTest {
     @Test
     @Ignore
     fun testReadDouble() = runTest {
-        DemoOpcUaDevice.build().use{
-            println(it.read(DemoOpcUaDevice.randomDouble))
-        }
+        val device = DemoOpcUaDevice.build()
+        device.start()
+            println(device.read(DemoOpcUaDevice.randomDouble))
+        device.stop()
     }
 
 }

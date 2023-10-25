@@ -78,7 +78,7 @@ class DemoController : Controller(), ContextAware {
         logger.info { "Visualization server stopped" }
         magixServer?.stop(1000, 5000)
         logger.info { "Magix server stopped" }
-        device?.close()
+        device?.stop()
         logger.info { "Device server stopped" }
         context.close()
     }

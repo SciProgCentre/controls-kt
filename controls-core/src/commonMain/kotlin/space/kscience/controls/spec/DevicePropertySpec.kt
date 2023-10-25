@@ -20,7 +20,7 @@ public annotation class InternalDeviceAPI
 /**
  * Specification for a device read-only property
  */
-public interface DevicePropertySpec<in D : Device, T> {
+public interface DevicePropertySpec<in D, T> {
     /**
      * Property descriptor
      */
@@ -53,7 +53,7 @@ public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySp
 
 }
 
-public interface DeviceActionSpec<in D : Device, I, O> {
+public interface DeviceActionSpec<in D, I, O> {
     /**
      * Action descriptor
      */

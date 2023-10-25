@@ -53,7 +53,7 @@ public abstract class DeviceSpec<D : Device> {
             val deviceProperty = object : DevicePropertySpec<D, T> {
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(property.name).apply {
                     //TODO add type from converter
-                    writable = true
+                    mutable = true
                 }.apply(descriptorBuilder)
 
                 override val converter: MetaConverter<T> = converter
@@ -78,7 +78,7 @@ public abstract class DeviceSpec<D : Device> {
 
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(property.name).apply {
                     //TODO add the type from converter
-                    writable = true
+                    mutable = true
                 }.apply(descriptorBuilder)
 
                 override val converter: MetaConverter<T> = converter
@@ -127,7 +127,7 @@ public abstract class DeviceSpec<D : Device> {
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val propertyName = name ?: property.name
             val deviceProperty = object : WritableDevicePropertySpec<D, T> {
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName, writable = true)
+                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName, mutable = true)
                     .apply(descriptorBuilder)
                 override val converter: MetaConverter<T> = converter
 
@@ -224,7 +224,7 @@ public fun <T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
             val propertyName = name ?: property.name
             override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply {
                 //TODO add type from converter
-                writable = true
+                mutable = true
             }.apply(descriptorBuilder)
 
             override val converter: MetaConverter<T> = converter

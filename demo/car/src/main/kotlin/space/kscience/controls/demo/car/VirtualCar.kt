@@ -100,8 +100,7 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
     }
 
     @OptIn(ExperimentalTime::class)
-    override suspend fun open() {
-        super<DeviceBySpec>.open()
+    override suspend fun onStart() {
         //initializing the clock
         timeState = Clock.System.now()
         //starting regular updates

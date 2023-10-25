@@ -63,8 +63,7 @@ public open class OpcUaDeviceBySpec<D : Device>(
         }
     }
 
-    override fun close() {
+    override fun onStop() {
         client.disconnect()
-        super<DeviceBySpec>.close()
     }
 }

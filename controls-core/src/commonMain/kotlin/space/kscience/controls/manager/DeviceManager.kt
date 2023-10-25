@@ -40,7 +40,7 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
 public fun <D : Device> DeviceManager.install(name: String, device: D): D {
     registerDevice(NameToken(name), device)
     device.launch {
-        device.open()
+        device.start()
     }
     return device
 }

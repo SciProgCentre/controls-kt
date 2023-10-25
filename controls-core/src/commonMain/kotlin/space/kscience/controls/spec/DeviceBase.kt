@@ -1,12 +1,9 @@
 package space.kscience.controls.spec
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.newCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
@@ -69,8 +66,28 @@ public abstract class DeviceBase<D : Device>(
     override val actionDescriptors: Collection<ActionDescriptor>
         get() = actions.values.map { it.descriptor }
 
+
+    private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow(
+        replay = meta["message.buffer"].int ?: 1000,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
     override val coroutineContext: CoroutineContext by lazy {
-        context.newCoroutineContext(SupervisorJob(context.coroutineContext[Job]) + CoroutineName("Device $this"))
+        context.newCoroutineContext(
+            SupervisorJob(context.coroutineContext[Job]) +
+                    CoroutineName("Device $this") +
+                    CoroutineExceptionHandler { _, throwable ->
+                        launch {
+                            sharedMessageFlow.emit(
+                                DeviceErrorMessage(
+                                    errorMessage = throwable.message,
+                                    errorType = throwable::class.simpleName,
+                                    errorStackTrace = throwable.stackTraceToString()
+                                )
+                            )
+                        }
+                    }
+        )
     }
 
 
@@ -78,11 +95,6 @@ public abstract class DeviceBase<D : Device>(
      * Logical state store
      */
     private val logicalState: HashMap<String, Meta?> = HashMap()
-
-    private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow(
-        replay = meta["message.buffer"].int ?: 1000,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
 
     public override val messageFlow: SharedFlow<DeviceMessage> get() = sharedMessageFlow
 
@@ -180,17 +192,29 @@ public abstract class DeviceBase<D : Device>(
     override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.INIT
         protected set
 
-    @OptIn(DFExperimental::class)
-    override suspend fun open() {
-        super.open()
-        lifecycleState = DeviceLifecycleState.OPEN
+    protected open suspend fun onStart() {
+
     }
 
     @OptIn(DFExperimental::class)
-    override fun close() {
-        lifecycleState = DeviceLifecycleState.CLOSED
-        super.close()
+    final override suspend fun start() {
+        super.start()
+        lifecycleState = DeviceLifecycleState.INIT
+        onStart()
+        lifecycleState = DeviceLifecycleState.OPEN
     }
+
+    protected open fun onStop() {
+
+    }
+
+    @OptIn(DFExperimental::class)
+    final override fun stop() {
+        onStop()
+        lifecycleState = DeviceLifecycleState.CLOSED
+        super.stop()
+    }
+
 
     abstract override fun toString(): String
 
