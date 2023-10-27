@@ -99,7 +99,7 @@ public class DeviceClient(
     }
 
     @DFExperimental
-    override val lifecycleState: DeviceLifecycleState = DeviceLifecycleState.OPEN
+    override val lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STARTED
 }
 
 /**

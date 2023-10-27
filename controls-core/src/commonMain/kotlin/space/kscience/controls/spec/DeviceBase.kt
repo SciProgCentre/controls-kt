@@ -189,7 +189,7 @@ public abstract class DeviceBase<D : Device>(
     }
 
     @DFExperimental
-    override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.INIT
+    override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
         protected set
 
     protected open suspend fun onStart() {
@@ -198,10 +198,14 @@ public abstract class DeviceBase<D : Device>(
 
     @OptIn(DFExperimental::class)
     final override suspend fun start() {
-        super.start()
-        lifecycleState = DeviceLifecycleState.INIT
-        onStart()
-        lifecycleState = DeviceLifecycleState.OPEN
+        if(lifecycleState == DeviceLifecycleState.STOPPED) {
+            super.start()
+            lifecycleState = DeviceLifecycleState.STARTING
+            onStart()
+            lifecycleState = DeviceLifecycleState.STARTED
+        } else {
+            logger.debug { "Device $this is already started" }
+        }
     }
 
     protected open fun onStop() {
@@ -211,7 +215,7 @@ public abstract class DeviceBase<D : Device>(
     @OptIn(DFExperimental::class)
     final override fun stop() {
         onStop()
-        lifecycleState = DeviceLifecycleState.CLOSED
+        lifecycleState = DeviceLifecycleState.STOPPED
         super.stop()
     }
 

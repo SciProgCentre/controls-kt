@@ -19,21 +19,22 @@ import space.kscience.dataforge.names.Name
 /**
  * A lifecycle state of a device
  */
-public enum class DeviceLifecycleState{
+public enum class DeviceLifecycleState {
+
     /**
      * Device is initializing
-      */
-    INIT,
+     */
+    STARTING,
 
     /**
      * The Device is initialized and running
      */
-    OPEN,
+    STARTED,
 
     /**
      * The Device is closed
      */
-    CLOSED
+    STOPPED
 }
 
 /**
@@ -136,5 +137,8 @@ public fun Device.getAllProperties(): Meta = Meta {
 /**
  * Subscribe on property changes for the whole device
  */
-public fun Device.onPropertyChange(scope: CoroutineScope = this, callback: suspend PropertyChangedMessage.() -> Unit): Job =
+public fun Device.onPropertyChange(
+    scope: CoroutineScope = this,
+    callback: suspend PropertyChangedMessage.() -> Unit,
+): Job =
     messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)

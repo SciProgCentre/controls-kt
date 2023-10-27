@@ -13,7 +13,7 @@ import space.kscience.dataforge.meta.transformations.MetaConverter
 /**
  * A single axis drive
  */
-public interface Drive : Device {
+public interface Regulator : Device {
     /**
      * Get or set target value
      */
@@ -24,21 +24,21 @@ public interface Drive : Device {
      */
     public val position: Double
 
-    public companion object : DeviceSpec<Drive>() {
-        public val target: DevicePropertySpec<Drive, Double> by property(MetaConverter.double, Drive::target)
+    public companion object : DeviceSpec<Regulator>() {
+        public val target: DevicePropertySpec<Regulator, Double> by property(MetaConverter.double, Regulator::target)
 
-        public val position: DevicePropertySpec<Drive, Double> by doubleProperty { position }
+        public val position: DevicePropertySpec<Regulator, Double> by doubleProperty { position }
     }
 }
 
 /**
- * Virtual [Drive] with speed limit
+ * Virtual [Regulator] with speed limit
  */
-public class VirtualDrive(
+public class VirtualRegulator(
     context: Context,
     value: Double,
     private val speed: Double,
-) : DeviceBySpec<Drive>(Drive, context), Drive {
+) : DeviceBySpec<Regulator>(Regulator, context), Regulator {
 
     private var moveJob: Job? = null
 
