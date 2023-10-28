@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Device lifecycle message
+- Low-code constructor
 
 ### Changed
 

@@ -190,7 +190,16 @@ public abstract class DeviceBase<D : Device>(
 
     @DFExperimental
     override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
-        protected set
+        protected set(value) {
+            if (field != value) {
+                launch {
+                    sharedMessageFlow.emit(
+                        DeviceLifeCycleMessage(value)
+                    )
+                }
+            }
+            field = value
+        }
 
     protected open suspend fun onStart() {
 
@@ -198,7 +207,7 @@ public abstract class DeviceBase<D : Device>(
 
     @OptIn(DFExperimental::class)
     final override suspend fun start() {
-        if(lifecycleState == DeviceLifecycleState.STOPPED) {
+        if (lifecycleState == DeviceLifecycleState.STOPPED) {
             super.start()
             lifecycleState = DeviceLifecycleState.STARTING
             onStart()

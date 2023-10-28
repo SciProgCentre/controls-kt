@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.serialization.Serializable
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
@@ -19,6 +20,7 @@ import space.kscience.dataforge.names.Name
 /**
  * A lifecycle state of a device
  */
+@Serializable
 public enum class DeviceLifecycleState {
 
     /**
@@ -34,7 +36,12 @@ public enum class DeviceLifecycleState {
     /**
      * The Device is closed
      */
-    STOPPED
+    STOPPED,
+
+    /**
+     * The device encountered irrecoverable error
+     */
+    ERROR
 }
 
 /**
@@ -98,7 +105,8 @@ public interface Device : ContextAware, CoroutineScope {
     public suspend fun execute(actionName: String, argument: Meta? = null): Meta?
 
     /**
-     * Initialize the device. This function suspends until the device is finished initialization
+     * Initialize the device. This function suspends until the device is finished initialization.
+     * Does nothing if the device is started or is starting
      */
     public suspend fun start(): Unit = Unit
 

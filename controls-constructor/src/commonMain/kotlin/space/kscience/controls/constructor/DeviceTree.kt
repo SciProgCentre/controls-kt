@@ -1,4 +1,4 @@
-package space.kscience.controls.spec
+package space.kscience.controls.constructor
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceHub
@@ -7,11 +7,8 @@ import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.names.NameToken
-import kotlin.collections.Map
 import kotlin.collections.component1
 import kotlin.collections.component2
-import kotlin.collections.mapValues
-import kotlin.collections.mutableMapOf
 import kotlin.collections.set
 
 

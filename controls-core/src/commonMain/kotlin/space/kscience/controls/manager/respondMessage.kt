@@ -64,6 +64,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         is DeviceErrorMessage,
         is EmptyDeviceMessage,
         is DeviceLogMessage,
+        is DeviceLifeCycleMessage,
         -> null
     }
 } catch (ex: Exception) {
@@ -87,7 +88,7 @@ public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): DeviceMe
  * Collect all messages from given [DeviceHub], applying proper relative names.
  */
 public fun DeviceHub.hubMessageFlow(scope: CoroutineScope): Flow<DeviceMessage> {
-    
+
     //TODO could we avoid using downstream scope?
     val outbox = MutableSharedFlow<DeviceMessage>()
     if (this is Device) {

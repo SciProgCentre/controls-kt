@@ -4,7 +4,7 @@ plugins {
 }
 
 description = """
-    A low-code constructor for composite devices simulation
+    Dashboard and visualization extensions for devices
 """.trimIndent()
 
 kscience{

@@ -1,4 +1,4 @@
-package center.sciprog.controls.devices.misc
+package space.kscience.controls.constructor
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.DeviceBySpec

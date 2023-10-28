@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalSerializationApi::class)
+@file:OptIn(ExperimentalSerializationApi::class, ExperimentalSerializationApi::class)
 
 package space.kscience.controls.api
 
@@ -220,6 +220,21 @@ public data class DeviceErrorMessage(
     public val errorMessage: String?,
     public val errorType: String? = null,
     public val errorStackTrace: String? = null,
+    override val sourceDevice: Name = Name.EMPTY,
+    override val targetDevice: Name? = null,
+    override val comment: String? = null,
+    @EncodeDefault override val time: Instant? = Clock.System.now(),
+) : DeviceMessage() {
+    override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
+}
+
+/**
+ * Device [Device.lifecycleState] is changed
+ */
+@Serializable
+@SerialName("lifecycle")
+public data class DeviceLifeCycleMessage(
+    val state: DeviceLifecycleState,
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
