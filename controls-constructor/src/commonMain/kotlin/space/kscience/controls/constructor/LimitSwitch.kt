@@ -6,6 +6,7 @@ import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.controls.spec.booleanProperty
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.parseAsName
 
 
 /**
@@ -25,7 +26,10 @@ public interface LimitSwitch : Device {
  */
 public class VirtualLimitSwitch(
     context: Context,
-    private val lockedFunction: () -> Boolean,
+    public val lockedState: DeviceState<Boolean>,
 ) : DeviceBySpec<LimitSwitch>(LimitSwitch, context), LimitSwitch {
-    override val locked: Boolean get() = lockedFunction()
+    override val locked: Boolean get() = lockedState.value
 }
+
+public fun DeviceGroup.virtualLimitSwitch(name: String, lockedState: DeviceState<Boolean>): VirtualLimitSwitch =
+    device(name.parseAsName(), VirtualLimitSwitch(context, lockedState))

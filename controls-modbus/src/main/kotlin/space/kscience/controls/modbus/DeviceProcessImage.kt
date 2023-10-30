@@ -6,10 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
-import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.controls.spec.WritableDevicePropertySpec
-import space.kscience.controls.spec.set
-import space.kscience.controls.spec.useProperty
+import space.kscience.controls.spec.*
 
 
 public class DeviceProcessImageBuilder<D : Device> internal constructor(
@@ -29,10 +26,10 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.Coil,
-        propertySpec: WritableDevicePropertySpec<D, Boolean>,
+        propertySpec: MutableDevicePropertySpec<D, Boolean>,
     ): ObservableDigitalOut = bind(key) { coil ->
         coil.addObserver { _, _ ->
-            device[propertySpec] = coil.isSet
+            device.writeAsync(propertySpec, coil.isSet)
         }
         device.useProperty(propertySpec) { value ->
             coil.set(value)
@@ -89,10 +86,10 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.HoldingRegister,
-        propertySpec: WritableDevicePropertySpec<D, Short>,
+        propertySpec: MutableDevicePropertySpec<D, Short>,
     ): ObservableRegister = bind(key) { register ->
         register.addObserver { _, _ ->
-            device[propertySpec] = register.toShort()
+            device.writeAsync(propertySpec, register.toShort())
         }
         device.useProperty(propertySpec) { value ->
             register.setValue(value)
@@ -121,7 +118,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
     /**
      * Trigger [block] if one of register changes.
      */
-    private fun List<ObservableRegister>.onChange(block: (ByteReadPacket) -> Unit) {
+    private fun List<ObservableRegister>.onChange(block: suspend (ByteReadPacket) -> Unit) {
         var ready = false
 
         forEach { register ->
@@ -147,7 +144,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
     }
 
-    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: WritableDevicePropertySpec<D, T>) {
+    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: MutableDevicePropertySpec<D, T>) {
         val registers = List(key.count) {
             ObservableRegister()
         }
@@ -157,7 +154,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
 
         registers.onChange { packet ->
-            device[propertySpec] = key.format.readObject(packet)
+            device.write(propertySpec, key.format.readObject(packet))
         }
 
         device.useProperty(propertySpec) { value ->

@@ -6,24 +6,32 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.DeviceBySpec
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 /**
+ * Pid regulator parameters
+ */
+public data class PidParameters(
+    public val kp: Double,
+    public val ki: Double,
+    public val kd: Double,
+    public val timeStep: Duration = 1.milliseconds,
+)
+
+/**
  * A drive with PID regulator
  */
 public class PidRegulator(
     public val drive: Drive,
-    public val kp: Double,
-    public val ki: Double,
-    public val kd: Double,
-    private val dt: Duration = 1.milliseconds,
-    private val clock: Clock = Clock.System,
+    public val pidParameters: PidParameters,
 ) : DeviceBySpec<Regulator>(Regulator, drive.context), Regulator {
+
+    private val clock = drive.context.clock
 
     override var target: Double = drive.position
 
@@ -41,7 +49,7 @@ public class PidRegulator(
         drive.start()
         updateJob = launch {
             while (isActive) {
-                delay(dt)
+                delay(pidParameters.timeStep)
                 mutex.withLock {
                     val realTime = clock.now()
                     val delta = target - position
@@ -53,7 +61,7 @@ public class PidRegulator(
                     lastTime = realTime
                     lastPosition = drive.position
 
-                    drive.force = kp * delta + ki * integral + kd * derivative
+                    drive.force = pidParameters.kp * delta + pidParameters.ki * integral + pidParameters.kd * derivative
                 }
             }
         }
@@ -64,5 +72,10 @@ public class PidRegulator(
     }
 
     override val position: Double get() = drive.position
-
 }
+
+public fun DeviceGroup.pid(
+    name: String,
+    drive: Drive,
+    pidParameters: PidParameters,
+): PidRegulator = device(name, PidRegulator(drive, pidParameters))

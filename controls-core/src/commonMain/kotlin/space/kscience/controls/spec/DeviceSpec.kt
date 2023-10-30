@@ -72,9 +72,9 @@ public abstract class DeviceSpec<D : Device> {
         converter: MetaConverter<T>,
         readWriteProperty: KMutableProperty1<D, T>,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, WritableDevicePropertySpec<D, T>>> =
+    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, MutableDevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _, property ->
-            val deviceProperty = object : WritableDevicePropertySpec<D, T> {
+            val deviceProperty = object : MutableDevicePropertySpec<D, T> {
 
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(property.name).apply {
                     //TODO add the type from converter
@@ -123,10 +123,10 @@ public abstract class DeviceSpec<D : Device> {
         name: String? = null,
         read: suspend D.() -> T?,
         write: suspend D.(T) -> Unit,
-    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, T>>> =
+    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val propertyName = name ?: property.name
-            val deviceProperty = object : WritableDevicePropertySpec<D, T> {
+            val deviceProperty = object : MutableDevicePropertySpec<D, T> {
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName, mutable = true)
                     .apply(descriptorBuilder)
                 override val converter: MetaConverter<T> = converter
@@ -138,7 +138,7 @@ public abstract class DeviceSpec<D : Device> {
                 }
             }
             _properties[propertyName] = deviceProperty
-            ReadOnlyProperty<DeviceSpec<D>, WritableDevicePropertySpec<D, T>> { _, _ ->
+            ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>> { _, _ ->
                 deviceProperty
             }
         }
@@ -218,9 +218,9 @@ public fun <T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
-): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, WritableDevicePropertySpec<D, T>>> =
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, MutableDevicePropertySpec<D, T>>> =
     PropertyDelegateProvider { _, property ->
-        val deviceProperty = object : WritableDevicePropertySpec<D, T> {
+        val deviceProperty = object : MutableDevicePropertySpec<D, T> {
             val propertyName = name ?: property.name
             override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply {
                 //TODO add type from converter

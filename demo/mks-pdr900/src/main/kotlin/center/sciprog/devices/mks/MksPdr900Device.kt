@@ -94,7 +94,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         val channel by logicalProperty(MetaConverter.int)
 
         val value by doubleProperty(read = {
-            readChannelData(get(channel) ?: DEFAULT_CHANNEL)
+            readChannelData(request(channel) ?: DEFAULT_CHANNEL)
         })
 
         val error by logicalProperty(MetaConverter.string)

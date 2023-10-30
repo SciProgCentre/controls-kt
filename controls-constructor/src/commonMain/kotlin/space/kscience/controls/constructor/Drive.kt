@@ -4,12 +4,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import space.kscience.controls.api.Device
-import space.kscience.controls.spec.DeviceBySpec
-import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.controls.spec.DeviceSpec
-import space.kscience.controls.spec.doubleProperty
+import space.kscience.controls.manager.clock
+import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
@@ -33,7 +30,7 @@ public interface Drive : Device {
     public val position: Double
 
     public companion object : DeviceSpec<Drive>() {
-        public val force: DevicePropertySpec<Drive, Double> by Drive.property(
+        public val force: MutableDevicePropertySpec<Drive, Double> by Drive.mutableProperty(
             MetaConverter.double,
             Drive::force
         )
@@ -48,16 +45,15 @@ public interface Drive : Device {
 public class VirtualDrive(
     context: Context,
     private val mass: Double,
-    position: Double,
+    public val positionState: MutableDeviceState<Double>,
 ) : Drive, DeviceBySpec<Drive>(Drive, context) {
 
     private val dt = meta["time.step"].double?.milliseconds ?: 5.milliseconds
-    private val clock = Clock.System
+    private val clock = context.clock
 
     override var force: Double = 0.0
 
-    override var position: Double = position
-        private set
+    override val position: Double get() = positionState.value
 
     public var velocity: Double = 0.0
         private set
@@ -76,10 +72,10 @@ public class VirtualDrive(
                 lastTime = realTime
 
                 // compute new value based on velocity and acceleration from the previous step
-                position += velocity * dtSeconds + force/mass * dtSeconds.pow(2) / 2
+                positionState.value += velocity * dtSeconds + force / mass * dtSeconds.pow(2) / 2
 
                 // compute new velocity based on acceleration on the previous step
-                velocity += force/mass * dtSeconds
+                velocity += force / mass * dtSeconds
             }
         }
     }
@@ -89,3 +85,10 @@ public class VirtualDrive(
     }
 }
 
+public suspend fun Drive.stateOfForce(): MutableDeviceState<Double> = bindMutableStateToProperty(Drive.force)
+
+public fun DeviceGroup.virtualDrive(
+    name: String,
+    mass: Double,
+    positionState: MutableDeviceState<Double>,
+): VirtualDrive = device(name, VirtualDrive(context, mass, positionState))

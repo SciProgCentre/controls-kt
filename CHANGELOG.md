@@ -7,6 +7,7 @@
 - Low-code constructor
 
 ### Changed
+- Property caching moved from core `Device` to the `CachingDevice`
 
 ### Deprecated
 

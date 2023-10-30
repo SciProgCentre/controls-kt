@@ -32,7 +32,7 @@ fun <D : Device, T : Any> D.fxProperty(
     }
 }
 
-fun <D : Device, T : Any> D.fxProperty(spec: WritableDevicePropertySpec<D, T>): Property<T> =
+fun <D : Device, T : Any> D.fxProperty(spec: MutableDevicePropertySpec<D, T>): Property<T> =
     object : ObjectPropertyBase<T>() {
         override fun getBean(): Any = this
         override fun getName(): String = spec.name
@@ -51,7 +51,7 @@ fun <D : Device, T : Any> D.fxProperty(spec: WritableDevicePropertySpec<D, T>): 
 
             onChange { newValue ->
                 if (newValue != null) {
-                    set(spec, newValue)
+                    writeAsync(spec, newValue)
                 }
             }
         }

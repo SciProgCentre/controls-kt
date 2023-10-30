@@ -71,7 +71,7 @@ public data class PropertyChangedMessage(
 @SerialName("property.set")
 public data class PropertySetMessage(
     public val property: String,
-    public val value: Meta?,
+    public val value: Meta,
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,

@@ -69,5 +69,6 @@ include(
     ":demo:car",
     ":demo:motors",
     ":demo:echo",
-    ":demo:mks-pdr900"
+    ":demo:mks-pdr900",
+    ":demo:constructor"
 )

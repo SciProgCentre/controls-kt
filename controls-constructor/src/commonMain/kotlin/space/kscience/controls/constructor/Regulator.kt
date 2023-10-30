@@ -3,6 +3,7 @@ package space.kscience.controls.constructor
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.DeviceSpec
+import space.kscience.controls.spec.MutableDevicePropertySpec
 import space.kscience.controls.spec.doubleProperty
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
@@ -22,7 +23,7 @@ public interface Regulator : Device {
     public val position: Double
 
     public companion object : DeviceSpec<Regulator>() {
-        public val target: DevicePropertySpec<Regulator, Double> by property(MetaConverter.double, Regulator::target)
+        public val target: MutableDevicePropertySpec<Regulator, Double> by mutableProperty(MetaConverter.double, Regulator::target)
 
         public val position: DevicePropertySpec<Regulator, Double> by doubleProperty { position }
     }

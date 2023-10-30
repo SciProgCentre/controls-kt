@@ -3,10 +3,7 @@ package space.kscience.controls.api
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
@@ -75,18 +72,6 @@ public interface Device : ContextAware, CoroutineScope {
     public suspend fun readProperty(propertyName: String): Meta
 
     /**
-     * Get the logical state of property or return null if it is invalid
-     */
-    public fun getProperty(propertyName: String): Meta?
-
-    /**
-     * Invalidate property (set logical state to invalid)
-     *
-     * This message is suspended to provide lock-free local property changes (they require coroutine context).
-     */
-    public suspend fun invalidate(propertyName: String)
-
-    /**
      * Set property [value] for a property with name [propertyName].
      * In rare cases could suspend if the [Device] supports command queue, and it is full at the moment.
      */
@@ -127,16 +112,37 @@ public interface Device : ContextAware, CoroutineScope {
 }
 
 /**
+ * Device that caches properties values
+ */
+public interface CachingDevice : Device {
+
+    /**
+     * Immediately (without waiting) get the cached (logical) state of property or return null if it is invalid
+     */
+    public fun getProperty(propertyName: String): Meta?
+
+    /**
+     * Invalidate property (set logical state to invalid).
+     *
+     * This message is suspended to provide lock-free local property changes (they require coroutine context).
+     */
+    public suspend fun invalidate(propertyName: String)
+}
+
+/**
  * Get the logical state of property or suspend to read the physical value.
  */
-public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
+public suspend fun Device.requestProperty(propertyName: String): Meta = if (this is CachingDevice) {
     getProperty(propertyName) ?: readProperty(propertyName)
+} else {
+    readProperty(propertyName)
+}
 
 /**
  * Get a snapshot of the device logical state
  *
  */
-public fun Device.getAllProperties(): Meta = Meta {
+public fun CachingDevice.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {
         setMeta(Name.parse(descriptor.name), getProperty(descriptor.name))
     }
@@ -148,5 +154,11 @@ public fun Device.getAllProperties(): Meta = Meta {
 public fun Device.onPropertyChange(
     scope: CoroutineScope = this,
     callback: suspend PropertyChangedMessage.() -> Unit,
-): Job =
-    messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)
+): Job = messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)
+
+/**
+ * A [Flow] of property change messages for specific property.
+ */
+public fun Device.propertyMessageFlow(propertyName: String): Flow<PropertyChangedMessage> = messageFlow
+    .filterIsInstance<PropertyChangedMessage>()
+    .filter { it.property == propertyName }

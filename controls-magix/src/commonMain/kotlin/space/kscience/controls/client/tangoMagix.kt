@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.get
-import space.kscience.controls.api.getOrReadProperty
+import space.kscience.controls.api.requestProperty
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
@@ -91,7 +91,7 @@ public fun DeviceManager.launchTangoMagix(
                 val device = get(payload.device)
                 when (payload.action) {
                     TangoAction.read -> {
-                        val value = device.getOrReadProperty(payload.name)
+                        val value = device.requestProperty(payload.name)
                         respond(request, payload) { requestPayload ->
                             requestPayload.copy(
                                 value = value,
@@ -104,7 +104,7 @@ public fun DeviceManager.launchTangoMagix(
                             device.writeProperty(payload.name, value)
                         }
                         //wait for value to be written and return final state
-                        val value = device.getOrReadProperty(payload.name)
+                        val value = device.requestProperty(payload.name)
                         respond(request, payload) { requestPayload ->
                             requestPayload.copy(
                                 value = value,

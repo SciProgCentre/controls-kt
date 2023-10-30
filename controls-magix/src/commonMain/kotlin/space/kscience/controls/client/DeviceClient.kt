@@ -26,7 +26,7 @@ public class DeviceClient(
     private val deviceName: Name,
     incomingFlow: Flow<DeviceMessage>,
     private val send: suspend (DeviceMessage) -> Unit,
-) : Device {
+) : CachingDevice {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = newCoroutineContext(context.coroutineContext)

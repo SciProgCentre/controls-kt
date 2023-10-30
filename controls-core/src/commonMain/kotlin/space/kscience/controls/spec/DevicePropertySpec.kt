@@ -4,10 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import space.kscience.controls.api.ActionDescriptor
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.api.PropertyDescriptor
+import space.kscience.controls.api.*
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
 
@@ -44,7 +41,7 @@ public interface DevicePropertySpec<in D, T> {
 public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
 
 
-public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
+public interface MutableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
     /**
      * Write physical value to a device
      */
@@ -84,21 +81,20 @@ public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>
 public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
     readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::metaToObject)
 
-
-public operator fun <T, D : Device> D.get(propertySpec: DevicePropertySpec<D, T>): T? =
-    getProperty(propertySpec.name)?.let(propertySpec.converter::metaToObject)
+public suspend fun <T, D : Device> D.request(propertySpec: DevicePropertySpec<D, T>): T? =
+    propertySpec.converter.metaToObject(requestProperty(propertySpec.name))
 
 /**
  * Write typed property state and invalidate logical state
  */
-public suspend fun <T, D : Device> D.write(propertySpec: WritableDevicePropertySpec<D, T>, value: T) {
+public suspend fun <T, D : Device> D.write(propertySpec: MutableDevicePropertySpec<D, T>, value: T) {
     writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
 }
 
 /**
  * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope
  */
-public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySpec<D, T>, value: T): Job = launch {
+public fun <T, D : Device> D.writeAsync(propertySpec: MutableDevicePropertySpec<D, T>, value: T): Job = launch {
     write(propertySpec, value)
 }
 
@@ -151,7 +147,7 @@ public fun <D : Device, T> D.useProperty(
 /**
  * Reset the logical state of a property
  */
-public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
+public suspend fun <D : CachingDevice> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
     invalidate(propertySpec.name)
 }
 

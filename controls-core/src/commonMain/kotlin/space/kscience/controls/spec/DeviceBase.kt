@@ -20,7 +20,7 @@ import kotlin.coroutines.CoroutineContext
  * Write a meta [item] to [device]
  */
 @OptIn(InternalDeviceAPI::class)
-private suspend fun <D : Device, T> WritableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
+private suspend fun <D : Device, T> MutableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
     write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
 }
 
@@ -48,7 +48,7 @@ private suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta
 public abstract class DeviceBase<D : Device>(
     final override val context: Context,
     final override val meta: Meta = Meta.EMPTY,
-) : Device {
+) : CachingDevice {
 
     /**
      * Collection of property specifications
@@ -166,7 +166,7 @@ public abstract class DeviceBase<D : Device>(
                 propertyChanged(propertyName, value)
             }
 
-            is WritableDevicePropertySpec -> {
+            is MutableDevicePropertySpec -> {
                 //if there is a writeable property with a given name, invalidate logical and write physical
                 invalidate(propertyName)
                 property.writeMeta(self, value)
@@ -189,8 +189,8 @@ public abstract class DeviceBase<D : Device>(
     }
 
     @DFExperimental
-    override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
-        protected set(value) {
+    final override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
+        private set(value) {
             if (field != value) {
                 launch {
                     sharedMessageFlow.emit(

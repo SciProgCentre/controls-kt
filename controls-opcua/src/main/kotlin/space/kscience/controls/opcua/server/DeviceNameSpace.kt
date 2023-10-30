@@ -19,10 +19,7 @@ import org.eclipse.milo.opcua.stack.core.AttributeId
 import org.eclipse.milo.opcua.stack.core.Identifiers
 import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.DeviceHub
-import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.controls.api.onPropertyChange
+import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaSerializer
@@ -31,7 +28,7 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
 
 
-public operator fun Device.get(propertyDescriptor: PropertyDescriptor): Meta? = getProperty(propertyDescriptor.name)
+public operator fun CachingDevice.get(propertyDescriptor: PropertyDescriptor): Meta? = getProperty(propertyDescriptor.name)
 
 public suspend fun Device.read(propertyDescriptor: PropertyDescriptor): Meta = readProperty(propertyDescriptor.name)
 
@@ -106,9 +103,11 @@ public class DeviceNameSpace(
                 setTypeDefinition(Identifiers.BaseDataVariableType)
             }.build()
 
-
-            device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
-                node.value = it
+            // Update initial value, but only if it is cached
+            if(device is CachingDevice) {
+                device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
+                    node.value = it
+                }
             }
 
             /**

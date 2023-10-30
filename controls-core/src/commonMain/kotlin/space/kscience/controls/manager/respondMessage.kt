@@ -17,21 +17,17 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         is PropertyGetMessage -> {
             PropertyChangedMessage(
                 property = request.property,
-                value = getOrReadProperty(request.property),
+                value = requestProperty(request.property),
                 sourceDevice = deviceTarget,
                 targetDevice = request.sourceDevice
             )
         }
 
         is PropertySetMessage -> {
-            if (request.value == null) {
-                invalidate(request.property)
-            } else {
-                writeProperty(request.property, request.value)
-            }
+            writeProperty(request.property, request.value)
             PropertyChangedMessage(
                 property = request.property,
-                value = getOrReadProperty(request.property),
+                value = requestProperty(request.property),
                 sourceDevice = deviceTarget,
                 targetDevice = request.sourceDevice
             )

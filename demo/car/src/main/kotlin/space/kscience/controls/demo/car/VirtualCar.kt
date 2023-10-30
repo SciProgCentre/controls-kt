@@ -4,8 +4,8 @@ package space.kscience.controls.demo.car
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.read
@@ -41,6 +41,8 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
 }
 
 open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
+    private val clock = context.clock
+
     private val timeScale = 1e-3
 
     private val mass by meta.double(1000.0) // mass in kilograms
@@ -57,7 +59,7 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
 
     private var timeState: Instant? = null
 
-    private fun update(newTime: Instant = Clock.System.now()) {
+    private fun update(newTime: Instant = clock.now()) {
         //initialize time if it is not initialized
         if (timeState == null) {
             timeState = newTime
@@ -102,7 +104,7 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
     @OptIn(ExperimentalTime::class)
     override suspend fun onStart() {
         //initializing the clock
-        timeState = Clock.System.now()
+        timeState = clock.now()
         //starting regular updates
         doRecurring(100.milliseconds) {
             update()
