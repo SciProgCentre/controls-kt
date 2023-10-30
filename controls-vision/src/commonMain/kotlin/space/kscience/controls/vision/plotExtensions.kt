@@ -4,11 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.datetime.Clock
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.manager.clock
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.ListValue
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.Null
@@ -44,13 +44,14 @@ public fun Plot.plotDeviceProperty(
 }
 
 public fun Plot.plotDeviceState(
-    scope: CoroutineScope,
+    context: Context,
     state: DeviceState<out Number>,
     pointsNumber: Int = 400,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
+    val clock = context.clock
     state.valueFlow.onEach {
-        x.strings = (x.strings + Clock.System.now().toString()).takeLast(pointsNumber)
+        x.strings = (x.strings + clock.now().toString()).takeLast(pointsNumber)
         y.numbers = (y.numbers + it).takeLast(pointsNumber)
-    }.launchIn(scope)
+    }.launchIn(context)
 }

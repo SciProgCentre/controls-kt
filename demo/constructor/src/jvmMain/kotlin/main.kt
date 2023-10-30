@@ -79,7 +79,7 @@ public fun main() {
         ) {
             vision {
                 plotly {
-                    plotDeviceState(this@embeddedServer, state){
+                    plotDeviceState(context, state){
                         name = "value"
                     }
                     plotDeviceProperty(device["pid"], Regulator.target.name){
