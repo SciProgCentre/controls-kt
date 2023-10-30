@@ -32,10 +32,10 @@ public class DoubleRangeState(
     /**
      * A state showing that the range is on its lower boundary
      */
-    public val atStartState: DeviceState<Boolean> = map(MetaConverter.boolean) { it == range.start }
+    public val atStartState: DeviceState<Boolean> = map(MetaConverter.boolean) { it <= range.start }
 
     /**
      * A state showing that the range is on its higher boundary
      */
-    public val atEndState: DeviceState<Boolean> = map(MetaConverter.boolean) { it == range.endInclusive }
+    public val atEndState: DeviceState<Boolean> = map(MetaConverter.boolean) { it >= range.endInclusive }
 }

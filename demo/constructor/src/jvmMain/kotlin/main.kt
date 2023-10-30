@@ -13,9 +13,10 @@ import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.name
 import space.kscience.controls.spec.write
 import space.kscience.controls.vision.plotDeviceProperty
-import space.kscience.controls.vision.plotDeviceState
+import space.kscience.controls.vision.plotNumberState
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
+import space.kscience.plotly.models.ScatterMode
 import space.kscience.visionforge.VisionManager
 import space.kscience.visionforge.html.VisionPage
 import space.kscience.visionforge.plotly.PlotlyPlugin
@@ -40,7 +41,7 @@ public fun main() {
     val deviceManager = context.request(DeviceManager)
     val visionManager = context.request(VisionManager)
 
-    val state = DoubleRangeState(0.0, -100.0..100.0)
+    val state = DoubleRangeState(0.0, -5.0..5.0)
 
     val pidParameters = PidParameters(
         kp = 2.5,
@@ -79,11 +80,34 @@ public fun main() {
         ) {
             vision {
                 plotly {
-                    plotDeviceState(context, state){
-                        name = "value"
+                    plotNumberState(context, state) {
+                        name = "real position"
                     }
-                    plotDeviceProperty(device["pid"], Regulator.target.name){
+                    plotDeviceProperty(device["pid"], Regulator.position.name) {
+                        name = "read position"
+                    }
+
+                    plotDeviceProperty(device["pid"], Regulator.target.name) {
                         name = "target"
+                    }
+                }
+            }
+
+            vision {
+                plotly {
+//                    plotBooleanState(context, state.atStartState) {
+//                        name = "start"
+//                    }
+//                    plotBooleanState(context, state.atEndState) {
+//                        name = "end"
+//                    }
+                    plotDeviceProperty(device["start"], LimitSwitch.locked.name) {
+                        name = "start measured"
+                        mode = ScatterMode.markers
+                    }
+                    plotDeviceProperty(device["end"], LimitSwitch.locked.name) {
+                        name = "end measured"
+                        mode = ScatterMode.markers
                     }
                 }
             }
