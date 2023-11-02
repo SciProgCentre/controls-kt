@@ -62,7 +62,6 @@ public class PidRegulator(
                     lastPosition = drive.position
 
                     drive.force = pidParameters.kp * delta + pidParameters.ki * integral + pidParameters.kd * derivative
-                    propertyChanged(Regulator.position, drive.position)
                 }
             }
         }

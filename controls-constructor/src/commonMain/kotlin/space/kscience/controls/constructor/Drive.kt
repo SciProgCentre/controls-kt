@@ -48,7 +48,7 @@ public class VirtualDrive(
     public val positionState: MutableDeviceState<Double>,
 ) : Drive, DeviceBySpec<Drive>(Drive, context) {
 
-    private val dt = meta["time.step"].double?.milliseconds ?: 5.milliseconds
+    private val dt = meta["time.step"].double?.milliseconds ?: 1.milliseconds
     private val clock = context.clock
 
     override var force: Double = 0.0
@@ -73,7 +73,6 @@ public class VirtualDrive(
 
                 // compute new value based on velocity and acceleration from the previous step
                 positionState.value += velocity * dtSeconds + force / mass * dtSeconds.pow(2) / 2
-                propertyChanged(Drive.position, positionState.value)
 
                 // compute new velocity based on acceleration on the previous step
                 velocity += force / mass * dtSeconds

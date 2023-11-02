@@ -11,6 +11,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.name
+import space.kscience.controls.spec.read
 import space.kscience.controls.spec.write
 import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.controls.vision.plotNumberState
@@ -66,6 +67,7 @@ public fun main() {
             val target = 5 * sin(2.0 * PI * freq * t) +
                     sin(2 * PI * 21 * freq * t + 0.1 * (timeFromStart / pidParameters.timeStep))
             pid.write(Regulator.target, target)
+            pid.read(Regulator.position)
         }
     }
 
