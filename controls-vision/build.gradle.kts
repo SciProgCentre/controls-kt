@@ -10,8 +10,7 @@ description = """
 val visionforgeVersion = "0.3.0-dev-10"
 
 kscience {
-    jvm()
-    js()
+    fullStack("js/controls-vision.js", development = true)
     useKtor()
     useContextReceivers()
     dependencies {
@@ -19,6 +18,7 @@ kscience {
         api(projects.controlsConstructor)
         api("space.kscience:visionforge-plotly:$visionforgeVersion")
         api("space.kscience:visionforge-markdown:$visionforgeVersion")
+        api("space.kscience:visionforge-tables:$visionforgeVersion")
     }
 
     jvmMain{

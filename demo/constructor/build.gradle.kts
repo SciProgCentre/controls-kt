@@ -4,7 +4,9 @@ plugins {
 }
 
 kscience {
-    fullStack("js/constructor.js", jvmConfig = {withJava()})
+    jvm{
+        withJava()
+    }
     useKtor()
     useContextReceivers()
     dependencies {

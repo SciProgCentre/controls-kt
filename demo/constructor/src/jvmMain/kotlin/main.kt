@@ -21,7 +21,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 
-@Suppress("ExtractKtorModule")
 public fun main() {
     val context = Context {
         plugin(DeviceManager)
@@ -73,12 +72,6 @@ public fun main() {
         }
 
         plot {
-//                    plotBooleanState(context, state.atStartState) {
-//                        name = "start"
-//                    }
-//                    plotBooleanState(context, state.atEndState) {
-//                        name = "end"
-//                    }
             plotDeviceProperty(device["start"], LimitSwitch.locked.name) {
                 name = "start measured"
                 mode = ScatterMode.markers

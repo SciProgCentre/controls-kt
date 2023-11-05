@@ -33,7 +33,7 @@ public fun Context.showDashboard(
 
     visionPage(
         visionManager,
-        VisionPage.scriptHeader("js/constructor.js"),
+        VisionPage.scriptHeader("js/controls-vision.js"),
         configurationBuilder = configurationBuilder,
         visionFragment = visionFragment
     )
