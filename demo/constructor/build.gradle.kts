@@ -6,6 +6,7 @@ plugins {
 kscience {
     fullStack("js/constructor.js", jvmConfig = {withJava()})
     useKtor()
+    useContextReceivers()
     dependencies {
         api(projects.controlsVision)
     }

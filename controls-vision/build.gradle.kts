@@ -12,6 +12,8 @@ val visionforgeVersion = "0.3.0-dev-10"
 kscience {
     jvm()
     js()
+    useKtor()
+    useContextReceivers()
     dependencies {
         api(projects.controlsCore)
         api(projects.controlsConstructor)
@@ -21,6 +23,7 @@ kscience {
 
     jvmMain{
         api("space.kscience:visionforge-server:$visionforgeVersion")
+        api("io.ktor:ktor-server-cio")
     }
 }
 

@@ -1,9 +1,5 @@
 package space.kscience.controls.demo.constructor
 
-import io.ktor.server.cio.CIO
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.http.content.staticResources
-import io.ktor.server.routing.routing
 import space.kscience.controls.api.get
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.ClockManager
@@ -12,18 +8,13 @@ import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.name
 import space.kscience.controls.spec.write
+import space.kscience.controls.vision.plot
 import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.controls.vision.plotNumberState
+import space.kscience.controls.vision.showDashboard
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
 import space.kscience.plotly.models.ScatterMode
-import space.kscience.visionforge.VisionManager
-import space.kscience.visionforge.html.VisionPage
 import space.kscience.visionforge.plotly.PlotlyPlugin
-import space.kscience.visionforge.plotly.plotly
-import space.kscience.visionforge.server.close
-import space.kscience.visionforge.server.openInBrowser
-import space.kscience.visionforge.server.visionPage
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.time.Duration.Companion.milliseconds
@@ -38,9 +29,6 @@ public fun main() {
         plugin(ClockManager)
     }
 
-    val deviceManager = context.request(DeviceManager)
-    val visionManager = context.request(VisionManager)
-
     val state = DoubleRangeState(0.0, -5.0..5.0)
 
     val pidParameters = PidParameters(
@@ -50,7 +38,7 @@ public fun main() {
         timeStep = 0.005.seconds
     )
 
-    val device = deviceManager.deviceGroup {
+    val device = context.deviceGroup {
         val drive = virtualDrive("drive", 0.005, state)
         val pid = pid("pid", drive, pidParameters)
         virtualLimitSwitch("start", state.atStartState)
@@ -69,59 +57,37 @@ public fun main() {
         }
     }
 
-    val server = embeddedServer(CIO, port = 7777) {
-        routing {
-            staticResources("", null, null)
-        }
 
-        visionPage(
-            visionManager,
-            VisionPage.scriptHeader("js/constructor.js")
-        ) {
-            vision {
-                plotly {
-                    plotNumberState(context, state) {
-                        name = "real position"
-                    }
-                    plotDeviceProperty(device["pid"], Regulator.position.name) {
-                        name = "read position"
-                    }
-
-                    plotDeviceProperty(device["pid"], Regulator.target.name) {
-                        name = "target"
-                    }
-                }
+    context.showDashboard {
+        plot {
+            plotNumberState(context, state) {
+                name = "real position"
+            }
+            plotDeviceProperty(device["pid"], Regulator.position.name) {
+                name = "read position"
             }
 
-            vision {
-                plotly {
+            plotDeviceProperty(device["pid"], Regulator.target.name) {
+                name = "target"
+            }
+        }
+
+        plot {
 //                    plotBooleanState(context, state.atStartState) {
 //                        name = "start"
 //                    }
 //                    plotBooleanState(context, state.atEndState) {
 //                        name = "end"
 //                    }
-                    plotDeviceProperty(device["start"], LimitSwitch.locked.name) {
-                        name = "start measured"
-                        mode = ScatterMode.markers
-                    }
-                    plotDeviceProperty(device["end"], LimitSwitch.locked.name) {
-                        name = "end measured"
-                        mode = ScatterMode.markers
-                    }
-                }
+            plotDeviceProperty(device["start"], LimitSwitch.locked.name) {
+                name = "start measured"
+                mode = ScatterMode.markers
+            }
+            plotDeviceProperty(device["end"], LimitSwitch.locked.name) {
+                name = "end measured"
+                mode = ScatterMode.markers
             }
         }
 
-    }.start(false)
-
-    server.openInBrowser()
-
-
-    println("Enter 'exit' to close server")
-    while (readlnOrNull() != "exit") {
-        //
     }
-
-    server.close()
 }

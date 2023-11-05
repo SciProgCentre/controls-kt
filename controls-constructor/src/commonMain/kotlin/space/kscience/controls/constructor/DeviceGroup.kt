@@ -8,6 +8,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
@@ -157,6 +158,12 @@ public fun DeviceManager.deviceGroup(
     install(name, group)
     return group
 }
+
+public fun Context.deviceGroup(
+    name: String = "@group",
+    meta: Meta = Meta.EMPTY,
+    block: DeviceGroup.() -> Unit,
+): DeviceGroup  = request(DeviceManager).deviceGroup(name, meta, block)
 
 private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
     return when (name.length) {
