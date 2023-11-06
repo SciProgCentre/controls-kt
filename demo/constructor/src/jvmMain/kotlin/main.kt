@@ -37,11 +37,11 @@ public fun main() {
         timeStep = 0.005.seconds
     )
 
-    val device = context.deviceGroup {
-        val drive = virtualDrive("drive", 0.005, state)
+    val device = context.registerDeviceGroup {
+        val drive = VirtualDrive(context,  0.005, state)
         val pid = pid("pid", drive, pidParameters)
-        virtualLimitSwitch("start", state.atStartState)
-        virtualLimitSwitch("end", state.atEndState)
+        registerDevice("start", LimitSwitch.factory(state.atStartState))
+        registerDevice("end", LimitSwitch.factory(state.atEndState))
 
         val clock = context.clock
         val clockStart = clock.now()

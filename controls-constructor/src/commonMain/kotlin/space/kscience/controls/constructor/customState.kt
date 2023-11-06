@@ -39,3 +39,9 @@ public class DoubleRangeState(
      */
     public val atEndState: DeviceState<Boolean> = map(MetaConverter.boolean) { it >= range.endInclusive }
 }
+
+@Suppress("UnusedReceiverParameter")
+public fun DeviceGroup.rangeState(
+    initialValue: Double,
+    range: ClosedFloatingPointRange<Double>,
+): DoubleRangeState = DoubleRangeState(initialValue, range)

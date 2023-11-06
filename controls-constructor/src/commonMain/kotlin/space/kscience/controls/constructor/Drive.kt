@@ -8,6 +8,7 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.transformations.MetaConverter
@@ -84,12 +85,15 @@ public class VirtualDrive(
     override fun onStop() {
         updateJob?.cancel()
     }
+
+    public companion object {
+        public fun factory(
+            mass: Double,
+            positionState: MutableDeviceState<Double>,
+        ): Factory<Drive> = Factory { context, _ ->
+            VirtualDrive(context, mass, positionState)
+        }
+    }
 }
 
 public suspend fun Drive.stateOfForce(): MutableDeviceState<Double> = bindMutableStateToProperty(Drive.force)
-
-public fun DeviceGroup.virtualDrive(
-    name: String,
-    mass: Double,
-    positionState: MutableDeviceState<Double>,
-): VirtualDrive = device(name, VirtualDrive(context, mass, positionState))

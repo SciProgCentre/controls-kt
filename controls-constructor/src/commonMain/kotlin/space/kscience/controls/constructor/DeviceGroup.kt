@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import space.kscience.controls.api.*
+import space.kscience.controls.api.DeviceLifecycleState.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
@@ -23,7 +24,7 @@ import kotlin.coroutines.CoroutineContext
 /**
  * A mutable group of devices and properties to be used for lightweight design and simulations.
  */
-public class DeviceGroup(
+public open class DeviceGroup(
     public val deviceManager: DeviceManager,
     override val meta: Meta,
 ) : DeviceHub, CachingDevice {
@@ -63,15 +64,28 @@ public class DeviceGroup(
 
     override val devices: Map<NameToken, Device> = _devices
 
-    public fun <D : Device> device(token: NameToken, device: D): D {
-        check(_devices[token] == null) { "A child device with name $token already exists" }
+    /**
+     * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group
+     */
+    @OptIn(DFExperimental::class)
+    public fun <D : Device> registerDevice(token: NameToken, device: D): D {
+        require(_devices[token] == null) { "A child device with name $token already exists" }
+        //start or stop the child if needed
+        when (lifecycleState) {
+            STARTING, STARTED -> launch { device.start() }
+            STOPPED -> device.stop()
+            ERROR -> {}
+        }
         _devices[token] = device
         return device
     }
 
     private val properties: MutableMap<Name, Property> = hashMapOf()
 
-    public fun property(descriptor: PropertyDescriptor, state: DeviceState<out Any>) {
+    /**
+     * Register a new property based on [DeviceState]. Properties could be modified dynamically
+     */
+    public fun registerProperty(descriptor: PropertyDescriptor, state: DeviceState<out Any>) {
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, descriptor)
@@ -112,8 +126,8 @@ public class DeviceGroup(
     }
 
     @DFExperimental
-    override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
-        private set(value) {
+    override var lifecycleState: DeviceLifecycleState = STOPPED
+        protected set(value) {
             if (field != value) {
                 launch {
                     sharedMessageFlow.emit(
@@ -127,12 +141,12 @@ public class DeviceGroup(
 
     @OptIn(DFExperimental::class)
     override suspend fun start() {
-        lifecycleState = DeviceLifecycleState.STARTING
+        lifecycleState = STARTING
         super.start()
         devices.values.forEach {
             it.start()
         }
-        lifecycleState = DeviceLifecycleState.STARTED
+        lifecycleState = STARTED
     }
 
     @OptIn(DFExperimental::class)
@@ -141,7 +155,7 @@ public class DeviceGroup(
             it.stop()
         }
         super.stop()
-        lifecycleState = DeviceLifecycleState.STOPPED
+        lifecycleState = STOPPED
     }
 
     public companion object {
@@ -149,7 +163,7 @@ public class DeviceGroup(
     }
 }
 
-public fun DeviceManager.deviceGroup(
+public fun DeviceManager.registerDeviceGroup(
     name: String = "@group",
     meta: Meta = Meta.EMPTY,
     block: DeviceGroup.() -> Unit,
@@ -159,11 +173,11 @@ public fun DeviceManager.deviceGroup(
     return group
 }
 
-public fun Context.deviceGroup(
+public fun Context.registerDeviceGroup(
     name: String = "@group",
     meta: Meta = Meta.EMPTY,
     block: DeviceGroup.() -> Unit,
-): DeviceGroup  = request(DeviceManager).deviceGroup(name, meta, block)
+): DeviceGroup = request(DeviceManager).registerDeviceGroup(name, meta, block)
 
 private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
     return when (name.length) {
@@ -171,7 +185,7 @@ private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
         1 -> {
             val token = name.first()
             when (val d = devices[token]) {
-                null -> device(
+                null -> registerDevice(
                     token,
                     DeviceGroup(deviceManager, meta[token] ?: Meta.EMPTY)
                 )
@@ -187,79 +201,99 @@ private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
 /**
  * Register a device at given [name] path
  */
-public fun <D : Device> DeviceGroup.device(name: Name, device: D): D {
+public fun <D : Device> DeviceGroup.registerDevice(name: Name, device: D): D {
     return when (name.length) {
         0 -> error("Can't use empty name for a child device")
-        1 -> device(name.first(), device)
-        else -> getOrCreateGroup(name.cutLast()).device(name.tokens.last(), device)
+        1 -> registerDevice(name.first(), device)
+        else -> getOrCreateGroup(name.cutLast()).registerDevice(name.tokens.last(), device)
     }
 }
 
-public fun <D: Device> DeviceGroup.device(name: String, device: D): D = device(name.parseAsName(), device)
+public fun <D : Device> DeviceGroup.registerDevice(name: String, device: D): D = registerDevice(name.parseAsName(), device)
 
 /**
  * Add a device creating intermediate groups if necessary. If device with given [name] already exists, throws an error.
+ * @param name the name of the device in the group
+ * @param factory a factory used to create a device
+ * @param deviceMeta meta override for this specific device
+ * @param metaLocation location of the template meta in parent group meta
  */
-public fun DeviceGroup.device(name: Name, factory: Factory<Device>, deviceMeta: Meta? = null): Device {
-    val newDevice = factory.build(deviceManager.context, Laminate(deviceMeta, meta[name]))
-    device(name, newDevice)
+public fun <D : Device> DeviceGroup.registerDevice(
+    name: Name,
+    factory: Factory<D>,
+    deviceMeta: Meta? = null,
+    metaLocation: Name = name,
+): D {
+    val newDevice = factory.build(deviceManager.context, Laminate(deviceMeta, meta[metaLocation]))
+    registerDevice(name, newDevice)
     return newDevice
 }
 
-public fun DeviceGroup.device(
+public fun <D : Device> DeviceGroup.registerDevice(
     name: String,
-    factory: Factory<Device>,
+    factory: Factory<D>,
+    metaLocation: Name = name.parseAsName(),
     metaBuilder: (MutableMeta.() -> Unit)? = null,
-): Device = device(name.parseAsName(), factory, metaBuilder?.let { Meta(it) })
+): D = registerDevice(name.parseAsName(), factory, metaBuilder?.let { Meta(it) }, metaLocation)
 
 /**
  * Create or edit a group with a given [name].
  */
-public fun DeviceGroup.deviceGroup(name: Name, block: DeviceGroup.() -> Unit): DeviceGroup =
+public fun DeviceGroup.registerDeviceGroup(name: Name, block: DeviceGroup.() -> Unit): DeviceGroup =
     getOrCreateGroup(name).apply(block)
 
-public fun DeviceGroup.deviceGroup(name: String, block: DeviceGroup.() -> Unit): DeviceGroup =
-    deviceGroup(name.parseAsName(), block)
+public fun DeviceGroup.registerDeviceGroup(name: String, block: DeviceGroup.() -> Unit): DeviceGroup =
+    registerDeviceGroup(name.parseAsName(), block)
 
-public fun <T : Any> DeviceGroup.property(
+/**
+ * Register read-only property based on [state]
+ */
+public fun <T : Any> DeviceGroup.registerProperty(
     name: String,
     state: DeviceState<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-): DeviceState<T> {
-    property(
+) {
+    registerProperty(
         PropertyDescriptor(name).apply(descriptorBuilder),
         state
     )
-    return state
 }
 
-public fun <T : Any> DeviceGroup.mutableProperty(
+/**
+ * Register a mutable property based on mutable [state]
+ */
+public fun <T : Any> DeviceGroup.registerMutableProperty(
     name: String,
     state: MutableDeviceState<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-): MutableDeviceState<T> {
-    property(
+) {
+    registerProperty(
         PropertyDescriptor(name).apply(descriptorBuilder),
         state
     )
-    return state
 }
 
-public fun <T : Any> DeviceGroup.virtualProperty(
-    name: String,
-    initialValue: T,
-    converter: MetaConverter<T>,
-    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-): MutableDeviceState<T> {
-    val state = VirtualDeviceState<T>(converter, initialValue)
-    return mutableProperty(name, state, descriptorBuilder)
-}
 
 /**
  * Create a virtual [MutableDeviceState], but do not register it to a device
  */
 @Suppress("UnusedReceiverParameter")
-public fun <T : Any> DeviceGroup.standAloneProperty(
+public fun <T : Any> DeviceGroup.state(
+    converter: MetaConverter<T>,
+    initialValue: T,
+): MutableDeviceState<T> = VirtualDeviceState<T>(converter, initialValue)
+
+/**
+ * Create a new virtual mutable state and a property based on it.
+ * @return the mutable state used in property
+ */
+public fun <T : Any> DeviceGroup.registerVirtualProperty(
+    name: String,
     initialValue: T,
     converter: MetaConverter<T>,
-): MutableDeviceState<T> = VirtualDeviceState<T>(converter, initialValue)
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): MutableDeviceState<T> {
+    val state = state(converter, initialValue)
+    registerMutableProperty(name, state, descriptorBuilder)
+    return state
+}

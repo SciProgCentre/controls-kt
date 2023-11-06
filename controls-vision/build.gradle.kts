@@ -10,7 +10,7 @@ description = """
 val visionforgeVersion = "0.3.0-dev-10"
 
 kscience {
-    fullStack("js/controls-vision.js", development = true)
+    fullStack("js/controls-vision.js")
     useKtor()
     useContextReceivers()
     dependencies {
