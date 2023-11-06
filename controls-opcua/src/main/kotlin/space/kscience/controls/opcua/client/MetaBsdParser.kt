@@ -147,7 +147,7 @@ internal class MetaStructureCodec(
             "Float" -> member.value?.numberOrNull?.toFloat()
             "Double" -> member.value?.numberOrNull?.toDouble()
             "String" -> member.string
-            "DateTime" -> DateTime(member.instant().toJavaInstant())
+            "DateTime" -> DateTime(member.instant.toJavaInstant())
             "Guid" -> member.string?.let { UUID.fromString(it) }
             "ByteString" -> member.value?.list?.let { list ->
                 ByteString(list.map { it.number.toByte() }.toByteArray())

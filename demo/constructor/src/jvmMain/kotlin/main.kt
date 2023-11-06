@@ -51,32 +51,33 @@ public fun main() {
             val t = timeFromStart.toDouble(DurationUnit.SECONDS)
             val freq = 0.1
             val target = 5 * sin(2.0 * PI * freq * t) +
-                    sin(2 * PI * 21 * freq * t + 0.1 * (timeFromStart / pidParameters.timeStep))
+                    sin(2 * PI * 21 * freq * t + 0.02 * (timeFromStart / pidParameters.timeStep))
             pid.write(Regulator.target, target)
         }
     }
 
+    val maxAge = 10.seconds
 
     context.showDashboard {
         plot {
-            plotNumberState(context, state) {
+            plotNumberState(context, state, maxAge = maxAge) {
                 name = "real position"
             }
-            plotDeviceProperty(device["pid"], Regulator.position.name) {
+            plotDeviceProperty(device["pid"], Regulator.position.name, maxAge = maxAge) {
                 name = "read position"
             }
 
-            plotDeviceProperty(device["pid"], Regulator.target.name) {
+            plotDeviceProperty(device["pid"], Regulator.target.name, maxAge = maxAge) {
                 name = "target"
             }
         }
 
         plot {
-            plotDeviceProperty(device["start"], LimitSwitch.locked.name) {
+            plotDeviceProperty(device["start"], LimitSwitch.locked.name, maxAge = maxAge) {
                 name = "start measured"
                 mode = ScatterMode.markers
             }
-            plotDeviceProperty(device["end"], LimitSwitch.locked.name) {
+            plotDeviceProperty(device["end"], LimitSwitch.locked.name, maxAge = maxAge) {
                 name = "end measured"
                 mode = ScatterMode.markers
             }
