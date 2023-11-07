@@ -33,7 +33,7 @@ public abstract class DeviceConstructor(
     ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, D>> =
         PropertyDelegateProvider { _: DeviceConstructor, property: KProperty<*> ->
             val name = nameOverride ?: property.name.asName()
-            val device = registerDevice(name, factory, meta, metaLocation ?: name)
+            val device = install(name, factory, meta, metaLocation ?: name)
             ReadOnlyProperty { _: DeviceConstructor, _ ->
                 device
             }
@@ -45,7 +45,7 @@ public abstract class DeviceConstructor(
     ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, D>> =
         PropertyDelegateProvider { _: DeviceConstructor, property: KProperty<*> ->
             val name = nameOverride ?: property.name.asName()
-            registerDevice(name, device)
+            install(name, device)
             ReadOnlyProperty { _: DeviceConstructor, _ ->
                 device
             }
@@ -58,7 +58,7 @@ public abstract class DeviceConstructor(
     public fun <T : Any> property(
         state: DeviceState<T>,
         nameOverride: String? = null,
-        descriptorBuilder: PropertyDescriptor.() -> Unit,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, T>> =
         PropertyDelegateProvider { _: DeviceConstructor, property ->
             val name = nameOverride ?: property.name
@@ -78,7 +78,7 @@ public abstract class DeviceConstructor(
         readInterval: Duration,
         initialState: T,
         nameOverride: String? = null,
-        descriptorBuilder: PropertyDescriptor.() -> Unit,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, T>> = property(
         DeviceState.external(this, metaConverter, readInterval, initialState, reader),
         nameOverride, descriptorBuilder
@@ -91,8 +91,8 @@ public abstract class DeviceConstructor(
     public fun <T : Any> mutableProperty(
         state: MutableDeviceState<T>,
         nameOverride: String? = null,
-        descriptorBuilder: PropertyDescriptor.() -> Unit,
-    ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, T>> =
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    ): PropertyDelegateProvider<DeviceConstructor, ReadWriteProperty<DeviceConstructor, T>> =
         PropertyDelegateProvider { _: DeviceConstructor, property ->
             val name = nameOverride ?: property.name
             val descriptor = PropertyDescriptor(name).apply(descriptorBuilder)
@@ -117,8 +117,8 @@ public abstract class DeviceConstructor(
         readInterval: Duration,
         initialState: T,
         nameOverride: String? = null,
-        descriptorBuilder: PropertyDescriptor.() -> Unit,
-    ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, T>> = mutableProperty(
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    ): PropertyDelegateProvider<DeviceConstructor, ReadWriteProperty<DeviceConstructor, T>> = mutableProperty(
         DeviceState.external(this, metaConverter, readInterval, initialState, reader, writer),
         nameOverride,
         descriptorBuilder

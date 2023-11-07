@@ -79,4 +79,4 @@ public fun DeviceGroup.pid(
     name: String,
     drive: Drive,
     pidParameters: PidParameters,
-): PidRegulator = registerDevice(name, PidRegulator(drive, pidParameters))
+): PidRegulator = install(name, PidRegulator(drive, pidParameters))

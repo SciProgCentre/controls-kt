@@ -3,6 +3,8 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import space.kscience.controls.api.*
 import space.kscience.controls.api.DeviceLifecycleState.*
 import space.kscience.controls.manager.DeviceManager
@@ -40,25 +42,30 @@ public open class DeviceGroup(
     )
 
 
-    override val context: Context get() = deviceManager.context
+    override final val context: Context get() = deviceManager.context
 
-    override val coroutineContext: CoroutineContext by lazy {
-        context.newCoroutineContext(
-            SupervisorJob(context.coroutineContext[Job]) +
-                    CoroutineName("Device $this") +
-                    CoroutineExceptionHandler { _, throwable ->
-                        launch {
-                            sharedMessageFlow.emit(
-                                DeviceErrorMessage(
-                                    errorMessage = throwable.message,
-                                    errorType = throwable::class.simpleName,
-                                    errorStackTrace = throwable.stackTraceToString()
-                                )
+
+    private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
+
+    override val messageFlow: Flow<DeviceMessage>
+        get() = sharedMessageFlow
+
+    override val coroutineContext: CoroutineContext = context.newCoroutineContext(
+        SupervisorJob(context.coroutineContext[Job]) +
+                CoroutineName("Device $this") +
+                CoroutineExceptionHandler { _, throwable ->
+                    context.launch {
+                        sharedMessageFlow.emit(
+                            DeviceErrorMessage(
+                                errorMessage = throwable.message,
+                                errorType = throwable::class.simpleName,
+                                errorStackTrace = throwable.stackTraceToString()
                             )
-                        }
+                        )
                     }
-        )
-    }
+                }
+    )
+
 
     private val _devices = hashMapOf<NameToken, Device>()
 
@@ -68,14 +75,10 @@ public open class DeviceGroup(
      * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group
      */
     @OptIn(DFExperimental::class)
-    public fun <D : Device> registerDevice(token: NameToken, device: D): D {
+    public fun <D : Device> install(token: NameToken, device: D): D {
         require(_devices[token] == null) { "A child device with name $token already exists" }
-        //start or stop the child if needed
-        when (lifecycleState) {
-            STARTING, STARTED -> launch { device.start() }
-            STOPPED -> device.stop()
-            ERROR -> {}
-        }
+        //start the child device if needed
+        if(lifecycleState == STARTED || lifecycleState == STARTING) launch { device.start() }
         _devices[token] = device
         return device
     }
@@ -89,6 +92,14 @@ public open class DeviceGroup(
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, descriptor)
+        state.metaFlow.onEach {
+            sharedMessageFlow.emit(
+                PropertyChangedMessage(
+                    descriptor.name,
+                    it
+                )
+            )
+        }.launchIn(this)
     }
 
     private val actions: MutableMap<Name, Action> = hashMapOf()
@@ -115,10 +126,6 @@ public open class DeviceGroup(
         property.valueAsMeta = value
     }
 
-    private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
-
-    override val messageFlow: Flow<DeviceMessage>
-        get() = sharedMessageFlow
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val action = actions[actionName] ?: error("Action with name $actionName not found")
@@ -185,7 +192,7 @@ private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
         1 -> {
             val token = name.first()
             when (val d = devices[token]) {
-                null -> registerDevice(
+                null -> install(
                     token,
                     DeviceGroup(deviceManager, meta[token] ?: Meta.EMPTY)
                 )
@@ -201,15 +208,18 @@ private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
 /**
  * Register a device at given [name] path
  */
-public fun <D : Device> DeviceGroup.registerDevice(name: Name, device: D): D {
+public fun <D : Device> DeviceGroup.install(name: Name, device: D): D {
     return when (name.length) {
         0 -> error("Can't use empty name for a child device")
-        1 -> registerDevice(name.first(), device)
-        else -> getOrCreateGroup(name.cutLast()).registerDevice(name.tokens.last(), device)
+        1 -> install(name.first(), device)
+        else -> getOrCreateGroup(name.cutLast()).install(name.tokens.last(), device)
     }
 }
 
-public fun <D : Device> DeviceGroup.registerDevice(name: String, device: D): D = registerDevice(name.parseAsName(), device)
+public fun <D : Device> DeviceGroup.install(name: String, device: D): D =
+    install(name.parseAsName(), device)
+
+public fun <D : Device> Context.install(name: String, device: D): D = request(DeviceManager).install(name, device)
 
 /**
  * Add a device creating intermediate groups if necessary. If device with given [name] already exists, throws an error.
@@ -218,23 +228,23 @@ public fun <D : Device> DeviceGroup.registerDevice(name: String, device: D): D =
  * @param deviceMeta meta override for this specific device
  * @param metaLocation location of the template meta in parent group meta
  */
-public fun <D : Device> DeviceGroup.registerDevice(
+public fun <D : Device> DeviceGroup.install(
     name: Name,
     factory: Factory<D>,
     deviceMeta: Meta? = null,
     metaLocation: Name = name,
 ): D {
     val newDevice = factory.build(deviceManager.context, Laminate(deviceMeta, meta[metaLocation]))
-    registerDevice(name, newDevice)
+    install(name, newDevice)
     return newDevice
 }
 
-public fun <D : Device> DeviceGroup.registerDevice(
+public fun <D : Device> DeviceGroup.install(
     name: String,
     factory: Factory<D>,
     metaLocation: Name = name.parseAsName(),
     metaBuilder: (MutableMeta.() -> Unit)? = null,
-): D = registerDevice(name.parseAsName(), factory, metaBuilder?.let { Meta(it) }, metaLocation)
+): D = install(name.parseAsName(), factory, metaBuilder?.let { Meta(it) }, metaLocation)
 
 /**
  * Create or edit a group with a given [name].

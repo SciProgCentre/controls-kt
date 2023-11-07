@@ -96,4 +96,4 @@ public class VirtualDrive(
     }
 }
 
-public suspend fun Drive.stateOfForce(): MutableDeviceState<Double> = bindMutableStateToProperty(Drive.force)
+public suspend fun Drive.stateOfForce(): MutableDeviceState<Double> = mutablePropertyAsState(Drive.force)

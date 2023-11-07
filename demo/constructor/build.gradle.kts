@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
+
 plugins {
     id("space.kscience.gradle.mpp")
     application
@@ -21,3 +23,5 @@ kscience {
 application {
     mainClass.set("space.kscience.controls.demo.constructor.MainKt")
 }
+
+kotlin.explicitApi = ExplicitApiMode.Disabled

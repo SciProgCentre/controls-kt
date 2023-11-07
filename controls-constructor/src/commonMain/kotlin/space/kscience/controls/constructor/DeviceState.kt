@@ -75,7 +75,7 @@ private open class BoundDeviceState<T>(
 /**
  * Bind a read-only [DeviceState] to a [Device] property
  */
-public suspend fun <T> Device.bindStateToProperty(
+public suspend fun <T> Device.propertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
 ): DeviceState<T> {
@@ -83,9 +83,9 @@ public suspend fun <T> Device.bindStateToProperty(
     return BoundDeviceState(metaConverter, this, propertyName, initialValue)
 }
 
-public suspend fun <D : Device, T> D.bindStateToProperty(
+public suspend fun <D : Device, T> D.propertyAsState(
     propertySpec: DevicePropertySpec<D, T>,
-): DeviceState<T> = bindStateToProperty(propertySpec.name, propertySpec.converter)
+): DeviceState<T> = propertyAsState(propertySpec.name, propertySpec.converter)
 
 public fun <T, R> DeviceState<T>.map(
     converter: MetaConverter<R>, mapper: (T) -> R,
@@ -113,17 +113,28 @@ private class MutableBoundDeviceState<T>(
         }
 }
 
-public suspend fun <T> Device.bindMutableStateToProperty(
+public fun <T> Device.mutablePropertyAsState(
+    propertyName: String,
+    metaConverter: MetaConverter<T>,
+    initialValue: T,
+): MutableDeviceState<T> = MutableBoundDeviceState(metaConverter, this, propertyName, initialValue)
+
+public suspend fun <T> Device.mutablePropertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
 ): MutableDeviceState<T> {
     val initialValue = metaConverter.metaToObject(readProperty(propertyName)) ?: error("Conversion of property failed")
-    return MutableBoundDeviceState(metaConverter, this, propertyName, initialValue)
+    return mutablePropertyAsState(propertyName, metaConverter, initialValue)
 }
 
-public suspend fun <D : Device, T> D.bindMutableStateToProperty(
+public suspend fun <D : Device, T> D.mutablePropertyAsState(
     propertySpec: MutableDevicePropertySpec<D, T>,
-): MutableDeviceState<T> = bindMutableStateToProperty(propertySpec.name, propertySpec.converter)
+): MutableDeviceState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter)
+
+public fun <D : Device, T> D.mutablePropertyAsState(
+    propertySpec: MutableDevicePropertySpec<D, T>,
+    initialValue: T,
+): MutableDeviceState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter, initialValue)
 
 
 private open class ExternalState<T>(

@@ -72,23 +72,21 @@ public abstract class DeviceBase<D : Device>(
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    override val coroutineContext: CoroutineContext by lazy {
-        context.newCoroutineContext(
-            SupervisorJob(context.coroutineContext[Job]) +
-                    CoroutineName("Device $this") +
-                    CoroutineExceptionHandler { _, throwable ->
-                        launch {
-                            sharedMessageFlow.emit(
-                                DeviceErrorMessage(
-                                    errorMessage = throwable.message,
-                                    errorType = throwable::class.simpleName,
-                                    errorStackTrace = throwable.stackTraceToString()
-                                )
+    override val coroutineContext: CoroutineContext = context.newCoroutineContext(
+        SupervisorJob(context.coroutineContext[Job]) +
+                CoroutineName("Device $this") +
+                CoroutineExceptionHandler { _, throwable ->
+                    launch {
+                        sharedMessageFlow.emit(
+                            DeviceErrorMessage(
+                                errorMessage = throwable.message,
+                                errorType = throwable::class.simpleName,
+                                errorStackTrace = throwable.stackTraceToString()
                             )
-                        }
+                        )
                     }
-        )
-    }
+                }
+    )
 
 
     /**
