@@ -1,3 +1,5 @@
+package space.kscience.controls.jupyter
+
 import org.jetbrains.kotlinx.jupyter.api.declare
 import org.jetbrains.kotlinx.jupyter.api.libraries.resources
 import space.kscience.controls.manager.ClockManager
@@ -5,13 +7,11 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.plotly.Plot
-import space.kscience.tables.Table
 import space.kscience.visionforge.jupyter.VisionForge
 import space.kscience.visionforge.jupyter.VisionForgeIntegration
 import space.kscience.visionforge.markup.MarkupPlugin
 import space.kscience.visionforge.plotly.PlotlyPlugin
 import space.kscience.visionforge.plotly.asVision
-import space.kscience.visionforge.tables.toVision
 import space.kscience.visionforge.visionManager
 
 
@@ -34,7 +34,7 @@ public class ControlsJupyter : VisionForgeIntegration(CONTEXT.visionManager) {
             "kotlin.time.*",
             "kotlin.time.Duration.Companion.milliseconds",
             "kotlin.time.Duration.Companion.seconds",
-            "space.kscience.tables.*",
+//            "space.kscience.tables.*",
             "space.kscience.dataforge.meta.*",
             "space.kscience.dataforge.context.*",
             "space.kscience.plotly.*",
@@ -46,11 +46,11 @@ public class ControlsJupyter : VisionForgeIntegration(CONTEXT.visionManager) {
             "space.kscience.controls.spec.*"
         )
 
-        render<Table<*>> { table ->
-            vf.produceHtml {
-                vision { table.toVision() }
-            }
-        }
+//        render<Table<*>> { table ->
+//            vf.produceHtml {
+//                vision { table.toVision() }
+//            }
+//        }
 
         render<Plot> { plot ->
             vf.produceHtml {

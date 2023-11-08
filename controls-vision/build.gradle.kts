@@ -18,7 +18,8 @@ kscience {
         api(projects.controlsConstructor)
         api("space.kscience:visionforge-plotly:$visionforgeVersion")
         api("space.kscience:visionforge-markdown:$visionforgeVersion")
-        api("space.kscience:visionforge-tables:$visionforgeVersion")
+//        api("space.kscience:tables-kt:0.2.1")
+//        api("space.kscience:visionforge-tables:$visionforgeVersion")
     }
 
     jvmMain{
