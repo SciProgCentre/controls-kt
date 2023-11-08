@@ -74,6 +74,7 @@ public class VirtualDrive(
 
                 // compute new value based on velocity and acceleration from the previous step
                 positionState.value += velocity * dtSeconds + force / mass * dtSeconds.pow(2) / 2
+                propertyChanged(Drive.position, positionState.value)
 
                 // compute new velocity based on acceleration on the previous step
                 velocity += force / mass * dtSeconds

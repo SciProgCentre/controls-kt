@@ -1,7 +1,11 @@
+@file:OptIn(FlowPreview::class)
+
 package space.kscience.controls.vision
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.transform
@@ -25,6 +29,7 @@ import space.kscience.plotly.models.TraceValues
 import space.kscience.plotly.scatter
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 
 private var TraceValues.values: List<Value>
     get() = value?.list ?: emptyList()
@@ -88,12 +93,13 @@ public fun Plot.plotDeviceProperty(
     maxAge: Duration = 1.hours,
     maxPoints: Int = 800,
     minPoints: Int = 400,
+    debounceDuration: Duration = 10.milliseconds,
     coroutineScope: CoroutineScope = device.context,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
     val clock = device.context.clock
     val data = TimeData()
-    device.propertyMessageFlow(propertyName).transform {
+    device.propertyMessageFlow(propertyName).debounce(debounceDuration).transform {
         data.append(it.time ?: clock.now(), it.value.extractValue())
         data.trim(maxAge, maxPoints, minPoints)
         emit(data)
@@ -109,10 +115,11 @@ private fun <T> Trace.updateFromState(
     maxAge: Duration = 1.hours,
     maxPoints: Int = 800,
     minPoints: Int = 400,
-): Job{
+    debounceDuration: Duration = 10.milliseconds,
+): Job {
     val clock = context.clock
     val data = TimeData()
-    return state.valueFlow.transform<T, TimeData> {
+    return state.valueFlow.debounce(debounceDuration).transform<T, TimeData> {
         data.append(clock.now(), it.extractValue())
         data.trim(maxAge, maxPoints, minPoints)
     }.onEach {
@@ -127,9 +134,10 @@ public fun <T> Plot.plotDeviceState(
     maxAge: Duration = 1.hours,
     maxPoints: Int = 800,
     minPoints: Int = 400,
+    debounceDuration: Duration = 10.milliseconds,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
-    updateFromState(context, state, extractValue, maxAge, maxPoints, minPoints)
+    updateFromState(context, state, extractValue, maxAge, maxPoints, minPoints, debounceDuration)
 }
 
 
@@ -139,9 +147,10 @@ public fun Plot.plotNumberState(
     maxAge: Duration = 1.hours,
     maxPoints: Int = 800,
     minPoints: Int = 400,
+    debounceDuration: Duration = 10.milliseconds,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
-    updateFromState(context, state, { asValue() }, maxAge, maxPoints, minPoints)
+    updateFromState(context, state, { asValue() }, maxAge, maxPoints, minPoints, debounceDuration)
 }
 
 
@@ -151,7 +160,8 @@ public fun Plot.plotBooleanState(
     maxAge: Duration = 1.hours,
     maxPoints: Int = 800,
     minPoints: Int = 400,
+    debounceDuration: Duration = 10.milliseconds,
     configuration: Bar.() -> Unit = {},
-): Job =  bar(configuration).run {
-    updateFromState(context, state, { asValue() }, maxAge, maxPoints, minPoints)
+): Job = bar(configuration).run {
+    updateFromState(context, state, { asValue() }, maxAge, maxPoints, minPoints, debounceDuration)
 }
