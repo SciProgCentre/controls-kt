@@ -7,7 +7,7 @@ description = """
     Dashboard and visualization extensions for devices
 """.trimIndent()
 
-val visionforgeVersion = "0.3.0-dev-10"
+val visionforgeVersion: String by rootProject.extra
 
 kscience {
     fullStack("js/controls-vision.js")

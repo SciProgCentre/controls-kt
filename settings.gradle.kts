@@ -52,6 +52,7 @@ include(
     ":controls-storage:controls-xodus",
     ":controls-constructor",
     ":controls-vision",
+    ":controls-jupyter",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",

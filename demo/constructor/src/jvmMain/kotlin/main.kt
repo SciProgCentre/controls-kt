@@ -42,7 +42,7 @@ class LinearDrive(
 }
 
 
-public fun main() {
+fun main() {
     val context = Context {
         plugin(DeviceManager)
         plugin(PlotlyPlugin)

@@ -6,7 +6,7 @@ plugins {
 }
 
 val dataforgeVersion: String by extra("0.6.2")
-val visionforgeVersion by extra("0.3.0-dev-10")
+val visionforgeVersion by extra("0.3.0-dev-14")
 val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 val xodusVersion by extra("2.0.1")
