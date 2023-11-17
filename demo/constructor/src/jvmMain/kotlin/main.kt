@@ -1,11 +1,15 @@
 package space.kscience.controls.demo.constructor
 
+import kotlinx.coroutines.delay
+import space.kscience.controls.api.get
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.ClockManager
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.name
+import space.kscience.controls.spec.read
+import space.kscience.controls.spec.write
 import space.kscience.controls.vision.plot
 import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.controls.vision.plotNumberState
@@ -100,4 +104,15 @@ fun main() {
         }
 
     }
+}
+
+suspend fun DeviceGroup.findEnd(): Double{
+    val regulator = get("pid") as Regulator
+    val limitEnd = get("end") as LimitSwitch
+
+    while(!limitEnd.read(LimitSwitch.locked)){
+        delay(10.milliseconds)
+        regulator.write(Regulator.target, regulator.read(Regulator.position) + 0.1)
+    }
+    return regulator.read(Regulator.position)
 }
