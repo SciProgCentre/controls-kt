@@ -8,6 +8,55 @@ import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.KProperty1
+
+/**
+ * A read-only device property that delegates reading to a device [KProperty1]
+ */
+public fun <T, D : Device> DeviceSpec<D>.property(
+    converter: MetaConverter<T>,
+    readOnlyProperty: KProperty1<D, T>,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>>> = property(
+    converter,
+    descriptorBuilder,
+    name = readOnlyProperty.name,
+    read = { readOnlyProperty.get(this) }
+)
+
+/**
+ * Mutable property that delegates reading and writing to a device [KMutableProperty1]
+ */
+public fun <T, D : Device> DeviceSpec<D>.mutableProperty(
+    converter: MetaConverter<T>,
+    readWriteProperty: KMutableProperty1<D, T>,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
+    mutableProperty(
+        converter,
+        descriptorBuilder,
+        readWriteProperty.name,
+        read = { _ -> readWriteProperty.get(this) },
+        write = { _, value: T -> readWriteProperty.set(this, value) }
+    )
+
+/**
+ * Register a mutable logical property (without a corresponding physical state) for a device
+ */
+public fun <T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
+    converter: MetaConverter<T>,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    name: String? = null,
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
+    mutableProperty(
+        converter,
+        descriptorBuilder,
+        name,
+        read = { propertyName -> getProperty(propertyName)?.let(converter::metaToObject) },
+        write = { propertyName, value -> writeProperty(propertyName, converter.objectToMeta(value)) }
+    )
+
 
 //read only delegates
 
