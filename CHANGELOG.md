@@ -5,6 +5,7 @@
 ### Added
 - Device lifecycle message
 - Low-code constructor
+- Automatic description generation for spec properties (JVM only)
 
 ### Changed
 - Property caching moved from core `Device` to the `CachingDevice`

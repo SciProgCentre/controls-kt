@@ -51,7 +51,12 @@ public abstract class DeviceSpec<D : Device> {
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
             val propertyName = name ?: property.name
             val deviceProperty = object : DevicePropertySpec<D, T> {
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply(descriptorBuilder)
+
+                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply {
+                    fromSpec(property)
+                    descriptorBuilder()
+                }
+
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? =
@@ -76,7 +81,10 @@ public abstract class DeviceSpec<D : Device> {
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(
                     propertyName,
                     mutable = true
-                ).apply(descriptorBuilder)
+                ).apply {
+                    fromSpec(property)
+                    descriptorBuilder()
+                }
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? =
@@ -108,7 +116,10 @@ public abstract class DeviceSpec<D : Device> {
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val actionName = name ?: property.name
             val deviceAction = object : DeviceActionSpec<D, I, O> {
-                override val descriptor: ActionDescriptor = ActionDescriptor(actionName).apply(descriptorBuilder)
+                override val descriptor: ActionDescriptor = ActionDescriptor(actionName).apply {
+                    fromSpec(property)
+                    descriptorBuilder()
+                }
 
                 override val inputConverter: MetaConverter<I> = inputConverter
                 override val outputConverter: MetaConverter<O> = outputConverter
