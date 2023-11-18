@@ -44,64 +44,11 @@ public abstract class DeviceSpec<D : Device> {
         return deviceProperty
     }
 
-    public fun <T> property(
+    public inline fun <reified T> property(
         converter: MetaConverter<T>,
-        readOnlyProperty: KProperty1<D, T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, DevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _, property ->
-            val deviceProperty = object : DevicePropertySpec<D, T> {
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(property.name).apply {
-                    //TODO add type from converter
-                    mutable = true
-                }.apply(descriptorBuilder)
-
-                override val converter: MetaConverter<T> = converter
-
-                override suspend fun read(device: D): T = withContext(device.coroutineContext) {
-                    readOnlyProperty.get(device)
-                }
-            }
-            registerProperty(deviceProperty)
-            ReadOnlyProperty { _, _ ->
-                deviceProperty
-            }
-        }
-
-    public fun <T> mutableProperty(
-        converter: MetaConverter<T>,
-        readWriteProperty: KMutableProperty1<D, T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, MutableDevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _, property ->
-            val deviceProperty = object : MutableDevicePropertySpec<D, T> {
-
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(property.name).apply {
-                    //TODO add the type from converter
-                    mutable = true
-                }.apply(descriptorBuilder)
-
-                override val converter: MetaConverter<T> = converter
-
-                override suspend fun read(device: D): T = withContext(device.coroutineContext) {
-                    readWriteProperty.get(device)
-                }
-
-                override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext) {
-                    readWriteProperty.set(device, value)
-                }
-            }
-            registerProperty(deviceProperty)
-            ReadOnlyProperty { _, _ ->
-                deviceProperty
-            }
-        }
-
-    public fun <T> property(
-        converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        crossinline descriptorBuilder: PropertyDescriptor.() -> Unit = {},
         name: String? = null,
-        read: suspend D.() -> T?,
+        crossinline read: suspend D.(propertyName: String) -> T?,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
             val propertyName = name ?: property.name
@@ -109,7 +56,7 @@ public abstract class DeviceSpec<D : Device> {
                 override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply(descriptorBuilder)
                 override val converter: MetaConverter<T> = converter
 
-                override suspend fun read(device: D): T? = withContext(device.coroutineContext) { device.read() }
+                override suspend fun read(device: D): T? = withContext(device.coroutineContext) { device.read(propertyName) }
             }
             registerProperty(deviceProperty)
             ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>> { _, _ ->
@@ -117,27 +64,30 @@ public abstract class DeviceSpec<D : Device> {
             }
         }
 
-    public fun <T> mutableProperty(
+    public inline fun <reified T> mutableProperty(
         converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        crossinline descriptorBuilder: PropertyDescriptor.() -> Unit = {},
         name: String? = null,
-        read: suspend D.() -> T?,
-        write: suspend D.(T) -> Unit,
+        crossinline read: suspend D.(propertyName: String) -> T?,
+        crossinline write: suspend D.(propertyName: String, value: T) -> Unit,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val propertyName = name ?: property.name
             val deviceProperty = object : MutableDevicePropertySpec<D, T> {
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName, mutable = true)
-                    .apply(descriptorBuilder)
+                override val descriptor: PropertyDescriptor = PropertyDescriptor(
+                    propertyName,
+                    mutable = true
+                ).apply(descriptorBuilder)
                 override val converter: MetaConverter<T> = converter
 
-                override suspend fun read(device: D): T? = withContext(device.coroutineContext) { device.read() }
+                override suspend fun read(device: D): T? =
+                    withContext(device.coroutineContext) { device.read(propertyName) }
 
                 override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext) {
-                    device.write(value)
+                    device.write(propertyName, value)
                 }
             }
-            _properties[propertyName] = deviceProperty
+            registerProperty(deviceProperty)
             ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>> { _, _ ->
                 deviceProperty
             }
@@ -209,33 +159,42 @@ public abstract class DeviceSpec<D : Device> {
         }
 }
 
+public inline fun <reified T, D : Device> DeviceSpec<D>.property(
+    converter: MetaConverter<T>,
+    readOnlyProperty: KProperty1<D, T>,
+    crossinline descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>>> = property(
+    converter,
+    descriptorBuilder,
+    name = readOnlyProperty.name,
+    read = { readOnlyProperty.get(this) }
+)
+
+public inline fun <reified T, D : Device> DeviceSpec<D>.mutableProperty(
+    converter: MetaConverter<T>,
+    readWriteProperty: KMutableProperty1<D, T>,
+    crossinline descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
+    mutableProperty(
+        converter,
+        descriptorBuilder,
+        readWriteProperty.name,
+        read = { _ -> readWriteProperty.get(this) },
+        write = { _, value: T -> readWriteProperty.set(this, value) }
+    )
 
 /**
- * Register a mutable logical property for a device
+ * Register a mutable logical property (without a corresponding physical state) for a device
  */
-@OptIn(InternalDeviceAPI::class)
-public fun <T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
+public inline fun <reified T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
     converter: MetaConverter<T>,
-    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    crossinline descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
-): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<Any?, MutableDevicePropertySpec<D, T>>> =
-    PropertyDelegateProvider { _, property ->
-        val deviceProperty = object : MutableDevicePropertySpec<D, T> {
-            val propertyName = name ?: property.name
-            override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply {
-                //TODO add type from converter
-                mutable = true
-            }.apply(descriptorBuilder)
-
-            override val converter: MetaConverter<T> = converter
-
-            override suspend fun read(device: D): T? = device.getProperty(propertyName)?.let(converter::metaToObject)
-
-            override suspend fun write(device: D, value: T): Unit =
-                device.writeProperty(propertyName, converter.objectToMeta(value))
-        }
-        registerProperty(deviceProperty)
-        ReadOnlyProperty { _, _ ->
-            deviceProperty
-        }
-    }
+): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
+    mutableProperty(
+        converter,
+        descriptorBuilder,
+        name,
+        read = { propertyName -> getProperty(propertyName)?.let(converter::metaToObject) },
+        write = { propertyName, value -> writeProperty(propertyName, converter.objectToMeta(value)) }
+    )

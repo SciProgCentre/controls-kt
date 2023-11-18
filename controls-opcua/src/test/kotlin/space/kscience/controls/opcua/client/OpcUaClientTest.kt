@@ -29,7 +29,7 @@ class OpcUaClientTest {
                 return DemoOpcUaDevice(config)
             }
 
-            val randomDouble by doubleProperty(read = DemoOpcUaDevice::readRandomDouble)
+            val randomDouble by doubleProperty { readRandomDouble() }
 
         }
 
@@ -42,7 +42,7 @@ class OpcUaClientTest {
     fun testReadDouble() = runTest {
         val device = DemoOpcUaDevice.build()
         device.start()
-            println(device.read(DemoOpcUaDevice.randomDouble))
+        println(device.read(DemoOpcUaDevice.randomDouble))
         device.stop()
     }
 

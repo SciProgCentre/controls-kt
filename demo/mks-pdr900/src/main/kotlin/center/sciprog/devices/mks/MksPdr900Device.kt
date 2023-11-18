@@ -89,7 +89,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
 
         override fun build(context: Context, meta: Meta): MksPdr900Device = MksPdr900Device(context, meta)
 
-        val powerOn by booleanProperty(read = MksPdr900Device::readPowerOn, write = MksPdr900Device::writePowerOn)
+        val powerOn by booleanProperty(read = { readPowerOn() }, write = { _, value -> writePowerOn(value) })
 
         val channel by logicalProperty(MetaConverter.int)
 

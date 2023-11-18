@@ -8,6 +8,7 @@
 
 ### Changed
 - Property caching moved from core `Device` to the `CachingDevice`
+- `DeviceSpec` properties no explicitly pass property name to getters and setters.
 
 ### Deprecated
 

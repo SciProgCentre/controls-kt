@@ -157,13 +157,13 @@ class PiMotionMasterDevice(
         }
 
         val stop by unitAction({
-            info = "Stop all axis"
+            description = "Stop all axis"
         }) {
             send("STP")
         }
 
         val connect by action(MetaConverter.meta, MetaConverter.unit, descriptorBuilder = {
-            info = "Connect to specific port and initialize axis"
+            description = "Connect to specific port and initialize axis"
         }) { portSpec ->
             //Clear current actions if present
             if (port != null) {
@@ -189,7 +189,7 @@ class PiMotionMasterDevice(
         }
 
         val disconnect by unitAction({
-            info = "Disconnect the program from the device if it is connected"
+            description = "Disconnect the program from the device if it is connected"
         }) {
             port?.let {
                 execute(stop)
@@ -245,8 +245,8 @@ class PiMotionMasterDevice(
                 read = {
                     readAxisBoolean("$command?")
                 },
-                write = {
-                    writeAxisBoolean(command, it)
+                write = { _, value ->
+                    writeAxisBoolean(command, value)
                 },
                 descriptorBuilder = descriptorBuilder
             )
@@ -259,7 +259,7 @@ class PiMotionMasterDevice(
                     mm.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
                         ?: error("Malformed $command response. Should include float value for $axisId")
                 },
-                write = { newValue ->
+                write = { _, newValue ->
                     mm.send(command, axisId, newValue.toString())
                     mm.failIfError()
                 },

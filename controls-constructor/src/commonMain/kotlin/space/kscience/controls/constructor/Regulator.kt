@@ -1,10 +1,7 @@
 package space.kscience.controls.constructor
 
 import space.kscience.controls.api.Device
-import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.controls.spec.DeviceSpec
-import space.kscience.controls.spec.MutableDevicePropertySpec
-import space.kscience.controls.spec.doubleProperty
+import space.kscience.controls.spec.*
 import space.kscience.dataforge.meta.transformations.MetaConverter
 
 

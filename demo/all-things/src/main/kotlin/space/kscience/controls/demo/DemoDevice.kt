@@ -16,7 +16,7 @@ import kotlin.math.sin
 import kotlin.time.Duration.Companion.milliseconds
 
 
-interface IDemoDevice: Device {
+interface IDemoDevice : Device {
     var timeScaleState: Double
     var sinScaleState: Double
     var cosScaleState: Double
@@ -50,8 +50,8 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
         val sinScale by mutableProperty(MetaConverter.double, IDemoDevice::sinScaleState)
         val cosScale by mutableProperty(MetaConverter.double, IDemoDevice::cosScaleState)
 
-        val sin by doubleProperty(read = IDemoDevice::sinValue)
-        val cos by doubleProperty(read = IDemoDevice::cosValue)
+        val sin by doubleProperty { sinValue() }
+        val cos by doubleProperty { cosValue() }
 
         val coordinates by metaProperty(
             descriptorBuilder = {

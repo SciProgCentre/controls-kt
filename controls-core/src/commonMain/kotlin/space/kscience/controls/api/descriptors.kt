@@ -27,6 +27,6 @@ public fun PropertyDescriptor.metaDescriptor(block: MetaDescriptorBuilder.()->Un
  */
 @Serializable
 public class ActionDescriptor(public val name: String) {
-    public var info: String? = null
+    public var description: String? = null
 }
 
