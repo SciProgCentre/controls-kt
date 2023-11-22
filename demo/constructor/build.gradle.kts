@@ -1,12 +1,13 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 
 plugins {
     id("space.kscience.gradle.mpp")
-    application
+    id("org.jetbrains.compose") version "1.5.10"
 }
 
 kscience {
-    jvm{
+    jvm {
         withJava()
     }
     useKtor()
@@ -20,8 +21,31 @@ kscience {
     }
 }
 
-application {
-    mainClass.set("space.kscience.controls.demo.constructor.MainKt")
+kotlin {
+    sourceSets {
+        jvmMain {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+            }
+        }
+    }
 }
 
+//application {
+//    mainClass.set("space.kscience.controls.demo.constructor.MainKt")
+//}
+
 kotlin.explicitApi = ExplicitApiMode.Disabled
+
+
+compose.desktop {
+    application {
+        mainClass = "space.kscience.controls.demo.constructor.MainKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Exe)
+            packageName = "PidConstructor"
+            packageVersion = "1.0.0"
+        }
+    }
+}

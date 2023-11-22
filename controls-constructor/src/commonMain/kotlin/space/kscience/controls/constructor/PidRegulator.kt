@@ -16,12 +16,22 @@ import kotlin.time.DurationUnit
 /**
  * Pid regulator parameters
  */
-public data class PidParameters(
-    public val kp: Double,
-    public val ki: Double,
-    public val kd: Double,
-    public val timeStep: Duration = 1.milliseconds,
-)
+public interface PidParameters {
+    public val kp: Double
+    public val ki: Double
+    public val kd: Double
+    public val timeStep: Duration
+}
+
+private data class PidParametersImpl(
+    override val kp: Double,
+    override val ki: Double,
+    override val kd: Double,
+    override val timeStep: Duration,
+) : PidParameters
+
+public fun PidParameters(kp: Double, ki: Double, kd: Double, timeStep: Duration = 1.milliseconds): PidParameters =
+    PidParametersImpl(kp, ki, kd, timeStep)
 
 /**
  * A drive with PID regulator

@@ -1,15 +1,26 @@
 package space.kscience.controls.demo.constructor
 
-import kotlinx.coroutines.delay
-import space.kscience.controls.api.get
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import kotlinx.coroutines.launch
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.ClockManager
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.name
-import space.kscience.controls.spec.read
-import space.kscience.controls.spec.write
 import space.kscience.controls.vision.plot
 import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.controls.vision.plotNumberState
@@ -21,6 +32,7 @@ import space.kscience.plotly.models.ScatterMode
 import space.kscience.visionforge.plotly.PlotlyPlugin
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -46,23 +58,15 @@ class LinearDrive(
 }
 
 
-fun main() {
-    val context = Context {
-        plugin(DeviceManager)
-        plugin(PlotlyPlugin)
-        plugin(ClockManager)
-    }
-
-    val state = DoubleRangeState(0.0, -5.0..5.0)
-
-    val pidParameters = PidParameters(
-        kp = 2.5,
-        ki = 0.0,
-        kd = -0.1,
-        timeStep = 0.005.seconds
-    )
-
-    val device = context.install("device", LinearDrive(context, state, 0.005, pidParameters)).apply {
+private fun Context.launchPidDevice(
+    state: DoubleRangeState,
+    pidParameters: PidParameters,
+    mass: Double,
+) = launch {
+    val device = install(
+        "device",
+        LinearDrive(this@launchPidDevice, state, mass, pidParameters)
+    ).apply {
         val clock = context.clock
         val clockStart = clock.now()
         doRecurring(10.milliseconds) {
@@ -78,7 +82,7 @@ fun main() {
 
     val maxAge = 10.seconds
 
-    context.showDashboard {
+    showDashboard {
         plot {
             plotNumberState(context, state, maxAge = maxAge) {
                 name = "real position"
@@ -106,13 +110,88 @@ fun main() {
     }
 }
 
-suspend fun DeviceGroup.findEnd(): Double{
-    val regulator = get("pid") as Regulator
-    val limitEnd = get("end") as LimitSwitch
-
-    while(!limitEnd.read(LimitSwitch.locked)){
-        delay(10.milliseconds)
-        regulator.write(Regulator.target, regulator.read(Regulator.position) + 0.1)
+fun main() = application {
+    val context = Context {
+        plugin(DeviceManager)
+        plugin(PlotlyPlugin)
+        plugin(ClockManager)
     }
-    return regulator.read(Regulator.position)
+
+    class MutablePidParameters(
+        kp: Double,
+        ki: Double,
+        kd: Double,
+        timeStep: Duration,
+    ) : PidParameters {
+        override var kp by  mutableStateOf(kp)
+        override var ki by  mutableStateOf(ki)
+        override var kd by  mutableStateOf(kd)
+        override var timeStep by  mutableStateOf(timeStep)
+    }
+
+    val pidParameters = remember {
+        MutablePidParameters(
+            kp = 2.5,
+            ki = 0.0,
+            kd = -0.1,
+            timeStep = 0.005.seconds
+        )
+    }
+
+    context.launchPidDevice(
+        DoubleRangeState(0.0, -6.0..6.0),
+        pidParameters,
+        mass = 0.05
+    )
+
+    Window(onCloseRequest = ::exitApplication) {
+        MaterialTheme {
+            Column {
+                Row {
+                    Text("kp:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
+                    TextField(pidParameters.kp.toString(),{pidParameters.kp = it.toDouble()}, enabled = false)
+                    Slider(
+                        pidParameters.kp.toFloat(),
+                        { pidParameters.kp = it.toDouble()},
+                        valueRange = 0f..10f,
+                        steps = 100
+                    )
+                }
+                Row {
+                    Text("ki:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
+                    TextField(pidParameters.ki.toString(),{pidParameters.ki = it.toDouble()}, enabled = false)
+
+                    Slider(
+                        pidParameters.ki.toFloat(),
+                        { pidParameters.ki = it.toDouble()},
+                        valueRange = -5f..5f,
+                        steps = 100
+                    )
+                }
+                Row {
+                    Text("kd:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
+                    TextField(pidParameters.kd.toString(),{pidParameters.kd = it.toDouble()}, enabled = false)
+
+                    Slider(
+                        pidParameters.kd.toFloat(),
+                        { pidParameters.kd = it.toDouble()},
+                        valueRange = -5f..5f,
+                        steps = 100
+                    )
+                }
+                Row {
+                    Button({
+                        pidParameters.run {
+                            kp = 2.5
+                            ki = 0.0
+                            kd = -0.1
+                            timeStep = 0.005.seconds
+                        }
+                    }){
+                        Text("Reset")
+                    }
+                }
+            }
+        }
+    }
 }
