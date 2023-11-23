@@ -123,10 +123,10 @@ fun main() = application {
         kd: Double,
         timeStep: Duration,
     ) : PidParameters {
-        override var kp by  mutableStateOf(kp)
-        override var ki by  mutableStateOf(ki)
-        override var kd by  mutableStateOf(kd)
-        override var timeStep by  mutableStateOf(timeStep)
+        override var kp by mutableStateOf(kp)
+        override var ki by mutableStateOf(ki)
+        override var kd by mutableStateOf(kd)
+        override var timeStep by mutableStateOf(timeStep)
     }
 
     val pidParameters = remember {
@@ -144,38 +144,70 @@ fun main() = application {
         mass = 0.05
     )
 
-    Window(onCloseRequest = ::exitApplication) {
+    Window(title = "Pid regulator simulator", onCloseRequest = ::exitApplication) {
         MaterialTheme {
             Column {
                 Row {
                     Text("kp:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
-                    TextField(pidParameters.kp.toString(),{pidParameters.kp = it.toDouble()}, enabled = false)
+                    TextField(
+                        String.format("%.2f",pidParameters.kp),
+                        { pidParameters.kp = it.toDouble() },
+                        Modifier.width(100.dp),
+                        enabled = false
+                    )
                     Slider(
                         pidParameters.kp.toFloat(),
-                        { pidParameters.kp = it.toDouble()},
-                        valueRange = 0f..10f,
+                        { pidParameters.kp = it.toDouble() },
+                        valueRange = 0f..20f,
                         steps = 100
                     )
                 }
                 Row {
                     Text("ki:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
-                    TextField(pidParameters.ki.toString(),{pidParameters.ki = it.toDouble()}, enabled = false)
+                    TextField(
+                        String.format("%.2f",pidParameters.ki),
+                        { pidParameters.ki = it.toDouble() },
+                        Modifier.width(100.dp),
+                        enabled = false
+                    )
 
                     Slider(
                         pidParameters.ki.toFloat(),
-                        { pidParameters.ki = it.toDouble()},
-                        valueRange = -5f..5f,
+                        { pidParameters.ki = it.toDouble() },
+                        valueRange = -10f..10f,
                         steps = 100
                     )
                 }
                 Row {
                     Text("kd:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
-                    TextField(pidParameters.kd.toString(),{pidParameters.kd = it.toDouble()}, enabled = false)
+                    TextField(
+                        String.format("%.2f",pidParameters.kd),
+                        { pidParameters.kd = it.toDouble() },
+                        Modifier.width(100.dp),
+                        enabled = false
+                    )
 
                     Slider(
                         pidParameters.kd.toFloat(),
-                        { pidParameters.kd = it.toDouble()},
-                        valueRange = -5f..5f,
+                        { pidParameters.kd = it.toDouble() },
+                        valueRange = -10f..10f,
+                        steps = 100
+                    )
+                }
+
+                Row {
+                    Text("dt:", Modifier.align(Alignment.CenterVertically).width(50.dp).padding(5.dp))
+                    TextField(
+                        pidParameters.timeStep.toString(DurationUnit.MILLISECONDS),
+                        { pidParameters.timeStep = it.toDouble().milliseconds },
+                        Modifier.width(100.dp),
+                        enabled = false
+                    )
+
+                    Slider(
+                        pidParameters.timeStep.toDouble(DurationUnit.MILLISECONDS).toFloat(),
+                        { pidParameters.timeStep = it.toDouble().milliseconds },
+                        valueRange = 0f..100f,
                         steps = 100
                     )
                 }
@@ -187,7 +219,7 @@ fun main() = application {
                             kd = -0.1
                             timeStep = 0.005.seconds
                         }
-                    }){
+                    }) {
                         Text("Reset")
                     }
                 }
