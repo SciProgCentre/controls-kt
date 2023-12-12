@@ -1,8 +1,8 @@
 package space.kscience.controls.misc
 
-import io.ktor.utils.io.core.Input
-import io.ktor.utils.io.core.Output
 import kotlinx.datetime.Instant
+import kotlinx.io.Sink
+import kotlinx.io.Source
 import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
@@ -38,15 +38,16 @@ public data class ValueWithTime<T>(val value: T, val time: Instant) {
 private class ValueWithTimeIOFormat<T>(val valueFormat: IOFormat<T>) : IOFormat<ValueWithTime<T>> {
     override val type: KType get() = typeOf<ValueWithTime<T>>()
 
-    override fun readObject(input: Input): ValueWithTime<T> {
-        val timestamp = InstantIOFormat.readObject(input)
-        val value = valueFormat.readObject(input)
+
+    override fun readFrom(source: Source): ValueWithTime<T> {
+        val timestamp = InstantIOFormat.readFrom(source)
+        val value = valueFormat.readFrom(source)
         return ValueWithTime(value, timestamp)
     }
 
-    override fun writeObject(output: Output, obj: ValueWithTime<T>) {
-        InstantIOFormat.writeObject(output, obj.time)
-        valueFormat.writeObject(output, obj.value)
+    override fun writeTo(sink: Sink, obj: ValueWithTime<T>) {
+        InstantIOFormat.writeTo(sink, obj.time)
+        valueFormat.writeTo(sink, obj.value)
     }
 
 }
@@ -54,7 +55,10 @@ private class ValueWithTimeIOFormat<T>(val valueFormat: IOFormat<T>) : IOFormat<
 private class ValueWithTimeMetaConverter<T>(
     val valueConverter: MetaConverter<T>,
 ) : MetaConverter<ValueWithTime<T>> {
-    override fun metaToObject(
+
+    override val type: KType = typeOf<ValueWithTime<T>>()
+
+    override fun metaToObjectOrNull(
         meta: Meta,
     ): ValueWithTime<T>? = valueConverter.metaToObject(meta[ValueWithTime.META_VALUE_KEY] ?: Meta.EMPTY)?.let {
         ValueWithTime(it, meta[ValueWithTime.META_TIME_KEY]?.instant ?: Instant.DISTANT_PAST)

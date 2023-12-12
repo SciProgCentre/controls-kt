@@ -6,7 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import space.kscience.controls.api.Socket
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.misc.Type
+import space.kscience.dataforge.misc.DfType
+
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -17,7 +18,7 @@ public interface Port : ContextAware, Socket<ByteArray>
 /**
  * A specialized factory for [Port]
  */
-@Type(PortFactory.TYPE)
+@DfType(PortFactory.TYPE)
 public interface PortFactory : Factory<Port> {
     public val type: String
 

@@ -1,12 +1,10 @@
 package space.kscience.controls.ports
 
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.readBytes
-import io.ktor.utils.io.core.reset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.transform
+import kotlinx.io.Buffer
 
 /**
  * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
@@ -14,7 +12,7 @@ import kotlinx.coroutines.flow.transform
 public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
 
-    val output = BytePacketBuilder()
+    val output = Buffer()
     var matcherPosition = 0
 
     onCompletion {

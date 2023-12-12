@@ -5,15 +5,15 @@ plugins {
     id("space.kscience.gradle.project")
 }
 
-val dataforgeVersion: String by extra("0.6.2")
-val visionforgeVersion by extra("0.3.0-dev-14")
+val dataforgeVersion: String by extra("0.7.1")
+val visionforgeVersion by extra("0.3.0-RC")
 val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 val xodusVersion by extra("2.0.1")
 
 allprojects {
     group = "space.kscience"
-    version = "0.3.0-dev-2"
+    version = "0.3.0-dev-3"
     repositories{
         maven("https://maven.pkg.jetbrains.space/spc/p/sci/dev")
     }

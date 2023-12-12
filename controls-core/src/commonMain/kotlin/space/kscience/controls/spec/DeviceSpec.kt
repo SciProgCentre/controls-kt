@@ -9,9 +9,14 @@ import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 public object UnitMetaConverter : MetaConverter<Unit> {
-    override fun metaToObject(meta: Meta): Unit = Unit
+
+    override val type: KType = typeOf<Unit>()
+
+    override fun metaToObjectOrNull(meta: Meta): Unit = Unit
 
     override fun objectToMeta(obj: Unit): Meta = Meta.EMPTY
 }

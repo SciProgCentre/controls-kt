@@ -68,7 +68,7 @@ public fun <D : Device> DeviceSpec<D>.booleanProperty(
     MetaConverter.boolean,
     {
         metaDescriptor {
-            type(ValueType.BOOLEAN)
+            valueType(ValueType.BOOLEAN)
         }
         descriptorBuilder()
     },
@@ -80,7 +80,7 @@ private inline fun numberDescriptor(
     crossinline descriptorBuilder: PropertyDescriptor.() -> Unit = {}
 ): PropertyDescriptor.() -> Unit = {
     metaDescriptor {
-        type(ValueType.NUMBER)
+        valueType(ValueType.NUMBER)
     }
     descriptorBuilder()
 }
@@ -115,7 +115,7 @@ public fun <D : Device> DeviceSpec<D>.stringProperty(
     MetaConverter.string,
     {
         metaDescriptor {
-            type(ValueType.STRING)
+            valueType(ValueType.STRING)
         }
         descriptorBuilder()
     },
@@ -131,7 +131,7 @@ public fun <D : Device> DeviceSpec<D>.metaProperty(
     MetaConverter.meta,
     {
         metaDescriptor {
-            type(ValueType.STRING)
+            valueType(ValueType.STRING)
         }
         descriptorBuilder()
     },
@@ -151,7 +151,7 @@ public fun <D : Device> DeviceSpec<D>.booleanProperty(
         MetaConverter.boolean,
         {
             metaDescriptor {
-                type(ValueType.BOOLEAN)
+                valueType(ValueType.BOOLEAN)
             }
             descriptorBuilder()
         },

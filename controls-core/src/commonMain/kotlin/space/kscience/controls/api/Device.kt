@@ -11,8 +11,8 @@ import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
-import space.kscience.dataforge.misc.Type
-import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.misc.DfType
+import space.kscience.dataforge.names.parseAsName
 
 /**
  * A lifecycle state of a device
@@ -46,7 +46,7 @@ public enum class DeviceLifecycleState {
  *  [Device] is a supervisor scope encompassing all operations on a device.
  *  When canceled, cancels all running processes.
  */
-@Type(DEVICE_TARGET)
+@DfType(DEVICE_TARGET)
 public interface Device : ContextAware, CoroutineScope {
 
     /**
@@ -144,7 +144,7 @@ public suspend fun Device.requestProperty(propertyName: String): Meta = if (this
  */
 public fun CachingDevice.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {
-        setMeta(Name.parse(descriptor.name), getProperty(descriptor.name))
+        set(descriptor.name.parseAsName(), getProperty(descriptor.name))
     }
 }
 

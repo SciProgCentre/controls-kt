@@ -1,7 +1,9 @@
 package space.kscience.controls.misc
 
-import io.ktor.utils.io.core.*
+
 import kotlinx.datetime.Instant
+import kotlinx.io.Sink
+import kotlinx.io.Source
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.io.IOFormatFactory
@@ -23,14 +25,14 @@ public object InstantIOFormat : IOFormat<Instant>, IOFormatFactory<Instant> {
 
     override val type: KType get() = typeOf<Instant>()
 
-    override fun writeObject(output: Output, obj: Instant) {
-        output.writeLong(obj.epochSeconds)
-        output.writeInt(obj.nanosecondsOfSecond)
+    override fun writeTo(sink: Sink, obj: Instant) {
+        sink.writeLong(obj.epochSeconds)
+        sink.writeInt(obj.nanosecondsOfSecond)
     }
 
-    override fun readObject(input: Input): Instant {
-        val seconds = input.readLong()
-        val nanoseconds = input.readInt()
+    override fun readFrom(source: Source): Instant {
+        val seconds = source.readLong()
+        val nanoseconds = source.readInt()
         return Instant.fromEpochSeconds(seconds, nanoseconds)
     }
 }
