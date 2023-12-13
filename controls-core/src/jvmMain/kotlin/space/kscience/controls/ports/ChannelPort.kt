@@ -52,7 +52,7 @@ public class ChannelPort(
                 if (num < 0) cancel("The input channel is exhausted")
             } catch (ex: Exception) {
                 if(ex is AsynchronousCloseException){
-                    logger.info { "Channel closed" }
+                    logger.info { "Channel $channel closed" }
                 } else {
                     logger.error(ex) { "Channel read error, retrying in 1 second" }
                     delay(1000)
