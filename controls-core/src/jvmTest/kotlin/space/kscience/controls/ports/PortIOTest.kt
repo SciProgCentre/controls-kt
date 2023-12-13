@@ -1,6 +1,10 @@
 package space.kscience.controls.ports
 
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -25,19 +29,19 @@ internal class PortIOTest {
 
     @Test
     fun testUdpCommunication() = runTest {
-        val receiver = UdpPort.open(Global, "localhost", 8811, localPort = 8812)
-        val sender = UdpPort.open(Global, "localhost", 8812, localPort = 8811)
+        val receiver = UdpPort.openChannel(Global, "localhost", 8811, localPort = 8812)
+        val sender = UdpPort.openChannel(Global, "localhost", 8812, localPort = 8811)
 
+        delay(30)
         repeat(10) {
             sender.send("Line number $it\n")
         }
 
         val res = receiver
             .receiving()
-            .onEach { println("ARRAY: ${it.decodeToString()}") }
             .withStringDelimiter("\n")
-            .onEach { println("LINE: $it") }
-            .take(10).toList()
+            .take(10)
+            .toList()
 
         assertEquals("Line number 3", res[3].trim())
         receiver.close()

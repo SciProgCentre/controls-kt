@@ -51,7 +51,7 @@ public class ChannelPort(
                 }
                 if (num < 0) cancel("The input channel is exhausted")
             } catch (ex: Exception) {
-                if(ex is AsynchronousCloseException){
+                if (ex is AsynchronousCloseException) {
                     logger.info { "Channel $channel closed" }
                 } else {
                     logger.error(ex) { "Channel read error, retrying in 1 second" }
@@ -108,7 +108,7 @@ public object UdpPort : PortFactory {
     /**
      * Connect a datagram channel to a remote host/port. If [localPort] is provided, it is used to bind local port for receiving messages.
      */
-    public fun open(
+    public fun openChannel(
         context: Context,
         remoteHost: String,
         remotePort: Int,
@@ -130,6 +130,6 @@ public object UdpPort : PortFactory {
         val remotePort by meta.number { error("Remote port is not specified") }
         val localHost: String? by meta.string()
         val localPort: Int? by meta.int()
-        return open(context, remoteHost, remotePort.toInt(), localPort, localHost ?: "localhost")
+        return openChannel(context, remoteHost, remotePort.toInt(), localPort, localHost ?: "localhost")
     }
 }
