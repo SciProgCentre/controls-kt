@@ -40,7 +40,7 @@ public interface MutableDeviceState<T> : DeviceState<T> {
 public var <T : Any> MutableDeviceState<T>.valueAsMeta: Meta
     get() = converter.objectToMeta(value)
     set(arg) {
-        value = converter.metaToObject(arg) ?: error("Conversion for meta $arg to property type with $converter failed")
+        value = converter.metaToObject(arg)
     }
 
 /**

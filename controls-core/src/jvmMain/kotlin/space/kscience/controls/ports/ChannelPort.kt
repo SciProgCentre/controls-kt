@@ -8,6 +8,7 @@ import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.*
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.ByteChannel
 import java.nio.channels.DatagramChannel
 import java.nio.channels.SocketChannel
@@ -30,7 +31,7 @@ public class ChannelPort(
     channelBuilder: suspend () -> ByteChannel,
 ) : AbstractPort(context, coroutineContext), AutoCloseable {
 
-    private val futureChannel: Deferred<ByteChannel> = this.scope.async(Dispatchers.IO) {
+    private val futureChannel: Deferred<ByteChannel> = scope.async(Dispatchers.IO) {
         channelBuilder()
     }
 
@@ -39,10 +40,10 @@ public class ChannelPort(
      */
     public val startJob: Job get() = futureChannel
 
-    private val listenerJob = this.scope.launch(Dispatchers.IO) {
+    private val listenerJob = scope.launch(Dispatchers.IO) {
         val channel = futureChannel.await()
         val buffer = ByteBuffer.allocate(1024)
-        while (isActive) {
+        while (isActive && channel.isOpen) {
             try {
                 val num = channel.read(buffer)
                 if (num > 0) {
@@ -50,8 +51,12 @@ public class ChannelPort(
                 }
                 if (num < 0) cancel("The input channel is exhausted")
             } catch (ex: Exception) {
-                logger.error(ex) { "Channel read error" }
-                delay(1000)
+                if(ex is AsynchronousCloseException){
+                    logger.info { "Channel closed" }
+                } else {
+                    logger.error(ex) { "Channel read error, retrying in 1 second" }
+                    delay(1000)
+                }
             }
         }
     }
@@ -62,11 +67,8 @@ public class ChannelPort(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun close() {
-        listenerJob.cancel()
         if (futureChannel.isCompleted) {
             futureChannel.getCompleted().close()
-        } else {
-            futureChannel.cancel()
         }
         super.close()
     }

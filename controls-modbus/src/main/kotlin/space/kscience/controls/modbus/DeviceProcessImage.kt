@@ -1,12 +1,14 @@
 package space.kscience.controls.modbus
 
 import com.ghgande.j2mod.modbus.procimg.*
-import io.ktor.utils.io.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.io.Buffer
 import space.kscience.controls.api.Device
+import space.kscience.controls.ports.readShort
 import space.kscience.controls.spec.*
+import space.kscience.dataforge.io.Binary
 
 
 public class DeviceProcessImageBuilder<D : Device> internal constructor(
@@ -106,11 +108,11 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
 
         device.useProperty(propertySpec) { value ->
-            val packet = buildPacket {
-                key.format.writeObject(this, value)
-            }.readByteBuffer()
+            val binary = Binary {
+                key.format.writeTo(this, value)
+            }
             registers.forEachIndexed { index, register ->
-                register.setValue(packet.getShort(index * 2))
+                register.setValue(binary.readShort(index * 2))
             }
         }
     }
@@ -118,7 +120,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
     /**
      * Trigger [block] if one of register changes.
      */
-    private fun List<ObservableRegister>.onChange(block: suspend (ByteReadPacket) -> Unit) {
+    private fun List<ObservableRegister>.onChange(block: suspend (Buffer) -> Unit) {
         var ready = false
 
         forEach { register ->
@@ -128,7 +130,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
 
         device.launch {
-            val builder = BytePacketBuilder()
+            val builder = Buffer()
             while (isActive) {
                 delay(1)
                 if (ready) {
@@ -136,7 +138,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
                         forEach { value ->
                             writeShort(value.toShort())
                         }
-                    }.build()
+                    }
                     block(packet)
                     ready = false
                 }
@@ -154,15 +156,15 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
 
         registers.onChange { packet ->
-            device.write(propertySpec, key.format.readObject(packet))
+            device.write(propertySpec, key.format.readFrom(packet))
         }
 
         device.useProperty(propertySpec) { value ->
-            val packet = buildPacket {
-                key.format.writeObject(this, value)
-            }.readByteBuffer()
+            val binary = Binary {
+                key.format.writeTo(this, value)
+            }
             registers.forEachIndexed { index, observableRegister ->
-                observableRegister.setValue(packet.getShort(index * 2))
+                observableRegister.setValue(binary.readShort(index * 2))
             }
         }
     }
@@ -212,7 +214,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
         registers.onChange { packet ->
             device.launch {
-                device.action(key.format.readObject(packet))
+                device.action(key.format.readFrom(packet))
             }
         }
 

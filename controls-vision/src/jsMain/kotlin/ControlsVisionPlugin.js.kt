@@ -9,6 +9,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.visionforge.ElementVisionRenderer
 import space.kscience.visionforge.Vision
+import space.kscience.visionforge.VisionClient
 import space.kscience.visionforge.VisionPlugin
 
 public actual class ControlVisionPlugin : VisionPlugin(), ElementVisionRenderer {
@@ -20,7 +21,7 @@ public actual class ControlVisionPlugin : VisionPlugin(), ElementVisionRenderer 
         TODO("Not yet implemented")
     }
 
-    override fun render(element: Element, name: Name, vision: Vision, meta: Meta) {
+    override fun render(element: Element, client: VisionClient, name: Name, vision: Vision, meta: Meta) {
         TODO("Not yet implemented")
     }
 

@@ -43,7 +43,7 @@ public suspend inline fun <reified T: Any> OpcUaDevice.readOpcWithTime(
         else -> error("Incompatible OPC property value $content")
     }
 
-    val res: T = converter.metaToObject(meta) ?: error("Meta $meta could not be converted to ${T::class}")
+    val res: T = converter.metaToObject(meta)
     return res to time
 }
 

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.transform
 import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
 
 /**
  * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
@@ -27,9 +28,8 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> 
                 matcherPosition++
                 if (matcherPosition == delimiter.size) {
                     //full match achieved, sending result
-                    val bytes = output.build()
-                    emit(bytes.readBytes())
-                    output.reset()
+                    emit(output.readByteArray())
+                    output.clear()
                     matcherPosition = 0
                 }
             } else if (matcherPosition > 0) {

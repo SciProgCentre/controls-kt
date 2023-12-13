@@ -107,7 +107,7 @@ internal class MetaStructureCodec(
 
     override fun createStructure(name: String, members: LinkedHashMap<String, Meta>): Meta = Meta {
         members.forEach { (property: String, value: Meta?) ->
-            setMeta(Name.parse(property), value)
+            set(Name.parse(property), value)
         }
     }
 

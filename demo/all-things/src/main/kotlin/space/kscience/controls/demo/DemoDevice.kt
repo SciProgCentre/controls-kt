@@ -42,7 +42,7 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
         // register virtual properties based on actual object state
         val timeScale by mutableProperty(MetaConverter.double, IDemoDevice::timeScaleState) {
             metaDescriptor {
-                type(ValueType.NUMBER)
+                valueType(ValueType.NUMBER)
             }
             description = "Real to virtual time scale"
         }

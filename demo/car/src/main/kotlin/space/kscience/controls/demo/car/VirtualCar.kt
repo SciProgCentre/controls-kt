@@ -17,6 +17,8 @@ import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.math.pow
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
@@ -28,7 +30,10 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
     operator fun div(arg: Double): Vector2D = Vector2D(x / arg, y / arg)
 
     companion object CoordinatesMetaConverter : MetaConverter<Vector2D> {
-        override fun metaToObject(meta: Meta): Vector2D = Vector2D(
+
+        override val type: KType = typeOf<Vector2D>()
+
+        override fun metaToObjectOrNull(meta: Meta): Vector2D = Vector2D(
             meta["x"].double ?: 0.0,
             meta["y"].double ?: 0.0
         )
@@ -40,7 +45,8 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
     }
 }
 
-open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
+open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta),
+    IVirtualCar {
     private val clock = context.clock
 
     private val timeScale = 1e-3

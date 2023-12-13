@@ -17,6 +17,10 @@ kscience {
     useSerialization{
         json()
     }
+
+    commonMain{
+        implementation(spclibs.atomicfu)
+    }
 }
 
 readme{
