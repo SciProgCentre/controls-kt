@@ -1,6 +1,7 @@
 package space.kscience.controls.ports
 
 import io.ktor.network.selector.ActorSelectorManager
+import io.ktor.network.sockets.SocketOptions
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
@@ -23,12 +24,13 @@ public class KtorTcpPort internal constructor(
     public val host: String,
     public val port: Int,
     coroutineContext: CoroutineContext = context.coroutineContext,
+    socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {}
 ) : AbstractPort(context, coroutineContext), Closeable {
 
     override fun toString(): String = "port[tcp:$host:$port]"
 
     private val futureSocket = scope.async {
-        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(host, port)
+        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(host, port, socketOptions)
     }
 
     private val writeChannel = scope.async {
@@ -64,8 +66,9 @@ public class KtorTcpPort internal constructor(
             host: String,
             port: Int,
             coroutineContext: CoroutineContext = context.coroutineContext,
+            socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {}
         ): KtorTcpPort {
-            return KtorTcpPort(context, host, port, coroutineContext)
+            return KtorTcpPort(context, host, port, coroutineContext, socketOptions)
         }
 
         override fun build(context: Context, meta: Meta): Port {
