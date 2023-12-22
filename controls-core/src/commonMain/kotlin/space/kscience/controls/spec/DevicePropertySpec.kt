@@ -81,7 +81,7 @@ public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>
 public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
     readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::metaToObject)
 
-public suspend fun <T, D : Device> D.request(propertySpec: DevicePropertySpec<D, T>): T? =
+public suspend fun <T, D : Device> D.request(propertySpec: DevicePropertySpec<D, T>): T =
     propertySpec.converter.metaToObject(requestProperty(propertySpec.name))
 
 /**

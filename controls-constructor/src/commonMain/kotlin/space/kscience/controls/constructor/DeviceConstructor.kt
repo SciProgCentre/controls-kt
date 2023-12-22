@@ -2,7 +2,7 @@ package space.kscience.controls.constructor
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.controls.manager.DeviceManager
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.transformations.MetaConverter
@@ -18,9 +18,9 @@ import kotlin.time.Duration
  * A base for strongly typed device constructor blocks. Has additional delegates for type-safe devices
  */
 public abstract class DeviceConstructor(
-    deviceManager: DeviceManager,
+    context: Context,
     meta: Meta,
-) : DeviceGroup(deviceManager, meta) {
+) : DeviceGroup(context, meta) {
 
     /**
      * Register a device, provided by a given [factory] and

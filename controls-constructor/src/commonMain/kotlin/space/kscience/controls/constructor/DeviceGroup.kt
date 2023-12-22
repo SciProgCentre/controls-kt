@@ -27,7 +27,7 @@ import kotlin.coroutines.CoroutineContext
  * A mutable group of devices and properties to be used for lightweight design and simulations.
  */
 public open class DeviceGroup(
-    public val deviceManager: DeviceManager,
+    final override val context: Context,
     override val meta: Meta,
 ) : DeviceHub, CachingDevice {
 
@@ -40,9 +40,6 @@ public open class DeviceGroup(
         val invoke: suspend (Meta?) -> Meta?,
         val descriptor: ActionDescriptor,
     )
-
-
-    override final val context: Context get() = deviceManager.context
 
 
     private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
@@ -175,7 +172,7 @@ public fun DeviceManager.registerDeviceGroup(
     meta: Meta = Meta.EMPTY,
     block: DeviceGroup.() -> Unit,
 ): DeviceGroup {
-    val group = DeviceGroup(this, meta).apply(block)
+    val group = DeviceGroup(context, meta).apply(block)
     install(name, group)
     return group
 }
@@ -194,7 +191,7 @@ private fun DeviceGroup.getOrCreateGroup(name: Name): DeviceGroup {
             when (val d = devices[token]) {
                 null -> install(
                     token,
-                    DeviceGroup(deviceManager, meta[token] ?: Meta.EMPTY)
+                    DeviceGroup(context, meta[token] ?: Meta.EMPTY)
                 )
 
                 else -> (d as? DeviceGroup) ?: error("Device $name is not a DeviceGroup")
@@ -234,7 +231,7 @@ public fun <D : Device> DeviceGroup.install(
     deviceMeta: Meta? = null,
     metaLocation: Name = name,
 ): D {
-    val newDevice = factory.build(deviceManager.context, Laminate(deviceMeta, meta[metaLocation]))
+    val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
     install(name, newDevice)
     return newDevice
 }

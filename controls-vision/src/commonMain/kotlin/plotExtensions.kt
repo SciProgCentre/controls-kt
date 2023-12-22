@@ -18,6 +18,8 @@ import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.manager.clock
 import space.kscience.controls.misc.ValueWithTime
+import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.name
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.plotly.Plot
@@ -28,8 +30,8 @@ import space.kscience.plotly.models.Trace
 import space.kscience.plotly.models.TraceValues
 import space.kscience.plotly.scatter
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 private var TraceValues.values: List<Value>
     get() = value?.list ?: emptyList()
@@ -82,6 +84,11 @@ private class TimeData(private var points: MutableList<ValueWithTime<Value>> = m
     }
 }
 
+private val defaultMaxAge get() = 10.minutes
+private val defaultMaxPoints get() = 800
+private val defaultMinPoints get() = 400
+private val defaultSampling get() = 1.seconds
+
 /**
  * Add a trace that shows a [Device] property change over time. Show only latest [maxPoints] .
  * @return a [Job] that handles the listener
@@ -90,10 +97,10 @@ public fun Plot.plotDeviceProperty(
     device: Device,
     propertyName: String,
     extractValue: Meta.() -> Value = { value ?: Null },
-    maxAge: Duration = 1.hours,
-    maxPoints: Int = 800,
-    minPoints: Int = 400,
-    sampling: Duration = 10.milliseconds,
+    maxAge: Duration = defaultMaxAge,
+    maxPoints: Int = defaultMaxPoints,
+    minPoints: Int = defaultMinPoints,
+    sampling: Duration = defaultSampling,
     coroutineScope: CoroutineScope = device.context,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
@@ -108,14 +115,27 @@ public fun Plot.plotDeviceProperty(
     }.launchIn(coroutineScope)
 }
 
+public fun Plot.plotDeviceProperty(
+    device: Device,
+    property: DevicePropertySpec<*, Number>,
+    maxAge: Duration = defaultMaxAge,
+    maxPoints: Int = defaultMaxPoints,
+    minPoints: Int = defaultMinPoints,
+    sampling: Duration = defaultSampling,
+    coroutineScope: CoroutineScope = device.context,
+    configuration: Scatter.() -> Unit = {},
+): Job = plotDeviceProperty(
+    device, property.name, { value ?: Null }, maxAge, maxPoints, minPoints, sampling, coroutineScope, configuration
+)
+
 private fun <T> Trace.updateFromState(
     context: Context,
     state: DeviceState<T>,
-    extractValue: T.() -> Value = { state.converter.objectToMeta(this).value ?: space.kscience.dataforge.meta.Null },
-    maxAge: Duration = 1.hours,
-    maxPoints: Int = 800,
-    minPoints: Int = 400,
-    sampling: Duration = 10.milliseconds,
+    extractValue: T.() -> Value,
+    maxAge: Duration,
+    maxPoints: Int,
+    minPoints: Int,
+    sampling: Duration,
 ): Job {
     val clock = context.clock
     val data = TimeData()
@@ -131,10 +151,10 @@ public fun <T> Plot.plotDeviceState(
     context: Context,
     state: DeviceState<T>,
     extractValue: T.() -> Value = { state.converter.objectToMeta(this).value ?: Null },
-    maxAge: Duration = 1.hours,
-    maxPoints: Int = 800,
-    minPoints: Int = 400,
-    sampling: Duration = 10.milliseconds,
+    maxAge: Duration = defaultMaxAge,
+    maxPoints: Int = defaultMaxPoints,
+    minPoints: Int = defaultMinPoints,
+    sampling: Duration = defaultSampling,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
     updateFromState(context, state, extractValue, maxAge, maxPoints, minPoints, sampling)
@@ -144,10 +164,10 @@ public fun <T> Plot.plotDeviceState(
 public fun Plot.plotNumberState(
     context: Context,
     state: DeviceState<out Number>,
-    maxAge: Duration = 1.hours,
-    maxPoints: Int = 800,
-    minPoints: Int = 400,
-    sampling: Duration = 10.milliseconds,
+    maxAge: Duration = defaultMaxAge,
+    maxPoints: Int = defaultMaxPoints,
+    minPoints: Int = defaultMinPoints,
+    sampling: Duration = defaultSampling,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
     updateFromState(context, state, { asValue() }, maxAge, maxPoints, minPoints, sampling)
@@ -157,10 +177,10 @@ public fun Plot.plotNumberState(
 public fun Plot.plotBooleanState(
     context: Context,
     state: DeviceState<Boolean>,
-    maxAge: Duration = 1.hours,
-    maxPoints: Int = 800,
-    minPoints: Int = 400,
-    sampling: Duration = 10.milliseconds,
+    maxAge: Duration = defaultMaxAge,
+    maxPoints: Int = defaultMaxPoints,
+    minPoints: Int = defaultMinPoints,
+    sampling: Duration = defaultSampling,
     configuration: Bar.() -> Unit = {},
 ): Job = bar(configuration).run {
     updateFromState(context, state, { asValue() }, maxAge, maxPoints, minPoints, sampling)

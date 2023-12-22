@@ -26,7 +26,6 @@ import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.controls.vision.plotNumberState
 import space.kscience.controls.vision.showDashboard
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.plotly.models.ScatterMode
 import space.kscience.visionforge.plotly.PlotlyPlugin
@@ -44,7 +43,7 @@ class LinearDrive(
     mass: Double,
     pidParameters: PidParameters,
     meta: Meta = Meta.EMPTY,
-) : DeviceConstructor(context.request(DeviceManager), meta) {
+) : DeviceConstructor(context, meta) {
 
     val drive by device(VirtualDrive.factory(mass, state))
     val pid by device(PidRegulator(drive, pidParameters))

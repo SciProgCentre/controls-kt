@@ -9,6 +9,8 @@ import kotlinx.io.readByteArray
 
 /**
  * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
+ *
+ * TODO add type wrapper for phrases
  */
 public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
