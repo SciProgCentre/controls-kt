@@ -10,6 +10,8 @@ import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.parseAsName
@@ -110,6 +112,11 @@ public interface Device : ContextAware, CoroutineScope {
         public const val DEVICE_TARGET: String = "device"
     }
 }
+
+/**
+ * Inner id of a device. Not necessary corresponds to the name in the parent container
+ */
+public val Device.id: String get() = meta["id"].string?: "device[${hashCode().toString(16)}]"
 
 /**
  * Device that caches properties values

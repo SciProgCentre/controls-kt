@@ -47,9 +47,10 @@ public open class DeviceGroup(
     override val messageFlow: Flow<DeviceMessage>
         get() = sharedMessageFlow
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
-                CoroutineName("Device $this") +
+                CoroutineName("Device $id") +
                 CoroutineExceptionHandler { _, throwable ->
                     context.launch {
                         sharedMessageFlow.emit(
@@ -75,7 +76,7 @@ public open class DeviceGroup(
     public fun <D : Device> install(token: NameToken, device: D): D {
         require(_devices[token] == null) { "A child device with name $token already exists" }
         //start the child device if needed
-        if(lifecycleState == STARTED || lifecycleState == STARTING) launch { device.start() }
+        if (lifecycleState == STARTED || lifecycleState == STARTING) launch { device.start() }
         _devices[token] = device
         return device
     }
@@ -216,6 +217,9 @@ public fun <D : Device> DeviceGroup.install(name: Name, device: D): D {
 public fun <D : Device> DeviceGroup.install(name: String, device: D): D =
     install(name.parseAsName(), device)
 
+public fun <D : Device> DeviceGroup.install(device: D): D =
+    install(device.id, device)
+
 public fun <D : Device> Context.install(name: String, device: D): D = request(DeviceManager).install(name, device)
 
 /**
@@ -282,15 +286,6 @@ public fun <T : Any> DeviceGroup.registerMutableProperty(
 
 
 /**
- * Create a virtual [MutableDeviceState], but do not register it to a device
- */
-@Suppress("UnusedReceiverParameter")
-public fun <T : Any> DeviceGroup.state(
-    converter: MetaConverter<T>,
-    initialValue: T,
-): MutableDeviceState<T> = VirtualDeviceState<T>(converter, initialValue)
-
-/**
  * Create a new virtual mutable state and a property based on it.
  * @return the mutable state used in property
  */
@@ -299,8 +294,9 @@ public fun <T : Any> DeviceGroup.registerVirtualProperty(
     initialValue: T,
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    callback: (T) -> Unit = {},
 ): MutableDeviceState<T> {
-    val state = state(converter, initialValue)
+    val state = DeviceState.virtual<T>(converter, initialValue, callback)
     registerMutableProperty(name, state, descriptorBuilder)
     return state
 }

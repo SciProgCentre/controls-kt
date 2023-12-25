@@ -45,16 +45,48 @@ public var <T : Any> MutableDeviceState<T>.valueAsMeta: Meta
 
 /**
  * A [MutableDeviceState] that does not correspond to a physical state
+ *
+ * @param callback a synchronous callback that could be used without a scope
  */
-public class VirtualDeviceState<T>(
+private class VirtualDeviceState<T>(
     override val converter: MetaConverter<T>,
     initialValue: T,
+    private val callback: (T) -> Unit = {},
 ) : MutableDeviceState<T> {
     private val flow = MutableStateFlow(initialValue)
     override val valueFlow: Flow<T> get() = flow
 
-    override var value: T by flow::value
+    override var value: T
+        get() = flow.value
+        set(value) {
+            flow.value = value
+            callback(value)
+        }
 }
+
+
+/**
+ * A [MutableDeviceState] that does not correspond to a physical state
+ *
+ * @param callback a synchronous callback that could be used without a scope
+ */
+public fun <T> DeviceState.Companion.virtual(
+    converter: MetaConverter<T>,
+    initialValue: T,
+    callback: (T) -> Unit = {},
+): MutableDeviceState<T> = VirtualDeviceState(converter, initialValue, callback)
+
+private class StateFlowAsState<T>(
+    override val converter: MetaConverter<T>,
+    val flow: MutableStateFlow<T>,
+) : MutableDeviceState<T> {
+    override var value: T by flow::value
+    override val valueFlow: Flow<T> get() = flow
+}
+
+public fun <T> MutableStateFlow<T>.asDeviceState(converter: MetaConverter<T>): DeviceState<T> =
+    StateFlowAsState(converter, this)
+
 
 private open class BoundDeviceState<T>(
     override val converter: MetaConverter<T>,

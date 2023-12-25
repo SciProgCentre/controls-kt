@@ -4,6 +4,7 @@ import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceHub
 import space.kscience.controls.api.getOrNull
+import space.kscience.controls.api.id
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
@@ -44,6 +45,8 @@ public fun <D : Device> DeviceManager.install(name: String, device: D): D {
     }
     return device
 }
+
+public fun <D : Device> DeviceManager.install(device: D): D = install(device.id, device)
 
 
 /**

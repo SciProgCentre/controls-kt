@@ -57,8 +57,8 @@ public abstract class DeviceConstructor(
      */
     public fun <T : Any> property(
         state: DeviceState<T>,
-        nameOverride: String? = null,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        nameOverride: String? = null,
     ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, T>> =
         PropertyDelegateProvider { _: DeviceConstructor, property ->
             val name = nameOverride ?: property.name
@@ -77,11 +77,12 @@ public abstract class DeviceConstructor(
         reader: suspend () -> T,
         readInterval: Duration,
         initialState: T,
-        nameOverride: String? = null,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        nameOverride: String? = null,
     ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, T>> = property(
         DeviceState.external(this, metaConverter, readInterval, initialState, reader),
-        nameOverride, descriptorBuilder
+        descriptorBuilder,
+        nameOverride,
     )
 
 
@@ -90,8 +91,8 @@ public abstract class DeviceConstructor(
      */
     public fun <T : Any> mutableProperty(
         state: MutableDeviceState<T>,
-        nameOverride: String? = null,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        nameOverride: String? = null,
     ): PropertyDelegateProvider<DeviceConstructor, ReadWriteProperty<DeviceConstructor, T>> =
         PropertyDelegateProvider { _: DeviceConstructor, property ->
             val name = nameOverride ?: property.name
@@ -116,11 +117,26 @@ public abstract class DeviceConstructor(
         writer: suspend (T) -> Unit,
         readInterval: Duration,
         initialState: T,
-        nameOverride: String? = null,
         descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        nameOverride: String? = null,
     ): PropertyDelegateProvider<DeviceConstructor, ReadWriteProperty<DeviceConstructor, T>> = mutableProperty(
         DeviceState.external(this, metaConverter, readInterval, initialState, reader, writer),
+        descriptorBuilder,
         nameOverride,
-        descriptorBuilder
+    )
+
+    /**
+     * Create and register a virtual property with optional [callback]
+     */
+    public fun <T : Any> state(
+        metaConverter: MetaConverter<T>,
+        initialState: T,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        nameOverride: String? = null,
+        callback: (T) -> Unit = {},
+    ): PropertyDelegateProvider<DeviceConstructor, ReadWriteProperty<DeviceConstructor, T>> = mutableProperty(
+        DeviceState.virtual(metaConverter, initialState, callback),
+        descriptorBuilder,
+        nameOverride,
     )
 }
