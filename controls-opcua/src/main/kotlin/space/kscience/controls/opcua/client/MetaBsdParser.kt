@@ -56,6 +56,7 @@ internal class MetaEnumCodec : OpcUaBinaryDataTypeCodec<Number> {
 
 internal fun opcToMeta(value: Any?): Meta = when (value) {
     null -> Meta(Null)
+    is Variant -> opcToMeta(value.value)
     is Meta -> value
     is Value -> Meta(value)
     is Number -> when (value) {
@@ -79,12 +80,17 @@ internal fun opcToMeta(value: Any?): Meta = when (value) {
         "text" put value.text?.asValue()
     }
     is DataValue -> Meta {
-        "value" put opcToMeta(value.value) // need SerializationContext to do that properly
-        value.statusCode?.value?.let { "status" put Meta(it.asValue()) }
-        value.sourceTime?.javaInstant?.let { "sourceTime" put it.toKotlinInstant().toMeta() }
-        value.sourcePicoseconds?.let { "sourcePicoseconds" put Meta(it.asValue()) }
-        value.serverTime?.javaInstant?.let { "serverTime" put it.toKotlinInstant().toMeta() }
-        value.serverPicoseconds?.let { "serverPicoseconds" put Meta(it.asValue()) }
+        val variant= opcToMeta(value.value)
+        update(variant)// need SerializationContext to do that properly
+        //TODO remove after DF 0.7.2
+        this.value =  variant.value
+        "@opc" put {
+            value.statusCode?.value?.let { "status" put Meta(it.asValue()) }
+            value.sourceTime?.javaInstant?.let { "sourceTime" put it.toKotlinInstant().toMeta() }
+            value.sourcePicoseconds?.let { "sourcePicoseconds" put Meta(it.asValue()) }
+            value.serverTime?.javaInstant?.let { "serverTime" put it.toKotlinInstant().toMeta() }
+            value.serverPicoseconds?.let { "serverPicoseconds" put Meta(it.asValue()) }
+        }
     }
     is ByteString -> Meta(value.bytesOrEmpty().asValue())
     is XmlElement -> Meta(value.fragment?.asValue() ?: Null)
