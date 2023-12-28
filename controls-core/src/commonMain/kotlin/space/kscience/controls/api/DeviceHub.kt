@@ -14,28 +14,34 @@ public interface DeviceHub : Provider {
 
     override val defaultChainTarget: String get() = Device.DEVICE_TARGET
 
-    override fun content(target: String): Map<Name, Any> = if (target == Device.DEVICE_TARGET) {
-        buildMap {
-            fun putAll(prefix: Name, hub: DeviceHub) {
-                hub.devices.forEach {
-                    put(prefix + it.key, it.value)
-                }
-            }
-
-            devices.forEach {
-                val name = it.key.asName()
-                put(name, it.value)
-                (it.value as? DeviceHub)?.let { hub ->
-                    putAll(name, hub)
-                }
+    /**
+     * List all devices, including sub-devices
+     */
+    public fun buildDeviceTree(): Map<Name, Device> = buildMap {
+        fun putAll(prefix: Name, hub: DeviceHub) {
+            hub.devices.forEach {
+                put(prefix + it.key, it.value)
             }
         }
+
+        devices.forEach {
+            val name = it.key.asName()
+            put(name, it.value)
+            (it.value as? DeviceHub)?.let { hub ->
+                putAll(name, hub)
+            }
+        }
+    }
+
+    override fun content(target: String): Map<Name, Any> = if (target == Device.DEVICE_TARGET) {
+        buildDeviceTree()
     } else {
         emptyMap()
     }
 
     public companion object
 }
+
 
 public operator fun DeviceHub.get(nameToken: NameToken): Device =
     devices[nameToken] ?: error("Device with name $nameToken not found in $this")

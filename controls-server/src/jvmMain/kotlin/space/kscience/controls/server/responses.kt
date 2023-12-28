@@ -5,6 +5,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.serializer
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.magix.api.MagixEndpoint
 
@@ -25,7 +26,7 @@ internal suspend fun ApplicationCall.respondJson(builder: JsonObjectBuilder.() -
     respondText(json.toString(), contentType = ContentType.Application.Json)
 }
 
-internal suspend fun ApplicationCall.respondMessage(message: DeviceMessage): Unit = respondText(
-    MagixEndpoint.magixJson.encodeToString(DeviceMessage.serializer(), message),
+internal suspend fun ApplicationCall.respondMessages(messages: List<DeviceMessage>): Unit = respondText(
+    MagixEndpoint.magixJson.encodeToString(serializer<List<DeviceMessage>>(), messages),
     contentType = ContentType.Application.Json
 )

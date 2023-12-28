@@ -10,6 +10,7 @@
 ### Changed
 - Property caching moved from core `Device` to the `CachingDevice`
 - `DeviceSpec` properties no explicitly pass property name to getters and setters.
+- `DeviceHub.respondHubMessage` now returns a list of messages to allow querying multiple devices. Device server also returns an array.
 
 ### Deprecated
 

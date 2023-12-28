@@ -103,7 +103,7 @@ public data class PropertyGetMessage(
 @SerialName("description.get")
 public data class GetDescriptionMessage(
     override val sourceDevice: Name? = null,
-    override val targetDevice: Name,
+    override val targetDevice: Name? = null,
     override val comment: String? = null,
     @EncodeDefault override val time: Instant? = Clock.System.now(),
 ) : DeviceMessage() {

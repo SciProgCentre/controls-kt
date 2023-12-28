@@ -157,8 +157,8 @@ public fun Application.deviceManagerModule(
                 val body = call.receiveText()
                 val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(DeviceMessage.serializer(), body)
                 val response = manager.respondHubMessage(request)
-                if (response != null) {
-                    call.respondMessage(response)
+                if (response.isNotEmpty()) {
+                    call.respondMessages(response)
                 } else {
                     call.respondText("No response")
                 }
@@ -177,9 +177,9 @@ public fun Application.deviceManagerModule(
                             property = property,
                         )
 
-                        val response = manager.respondHubMessage(request)
-                        if (response != null) {
-                            call.respondMessage(response)
+                        val responses = manager.respondHubMessage(request)
+                        if (responses.isNotEmpty()) {
+                            call.respondMessages(responses)
                         } else {
                             call.respond(HttpStatusCode.InternalServerError)
                         }
@@ -197,9 +197,9 @@ public fun Application.deviceManagerModule(
                             value = json.toMeta()
                         )
 
-                        val response = manager.respondHubMessage(request)
-                        if (response != null) {
-                            call.respondMessage(response)
+                        val responses = manager.respondHubMessage(request)
+                        if (responses.isNotEmpty()) {
+                            call.respondMessages(responses)
                         } else {
                             call.respond(HttpStatusCode.InternalServerError)
                         }

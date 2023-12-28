@@ -39,10 +39,10 @@ public fun DeviceManager.launchMagixService(
 ): Job = context.launch {
     endpoint.subscribe(controlsMagixFormat, targetFilter = listOf(endpointID)).onEach { (request, payload) ->
         val responsePayload = respondHubMessage(payload)
-        if (responsePayload != null) {
+        responsePayload.forEach {
             endpoint.send(
                 format = controlsMagixFormat,
-                payload = responsePayload,
+                payload = it,
                 source = endpointID,
                 target = request.sourceEndpoint,
                 id = generateId(request),

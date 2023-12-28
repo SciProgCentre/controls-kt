@@ -68,15 +68,22 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
 }
 
 /**
- * Process incoming [DeviceMessage], using hub naming to evaluate target.
+ * Process incoming [DeviceMessage], using hub naming to find target.
+ * If the `targetDevice` is `null`, then message is sent to each device in this hub
  */
-public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): DeviceMessage? {
+public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<DeviceMessage> {
     return try {
-        val targetName = request.targetDevice ?: return null
-        val device = getOrNull(targetName) ?: error("The device with name $targetName not found in $this")
-        device.respondMessage(targetName, request)
+        val targetName = request.targetDevice
+        if(targetName == null) {
+            buildDeviceTree().mapNotNull {
+                it.value.respondMessage(it.key, request)
+            }
+        } else {
+            val device = getOrNull(targetName) ?: error("The device with name $targetName not found in $this")
+            listOfNotNull(device.respondMessage(targetName, request))
+        }
     } catch (ex: Exception) {
-        DeviceMessage.error(ex, sourceDevice = Name.EMPTY, targetDevice = request.sourceDevice)
+        listOf(DeviceMessage.error(ex, sourceDevice = Name.EMPTY, targetDevice = request.sourceDevice))
     }
 }
 

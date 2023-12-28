@@ -47,7 +47,12 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
             description = "Real to virtual time scale"
         }
 
-        val sinScale by mutableProperty(MetaConverter.double, IDemoDevice::sinScaleState)
+        val sinScale by mutableProperty(MetaConverter.double, IDemoDevice::sinScaleState){
+            description = "The scale of sin plot"
+            metaDescriptor {
+                valueType(ValueType.NUMBER)
+            }
+        }
         val cosScale by mutableProperty(MetaConverter.double, IDemoDevice::cosScaleState)
 
         val sin by doubleProperty { sinValue() }
@@ -72,6 +77,10 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
             write(timeScale, 5000.0)
             write(sinScale, 1.0)
             write(cosScale, 1.0)
+        }
+
+        val setSinScale by action(MetaConverter.double, MetaConverter.unit){ value: Double ->
+            write(sinScale, value)
         }
 
         override suspend fun IDemoDevice.onOpen() {
