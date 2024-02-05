@@ -39,9 +39,8 @@ public class XodusMagixHistory(private val store: PersistentEntityStore) : Write
 
             setBlobString(MagixMessage::payload.name, magixJson.encodeToString(message.payload))
 
-            message.targetEndpoint?.let {
-                setProperty(MagixMessage::targetEndpoint.name, it)
-            }
+            setProperty(MagixMessage::targetEndpoint.name, (message.targetEndpoint ?: ""))
+
             message.id?.let {
                 setProperty(MagixMessage::id.name, it)
             }
@@ -68,14 +67,14 @@ public class XodusMagixHistory(private val store: PersistentEntityStore) : Write
     ): Unit = store.executeInReadonlyTransaction { transaction ->
         val all = transaction.getAll(XodusMagixStorage.MAGIC_MESSAGE_ENTITY_TYPE)
 
-        fun StoreTransaction.findAllIn(
+        fun findAllIn(
             entityType: String,
             field: String,
-            values: Collection<String>?,
+            values: Collection<String?>?,
         ): EntityIterable? {
             var union: EntityIterable? = null
             values?.forEach {
-                val filter = transaction.find(entityType, field, it)
+                val filter = transaction.find(entityType, field, it ?: "")
                 union = union?.union(filter) ?: filter
             }
             return union
@@ -84,21 +83,24 @@ public class XodusMagixHistory(private val store: PersistentEntityStore) : Write
         // filter by magix filter
         val filteredByMagix: EntityIterable = magixFilter?.let { mf ->
             var res = all
-            transaction.findAllIn(XodusMagixStorage.MAGIC_MESSAGE_ENTITY_TYPE, MagixMessage::format.name, mf.format)
-                ?.let {
-                    res = res.intersect(it)
-                }
-            transaction.findAllIn(
+            findAllIn(
+                XodusMagixStorage.MAGIC_MESSAGE_ENTITY_TYPE,
+                MagixMessage::format.name,
+                mf.format
+            )?.let {
+                res = res.intersect(it)
+            }
+            findAllIn(
                 XodusMagixStorage.MAGIC_MESSAGE_ENTITY_TYPE,
                 MagixMessage::sourceEndpoint.name,
                 mf.source
             )?.let {
                 res = res.intersect(it)
             }
-            transaction.findAllIn(
+            findAllIn(
                 XodusMagixStorage.MAGIC_MESSAGE_ENTITY_TYPE,
                 MagixMessage::targetEndpoint.name,
-                mf.target
+                mf.target?.filterNotNull()
             )?.let {
                 res = res.intersect(it)
             }
