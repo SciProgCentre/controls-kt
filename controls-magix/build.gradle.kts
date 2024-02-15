@@ -12,6 +12,7 @@ description = """
 kscience {
     jvm()
     js()
+    useCoroutines("1.8.0")
     useSerialization {
         json()
     }

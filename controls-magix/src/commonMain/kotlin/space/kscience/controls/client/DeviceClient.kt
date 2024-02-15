@@ -1,8 +1,8 @@
 package space.kscience.controls.client
 
 import com.benasher44.uuid.uuid4
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.newCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
@@ -28,8 +28,8 @@ public class DeviceClient(
     private val send: suspend (DeviceMessage) -> Unit,
 ) : CachingDevice {
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    override val coroutineContext: CoroutineContext = newCoroutineContext(context.coroutineContext)
+
+    override val coroutineContext: CoroutineContext = context.coroutineContext + Job(context.coroutineContext[Job])
 
     private val mutex = Mutex()
 
