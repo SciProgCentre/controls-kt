@@ -7,6 +7,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.name
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
@@ -106,12 +108,75 @@ public class DeviceClient(
  * Connect to a remote device via this endpoint.
  *
  * @param context a [Context] to run device in
- * @param endpointName the name of endpoint in Magix to connect to
+ * @param sourceEndpointName the name of this endpoint
+ * @param targetEndpointName the name of endpoint in Magix to connect to
  * @param deviceName the name of device within endpoint
  */
-public fun MagixEndpoint.remoteDevice(context: Context, endpointName: String, deviceName: Name): DeviceClient {
-    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
+public fun MagixEndpoint.remoteDevice(
+    context: Context,
+    sourceEndpointName: String,
+    targetEndpointName: String,
+    deviceName: Name,
+): DeviceClient {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(targetEndpointName)).map { it.second }
     return DeviceClient(context, deviceName, subscription) {
-        send(DeviceManager.magixFormat, it, endpointName, id = stringUID())
+        send(
+            format = DeviceManager.magixFormat,
+            payload = it,
+            source = sourceEndpointName,
+            target = targetEndpointName,
+            id = stringUID()
+        )
     }
+}
+
+/**
+ * Subscribe on specific property of a device without creating a device
+ */
+public fun <T> MagixEndpoint.controlsPropertyFlow(
+    endpointName: String,
+    deviceName: Name,
+    propertySpec: DevicePropertySpec<*, T>,
+): Flow<T> {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
+
+    return subscription.filterIsInstance<PropertyChangedMessage>()
+        .filter { message ->
+            message.sourceDevice == deviceName && message.property == propertySpec.name
+        }.map {
+            propertySpec.converter.metaToObject(it.value)
+        }
+}
+
+public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
+    sourceEndpointName: String,
+    targetEndpointName: String,
+    deviceName: Name,
+    propertySpec: DevicePropertySpec<*, T>,
+    value: T,
+) {
+    val message = PropertySetMessage(
+        property = propertySpec.name,
+        value = propertySpec.converter.objectToMeta(value),
+        targetDevice = deviceName
+    )
+    send(DeviceManager.magixFormat, message, source = sourceEndpointName, target = targetEndpointName)
+}
+
+/**
+ * Subscribe on property change messages together with property values
+ */
+public fun <T> MagixEndpoint.controlsPropertyMessageFlow(
+    endpointName: String,
+    deviceName: Name,
+    propertySpec: DevicePropertySpec<*, T>,
+): Flow<Pair<PropertyChangedMessage, T>> {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
+
+    return subscription.filterIsInstance<PropertyChangedMessage>()
+        .filter { message ->
+            message.sourceDevice == deviceName && message.property == propertySpec.name
+        }.map {
+            it to propertySpec.converter.metaToObject(it.value)
+        }
 }
