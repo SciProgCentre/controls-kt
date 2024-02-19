@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import space.kscience.controls.api.Device
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.manager.respondMessage
@@ -24,9 +23,6 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.time.Duration.Companion.milliseconds
 
-
-public suspend fun <T> Device.readUnsafe(propertySpec: DevicePropertySpec<*, T>): T =
-    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
 internal class RemoteDeviceConnect {
 
@@ -82,6 +78,6 @@ internal class RemoteDeviceConnect {
 
         val remoteDevice = virtualMagixEndpoint.remoteDevice(context, "test", Name.EMPTY)
 
-        assertContains(0.0..1.0, remoteDevice.readUnsafe(TestDevice.value))
+        assertContains(0.0..1.0, remoteDevice.read(TestDevice.value))
     }
 }
