@@ -12,7 +12,7 @@ import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.logger
 
-//TODO replace by plugin?
+
 public fun DeviceManager.storage(
     factory: Factory<DeviceMessageStorage>,
 ): DeviceMessageStorage = factory.build(context, meta)

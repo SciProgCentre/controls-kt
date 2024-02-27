@@ -1,10 +1,9 @@
 package space.kscience.controls.manager
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
@@ -74,7 +73,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
 public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<DeviceMessage> {
     return try {
         val targetName = request.targetDevice
-        if(targetName == null) {
+        if (targetName == null) {
             buildDeviceTree().mapNotNull {
                 it.value.respondMessage(it.key, request)
             }
@@ -90,27 +89,19 @@ public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<Dev
 /**
  * Collect all messages from given [DeviceHub], applying proper relative names.
  */
-public fun DeviceHub.hubMessageFlow(scope: CoroutineScope): Flow<DeviceMessage> {
+public fun DeviceHub.hubMessageFlow(): Flow<DeviceMessage> {
 
-    //TODO could we avoid using downstream scope?
-    val outbox = MutableSharedFlow<DeviceMessage>()
-    if (this is Device) {
-        messageFlow.onEach {
-            outbox.emit(it)
-        }.launchIn(scope)
-    }
-    //TODO maybe better create map of all devices to limit copying
-    devices.forEach { (token, childDevice) ->
-        val flow = if (childDevice is DeviceHub) {
-            childDevice.hubMessageFlow(scope)
+    val deviceMessageFlow = if (this is Device) messageFlow else emptyFlow()
+
+    val childrenFlows = devices.map { (token, childDevice) ->
+        if (childDevice is DeviceHub) {
+            childDevice.hubMessageFlow()
         } else {
             childDevice.messageFlow
+        }.map { deviceMessage ->
+            deviceMessage.changeSource { token + it }
         }
-        flow.onEach { deviceMessage ->
-            outbox.emit(
-                deviceMessage.changeSource { token + it }
-            )
-        }.launchIn(scope)
     }
-    return outbox
+
+    return merge(deviceMessageFlow, *childrenFlows.toTypedArray())
 }

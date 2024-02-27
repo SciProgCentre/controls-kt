@@ -19,6 +19,7 @@
 ### Fixed
 - Property writing does not trigger change if logical state already is the same as value to be set.
 - Modbus-slave triggers only once for multi-register write.
+- Removed unnecessary scope in hub messageFlow
 
 ### Security
 
