@@ -5,7 +5,7 @@ import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import kotlin.properties.PropertyDelegateProvider

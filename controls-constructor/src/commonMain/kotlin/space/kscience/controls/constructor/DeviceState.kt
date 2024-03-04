@@ -10,7 +10,7 @@ import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.MutableDevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 import kotlin.time.Duration
 
 /**
@@ -25,9 +25,9 @@ public interface DeviceState<T> {
     public companion object
 }
 
-public val <T> DeviceState<T>.metaFlow: Flow<Meta> get() = valueFlow.map(converter::objectToMeta)
+public val <T> DeviceState<T>.metaFlow: Flow<Meta> get() = valueFlow.map(converter::convert)
 
-public val <T> DeviceState<T>.valueAsMeta: Meta get() = converter.objectToMeta(value)
+public val <T> DeviceState<T>.valueAsMeta: Meta get() = converter.convert(value)
 
 
 /**
@@ -38,9 +38,9 @@ public interface MutableDeviceState<T> : DeviceState<T> {
 }
 
 public var <T : Any> MutableDeviceState<T>.valueAsMeta: Meta
-    get() = converter.objectToMeta(value)
+    get() = converter.convert(value)
     set(arg) {
-        value = converter.metaToObject(arg)
+        value = converter.read(arg)
     }
 
 /**
@@ -98,7 +98,7 @@ private open class BoundDeviceState<T>(
     override val valueFlow: StateFlow<T> = device.messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
         it.property == propertyName
     }.mapNotNull {
-        converter.metaToObject(it.value)
+        converter.read(it.value)
     }.stateIn(device.context, SharingStarted.Eagerly, initialValue)
 
     override val value: T get() = valueFlow.value
@@ -111,7 +111,7 @@ public suspend fun <T> Device.propertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
 ): DeviceState<T> {
-    val initialValue = metaConverter.metaToObject(readProperty(propertyName)) ?: error("Conversion of property failed")
+    val initialValue = metaConverter.readOrNull(readProperty(propertyName)) ?: error("Conversion of property failed")
     return BoundDeviceState(metaConverter, this, propertyName, initialValue)
 }
 
@@ -140,7 +140,7 @@ private class MutableBoundDeviceState<T>(
         get() = valueFlow.value
         set(newValue) {
             device.launch {
-                device.writeProperty(propertyName, converter.objectToMeta(newValue))
+                device.writeProperty(propertyName, converter.convert(newValue))
             }
         }
 }
@@ -155,7 +155,7 @@ public suspend fun <T> Device.mutablePropertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
 ): MutableDeviceState<T> {
-    val initialValue = metaConverter.metaToObject(readProperty(propertyName)) ?: error("Conversion of property failed")
+    val initialValue = metaConverter.readOrNull(readProperty(propertyName)) ?: error("Conversion of property failed")
     return mutablePropertyAsState(propertyName, metaConverter, initialValue)
 }
 

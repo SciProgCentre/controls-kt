@@ -16,7 +16,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         is PropertyGetMessage -> {
             PropertyChangedMessage(
                 property = request.property,
-                value = requestProperty(request.property),
+                value = getOrReadProperty(request.property),
                 sourceDevice = deviceTarget,
                 targetDevice = request.sourceDevice
             )
@@ -26,7 +26,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
             writeProperty(request.property, request.value)
             PropertyChangedMessage(
                 property = request.property,
-                value = requestProperty(request.property),
+                value = getOrReadProperty(request.property),
                 sourceDevice = deviceTarget,
                 targetDevice = request.sourceDevice
             )

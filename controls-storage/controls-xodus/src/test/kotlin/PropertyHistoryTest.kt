@@ -1,5 +1,6 @@
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.AfterAll
@@ -7,8 +8,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.storage.read
 import space.kscience.controls.xodus.XodusDeviceMessageStorage
-import space.kscience.controls.xodus.query
 import space.kscience.controls.xodus.writeMessage
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -67,7 +68,7 @@ internal class PropertyHistoryTest {
             XodusDeviceMessageStorage(entityStore).use { storage ->
                 assertEquals(
                     propertyChangedMessages[0],
-                    storage.query<PropertyChangedMessage>(
+                    storage.read<PropertyChangedMessage>(
                         sourceDevice = "virtual-car".asName()
                     ).first { it.property == "speed" }
                 )

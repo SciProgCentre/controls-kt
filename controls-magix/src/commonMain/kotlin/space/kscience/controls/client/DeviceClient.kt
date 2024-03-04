@@ -144,7 +144,7 @@ public fun <T> MagixEndpoint.controlsPropertyFlow(
         .filter { message ->
             message.sourceDevice == deviceName && message.property == propertySpec.name
         }.map {
-            propertySpec.converter.metaToObject(it.value)
+            propertySpec.converter.read(it.value)
         }
 }
 
@@ -157,7 +157,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
 ) {
     val message = PropertySetMessage(
         property = propertySpec.name,
-        value = propertySpec.converter.objectToMeta(value),
+        value = propertySpec.converter.convert(value),
         targetDevice = deviceName
     )
     send(DeviceManager.magixFormat, message, source = sourceEndpointName, target = targetEndpointName)
@@ -177,6 +177,6 @@ public fun <T> MagixEndpoint.controlsPropertyMessageFlow(
         .filter { message ->
             message.sourceDevice == deviceName && message.property == propertySpec.name
         }.map {
-            it to propertySpec.converter.metaToObject(it.value)
+            it to propertySpec.converter.read(it.value)
         }
 }

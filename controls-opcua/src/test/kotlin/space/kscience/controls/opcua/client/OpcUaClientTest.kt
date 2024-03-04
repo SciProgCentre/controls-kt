@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.controls.spec.doubleProperty
 import space.kscience.controls.spec.read
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 import kotlin.test.Ignore
 
 class OpcUaClientTest {

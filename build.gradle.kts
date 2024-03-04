@@ -5,8 +5,8 @@ plugins {
     id("space.kscience.gradle.project")
 }
 
-val dataforgeVersion: String by extra("0.7.1")
-val visionforgeVersion by extra("0.3.1")
+val dataforgeVersion: String by extra("0.8.0")
+val visionforgeVersion by extra("0.4.0")
 val ktorVersion: String by extra(space.kscience.gradle.KScienceVersions.ktorVersion)
 val rsocketVersion by extra("0.15.4")
 val xodusVersion by extra("2.0.1")

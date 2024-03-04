@@ -5,20 +5,16 @@ import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 public object UnitMetaConverter : MetaConverter<Unit> {
 
-    override val type: KType = typeOf<Unit>()
+    override fun readOrNull(source: Meta): Unit = Unit
 
-    override fun metaToObjectOrNull(meta: Meta): Unit = Unit
-
-    override fun objectToMeta(obj: Unit): Meta = Meta.EMPTY
+    override fun convert(obj: Unit): Meta = Meta.EMPTY
 }
 
 public val MetaConverter.Companion.unit: MetaConverter<Unit> get() = UnitMetaConverter

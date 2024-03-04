@@ -7,9 +7,9 @@ import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.value
-import space.kscience.dataforge.meta.transformations.MetaConverter
 import java.time.Instant
 import kotlin.math.cos
 import kotlin.math.sin

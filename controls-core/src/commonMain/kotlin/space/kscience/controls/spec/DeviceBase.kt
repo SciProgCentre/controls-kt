@@ -21,7 +21,7 @@ import kotlin.coroutines.CoroutineContext
  */
 @OptIn(InternalDeviceAPI::class)
 private suspend fun <D : Device, T> MutableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
-    write(device, converter.metaToObject(item) ?: error("Meta $item could not be read with $converter"))
+    write(device, converter.readOrNull(item) ?: error("Meta $item could not be read with $converter"))
 }
 
 /**
@@ -29,16 +29,16 @@ private suspend fun <D : Device, T> MutableDevicePropertySpec<D, T>.writeMeta(de
  */
 @OptIn(InternalDeviceAPI::class)
 private suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
-    read(device)?.let(converter::objectToMeta)
+    read(device)?.let(converter::convert)
 
 
 private suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
     device: D,
     item: Meta,
 ): Meta? {
-    val arg: I = inputConverter.metaToObject(item) ?: error("Failed to convert $item with $inputConverter")
+    val arg: I = inputConverter.readOrNull(item) ?: error("Failed to convert $item with $inputConverter")
     val res = execute(device, arg)
-    return res?.let { outputConverter.objectToMeta(res) }
+    return res?.let { outputConverter.convert(res) }
 }
 
 
@@ -120,7 +120,7 @@ public abstract class DeviceBase<D : Device>(
      * Notify the device that a property with [spec] value is changed
      */
     protected suspend fun <T> propertyChanged(spec: DevicePropertySpec<D, T>, value: T) {
-        propertyChanged(spec.name, spec.converter.objectToMeta(value))
+        propertyChanged(spec.name, spec.converter.convert(value))
     }
 
     /**

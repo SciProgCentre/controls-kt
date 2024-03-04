@@ -7,10 +7,9 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.visionforge.ElementVisionRenderer
 import space.kscience.visionforge.Vision
-import space.kscience.visionforge.VisionClient
 import space.kscience.visionforge.VisionPlugin
+import space.kscience.visionforge.html.ElementVisionRenderer
 
 public actual class ControlVisionPlugin : VisionPlugin(), ElementVisionRenderer {
     override val tag: PluginTag get() = Companion.tag
@@ -21,7 +20,7 @@ public actual class ControlVisionPlugin : VisionPlugin(), ElementVisionRenderer 
         TODO("Not yet implemented")
     }
 
-    override fun render(element: Element, client: VisionClient, name: Name, vision: Vision, meta: Meta) {
+    override fun render(element: Element, name: Name, vision: Vision, meta: Meta) {
         TODO("Not yet implemented")
     }
 

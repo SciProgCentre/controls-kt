@@ -5,10 +5,8 @@ import kotlinx.io.Sink
 import kotlinx.io.Source
 import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.transformations.MetaConverter
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 /**
  * A value coupled to a time it was obtained at
@@ -36,8 +34,6 @@ public data class ValueWithTime<T>(val value: T, val time: Instant) {
 }
 
 private class ValueWithTimeIOFormat<T>(val valueFormat: IOFormat<T>) : IOFormat<ValueWithTime<T>> {
-    override val type: KType get() = typeOf<ValueWithTime<T>>()
-
 
     override fun readFrom(source: Source): ValueWithTime<T> {
         val timestamp = InstantIOFormat.readFrom(source)
@@ -56,18 +52,18 @@ private class ValueWithTimeMetaConverter<T>(
     val valueConverter: MetaConverter<T>,
 ) : MetaConverter<ValueWithTime<T>> {
 
-    override val type: KType = typeOf<ValueWithTime<T>>()
 
-    override fun metaToObjectOrNull(
-        meta: Meta,
-    ): ValueWithTime<T>? = valueConverter.metaToObject(meta[ValueWithTime.META_VALUE_KEY] ?: Meta.EMPTY)?.let {
-        ValueWithTime(it, meta[ValueWithTime.META_TIME_KEY]?.instant ?: Instant.DISTANT_PAST)
+    override fun readOrNull(
+        source: Meta,
+    ): ValueWithTime<T>? = valueConverter.read(source[ValueWithTime.META_VALUE_KEY] ?: Meta.EMPTY)?.let {
+        ValueWithTime(it, source[ValueWithTime.META_TIME_KEY]?.instant ?: Instant.DISTANT_PAST)
     }
 
-    override fun objectToMeta(obj: ValueWithTime<T>): Meta = Meta {
+    override fun convert(obj: ValueWithTime<T>): Meta = Meta {
         ValueWithTime.META_TIME_KEY put obj.time.toMeta()
-        ValueWithTime.META_VALUE_KEY put valueConverter.objectToMeta(obj.value)
+        ValueWithTime.META_VALUE_KEY put valueConverter.convert(obj.value)
     }
 }
+
 
 public fun <T : Any> MetaConverter<T>.withTime(): MetaConverter<ValueWithTime<T>> = ValueWithTimeMetaConverter(this)

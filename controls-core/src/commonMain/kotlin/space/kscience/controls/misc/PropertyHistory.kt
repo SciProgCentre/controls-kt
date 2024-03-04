@@ -9,7 +9,7 @@ import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 
 /**
  * An interface for device property history.
@@ -42,7 +42,7 @@ public class CollectedPropertyHistory<T>(
     private val store: SharedFlow<ValueWithTime<T>> = eventFlow
         .filterIsInstance<PropertyChangedMessage>()
         .filter { it.property == propertyName }
-        .map { ValueWithTime(converter.metaToObject(it.value), it.time) }
+        .map { ValueWithTime(converter.read(it.value), it.time) }
         .shareIn(scope, started = SharingStarted.Eagerly, replay = maxSize)
 
     override fun flowHistory(from: Instant, until: Instant): Flow<ValueWithTime<T>> =

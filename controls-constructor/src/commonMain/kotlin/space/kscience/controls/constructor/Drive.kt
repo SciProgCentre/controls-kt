@@ -9,9 +9,9 @@ import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.math.pow
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit

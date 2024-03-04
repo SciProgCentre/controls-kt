@@ -7,7 +7,7 @@ import kotlinx.datetime.Instant
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.misc.PropertyHistory
 import space.kscience.controls.misc.ValueWithTime
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 
 public fun <T> DeviceMessageStorage.propertyHistory(
     propertyName: String,
@@ -16,5 +16,5 @@ public fun <T> DeviceMessageStorage.propertyHistory(
     override fun flowHistory(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
         read<PropertyChangedMessage>(from..until)
             .filter { it.property == propertyName }
-            .map { ValueWithTime(converter.metaToObject(it.value), it.time) }
+            .map { ValueWithTime(converter.read(it.value), it.time) }
 }

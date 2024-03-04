@@ -11,34 +11,26 @@ import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaRepr
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.*
 import kotlin.math.pow
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
 
-    override fun toMeta(): Meta = objectToMeta(this)
+    override fun toMeta(): Meta = convert(this)
 
     operator fun div(arg: Double): Vector2D = Vector2D(x / arg, y / arg)
 
     companion object CoordinatesMetaConverter : MetaConverter<Vector2D> {
 
-        override val type: KType = typeOf<Vector2D>()
-
-        override fun metaToObjectOrNull(meta: Meta): Vector2D = Vector2D(
-            meta["x"].double ?: 0.0,
-            meta["y"].double ?: 0.0
+        override fun readOrNull(source: Meta): Vector2D = Vector2D(
+            source["x"].double ?: 0.0,
+            source["y"].double ?: 0.0
         )
 
-        override fun objectToMeta(obj: Vector2D): Meta = Meta {
+        override fun convert(obj: Vector2D): Meta = Meta {
             "x" put obj.x
             "y" put obj.y
         }

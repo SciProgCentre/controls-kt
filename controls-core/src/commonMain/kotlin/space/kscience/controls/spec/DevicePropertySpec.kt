@@ -5,7 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 
 
 /**
@@ -72,23 +72,23 @@ public interface DeviceActionSpec<in D, I, O> {
 public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
 
 public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
-    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
+    propertySpec.converter.readOrNull(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
 /**
  * Read typed value and update/push event if needed.
  * Return null if property read is not successful or property is undefined.
  */
 public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
-    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::metaToObject)
+    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::readOrNull)
 
-public suspend fun <T, D : Device> D.request(propertySpec: DevicePropertySpec<D, T>): T =
-    propertySpec.converter.metaToObject(requestProperty(propertySpec.name))
+public suspend fun <T, D : Device> D.getOrRead(propertySpec: DevicePropertySpec<D, T>): T =
+    propertySpec.converter.read(getOrReadProperty(propertySpec.name))
 
 /**
  * Write typed property state and invalidate logical state
  */
 public suspend fun <T, D : Device> D.write(propertySpec: MutableDevicePropertySpec<D, T>, value: T) {
-    writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
+    writeProperty(propertySpec.name, propertySpec.converter.convert(value))
 }
 
 /**
@@ -104,7 +104,7 @@ public fun <T, D : Device> D.writeAsync(propertySpec: MutableDevicePropertySpec<
 public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<T> = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
-    .mapNotNull { spec.converter.metaToObject(it.value) }
+    .mapNotNull { spec.converter.read(it.value) }
 
 /**
  * A type safe property change listener. Uses the device [CoroutineScope].
@@ -117,7 +117,7 @@ public fun <D : Device, T> D.onPropertyChange(
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
     .onEach { change ->
-        val newValue = spec.converter.metaToObject(change.value)
+        val newValue = spec.converter.read(change.value)
         if (newValue != null) {
             change.callback(newValue)
         }
@@ -136,7 +136,7 @@ public fun <D : Device, T> D.useProperty(
         .filterIsInstance<PropertyChangedMessage>()
         .filter { it.property == spec.name }
         .collect { change ->
-            val newValue = spec.converter.metaToObject(change.value)
+            val newValue = spec.converter.readOrNull(change.value)
             if (newValue != null) {
                 callback(newValue)
             }

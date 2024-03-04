@@ -6,8 +6,6 @@ import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.entitystore.StoreTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -72,13 +70,13 @@ public class XodusDeviceMessageStorage(
             DEVICE_MESSAGE_ENTITY_TYPE,
             DeviceMessage::time.name,
             true
-        ).asFlow().map {
+        ).map {
             Json.decodeFromString(
                 DeviceMessage.serializer(),
                 it.getBlobString("json") ?: error("No json content found")
             )
         }
-    }
+    }.asFlow()
 
     override fun read(
         eventType: String,
@@ -90,7 +88,7 @@ public class XodusDeviceMessageStorage(
             DEVICE_MESSAGE_ENTITY_TYPE,
             "type",
             eventType
-        ).asFlow().filter {
+        ).filter {
             it.timeInRange(range) &&
                     it.propertyMatchesName(DeviceMessage::sourceDevice.name, sourceDevice) &&
                     it.propertyMatchesName(DeviceMessage::targetDevice.name, targetDevice)
@@ -100,7 +98,7 @@ public class XodusDeviceMessageStorage(
                 it.getBlobString("json") ?: error("No json content found")
             )
         }
-    }
+    }.asFlow()
 
     override fun close() {
         entityStore.close()

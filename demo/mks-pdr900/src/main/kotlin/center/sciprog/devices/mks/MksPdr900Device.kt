@@ -10,9 +10,9 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
-import space.kscience.dataforge.meta.transformations.MetaConverter
 
 
 //TODO this device is not tested
@@ -94,7 +94,7 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         val channel by logicalProperty(MetaConverter.int)
 
         val value by doubleProperty(read = {
-            readChannelData(request(channel) ?: DEFAULT_CHANNEL)
+            readChannelData(getOrRead(channel))
         })
 
         val error by logicalProperty(MetaConverter.string)

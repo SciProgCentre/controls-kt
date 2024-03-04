@@ -139,7 +139,7 @@ public interface CachingDevice : Device {
 /**
  * Get the logical state of property or suspend to read the physical value.
  */
-public suspend fun Device.requestProperty(propertyName: String): Meta = if (this is CachingDevice) {
+public suspend fun Device.getOrReadProperty(propertyName: String): Meta = if (this is CachingDevice) {
     getProperty(propertyName) ?: readProperty(propertyName)
 } else {
     readProperty(propertyName)

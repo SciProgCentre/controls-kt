@@ -2,7 +2,7 @@ package space.kscience.controls.constructor
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.*
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 
 
 /**

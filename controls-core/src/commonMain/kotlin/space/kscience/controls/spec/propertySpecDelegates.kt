@@ -4,8 +4,8 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.metaDescriptor
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KMutableProperty1
@@ -53,8 +53,8 @@ public fun <T, D : DeviceBase<D>> DeviceSpec<D>.logicalProperty(
         converter,
         descriptorBuilder,
         name,
-        read = { propertyName -> getProperty(propertyName)?.let(converter::metaToObject) },
-        write = { propertyName, value -> writeProperty(propertyName, converter.objectToMeta(value)) }
+        read = { propertyName -> getProperty(propertyName)?.let(converter::readOrNull) },
+        write = { propertyName, value -> writeProperty(propertyName, converter.convert(value)) }
     )
 
 

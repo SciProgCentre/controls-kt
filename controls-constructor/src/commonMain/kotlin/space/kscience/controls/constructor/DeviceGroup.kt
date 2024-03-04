@@ -12,11 +12,7 @@ import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Laminate
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MutableMeta
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.*
 import kotlin.collections.set

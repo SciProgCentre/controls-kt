@@ -22,7 +22,7 @@ class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) 
             (payload as? PropertyChangedMessage)?.let { message ->
                 if (message.sourceDevice == Name.parse("virtual-car")) {
                     when (message.property) {
-                        "acceleration" -> write(IVirtualCar.acceleration, Vector2D.metaToObject(message.value))
+                        "acceleration" -> write(IVirtualCar.acceleration, Vector2D.read(message.value))
                     }
                 }
             }
