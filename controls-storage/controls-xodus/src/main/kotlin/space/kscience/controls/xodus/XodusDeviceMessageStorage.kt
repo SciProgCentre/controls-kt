@@ -4,9 +4,11 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.entitystore.StoreTransaction
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Instant
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.descriptors.serialDescriptor
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -65,12 +67,12 @@ public class XodusDeviceMessageStorage(
         }
     }
 
-    override suspend fun readAll(): List<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
+    override fun readAll(): Flow<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
         transaction.sort(
             DEVICE_MESSAGE_ENTITY_TYPE,
             DeviceMessage::time.name,
             true
-        ).map {
+        ).asFlow().map {
             Json.decodeFromString(
                 DeviceMessage.serializer(),
                 it.getBlobString("json") ?: error("No json content found")
@@ -78,17 +80,17 @@ public class XodusDeviceMessageStorage(
         }
     }
 
-    override suspend fun read(
+    override fun read(
         eventType: String,
         range: ClosedRange<Instant>?,
         sourceDevice: Name?,
         targetDevice: Name?,
-    ): List<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
+    ): Flow<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
         transaction.find(
             DEVICE_MESSAGE_ENTITY_TYPE,
             "type",
             eventType
-        ).asSequence().filter {
+        ).asFlow().filter {
             it.timeInRange(range) &&
                     it.propertyMatchesName(DeviceMessage::sourceDevice.name, sourceDevice) &&
                     it.propertyMatchesName(DeviceMessage::targetDevice.name, targetDevice)
@@ -97,7 +99,7 @@ public class XodusDeviceMessageStorage(
                 DeviceMessage.serializer(),
                 it.getBlobString("json") ?: error("No json content found")
             )
-        }.sortedBy { it.time }.toList()
+        }
     }
 
     override fun close() {
@@ -120,17 +122,4 @@ public class XodusDeviceMessageStorage(
             return XodusDeviceMessageStorage(entityStore)
         }
     }
-}
-
-/**
- * Query all messages of given type
- */
-@OptIn(ExperimentalSerializationApi::class)
-public suspend inline fun <reified T : DeviceMessage> XodusDeviceMessageStorage.query(
-    range: ClosedRange<Instant>? = null,
-    sourceDevice: Name? = null,
-    targetDevice: Name? = null,
-): List<T> = read(serialDescriptor<T>().serialName, range, sourceDevice, targetDevice).map {
-    //Check that all types are correct
-    it as T
 }
