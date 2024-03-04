@@ -118,7 +118,7 @@ public class DeviceNameSpace(
         //Subscribe on properties updates
         device.onPropertyChange {
             nodes[property]?.let { node ->
-                val sourceTime = time?.let { DateTime(it.toJavaInstant()) }
+                val sourceTime = DateTime(time.toJavaInstant())
                 val newValue = value.toOpc(sourceTime = sourceTime)
                 if (node.value.value != newValue.value) {
                     node.value = newValue

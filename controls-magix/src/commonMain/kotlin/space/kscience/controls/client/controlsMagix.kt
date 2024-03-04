@@ -55,7 +55,7 @@ public fun DeviceManager.launchMagixService(
         logger.error(error) { "Error while responding to message: ${error.message}" }
     }.launchIn(this)
 
-    hubMessageFlow(this).onEach { payload ->
+    hubMessageFlow().onEach { payload ->
         endpoint.send(
             format = controlsMagixFormat,
             payload = payload,

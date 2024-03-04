@@ -31,7 +31,7 @@ public fun DeviceManager.storeMessages(
     val storage = factory.build(context, meta)
     logger.debug { "Message storage with meta = $meta created" }
 
-    return hubMessageFlow(context).filter(filterCondition).onEach { message ->
+    return hubMessageFlow().filter(filterCondition).onEach { message ->
         storage.write(message)
     }.onCompletion {
         storage.close()

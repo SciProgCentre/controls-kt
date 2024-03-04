@@ -60,7 +60,7 @@ internal class RemoteDeviceConnect {
                 MagixMessage(
                     format = DeviceManager.magixFormat.defaultFormat,
                     payload = MagixEndpoint.magixJson.encodeToJsonElement(DeviceManager.magixFormat.serializer, it),
-                    sourceEndpoint = "test",
+                    sourceEndpoint = "source",
                 )
             }
 
@@ -76,7 +76,7 @@ internal class RemoteDeviceConnect {
             }
         }
 
-        val remoteDevice = virtualMagixEndpoint.remoteDevice(context, "test", Name.EMPTY)
+        val remoteDevice = virtualMagixEndpoint.remoteDevice(context, "source", "target", Name.EMPTY)
 
         assertContains(0.0..1.0, remoteDevice.read(TestDevice.value))
     }

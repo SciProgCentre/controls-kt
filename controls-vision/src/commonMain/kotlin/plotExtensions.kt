@@ -104,10 +104,9 @@ public fun Plot.plotDeviceProperty(
     coroutineScope: CoroutineScope = device.context,
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
-    val clock = device.context.clock
     val data = TimeData()
     device.propertyMessageFlow(propertyName).sample(sampling).transform {
-        data.append(it.time ?: clock.now(), it.value.extractValue())
+        data.append(it.time, it.value.extractValue())
         data.trim(maxAge, maxPoints, minPoints)
         emit(data)
     }.onEach {

@@ -103,8 +103,8 @@ suspend fun main() {
 
                         monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
                             mutex.withLock {
-                                val delay = Clock.System.now() - payload.time!!
-                                latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time!!
+                                val delay = Clock.System.now() - payload.time
+                                latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time
                                 max[magixMessage.sourceEndpoint] =
                                     maxOf(delay, max[magixMessage.sourceEndpoint] ?: ZERO)
                             }

@@ -19,7 +19,6 @@ import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.io.workDirectory
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
@@ -39,9 +38,7 @@ internal fun StoreTransaction.writeMessage(message: DeviceMessage): Unit {
     message.targetDevice?.let {
         entity.setProperty(DeviceMessage::targetDevice.name, it.toString())
     }
-    message.time?.let {
-        entity.setProperty(DeviceMessage::targetDevice.name, it.toString())
-    }
+    entity.setProperty(DeviceMessage::targetDevice.name, message.time.toString())
     entity.setBlobString("json", Json.encodeToString(json))
 }
 
