@@ -71,9 +71,9 @@ class VirtualCarController : Controller(), ContextAware {
         logger.info { "Shutting down..." }
         magixServer?.stop(1000, 5000)
         logger.info { "Magix server stopped" }
-        magixVirtualCar?.close()
+        magixVirtualCar?.stop()
         logger.info { "Magix virtual car server stopped" }
-        virtualCar?.close()
+        virtualCar?.stop()
         logger.info { "Virtual car server stopped" }
         context.close()
     }

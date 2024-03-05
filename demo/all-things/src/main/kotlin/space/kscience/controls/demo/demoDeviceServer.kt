@@ -57,15 +57,15 @@ fun CoroutineScope.startDemoDeviceServer(magixEndpoint: MagixEndpoint): Applicat
     //share subscription to a parse message only once
     val subscription = magixEndpoint.subscribe(DeviceManager.magixFormat).shareIn(this, SharingStarted.Lazily)
 
-    val sinFlow = subscription.mapNotNull {  (_, payload) ->
+    val sinFlow = subscription.mapNotNull { (_, payload) ->
         (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.sin.name }
     }.map { it.value }
 
-    val cosFlow = subscription.mapNotNull {  (_, payload) ->
+    val cosFlow = subscription.mapNotNull { (_, payload) ->
         (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.cos.name }
     }.map { it.value }
 
-    val sinCosFlow = subscription.mapNotNull {  (_, payload) ->
+    val sinCosFlow = subscription.mapNotNull { (_, payload) ->
         (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.coordinates.name }
     }.map { it.value }
 

@@ -31,7 +31,7 @@ public class MiloConfiguration : Scheme() {
 
     public var endpointUrl: String by string { error("Endpoint url is not defined") }
 
-    public var username: MiloUsername? by specOrNull(MiloUsername)
+    public var username: MiloUsername? by schemeOrNull(MiloUsername)
 
     public var securityPolicy: SecurityPolicy by enum(SecurityPolicy.None)
 
@@ -63,8 +63,7 @@ public open class OpcUaDeviceBySpec<D : Device>(
         }
     }
 
-    override fun close() {
+    override fun onStop() {
         client.disconnect()
-        super<DeviceBySpec>.close()
     }
 }

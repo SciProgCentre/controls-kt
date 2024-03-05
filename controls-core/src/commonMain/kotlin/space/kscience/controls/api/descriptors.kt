@@ -12,10 +12,10 @@ import space.kscience.dataforge.meta.descriptors.MetaDescriptorBuilder
 @Serializable
 public class PropertyDescriptor(
     public val name: String,
-    public var info: String? = null,
+    public var description: String? = null,
     public var metaDescriptor: MetaDescriptor = MetaDescriptor(),
     public var readable: Boolean = true,
-    public var writable: Boolean = false
+    public var mutable: Boolean = false
 )
 
 public fun PropertyDescriptor.metaDescriptor(block: MetaDescriptorBuilder.()->Unit){
@@ -27,6 +27,6 @@ public fun PropertyDescriptor.metaDescriptor(block: MetaDescriptorBuilder.()->Un
  */
 @Serializable
 public class ActionDescriptor(public val name: String) {
-    public var info: String? = null
+    public var description: String? = null
 }
 

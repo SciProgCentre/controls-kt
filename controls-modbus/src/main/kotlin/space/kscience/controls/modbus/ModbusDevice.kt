@@ -5,11 +5,10 @@ import com.ghgande.j2mod.modbus.procimg.InputRegister
 import com.ghgande.j2mod.modbus.procimg.Register
 import com.ghgande.j2mod.modbus.procimg.SimpleInputRegister
 import com.ghgande.j2mod.modbus.util.BitVector
-import io.ktor.utils.io.core.ByteReadPacket
-import io.ktor.utils.io.core.buildPacket
-import io.ktor.utils.io.core.readByteBuffer
-import io.ktor.utils.io.core.writeShort
+import kotlinx.io.Buffer
 import space.kscience.controls.api.Device
+import space.kscience.dataforge.io.Buffer
+import space.kscience.dataforge.io.ByteArray
 import java.nio.ByteBuffer
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -21,9 +20,9 @@ import kotlin.reflect.KProperty
 public interface ModbusDevice : Device {
 
     /**
-     * Client id for this specific device
+     * Unit id for this specific device
      */
-    public val clientId: Int
+    public val unitId: Int
 
     /**
      * The modubus master connector
@@ -45,7 +44,7 @@ public interface ModbusDevice : Device {
 
     public operator fun <T> ModbusRegistryKey.InputRange<T>.getValue(thisRef: Any?, property: KProperty<*>): T {
         val packet = readInputRegistersToPacket(address, count)
-        return format.readObject(packet)
+        return format.readFrom(packet)
     }
 
 
@@ -61,8 +60,8 @@ public interface ModbusDevice : Device {
     }
 
     public operator fun <T> ModbusRegistryKey.HoldingRange<T>.getValue(thisRef: Any?, property: KProperty<*>): T {
-        val packet = readInputRegistersToPacket(address, count)
-        return format.readObject(packet)
+        val packet = readHoldingRegistersToPacket(address, count)
+        return format.readFrom(packet)
     }
 
     public operator fun <T> ModbusRegistryKey.HoldingRange<T>.setValue(
@@ -70,9 +69,9 @@ public interface ModbusDevice : Device {
         property: KProperty<*>,
         value: T,
     ) {
-        val buffer = buildPacket {
-            format.writeObject(this, value)
-        }.readByteBuffer()
+        val buffer = ByteArray {
+            format.writeTo(this, value)
+        }
         writeHoldingRegisters(address, buffer)
     }
 
@@ -82,35 +81,35 @@ public interface ModbusDevice : Device {
  * Read multiple sequential modbus coils (bit-values)
  */
 public fun ModbusDevice.readCoils(address: Int, count: Int): BitVector =
-    master.readCoils(clientId, address, count)
+    master.readCoils(unitId, address, count)
 
 public fun ModbusDevice.readCoil(address: Int): Boolean =
-    master.readCoils(clientId, address, 1).getBit(0)
+    master.readCoils(unitId, address, 1).getBit(0)
 
 public fun ModbusDevice.writeCoils(address: Int, values: BooleanArray) {
     val bitVector = BitVector(values.size)
     values.forEachIndexed { index, value ->
         bitVector.setBit(index, value)
     }
-    master.writeMultipleCoils(clientId, address, bitVector)
+    master.writeMultipleCoils(unitId, address, bitVector)
 }
 
 public fun ModbusDevice.writeCoil(address: Int, value: Boolean) {
-    master.writeCoil(clientId, address, value)
+    master.writeCoil(unitId, address, value)
 }
 
 public fun ModbusDevice.writeCoil(key: ModbusRegistryKey.Coil, value: Boolean) {
-    master.writeCoil(clientId, key.address, value)
+    master.writeCoil(unitId, key.address, value)
 }
 
 public fun ModbusDevice.readInputDiscretes(address: Int, count: Int): BitVector =
-    master.readInputDiscretes(clientId, address, count)
+    master.readInputDiscretes(unitId, address, count)
 
 public fun ModbusDevice.readInputDiscrete(address: Int): Boolean =
-    master.readInputDiscretes(clientId, address, 1).getBit(0)
+    master.readInputDiscretes(unitId, address, 1).getBit(0)
 
 public fun ModbusDevice.readInputRegisters(address: Int, count: Int): List<InputRegister> =
-    master.readInputRegisters(clientId, address, count).toList()
+    master.readInputRegisters(unitId, address, count).toList()
 
 private fun Array<out InputRegister>.toBuffer(): ByteBuffer {
     val buffer: ByteBuffer = ByteBuffer.allocate(size * 2)
@@ -122,17 +121,17 @@ private fun Array<out InputRegister>.toBuffer(): ByteBuffer {
     return buffer
 }
 
-private fun Array<out InputRegister>.toPacket(): ByteReadPacket = buildPacket {
+private fun Array<out InputRegister>.toPacket(): Buffer = Buffer {
     forEach { value ->
         writeShort(value.toShort())
     }
 }
 
 public fun ModbusDevice.readInputRegistersToBuffer(address: Int, count: Int): ByteBuffer =
-    master.readInputRegisters(clientId, address, count).toBuffer()
+    master.readInputRegisters(unitId, address, count).toBuffer()
 
-public fun ModbusDevice.readInputRegistersToPacket(address: Int, count: Int): ByteReadPacket =
-    master.readInputRegisters(clientId, address, count).toPacket()
+public fun ModbusDevice.readInputRegistersToPacket(address: Int, count: Int): Buffer =
+    master.readInputRegisters(unitId, address, count).toPacket()
 
 public fun ModbusDevice.readDoubleInput(address: Int): Double =
     readInputRegistersToBuffer(address, Double.SIZE_BYTES).getDouble()
@@ -141,7 +140,7 @@ public fun ModbusDevice.readInputRegister(address: Int): Short =
     readInputRegisters(address, 1).first().toShort()
 
 public fun ModbusDevice.readHoldingRegisters(address: Int, count: Int): List<Register> =
-    master.readMultipleRegisters(clientId, address, count).toList()
+    master.readMultipleRegisters(unitId, address, count).toList()
 
 /**
  * Read a number of registers to a [ByteBuffer]
@@ -149,10 +148,10 @@ public fun ModbusDevice.readHoldingRegisters(address: Int, count: Int): List<Reg
  * @param count number of 2-bytes registers to read. Buffer size is 2*[count]
  */
 public fun ModbusDevice.readHoldingRegistersToBuffer(address: Int, count: Int): ByteBuffer =
-    master.readMultipleRegisters(clientId, address, count).toBuffer()
+    master.readMultipleRegisters(unitId, address, count).toBuffer()
 
-public fun ModbusDevice.readHoldingRegistersToPacket(address: Int, count: Int): ByteReadPacket =
-    master.readMultipleRegisters(clientId, address, count).toPacket()
+public fun ModbusDevice.readHoldingRegistersToPacket(address: Int, count: Int): Buffer =
+    master.readMultipleRegisters(unitId, address, count).toPacket()
 
 public fun ModbusDevice.readDoubleRegister(address: Int): Double =
     readHoldingRegistersToBuffer(address, Double.SIZE_BYTES).getDouble()
@@ -162,14 +161,14 @@ public fun ModbusDevice.readHoldingRegister(address: Int): Short =
 
 public fun ModbusDevice.writeHoldingRegisters(address: Int, values: ShortArray): Int =
     master.writeMultipleRegisters(
-        clientId,
+        unitId,
         address,
         Array<Register>(values.size) { SimpleInputRegister(values[it].toInt()) }
     )
 
 public fun ModbusDevice.writeHoldingRegister(address: Int, value: Short): Int =
     master.writeSingleRegister(
-        clientId,
+        unitId,
         address,
         SimpleInputRegister(value.toInt())
     )
@@ -183,8 +182,11 @@ public fun ModbusDevice.writeHoldingRegisters(address: Int, buffer: ByteBuffer):
     return writeHoldingRegisters(address, array)
 }
 
-public fun ModbusDevice.writeShortRegister(address: Int, value: Short) {
-    master.writeSingleRegister(address, SimpleInputRegister(value.toInt()))
+public fun ModbusDevice.writeHoldingRegisters(address: Int, byteArray: ByteArray): Int {
+    val buffer = ByteBuffer.wrap(byteArray)
+    val array: ShortArray = ShortArray(buffer.limit().floorDiv(2)) { buffer.getShort(it * 2) }
+
+    return writeHoldingRegisters(address, array)
 }
 
 public fun ModbusDevice.modbusRegister(

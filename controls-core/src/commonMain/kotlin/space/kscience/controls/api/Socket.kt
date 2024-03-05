@@ -1,6 +1,5 @@
 package space.kscience.controls.api
 
-import io.ktor.utils.io.core.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -9,7 +8,7 @@ import kotlinx.coroutines.launch
 /**
  * A generic bidirectional sender/receiver object
  */
-public interface Socket<T> : Closeable {
+public interface Socket<T> : AutoCloseable {
     /**
      * Send an object to the socket
      */

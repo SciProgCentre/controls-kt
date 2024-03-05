@@ -26,7 +26,7 @@ public data class MagixFormat<T>(
 public fun <T> MagixEndpoint.subscribe(
     format: MagixFormat<T>,
     originFilter: Collection<String>? = null,
-    targetFilter: Collection<String>? = null,
+    targetFilter: Collection<String?>? = null,
 ): Flow<Pair<MagixMessage, T>> = subscribe(
     MagixMessageFilter(format = format.formats, source = originFilter, target = targetFilter)
 ).map {

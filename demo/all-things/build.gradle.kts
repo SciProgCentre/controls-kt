@@ -24,7 +24,7 @@ dependencies {
 
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("no.tornado:tornadofx:1.7.20")
-    implementation("space.kscience:plotlykt-server:0.5.3")
+    implementation("space.kscience:plotlykt-server:0.7.1")
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
     implementation(spclibs.logback.classic)
 }

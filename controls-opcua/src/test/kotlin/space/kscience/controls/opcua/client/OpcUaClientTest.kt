@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.controls.spec.doubleProperty
 import space.kscience.controls.spec.read
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.MetaConverter
 import kotlin.test.Ignore
 
 class OpcUaClientTest {
@@ -29,7 +29,7 @@ class OpcUaClientTest {
                 return DemoOpcUaDevice(config)
             }
 
-            val randomDouble by doubleProperty(read = DemoOpcUaDevice::readRandomDouble)
+            val randomDouble by doubleProperty { readRandomDouble() }
 
         }
 
@@ -40,9 +40,10 @@ class OpcUaClientTest {
     @Test
     @Ignore
     fun testReadDouble() = runTest {
-        DemoOpcUaDevice.build().use{
-            println(it.read(DemoOpcUaDevice.randomDouble))
-        }
+        val device = DemoOpcUaDevice.build()
+        device.start()
+        println(device.read(DemoOpcUaDevice.randomDouble))
+        device.stop()
     }
 
 }

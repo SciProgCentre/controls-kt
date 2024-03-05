@@ -1,15 +1,14 @@
 package space.kscience.controls.modbus
 
 import com.ghgande.j2mod.modbus.procimg.*
-import io.ktor.utils.io.core.buildPacket
-import io.ktor.utils.io.core.readByteBuffer
-import io.ktor.utils.io.core.writeShort
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.io.Buffer
 import space.kscience.controls.api.Device
-import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.controls.spec.WritableDevicePropertySpec
-import space.kscience.controls.spec.set
-import space.kscience.controls.spec.useProperty
+import space.kscience.controls.ports.readShort
+import space.kscience.controls.spec.*
+import space.kscience.dataforge.io.Binary
 
 
 public class DeviceProcessImageBuilder<D : Device> internal constructor(
@@ -29,10 +28,10 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.Coil,
-        propertySpec: WritableDevicePropertySpec<D, Boolean>,
+        propertySpec: MutableDevicePropertySpec<D, Boolean>,
     ): ObservableDigitalOut = bind(key) { coil ->
         coil.addObserver { _, _ ->
-            device[propertySpec] = coil.isSet
+            device.writeAsync(propertySpec, coil.isSet)
         }
         device.useProperty(propertySpec) { value ->
             coil.set(value)
@@ -89,10 +88,10 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.HoldingRegister,
-        propertySpec: WritableDevicePropertySpec<D, Short>,
+        propertySpec: MutableDevicePropertySpec<D, Short>,
     ): ObservableRegister = bind(key) { register ->
         register.addObserver { _, _ ->
-            device[propertySpec] = register.toShort()
+            device.writeAsync(propertySpec, register.toShort())
         }
         device.useProperty(propertySpec) { value ->
             register.setValue(value)
@@ -109,37 +108,63 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
 
         device.useProperty(propertySpec) { value ->
-            val packet = buildPacket {
-                key.format.writeObject(this, value)
-            }.readByteBuffer()
+            val binary = Binary {
+                key.format.writeTo(this, value)
+            }
             registers.forEachIndexed { index, register ->
-                register.setValue(packet.getShort(index * 2))
+                register.setValue(binary.readShort(index * 2))
             }
         }
     }
 
-    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: WritableDevicePropertySpec<D, T>) {
+    /**
+     * Trigger [block] if one of register changes.
+     */
+    private fun List<ObservableRegister>.onChange(block: suspend (Buffer) -> Unit) {
+        var ready = false
+
+        forEach { register ->
+            register.addObserver { _, _ ->
+                ready = true
+            }
+        }
+
+        device.launch {
+            val builder = Buffer()
+            while (isActive) {
+                delay(1)
+                if (ready) {
+                    val packet = builder.apply {
+                        forEach { value ->
+                            writeShort(value.toShort())
+                        }
+                    }
+                    block(packet)
+                    ready = false
+                }
+            }
+        }
+    }
+
+    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: MutableDevicePropertySpec<D, T>) {
         val registers = List(key.count) {
             ObservableRegister()
         }
+
         registers.forEachIndexed { index, register ->
-            register.addObserver { _, _ ->
-                val packet = buildPacket {
-                    registers.forEach { value ->
-                        writeShort(value.toShort())
-                    }
-                }
-                device[propertySpec] = key.format.readObject(packet)
-            }
             image.addRegister(key.address + index, register)
         }
 
+        registers.onChange { packet ->
+            device.write(propertySpec, key.format.readFrom(packet))
+        }
+
         device.useProperty(propertySpec) { value ->
-            val packet = buildPacket {
-                key.format.writeObject(this, value)
-            }.readByteBuffer()
+            val binary = Binary {
+                key.format.writeTo(this, value)
+            }
             registers.forEachIndexed { index, observableRegister ->
-                observableRegister.setValue(packet.getShort(index * 2))
+                observableRegister.setValue(binary.readShort(index * 2))
             }
         }
     }
@@ -182,18 +207,15 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         val registers = List(key.count) {
             ObservableRegister()
         }
+
         registers.forEachIndexed { index, register ->
-            register.addObserver { _, _ ->
-                val packet = buildPacket {
-                    registers.forEach { value ->
-                        writeShort(value.toShort())
-                    }
-                }
-                device.launch {
-                    device.action(key.format.readObject(packet))
-                }
-            }
             image.addRegister(key.address + index, register)
+        }
+
+        registers.onChange { packet ->
+            device.launch {
+                device.action(key.format.readFrom(packet))
+            }
         }
 
         return registers
@@ -205,14 +227,16 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
  * Bind the device to Modbus slave (server) image.
  */
 public fun <D : Device> D.bindProcessImage(
+    unitId: Int = 0,
     openOnBind: Boolean = true,
     binding: DeviceProcessImageBuilder<D>.() -> Unit,
 ): ProcessImage {
-    val image = SimpleProcessImage()
+    val image = SimpleProcessImage(unitId)
     DeviceProcessImageBuilder(this, image).apply(binding)
+    image.setLocked(true)
     if (openOnBind) {
         launch {
-            open()
+            start()
         }
     }
     return image

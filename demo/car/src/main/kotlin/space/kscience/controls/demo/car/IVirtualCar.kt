@@ -2,6 +2,8 @@ package space.kscience.controls.demo.car
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.DeviceSpec
+import space.kscience.controls.spec.mutableProperty
+import space.kscience.controls.spec.property
 
 interface IVirtualCar : Device {
     var speedState: Vector2D

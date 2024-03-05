@@ -4,18 +4,14 @@ package space.kscience.controls.demo.car
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.doRecurring
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaRepr
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.dataforge.meta.*
 import kotlin.math.pow
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -23,24 +19,28 @@ import kotlin.time.ExperimentalTime
 
 data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
 
-    override fun toMeta(): Meta = objectToMeta(this)
+    override fun toMeta(): Meta = convert(this)
 
     operator fun div(arg: Double): Vector2D = Vector2D(x / arg, y / arg)
 
     companion object CoordinatesMetaConverter : MetaConverter<Vector2D> {
-        override fun metaToObject(meta: Meta): Vector2D = Vector2D(
-            meta["x"].double ?: 0.0,
-            meta["y"].double ?: 0.0
+
+        override fun readOrNull(source: Meta): Vector2D = Vector2D(
+            source["x"].double ?: 0.0,
+            source["y"].double ?: 0.0
         )
 
-        override fun objectToMeta(obj: Vector2D): Meta = Meta {
+        override fun convert(obj: Vector2D): Meta = Meta {
             "x" put obj.x
             "y" put obj.y
         }
     }
 }
 
-open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
+open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta),
+    IVirtualCar {
+    private val clock = context.clock
+
     private val timeScale = 1e-3
 
     private val mass by meta.double(1000.0) // mass in kilograms
@@ -57,7 +57,7 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
 
     private var timeState: Instant? = null
 
-    private fun update(newTime: Instant = Clock.System.now()) {
+    private fun update(newTime: Instant = clock.now()) {
         //initialize time if it is not initialized
         if (timeState == null) {
             timeState = newTime
@@ -100,10 +100,9 @@ open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(I
     }
 
     @OptIn(ExperimentalTime::class)
-    override suspend fun open() {
-        super<DeviceBySpec>.open()
+    override suspend fun onStart() {
         //initializing the clock
-        timeState = Clock.System.now()
+        timeState = clock.now()
         //starting regular updates
         doRecurring(100.milliseconds) {
             update()

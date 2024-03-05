@@ -14,7 +14,6 @@ import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
 import space.kscience.magix.rsocket.rSocketWithWebSockets
-import kotlin.time.ExperimentalTime
 
 class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) {
 
@@ -23,7 +22,7 @@ class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) 
             (payload as? PropertyChangedMessage)?.let { message ->
                 if (message.sourceDevice == Name.parse("virtual-car")) {
                     when (message.property) {
-                        "acceleration" -> write(IVirtualCar.acceleration, Vector2D.metaToObject(message.value))
+                        "acceleration" -> write(IVirtualCar.acceleration, Vector2D.read(message.value))
                     }
                 }
             }
@@ -31,17 +30,13 @@ class MagixVirtualCar(context: Context, meta: Meta) : VirtualCar(context, meta) 
     }
 
 
-    @OptIn(ExperimentalTime::class)
-    override suspend fun open() {
-        super.open()
+    override suspend fun onStart() {
 
         val magixEndpoint = MagixEndpoint.rSocketWithWebSockets(
             meta["magixServerHost"].string ?: "localhost",
         )
 
-        launch {
-            magixEndpoint.launchMagixVirtualCarUpdate()
-        }
+        magixEndpoint.launchMagixVirtualCarUpdate()
     }
 
     companion object : Factory<MagixVirtualCar> {

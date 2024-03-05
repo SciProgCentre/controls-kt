@@ -9,8 +9,8 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.*
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.Device
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaSerializer
-import space.kscience.dataforge.meta.transformations.MetaConverter
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -43,7 +43,7 @@ public suspend inline fun <reified T: Any> OpcUaDevice.readOpcWithTime(
         else -> error("Incompatible OPC property value $content")
     }
 
-    val res: T = converter.metaToObject(meta) ?: error("Meta $meta could not be converted to ${T::class}")
+    val res: T = converter.read(meta)
     return res to time
 }
 
@@ -69,7 +69,7 @@ public suspend inline fun <reified T> OpcUaDevice.readOpc(
         else -> error("Incompatible OPC property value $content")
     }
 
-    return converter.metaToObject(meta) ?: error("Meta $meta could not be converted to ${T::class}")
+    return converter.readOrNull(meta) ?: error("Meta $meta could not be converted to ${T::class}")
 }
 
 public suspend inline fun <reified T> OpcUaDevice.writeOpc(
@@ -77,7 +77,7 @@ public suspend inline fun <reified T> OpcUaDevice.writeOpc(
     converter: MetaConverter<T>,
     value: T
 ): StatusCode {
-    val meta = converter.objectToMeta(value)
+    val meta = converter.convert(value)
     return client.writeValue(nodeId, DataValue(Variant(meta))).await()
 }
 

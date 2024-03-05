@@ -1,17 +1,12 @@
 package space.kscience.controls.ports
 
 import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.InetSocketAddress
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
+import io.ktor.network.sockets.*
+import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.consumeEachBufferRange
 import io.ktor.utils.io.core.Closeable
 import io.ktor.utils.io.writeAvailable
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.int
@@ -26,6 +21,7 @@ public class KtorUdpPort internal constructor(
     public val localPort: Int? = null,
     public val localHost: String = "localhost",
     coroutineContext: CoroutineContext = context.coroutineContext,
+    socketOptions: SocketOptions.UDPSocketOptions.() -> Unit = {}
 ) : AbstractPort(context, coroutineContext), Closeable {
 
     override fun toString(): String = "port[udp:$remoteHost:$remotePort]"
@@ -33,11 +29,12 @@ public class KtorUdpPort internal constructor(
     private val futureSocket = scope.async {
         aSocket(ActorSelectorManager(Dispatchers.IO)).udp().connect(
             remoteAddress = InetSocketAddress(remoteHost, remotePort),
-            localAddress = localPort?.let { InetSocketAddress(localHost, localPort) }
+            localAddress = localPort?.let { InetSocketAddress(localHost, localPort) },
+            configure = socketOptions
         )
     }
 
-    private val writeChannel = scope.async {
+    private val writeChannel: Deferred<ByteWriteChannel> = scope.async {
         futureSocket.await().openWriteChannel(true)
     }
 
@@ -72,9 +69,16 @@ public class KtorUdpPort internal constructor(
             localPort: Int? = null,
             localHost: String = "localhost",
             coroutineContext: CoroutineContext = context.coroutineContext,
-        ): KtorUdpPort {
-            return KtorUdpPort(context, remoteHost, remotePort, localPort, localHost, coroutineContext)
-        }
+            socketOptions: SocketOptions.UDPSocketOptions.() -> Unit = {}
+        ): KtorUdpPort = KtorUdpPort(
+            context = context,
+            remoteHost = remoteHost,
+            remotePort = remotePort,
+            localPort = localPort,
+            localHost = localHost,
+            coroutineContext = coroutineContext,
+            socketOptions = socketOptions
+        )
 
         override fun build(context: Context, meta: Meta): Port {
             val remoteHost by meta.string { error("Remote host is not specified") }

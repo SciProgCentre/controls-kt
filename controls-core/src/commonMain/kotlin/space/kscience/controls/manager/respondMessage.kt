@@ -1,10 +1,9 @@
 package space.kscience.controls.manager
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
@@ -24,11 +23,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         }
 
         is PropertySetMessage -> {
-            if (request.value == null) {
-                invalidate(request.property)
-            } else {
-                writeProperty(request.property, request.value)
-            }
+            writeProperty(request.property, request.value)
             PropertyChangedMessage(
                 property = request.property,
                 value = getOrReadProperty(request.property),
@@ -64,6 +59,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         is DeviceErrorMessage,
         is EmptyDeviceMessage,
         is DeviceLogMessage,
+        is DeviceLifeCycleMessage,
         -> null
     }
 } catch (ex: Exception) {
@@ -71,42 +67,41 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
 }
 
 /**
- * Process incoming [DeviceMessage], using hub naming to evaluate target.
+ * Process incoming [DeviceMessage], using hub naming to find target.
+ * If the `targetDevice` is `null`, then message is sent to each device in this hub
  */
-public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): DeviceMessage? {
+public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<DeviceMessage> {
     return try {
-        val targetName = request.targetDevice ?: return null
-        val device = getOrNull(targetName) ?: error("The device with name $targetName not found in $this")
-        device.respondMessage(targetName, request)
+        val targetName = request.targetDevice
+        if (targetName == null) {
+            buildDeviceTree().mapNotNull {
+                it.value.respondMessage(it.key, request)
+            }
+        } else {
+            val device = getOrNull(targetName) ?: error("The device with name $targetName not found in $this")
+            listOfNotNull(device.respondMessage(targetName, request))
+        }
     } catch (ex: Exception) {
-        DeviceMessage.error(ex, sourceDevice = Name.EMPTY, targetDevice = request.sourceDevice)
+        listOf(DeviceMessage.error(ex, sourceDevice = Name.EMPTY, targetDevice = request.sourceDevice))
     }
 }
 
 /**
  * Collect all messages from given [DeviceHub], applying proper relative names.
  */
-public fun DeviceHub.hubMessageFlow(scope: CoroutineScope): Flow<DeviceMessage> {
-    
-    //TODO could we avoid using downstream scope?
-    val outbox = MutableSharedFlow<DeviceMessage>()
-    if (this is Device) {
-        messageFlow.onEach {
-            outbox.emit(it)
-        }.launchIn(scope)
-    }
-    //TODO maybe better create map of all devices to limit copying
-    devices.forEach { (token, childDevice) ->
-        val flow = if (childDevice is DeviceHub) {
-            childDevice.hubMessageFlow(scope)
+public fun DeviceHub.hubMessageFlow(): Flow<DeviceMessage> {
+
+    val deviceMessageFlow = if (this is Device) messageFlow else emptyFlow()
+
+    val childrenFlows = devices.map { (token, childDevice) ->
+        if (childDevice is DeviceHub) {
+            childDevice.hubMessageFlow()
         } else {
             childDevice.messageFlow
+        }.map { deviceMessage ->
+            deviceMessage.changeSource { token + it }
         }
-        flow.onEach { deviceMessage ->
-            outbox.emit(
-                deviceMessage.changeSource { token + it }
-            )
-        }.launchIn(scope)
     }
-    return outbox
+
+    return merge(deviceMessageFlow, *childrenFlows.toTypedArray())
 }

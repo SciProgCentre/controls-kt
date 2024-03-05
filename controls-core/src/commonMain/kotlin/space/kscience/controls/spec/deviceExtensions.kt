@@ -12,7 +12,7 @@ import kotlin.time.Duration
 /**
  * Perform a recurring asynchronous read action and return a flow of results.
  * The flow is lazy, so action is not performed unless flow is consumed.
- * The flow uses called context. In order to call it on device context, use `flowOn(coroutineContext)`.
+ * The flow uses caller context. To call it on device context, use `flowOn(coroutineContext)`.
  *
  * The flow is canceled when the device scope is canceled
  */

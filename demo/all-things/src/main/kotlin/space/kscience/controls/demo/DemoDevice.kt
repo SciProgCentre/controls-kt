@@ -7,16 +7,16 @@ import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.value
-import space.kscience.dataforge.meta.transformations.MetaConverter
 import java.time.Instant
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.time.Duration.Companion.milliseconds
 
 
-interface IDemoDevice: Device {
+interface IDemoDevice : Device {
     var timeScaleState: Double
     var sinScaleState: Double
     var cosScaleState: Double
@@ -42,16 +42,21 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
         // register virtual properties based on actual object state
         val timeScale by mutableProperty(MetaConverter.double, IDemoDevice::timeScaleState) {
             metaDescriptor {
-                type(ValueType.NUMBER)
+                valueType(ValueType.NUMBER)
             }
-            info = "Real to virtual time scale"
+            description = "Real to virtual time scale"
         }
 
-        val sinScale by mutableProperty(MetaConverter.double, IDemoDevice::sinScaleState)
+        val sinScale by mutableProperty(MetaConverter.double, IDemoDevice::sinScaleState){
+            description = "The scale of sin plot"
+            metaDescriptor {
+                valueType(ValueType.NUMBER)
+            }
+        }
         val cosScale by mutableProperty(MetaConverter.double, IDemoDevice::cosScaleState)
 
-        val sin by doubleProperty(read = IDemoDevice::sinValue)
-        val cos by doubleProperty(read = IDemoDevice::cosValue)
+        val sin by doubleProperty { sinValue() }
+        val cos by doubleProperty { cosValue() }
 
         val coordinates by metaProperty(
             descriptorBuilder = {
@@ -72,6 +77,10 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
             write(timeScale, 5000.0)
             write(sinScale, 1.0)
             write(cosScale, 1.0)
+        }
+
+        val setSinScale by action(MetaConverter.double, MetaConverter.unit){ value: Double ->
+            write(sinScale, value)
         }
 
         override suspend fun IDemoDevice.onOpen() {

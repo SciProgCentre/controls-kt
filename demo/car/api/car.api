@@ -9,7 +9,7 @@ public abstract interface class space/kscience/controls/demo/car/IVirtualCar : s
 }
 
 public final class space/kscience/controls/demo/car/IVirtualCar$Companion : space/kscience/controls/spec/DeviceSpec {
-	public final fun getAcceleration ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getAcceleration ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 	public final fun getLocation ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public final fun getSpeed ()Lspace/kscience/controls/spec/DevicePropertySpec;
 }
@@ -17,7 +17,6 @@ public final class space/kscience/controls/demo/car/IVirtualCar$Companion : spac
 public final class space/kscience/controls/demo/car/MagixVirtualCar : space/kscience/controls/demo/car/VirtualCar {
 	public static final field Companion Lspace/kscience/controls/demo/car/MagixVirtualCar$Companion;
 	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)V
-	public fun open (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class space/kscience/controls/demo/car/MagixVirtualCar$Companion : space/kscience/dataforge/context/Factory {
@@ -45,11 +44,11 @@ public final class space/kscience/controls/demo/car/Vector2D : space/kscience/da
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class space/kscience/controls/demo/car/Vector2D$CoordinatesMetaConverter : space/kscience/dataforge/meta/transformations/MetaConverter {
-	public synthetic fun metaToObject (Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
-	public fun metaToObject (Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/car/Vector2D;
-	public synthetic fun objectToMeta (Ljava/lang/Object;)Lspace/kscience/dataforge/meta/Meta;
-	public fun objectToMeta (Lspace/kscience/controls/demo/car/Vector2D;)Lspace/kscience/dataforge/meta/Meta;
+public final class space/kscience/controls/demo/car/Vector2D$CoordinatesMetaConverter : space/kscience/dataforge/meta/MetaConverter {
+	public synthetic fun convert (Ljava/lang/Object;)Lspace/kscience/dataforge/meta/Meta;
+	public fun convert (Lspace/kscience/controls/demo/car/Vector2D;)Lspace/kscience/dataforge/meta/Meta;
+	public synthetic fun readOrNull (Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
+	public fun readOrNull (Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/car/Vector2D;
 }
 
 public class space/kscience/controls/demo/car/VirtualCar : space/kscience/controls/spec/DeviceBySpec, space/kscience/controls/demo/car/IVirtualCar {
@@ -59,7 +58,7 @@ public class space/kscience/controls/demo/car/VirtualCar : space/kscience/contro
 	public fun getAccelerationState ()Lspace/kscience/controls/demo/car/Vector2D;
 	public fun getLocationState ()Lspace/kscience/controls/demo/car/Vector2D;
 	public fun getSpeedState ()Lspace/kscience/controls/demo/car/Vector2D;
-	public fun open (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	protected fun onStart (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setAccelerationState (Lspace/kscience/controls/demo/car/Vector2D;)V
 	public fun setLocationState (Lspace/kscience/controls/demo/car/Vector2D;)V
 	public fun setSpeedState (Lspace/kscience/controls/demo/car/Vector2D;)V

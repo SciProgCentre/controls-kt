@@ -10,9 +10,9 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
-import space.kscience.dataforge.meta.transformations.MetaConverter
 
 
 //TODO this device is not tested
@@ -49,16 +49,16 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         if (powerOnValue) {
             val ans = talk("FP!ON")
             if (ans == "ON") {
-                updateLogical(powerOn, true)
+                propertyChanged(powerOn, true)
             } else {
-                updateLogical(error, "Failed to set power state")
+                propertyChanged(error, "Failed to set power state")
             }
         } else {
             val ans = talk("FP!OFF")
             if (ans == "OFF") {
-                updateLogical(powerOn, false)
+                propertyChanged(powerOn, false)
             } else {
-                updateLogical(error, "Failed to set power state")
+                propertyChanged(error, "Failed to set power state")
             }
         }
     }
@@ -68,13 +68,13 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         invalidate(error)
         return if (answer.isNullOrEmpty()) {
             //            updateState(PortSensor.CONNECTED_STATE, false)
-            updateLogical(error, "No connection")
+            propertyChanged(error, "No connection")
             null
         } else {
             val res = answer.toDouble()
             if (res <= 0) {
-                updateLogical(powerOn, false)
-                updateLogical(error, "No power")
+                propertyChanged(powerOn, false)
+                propertyChanged(error, "No power")
                 null
             } else {
                 res
@@ -89,12 +89,12 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
 
         override fun build(context: Context, meta: Meta): MksPdr900Device = MksPdr900Device(context, meta)
 
-        val powerOn by booleanProperty(read = MksPdr900Device::readPowerOn, write = MksPdr900Device::writePowerOn)
+        val powerOn by booleanProperty(read = { readPowerOn() }, write = { _, value -> writePowerOn(value) })
 
         val channel by logicalProperty(MetaConverter.int)
 
         val value by doubleProperty(read = {
-            readChannelData(get(channel) ?: DEFAULT_CHANNEL)
+            readChannelData(getOrRead(channel))
         })
 
         val error by logicalProperty(MetaConverter.string)

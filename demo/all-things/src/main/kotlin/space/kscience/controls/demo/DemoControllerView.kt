@@ -5,10 +5,17 @@ import javafx.scene.Parent
 import javafx.scene.control.Slider
 import javafx.scene.layout.Priority
 import javafx.stage.Stage
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
+import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.GetDescriptionMessage
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.launchMagixService
+import space.kscience.controls.client.magixFormat
 import space.kscience.controls.demo.DemoDevice.Companion.cosScale
 import space.kscience.controls.demo.DemoDevice.Companion.sinScale
 import space.kscience.controls.demo.DemoDevice.Companion.timeScale
@@ -20,6 +27,8 @@ import space.kscience.controls.opcua.server.serveDevices
 import space.kscience.controls.spec.write
 import space.kscience.dataforge.context.*
 import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.send
+import space.kscience.magix.api.subscribe
 import space.kscience.magix.rsocket.rSocketWithTcp
 import space.kscience.magix.rsocket.rSocketWithWebSockets
 import space.kscience.magix.server.RSocketMagixFlowPlugin
@@ -49,6 +58,7 @@ class DemoController : Controller(), ContextAware {
 
     private val deviceManager = context.request(DeviceManager)
 
+
     fun init() {
         context.launch {
             device = deviceManager.install("demo", DemoDevice)
@@ -67,6 +77,17 @@ class DemoController : Controller(), ContextAware {
             //serve devices as OPC-UA namespace
             opcUaServer.startup()
             opcUaServer.serveDevices(deviceManager)
+
+
+            val listenerEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+            listenerEndpoint.subscribe(DeviceManager.magixFormat).onEach { (_, deviceMessage)->
+                // print all messages that are not property change message
+                if(deviceMessage !is PropertyChangedMessage){
+                    println(">> ${Json.encodeToString(DeviceMessage.serializer(), deviceMessage)}")
+                }
+            }.launchIn(this)
+            listenerEndpoint.send(DeviceManager.magixFormat, GetDescriptionMessage(), "listener", "controls-kt")
+
         }
     }
 
@@ -78,7 +99,7 @@ class DemoController : Controller(), ContextAware {
         logger.info { "Visualization server stopped" }
         magixServer?.stop(1000, 5000)
         logger.info { "Magix server stopped" }
-        device?.close()
+        device?.stop()
         logger.info { "Device server stopped" }
         context.close()
     }

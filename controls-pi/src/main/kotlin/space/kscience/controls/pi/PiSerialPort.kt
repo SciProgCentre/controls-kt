@@ -1,6 +1,5 @@
 package space.kscience.controls.pi
 
-import com.pi4j.Pi4J
 import com.pi4j.io.serial.Baud
 import com.pi4j.io.serial.Serial
 import com.pi4j.io.serial.SerialConfigBuilder
@@ -13,20 +12,25 @@ import space.kscience.controls.ports.toArray
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.enum
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
+import com.pi4j.context.Context as PiContext
 
 public class PiSerialPort(
     context: Context,
     coroutineContext: CoroutineContext = context.coroutineContext,
-    public val serialBuilder: () -> Serial,
+    public val serialBuilder: PiContext.() -> Serial,
 ) : AbstractPort(context, coroutineContext) {
 
-    private val serial: Serial by lazy { serialBuilder() }
+    private val serial: Serial by lazy {
+        val pi = context.request(PiPlugin)
+        pi.piContext.serialBuilder()
+    }
 
 
     private val listenerJob = this.scope.launch(Dispatchers.IO) {
@@ -57,15 +61,18 @@ public class PiSerialPort(
     public companion object : PortFactory {
         override val type: String get() = "pi"
 
-        public fun open(context: Context, device: String, block: SerialConfigBuilder.() -> Unit): PiSerialPort =
-            PiSerialPort(context) {
-                Pi4J.newAutoContext().serial(device, block)
-            }
+        public fun open(
+            context: Context,
+            device: String,
+            block: SerialConfigBuilder.() -> Unit,
+        ): PiSerialPort = PiSerialPort(context) {
+            serial(device, block)
+        }
 
         override fun build(context: Context, meta: Meta): Port = PiSerialPort(context) {
             val device: String = meta["device"].string ?: error("Device name not defined")
             val baudRate: Baud = meta["baudRate"].enum<Baud>() ?: Baud._9600
-            Pi4J.newAutoContext().serial(device) {
+            serial(device) {
                 baud8N1(baudRate)
             }
         }

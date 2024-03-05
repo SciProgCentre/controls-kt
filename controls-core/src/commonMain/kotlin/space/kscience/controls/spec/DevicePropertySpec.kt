@@ -4,11 +4,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import space.kscience.controls.api.ActionDescriptor
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.dataforge.meta.transformations.MetaConverter
+import space.kscience.controls.api.*
+import space.kscience.dataforge.meta.MetaConverter
 
 
 /**
@@ -20,7 +17,7 @@ public annotation class InternalDeviceAPI
 /**
  * Specification for a device read-only property
  */
-public interface DevicePropertySpec<in D : Device, T> {
+public interface DevicePropertySpec<in D, T> {
     /**
      * Property descriptor
      */
@@ -44,7 +41,7 @@ public interface DevicePropertySpec<in D : Device, T> {
 public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
 
 
-public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
+public interface MutableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
     /**
      * Write physical value to a device
      */
@@ -53,7 +50,7 @@ public interface WritableDevicePropertySpec<in D : Device, T> : DevicePropertySp
 
 }
 
-public interface DeviceActionSpec<in D : Device, I, O> {
+public interface DeviceActionSpec<in D, I, O> {
     /**
      * Action descriptor
      */
@@ -75,30 +72,29 @@ public interface DeviceActionSpec<in D : Device, I, O> {
 public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
 
 public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
-    propertySpec.converter.metaToObject(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
+    propertySpec.converter.readOrNull(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
 /**
  * Read typed value and update/push event if needed.
  * Return null if property read is not successful or property is undefined.
  */
 public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
-    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::metaToObject)
+    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::readOrNull)
 
-
-public operator fun <T, D : Device> D.get(propertySpec: DevicePropertySpec<D, T>): T? =
-    getProperty(propertySpec.name)?.let(propertySpec.converter::metaToObject)
+public suspend fun <T, D : Device> D.getOrRead(propertySpec: DevicePropertySpec<D, T>): T =
+    propertySpec.converter.read(getOrReadProperty(propertySpec.name))
 
 /**
  * Write typed property state and invalidate logical state
  */
-public suspend fun <T, D : Device> D.write(propertySpec: WritableDevicePropertySpec<D, T>, value: T) {
-    writeProperty(propertySpec.name, propertySpec.converter.objectToMeta(value))
+public suspend fun <T, D : Device> D.write(propertySpec: MutableDevicePropertySpec<D, T>, value: T) {
+    writeProperty(propertySpec.name, propertySpec.converter.convert(value))
 }
 
 /**
  * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope
  */
-public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySpec<D, T>, value: T): Job = launch {
+public fun <T, D : Device> D.writeAsync(propertySpec: MutableDevicePropertySpec<D, T>, value: T): Job = launch {
     write(propertySpec, value)
 }
 
@@ -108,37 +104,39 @@ public operator fun <T, D : Device> D.set(propertySpec: WritableDevicePropertySp
 public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<T> = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
-    .mapNotNull { spec.converter.metaToObject(it.value) }
+    .mapNotNull { spec.converter.read(it.value) }
 
 /**
  * A type safe property change listener. Uses the device [CoroutineScope].
  */
 public fun <D : Device, T> D.onPropertyChange(
     spec: DevicePropertySpec<D, T>,
+    scope: CoroutineScope = this,
     callback: suspend PropertyChangedMessage.(T) -> Unit,
 ): Job = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
     .onEach { change ->
-        val newValue = spec.converter.metaToObject(change.value)
+        val newValue = spec.converter.read(change.value)
         if (newValue != null) {
             change.callback(newValue)
         }
-    }.launchIn(this)
+    }.launchIn(scope)
 
 /**
  * Call [callback] on initial property value and each value change
  */
 public fun <D : Device, T> D.useProperty(
     spec: DevicePropertySpec<D, T>,
+    scope: CoroutineScope = this,
     callback: suspend (T) -> Unit,
-): Job = launch {
+): Job = scope.launch {
     callback(read(spec))
     messageFlow
         .filterIsInstance<PropertyChangedMessage>()
         .filter { it.property == spec.name }
         .collect { change ->
-            val newValue = spec.converter.metaToObject(change.value)
+            val newValue = spec.converter.readOrNull(change.value)
             if (newValue != null) {
                 callback(newValue)
             }
@@ -149,7 +147,7 @@ public fun <D : Device, T> D.useProperty(
 /**
  * Reset the logical state of a property
  */
-public suspend fun <D : Device> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
+public suspend fun <D : CachingDevice> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
     invalidate(propertySpec.name)
 }
 

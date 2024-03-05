@@ -15,21 +15,19 @@ import space.kscience.dataforge.names.NameToken
 public open class ModbusDeviceBySpec<D: Device>(
     context: Context,
     spec: DeviceSpec<D>,
-    override val clientId: Int,
+    override val unitId: Int,
     override val master: AbstractModbusMaster,
     private val disposeMasterOnClose: Boolean = true,
     meta: Meta = Meta.EMPTY,
 ) : ModbusDevice, DeviceBySpec<D>(spec, context, meta){
-    override suspend fun open() {
+    override suspend fun onStart() {
         master.connect()
-        super<DeviceBySpec>.open()
     }
 
-    override fun close() {
+    override fun onStop() {
         if(disposeMasterOnClose){
             master.disconnect()
         }
-        super<ModbusDevice>.close()
     }
 }
 

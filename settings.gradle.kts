@@ -50,6 +50,9 @@ include(
 //    ":controls-mongo",
     ":controls-storage",
     ":controls-storage:controls-xodus",
+    ":controls-constructor",
+    ":controls-vision",
+    ":controls-jupyter",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-server",
@@ -67,5 +70,6 @@ include(
     ":demo:car",
     ":demo:motors",
     ":demo:echo",
-    ":demo:mks-pdr900"
+    ":demo:mks-pdr900",
+    ":demo:constructor"
 )

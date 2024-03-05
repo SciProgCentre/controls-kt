@@ -28,7 +28,7 @@ public class JSerialCommPort(
         override fun getListeningEvents(): Int = SerialPort.LISTENING_EVENT_DATA_AVAILABLE
 
         override fun serialEvent(event: SerialPortEvent) {
-            if (event.eventType == SerialPort.LISTENING_EVENT_DATA_AVAILABLE) {
+            if (event.eventType == SerialPort.LISTENING_EVENT_DATA_AVAILABLE && event.receivedData != null) {
                 scope.launch { receive(event.receivedData) }
             }
         }
