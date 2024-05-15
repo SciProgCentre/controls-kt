@@ -23,3 +23,11 @@ ksciencePublish {
 }
 
 readme.readmeTemplate = file("docs/templates/README-TEMPLATE.md")
+
+task("generateKTStemplates") {
+    doLast {
+        exec {
+            commandLine("kotlin", "ktstemplate_generator.kts")
+        }
+    }
+}

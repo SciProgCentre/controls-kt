@@ -226,3 +226,48 @@ the current time. The device is configurable via a simple TornadoFX-based contro
 You can run a demo by executing `application/run` Gradle task.
 
 The graphs are displayed using [plotly.kt](https://github.com/mipt-npm/plotly.kt) library.
+
+## Templates
+
+**This feature required `kotlin` to be installed in your system. [Read more](https://kotlinlang.org/docs/command-line.html#install-the-compiler)**
+
+**You may run gradle task `generateKTStemplates` instead of raw launch, but it will work slowly. Sample `./gradlew generateKTStemplates`**
+
+This project supports generating of files from `.ktstemplate.` files. Current docs:
+
+### Using
+
+* Create file contains `.ktstemplate` in its name
+* Write variables **before** the first `H*` (starting with `#`) section
+* Launch `kotlin ${thisscriptname}` with required args
+
+#### File sample
+
+```markdown
+first = hello
+second = world
+
+# Sample
+
+This is sample of $first $second
+```
+
+Will have next result:
+
+```markdown
+# Sample
+
+This is sample of hello world
+```
+
+### Launch
+
+This script accept next args:
+
+`[...paths] [--plain] [--recursive]`
+
+Where:
+
+* `...paths` - Paths to the files-templates or folders with files-templates
+* `--plain` - will look only into the folders from `paths`
+* `--recursive` - (default) will look into the folders from `paths` and recursively in subfolders
