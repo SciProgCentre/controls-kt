@@ -1,3 +1,5 @@
+@file:OptIn(FlowPreview::class)
+
 package space.kscience.controls.compose
 
 import androidx.compose.runtime.*
@@ -6,11 +8,8 @@ import io.github.koalaplot.core.line.LinePlot
 import io.github.koalaplot.core.style.LineStyle
 import io.github.koalaplot.core.xygraph.DefaultPoint
 import io.github.koalaplot.core.xygraph.XYGraphScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device

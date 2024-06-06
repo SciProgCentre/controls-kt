@@ -1,10 +1,10 @@
 package space.kscience.controls.client
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import space.kscience.controls.client.RemoteDeviceConnect.TestDevice
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
@@ -20,36 +20,37 @@ class MagixLoopTest {
 
     @Test
     fun realDeviceHub() = runTest {
-        withContext(Dispatchers.Default) {
-            val context = Context {
-                plugin(DeviceManager)
-            }
-
-            val server = context.startMagixServer()
-
-            val deviceManager = context.request(DeviceManager)
-
-            val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
-
-            deviceManager.launchMagixService(deviceEndpoint, "device")
-
-            launch {
-                delay(50)
-                repeat(10) {
-                    deviceManager.install("test[$it]", TestDevice)
-                }
-            }
-
-            val clientEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
-
-            val remoteHub = clientEndpoint.remoteDeviceHub(context, "client", "device")
-
-            assertEquals(0, remoteHub.devices.size)
-            delay(60)
-            clientEndpoint.requestDeviceUpdate("client", "device")
-            delay(60)
-            assertEquals(10, remoteHub.devices.size)
-            server.stop()
+        val context = Context {
+            coroutineContext(Dispatchers.Default)
+            plugin(DeviceManager)
         }
+
+        val server = context.startMagixServer()
+
+        val deviceManager = context.request(DeviceManager)
+
+        val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+
+        deviceManager.launchMagixService(deviceEndpoint, "device")
+
+        val trigger = CompletableDeferred<Unit>()
+
+        context.launch {
+            repeat(10) {
+                deviceManager.install("test[$it]", TestDevice)
+            }
+            delay(100)
+            trigger.complete(Unit)
+        }
+
+        val clientEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+
+        val remoteHub = clientEndpoint.remoteDeviceHub(context, "client", "device")
+
+        assertEquals(0, remoteHub.devices.size)
+        clientEndpoint.requestDeviceUpdate("client", "device")
+        trigger.join()
+        assertEquals(10, remoteHub.devices.size)
+        server.stop()
     }
 }
