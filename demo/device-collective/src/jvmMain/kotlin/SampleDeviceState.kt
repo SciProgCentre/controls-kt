@@ -1,4 +1,4 @@
-package space.kscience.controls.demo.map
+package space.kscience.controls.demo.collective
 
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -7,7 +7,7 @@ import space.kscience.controls.constructor.DeviceState
 import kotlin.time.Duration
 
 @OptIn(FlowPreview::class)
-class DebounceDeviceState<T>(
+class SampleDeviceState<T>(
     val origin: DeviceState<T>,
     val interval: Duration,
 ) : DeviceState<T> {
@@ -17,4 +17,4 @@ class DebounceDeviceState<T>(
     override fun toString(): String = "DebounceDeviceState($value, interval=$interval)"
 }
 
-fun <T> DeviceState<T>.debounce(interval: Duration) = DebounceDeviceState(this, interval)
+fun <T> DeviceState<T>.sample(interval: Duration) = SampleDeviceState(this, interval)

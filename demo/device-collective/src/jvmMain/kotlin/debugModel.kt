@@ -1,4 +1,4 @@
-package space.kscience.controls.demo.map
+package space.kscience.controls.demo.collective
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -20,31 +20,32 @@ private val radius = 0.01.degrees
 
 
 internal fun generateModel(context: Context): DeviceCollectiveModel {
-    val devices: List<RemoteDeviceState> = buildList {
-        repeat(100) {
-            add(
-                RemoteDeviceState(
-                    "device[$it]",
-                    Gmc(
-                        center.latitude + radius * Random.nextDouble(),
-                        center.longitude + radius * Random.nextDouble()
-                    )
-                )
+    val devices: List<VirtualDeviceState> = List(100) { index ->
+        val id = "device[$index]"
+
+        VirtualDeviceState(
+            id = id,
+            Gmc(
+                center.latitude + radius * Random.nextDouble(),
+                center.longitude + radius * Random.nextDouble()
             )
+        ) {
+            deviceId = id
+            description = "Virtual remote device $id"
         }
     }
 
-    val model = DeviceCollectiveModel(context, devices)
+    val model = DeviceCollectiveModel(context, devices, 0.2.kilometers)
 
     return model
 }
 
-fun RemoteDevice.moveInCircles(): Job = launch {
+fun CollectiveDevice.moveInCircles(): Job = launch {
     var bearing = Random.nextDouble(-PI, PI).radians
-    write(RemoteDevice.velocity, GmcVelocity(bearing, deviceVelocity))
+    write(CollectiveDevice.velocity, GmcVelocity(bearing, deviceVelocity))
     while (isActive) {
         delay(500)
         bearing += 5.degrees
-        write(RemoteDevice.velocity, GmcVelocity(bearing, deviceVelocity))
+        write(CollectiveDevice.velocity, GmcVelocity(bearing, deviceVelocity))
     }
 }

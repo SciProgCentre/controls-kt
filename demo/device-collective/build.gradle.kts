@@ -37,6 +37,6 @@ kotlin.explicitApi = ExplicitApiMode.Disabled
 
 compose.desktop {
     application {
-        mainClass = "space.kscience.controls.demo.map.MainKt"
+        mainClass = "space.kscience.controls.demo.collective.MainKt"
     }
 }

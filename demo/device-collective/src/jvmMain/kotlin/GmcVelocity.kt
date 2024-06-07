@@ -1,4 +1,4 @@
-package space.kscience.controls.demo.map
+package space.kscience.controls.demo.collective
 
 import kotlinx.serialization.Serializable
 import space.kscience.kmath.geometry.Angle

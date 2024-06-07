@@ -1,6 +1,6 @@
 @file:OptIn(DFExperimental::class)
 
-package space.kscience.controls.demo.map
+package space.kscience.controls.demo.collective
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.constructor.DeviceConstructor
@@ -10,17 +10,20 @@ import space.kscience.controls.spec.DeviceSpec
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.Scheme
-import space.kscience.dataforge.meta.SchemeSpec
+import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.maps.coordinates.Gmc
 import kotlin.time.Duration.Companion.milliseconds
 
-class RemoteDeviceConfiguration : Scheme() {
-    companion object : SchemeSpec<RemoteDeviceConfiguration>(::RemoteDeviceConfiguration)
+class CollectiveDeviceConfiguration(deviceId: DeviceId) : Scheme() {
+    var deviceId by string(deviceId)
+    var description by string()
 }
 
 
-interface RemoteDevice : Device {
+interface CollectiveDevice : Device {
+
+    public val id: DeviceId
 
     suspend fun getPosition(): Gmc
 
@@ -28,8 +31,10 @@ interface RemoteDevice : Device {
 
     suspend fun setVelocity(value: GmcVelocity)
 
+    suspend fun listVisible(): Collection<DeviceId>
 
-    companion object : DeviceSpec<RemoteDevice>() {
+
+    companion object : DeviceSpec<CollectiveDevice>() {
         val position by property<Gmc>(
             converter = MetaConverter.serializable(),
             read = { getPosition() }
@@ -44,15 +49,18 @@ interface RemoteDevice : Device {
 }
 
 
-class RemoteDeviceConstructor(
+class CollectiveDeviceConstructor(
     context: Context,
-    val configuration: RemoteDeviceConfiguration,
+    val configuration: CollectiveDeviceConfiguration,
     position: MutableDeviceState<Gmc>,
     velocity: MutableDeviceState<GmcVelocity>,
-) : DeviceConstructor(context, configuration.meta), RemoteDevice {
+    private val listVisible: suspend () -> Collection<DeviceId>,
+) : DeviceConstructor(context, configuration.meta), CollectiveDevice {
 
-    val position = registerAsProperty(RemoteDevice.position, position.debounce(500.milliseconds))
-    val velocity = registerAsProperty(RemoteDevice.velocity, velocity)
+    override val id: DeviceId get() = configuration.deviceId
+
+    val position = registerAsProperty(CollectiveDevice.position, position.sample(500.milliseconds))
+    val velocity = registerAsProperty(CollectiveDevice.velocity, velocity)
 
     override suspend fun getPosition(): Gmc = position.value
 
@@ -61,4 +69,6 @@ class RemoteDeviceConstructor(
     override suspend fun setVelocity(value: GmcVelocity) {
         velocity.value = value
     }
+
+    override suspend fun listVisible(): Collection<DeviceId> = listVisible.invoke()
 }

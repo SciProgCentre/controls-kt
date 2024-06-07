@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.devices.LimitSwitch
 import space.kscience.controls.constructor.devices.StepDrive
 import space.kscience.controls.constructor.devices.angle
 import space.kscience.controls.constructor.models.Leadscrew
@@ -31,10 +32,18 @@ private class Plotter(
     context: Context,
     xDrive: StepDrive,
     yDrive: StepDrive,
+    xStartLimit: LimitSwitch,
+    xEndLimit: LimitSwitch,
+    yStartLimit: LimitSwitch,
+    yEndLimit: LimitSwitch,
     val paint: suspend (Color) -> Unit,
 ) : DeviceConstructor(context) {
     val xDrive by device(xDrive)
     val yDrive by device(yDrive)
+    val xStartLimit by device(xStartLimit)
+    val xEndLimit by device(xEndLimit)
+    val yStartLimit by device(yStartLimit)
+    val yEndLimit by device(yEndLimit)
 
     public fun moveToXY(x: Number, y: Number) {
         xDrive.target.value = x.toLong()
@@ -108,7 +117,15 @@ private class PlotterModel(
 
     val xy: DeviceState<XY<Meters>> = combineState(x, y) { x, y -> XY(x, y) }
 
-    val plotter = Plotter(context, xDrive, yDrive) { color ->
+    val plotter = Plotter(
+        context = context,
+        xDrive = xDrive,
+        yDrive = yDrive,
+        xStartLimit = LimitSwitch(context,x.atStart),
+        xEndLimit = LimitSwitch(context,x.atEnd),
+        yStartLimit = LimitSwitch(context,x.atStart),
+        yEndLimit = LimitSwitch(context,x.atEnd),
+    ) { color ->
         println("Point X: ${x.value.value}, Y: ${y.value.value}, color: $color")
         callback(PlotterPoint(x.value, y.value, color))
     }
