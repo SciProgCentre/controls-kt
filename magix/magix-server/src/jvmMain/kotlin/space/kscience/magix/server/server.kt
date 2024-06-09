@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import space.kscience.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_HTTP_PORT
 import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.api.start
 
 
 /**
@@ -22,7 +23,6 @@ public fun CoroutineScope.startMagixServer(
 
     val magixFlow = MutableSharedFlow<MagixMessage>(
         replay = buffer,
-        extraBufferCapacity = buffer,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 

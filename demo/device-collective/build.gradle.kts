@@ -13,7 +13,9 @@ kscience {
     commonMain {
         implementation(projects.controlsVisualisationCompose)
         implementation(projects.controlsConstructor)
+        implementation(projects.magix.magixServer)
         implementation(projects.magix.magixRsocket)
+        implementation(projects.controlsMagix)
     }
     jvmMain {
 //        implementation("io.ktor:ktor-server-cio")

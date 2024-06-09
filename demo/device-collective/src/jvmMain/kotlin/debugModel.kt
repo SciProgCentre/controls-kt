@@ -12,6 +12,8 @@ import space.kscience.maps.coordinates.Gmc
 import space.kscience.maps.coordinates.kilometers
 import kotlin.math.PI
 import kotlin.random.Random
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 private val deviceVelocity = 0.1.kilometers
 
@@ -19,8 +21,13 @@ private val center = Gmc.ofDegrees(55.925, 37.514)
 private val radius = 0.01.degrees
 
 
-internal fun generateModel(context: Context): DeviceCollectiveModel {
-    val devices: List<VirtualDeviceState> = List(100) { index ->
+internal fun generateModel(
+    context: Context,
+    size: Int = 50,
+    reportInterval: Duration = 500.milliseconds,
+    additionalConfiguration: CollectiveDeviceConfiguration.() -> Unit = {},
+): DeviceCollectiveModel {
+    val devices: List<CollectiveDeviceState> = List(size) { index ->
         val id = "device[$index]"
 
         VirtualDeviceState(
@@ -32,6 +39,8 @@ internal fun generateModel(context: Context): DeviceCollectiveModel {
         ) {
             deviceId = id
             description = "Virtual remote device $id"
+            this.reportInterval = reportInterval.inWholeMilliseconds.toInt()
+            additionalConfiguration()
         }
     }
 

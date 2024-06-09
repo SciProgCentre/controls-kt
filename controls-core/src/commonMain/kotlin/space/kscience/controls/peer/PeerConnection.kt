@@ -2,14 +2,13 @@ package space.kscience.controls.peer
 
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
 
 /**
  * A manager that allows direct synchronous sending and receiving binary data
  */
 public interface PeerConnection {
     /**
-     * Receive an [Envelope] from a device with name [deviceName] on a given [address] with given [contentId].
+     * Receive an [Envelope] from a device on a given [address] with given [contentId].
      *
      * The address depends on the specifics of given [PeerConnection]. For example, it could be a TCP/IP port or
      * magix endpoint name.
@@ -20,13 +19,12 @@ public interface PeerConnection {
      */
     public suspend fun receive(
         address: String,
-        deviceName: Name,
         contentId: String,
         requestMeta: Meta = Meta.EMPTY,
     ): Envelope
 
     /**
-     * Send an [envelope] to a device with name [deviceName] on a given [address]
+     * Send an [envelope] to a device on a given [address]
      *
      * The address depends on the specifics of given [PeerConnection]. For example, it could be a TCP/IP port or
      * magix endpoint name.
@@ -35,7 +33,6 @@ public interface PeerConnection {
      */
     public suspend fun send(
         address: String,
-        deviceName: Name,
         envelope: Envelope,
         requestMeta: Meta = Meta.EMPTY,
     )
