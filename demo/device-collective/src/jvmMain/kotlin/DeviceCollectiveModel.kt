@@ -44,7 +44,7 @@ internal fun VirtualDeviceState(
 internal class DeviceCollectiveModel(
     context: Context,
     val deviceStates: Collection<CollectiveDeviceState>,
-    val visibilityRange: Distance = 1.kilometers,
+    val visibilityRange: Distance = 0.5.kilometers,
     val radioRange: Distance = 5.kilometers,
 ) : ModelConstructor(context), PeerConnection {
 

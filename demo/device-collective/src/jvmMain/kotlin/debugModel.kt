@@ -44,7 +44,7 @@ internal fun generateModel(
         }
     }
 
-    val model = DeviceCollectiveModel(context, devices, 0.2.kilometers)
+    val model = DeviceCollectiveModel(context, devices)
 
     return model
 }

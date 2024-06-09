@@ -51,6 +51,7 @@ import space.kscience.maps.coordinates.Gmc
 import space.kscience.maps.coordinates.meters
 import space.kscience.maps.features.*
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.seconds
 
 
 @Composable
@@ -69,7 +70,7 @@ fun App() {
     }
 
     val collectiveModel = remember {
-        generateModel(parentContext, 60)
+        generateModel(parentContext, 100, reportInterval = 1.seconds)
     }
 
     val roster = remember {
@@ -83,12 +84,16 @@ fun App() {
 
     LaunchedEffect(collectiveModel) {
         launchCollectiveMagixServer(collectiveModel)
+
         withContext(Dispatchers.IO) {
             val magixClient = MagixEndpoint.rSocketWithWebSockets("localhost")
 
             client.complete(magixClient)
-                collectiveModel.roster.forEach { (id, config) ->
-                devices[id] = magixClient.remoteDevice(parentContext, "listener", id, id.parseAsName())
+
+            collectiveModel.roster.forEach { (id, config) ->
+                scope.launch {
+                    devices[id] = magixClient.remoteDevice(parentContext, "listener", id, id.parseAsName())
+                }
             }
         }
 
