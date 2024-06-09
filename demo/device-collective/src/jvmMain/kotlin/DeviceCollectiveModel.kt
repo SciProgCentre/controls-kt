@@ -20,8 +20,6 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.rsocket.rSocketWithWebSockets
 import space.kscience.magix.server.startMagixServer
 import space.kscience.maps.coordinates.*
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 
 internal data class CollectiveDeviceState(
@@ -46,9 +44,8 @@ internal fun VirtualDeviceState(
 internal class DeviceCollectiveModel(
     context: Context,
     val deviceStates: Collection<CollectiveDeviceState>,
-    val visibilityRange: Distance = 0.4.kilometers,
+    val visibilityRange: Distance = 1.kilometers,
     val radioRange: Distance = 5.kilometers,
-    val reportInterval: Duration = 1000.milliseconds
 ) : ModelConstructor(context), PeerConnection {
 
     /**
@@ -107,6 +104,7 @@ internal fun CoroutineScope.launchCollectiveMagixServer(
     val server = startMagixServer(
 //        RSocketMagixFlowPlugin()
     )
+    val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
     collectiveModel.devices.forEach { (id, device) ->
         val deviceContext = collectiveModel.context.buildContext(id.parseAsName()) {
@@ -116,7 +114,7 @@ internal fun CoroutineScope.launchCollectiveMagixServer(
 
         deviceContext.install(id, device)
 
-        val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+//        val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
         deviceContext.request(DeviceManager).launchMagixService(deviceEndpoint, id)
     }

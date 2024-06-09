@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Card
 import androidx.compose.material.Checkbox
 import androidx.compose.material.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,9 +25,12 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
@@ -47,13 +51,14 @@ import space.kscience.maps.coordinates.Gmc
 import space.kscience.maps.coordinates.meters
 import space.kscience.maps.features.*
 import java.nio.file.Path
-import kotlin.time.Duration.Companion.seconds
 
 
 @Composable
 fun rememberContext(name: String, contextBuilder: ContextBuilder.() -> Unit = {}): Context = remember {
     Context(name, contextBuilder)
 }
+
+private val gmcMetaConverter = MetaConverter.serializable<Gmc>()
 
 @Composable
 fun App() {
@@ -82,8 +87,7 @@ fun App() {
             val magixClient = MagixEndpoint.rSocketWithWebSockets("localhost")
 
             client.complete(magixClient)
-
-            collectiveModel.roster.forEach { (id, config) ->
+                collectiveModel.roster.forEach { (id, config) ->
                 devices[id] = magixClient.remoteDevice(parentContext, "listener", id, id.parseAsName())
             }
         }
@@ -129,23 +133,14 @@ fun App() {
                     client.await().subscribe(DeviceManager.magixFormat).onEach { (magixMessage, deviceMessage) ->
                         if (deviceMessage is PropertyChangedMessage && deviceMessage.property == "position") {
                             val id = magixMessage.sourceEndpoint
-                            val position = MetaConverter.serializable<Gmc>().read(deviceMessage.value)
+                            val position = gmcMetaConverter.read(deviceMessage.value)
                             val activeDevice = selectedDeviceId?.let { devices[it] }
-
-                            suspend fun DeviceClient.idIsVisible() = try {
-                                withTimeout(1.seconds) {
-                                    id in execute(CollectiveDevice.listVisible)
-                                }
-                            } catch (ex: Exception) {
-                                ex.printStackTrace()
-                                true
-                            }
 
                             if (
                                 activeDevice == null ||
                                 id == selectedDeviceId ||
                                 !showOnlyVisible ||
-                                activeDevice.idIsVisible()
+                                id in activeDevice.request(CollectiveDevice.visibleNeighbors)
                             ) {
                                 rectangle(
                                     position,
@@ -168,24 +163,29 @@ fun App() {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
-                devices.forEach { (id, _) ->
+                collectiveModel.roster.forEach { (id, _) ->
                     Card(
                         elevation = 16.dp,
                         modifier = Modifier.padding(8.dp).onClick {
                             selectedDeviceId = id
                         }.conditional(id == selectedDeviceId) {
                             border(2.dp, Color.Blue)
-                        }
+                        },
                     ) {
                         Column(
                             modifier = Modifier.padding(8.dp)
                         ) {
-                            Text(
-                                text = id,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(10.dp).fillMaxWidth()
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (devices[id] == null) {
+                                    CircularProgressIndicator()
+                                }
+                                Text(
+                                    text = id,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                                )
+                            }
                             if (id == selectedDeviceId) {
                                 roster[id]?.let {
                                     Text("Meta:", color = Color.Blue, fontWeight = FontWeight.Bold)
@@ -195,14 +195,11 @@ fun App() {
                                 }
 
                                 currentPosition?.let { currentPosition ->
-                                    Text("Широта: ${String.format("%.3f", currentPosition.latitude.toDegrees().value)}")
                                     Text(
-                                        "Долгота: ${
-                                            String.format(
-                                                "%.3f",
-                                                currentPosition.longitude.toDegrees().value
-                                            )
-                                        }"
+                                        "Широта: ${String.format("%.3f", currentPosition.latitude.toDegrees().value)}"
+                                    )
+                                    Text(
+                                        "Долгота: ${String.format("%.3f", currentPosition.longitude.toDegrees().value)}"
                                     )
                                     currentPosition.elevation?.let {
                                         Text("Высота: ${String.format("%.1f", it.meters)} м")

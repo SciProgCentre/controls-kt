@@ -3,12 +3,10 @@
 package space.kscience.controls.demo.collective
 
 import space.kscience.controls.api.Device
-import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.MutableDeviceState
-import space.kscience.controls.constructor.registerAsProperty
+import space.kscience.controls.constructor.*
+import space.kscience.controls.misc.stringList
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.DeviceSpec
-import space.kscience.controls.spec.unit
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.Scheme
@@ -56,9 +54,16 @@ interface CollectiveDevice : Device {
             write = { _, value -> setVelocity(value) }
         )
 
-        val listVisible by action(MetaConverter.unit, MetaConverter.valueList<String> { it.string }) {
-            listVisible().toList()
-        }
+        val visibleNeighbors by property(
+            MetaConverter.stringList,
+            read = {
+                listVisible().toList()
+            }
+        )
+
+//        val listVisible by action(MetaConverter.unit, MetaConverter.valueList<String> { it.string }) {
+//            listVisible().toList()
+//        }
     }
 }
 
@@ -74,8 +79,28 @@ class CollectiveDeviceConstructor(
 
     override val id: CollectiveDeviceId get() = configuration.deviceId
 
-    val position = registerAsProperty(CollectiveDevice.position, position.sample(configuration.reportInterval.milliseconds))
-    val velocity = registerAsProperty(CollectiveDevice.velocity, velocity.sample(configuration.reportInterval.milliseconds))
+    val position = registerAsProperty(
+        CollectiveDevice.position,
+        position.sample(configuration.reportInterval.milliseconds)
+    )
+
+    val velocity = registerAsProperty(
+        CollectiveDevice.velocity,
+        velocity.sample(configuration.reportInterval.milliseconds)
+    )
+
+    private val _visibleNeighbors: MutableDeviceState<Collection<CollectiveDeviceId>> = stateOf(emptyList())
+
+    val visibleNeighbors = registerAsProperty(
+        CollectiveDevice.visibleNeighbors,
+        _visibleNeighbors.map { it.toList() }
+    )
+
+    init {
+        position.onNext {
+            _visibleNeighbors.value = observation.invoke().keys
+        }
+    }
 
     override suspend fun getPosition(): Gmc = position.value
 
