@@ -21,7 +21,7 @@ public interface PeerConnection {
         address: String,
         contentId: String,
         requestMeta: Meta = Meta.EMPTY,
-    ): Envelope
+    ): Envelope?
 
     /**
      * Send an [envelope] to a device on a given [address]

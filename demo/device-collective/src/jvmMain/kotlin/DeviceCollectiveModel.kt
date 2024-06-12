@@ -4,16 +4,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.constructor.ModelConstructor
 import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
+import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.Envelope
+import space.kscience.dataforge.io.toByteArray
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.parseAsName
 import space.kscience.magix.api.MagixEndpoint
@@ -40,13 +44,17 @@ internal fun VirtualDeviceState(
     MutableDeviceState(GmcVelocity.zero)
 )
 
+private val json = Json {
+    ignoreUnknownKeys = true
+    prettyPrint = true
+}
 
 internal class DeviceCollectiveModel(
     context: Context,
     val deviceStates: Collection<CollectiveDeviceState>,
     val visibilityRange: Distance = 0.5.kilometers,
     val radioRange: Distance = 5.kilometers,
-) : ModelConstructor(context), PeerConnection {
+) : ModelConstructor(context) {
 
     /**
      * Propagate movement
@@ -70,32 +78,39 @@ internal class DeviceCollectiveModel(
         return allCurves.filterValues { it.distance in 0.kilometers..visibilityRange }
     }
 
+    inner class RadioPeerConnection(private val peerState: CollectiveDeviceState) : PeerConnection {
+        override suspend fun receive(address: String, contentId: String, requestMeta: Meta): Envelope? = null
+
+        override suspend fun send(address: String, envelope: Envelope, requestMeta: Meta) {
+            devices.filter { it.value.configuration.radioFrequency == address }.filter {
+                GeoEllipsoid.WGS84.curveBetween(peerState.position.value, it.value.position.value).distance < radioRange
+            }.forEach { (id, target) ->
+                check(envelope.data != null) { "Envelope data is empty" }
+                val message = json.decodeFromString(
+                    DeviceMessage.serializer(),
+                    envelope.data?.toByteArray()?.decodeToString() ?: ""
+                )
+                target.respondMessage(id.parseAsName(), message)
+            }
+        }
+    }
+
     val devices = deviceStates.associate {
         val device = CollectiveDeviceConstructor(
             context = context,
             configuration = it.configuration,
             position = it.position,
             velocity = it.velocity,
-            peerConnection = this,
+            peerConnection = RadioPeerConnection(it),
         ) {
             locateVisible(it.id)
         }
-        //start movement program
-        device.moveInCircles()
         it.id to device
     }
 
     val roster = deviceStates.associate { it.id to it.configuration }
 
-    override suspend fun receive(address: String, contentId: String, requestMeta: Meta): Envelope {
-        TODO("Not yet implemented")
-    }
 
-    override suspend fun send(address: String, envelope: Envelope, requestMeta: Meta) {
-//        devices.values.filter { it.configuration.radioFrequency == address }.forEach { device ->
-//            ```
-//        }
-    }
 }
 
 internal fun CoroutineScope.launchCollectiveMagixServer(

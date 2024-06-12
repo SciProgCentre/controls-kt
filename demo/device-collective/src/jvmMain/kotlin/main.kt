@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Checkbox
 import androidx.compose.material.Text
@@ -18,19 +19,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.sample
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import org.jetbrains.compose.splitpane.rememberSplitPaneState
@@ -51,6 +49,7 @@ import space.kscience.maps.coordinates.Gmc
 import space.kscience.maps.coordinates.meters
 import space.kscience.maps.features.*
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -92,7 +91,8 @@ fun App() {
 
             collectiveModel.roster.forEach { (id, config) ->
                 scope.launch {
-                    devices[id] = magixClient.remoteDevice(parentContext, "listener", id, id.parseAsName())
+                    val deviceClient = magixClient.remoteDevice(parentContext, "listener", id, id.parseAsName())
+                    devices[id] = deviceClient
                 }
             }
         }
@@ -111,6 +111,8 @@ fun App() {
 
     var showOnlyVisible by remember { mutableStateOf(false) }
 
+    var movementProgram: Job? by remember { mutableStateOf(null) }
+
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(0.9f)
     ) {
@@ -126,9 +128,28 @@ fun App() {
             ) {
                 collectiveModel.deviceStates.forEach { device ->
                     circle(device.position.value, id = device.id + ".position").color(Color.Red)
-                    device.position.valueFlow.onEach {
-                        circle(device.position.value, id = device.id + ".position", size = 3.dp)
-                            .color(Color.Red)
+                    device.position.valueFlow.sample(50.milliseconds).onEach {
+                        val activeDevice = selectedDeviceId?.let { devices[it] }
+                        val color = if (selectedDeviceId == device.id) {
+                            Color.Magenta
+                        } else if (
+                            showOnlyVisible &&
+                            activeDevice != null &&
+                            device.id in activeDevice.request(CollectiveDevice.visibleNeighbors)
+                        ) {
+                            Color.Cyan
+                        } else {
+                            Color.Red
+                        }
+
+                        circle(
+                            device.position.value,
+                            id = device.id + ".position",
+                            size = if (selectedDeviceId == device.id) 6.dp else 3.dp
+                        )
+                            .color(color)
+                            .modifyAttribute(ZAttribute, 10f)
+                            .modifyAttribute(AlphaAttribute, if (selectedDeviceId == device.id) 1f else 0.5f)
                             .modifyAttribute(AlphaAttribute, 0.5f) // does not work right now
                     }.launchIn(scope)
                 }
@@ -139,24 +160,11 @@ fun App() {
                         if (deviceMessage is PropertyChangedMessage && deviceMessage.property == "position") {
                             val id = magixMessage.sourceEndpoint
                             val position = gmcMetaConverter.read(deviceMessage.value)
-                            val activeDevice = selectedDeviceId?.let { devices[it] }
 
-                            if (
-                                activeDevice == null ||
-                                id == selectedDeviceId ||
-                                !showOnlyVisible ||
-                                id in activeDevice.request(CollectiveDevice.visibleNeighbors)
-                            ) {
-                                rectangle(
-                                    position,
-                                    id = id,
-                                    size = if (selectedDeviceId == id) DpSize(10.dp, 10.dp) else DpSize(5.dp, 5.dp)
-                                ).color(if (selectedDeviceId == id) Color.Magenta else Color.Blue)
-                                    .modifyAttribute(AlphaAttribute, if (selectedDeviceId == id) 1f else 0.5f)
-                                    .onClick { selectedDeviceId = id }
-                            } else {
-                                removeFeature(id)
-                            }
+                            rectangle(
+                                position,
+                                id = id,
+                            ).color(Color.Blue).onClick { selectedDeviceId = id }
                         }
                     }.launchIn(scope)
 
@@ -168,6 +176,34 @@ fun App() {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
+                Button(
+                    onClick = {
+                        if (movementProgram == null) {
+                            //start movement program
+                            movementProgram = parentContext.launch {
+                                devices.values.forEach { device ->
+                                    device.moveInCircles(this)
+                                }
+                            }
+                        } else {
+                            movementProgram?.cancel()
+                            parentContext.launch {
+                                devices.values.forEach { device ->
+                                    device.write(CollectiveDevice.velocity, GmcVelocity.zero)
+                                }
+                            }
+                            movementProgram = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (movementProgram == null) {
+                        Text("Move")
+                    } else {
+                        Text("Stop")
+                    }
+                }
+
                 collectiveModel.roster.forEach { (id, _) ->
                     Card(
                         elevation = 16.dp,

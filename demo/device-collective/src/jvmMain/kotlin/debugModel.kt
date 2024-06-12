@@ -1,10 +1,8 @@
 package space.kscience.controls.demo.collective
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import space.kscience.controls.spec.write
+import kotlinx.coroutines.*
+import space.kscience.controls.client.DeviceClient
+import space.kscience.controls.client.write
 import space.kscience.dataforge.context.Context
 import space.kscience.kmath.geometry.degrees
 import space.kscience.kmath.geometry.radians
@@ -49,7 +47,7 @@ internal fun generateModel(
     return model
 }
 
-fun CollectiveDevice.moveInCircles(): Job = launch {
+fun DeviceClient.moveInCircles(scope: CoroutineScope = this): Job = scope.launch {
     var bearing = Random.nextDouble(-PI, PI).radians
     write(CollectiveDevice.velocity, GmcVelocity(bearing, deviceVelocity))
     while (isActive) {
