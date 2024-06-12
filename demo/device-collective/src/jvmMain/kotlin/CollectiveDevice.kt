@@ -23,7 +23,11 @@ class CollectiveDeviceConfiguration(deviceId: CollectiveDeviceId) : Scheme() {
     var deviceId by string(deviceId)
     var description by string()
     var reportInterval by int(500)
-    var radioFrequency by string(default = "169 MHz")
+    var radioFrequency by string(default = DEFAULT_FREQUENCY)
+
+    companion object {
+        const val DEFAULT_FREQUENCY = "169 MHz"
+    }
 }
 
 typealias CollectiveDeviceRoster = Map<CollectiveDeviceId, CollectiveDeviceConfiguration>

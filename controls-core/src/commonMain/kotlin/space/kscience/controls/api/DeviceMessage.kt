@@ -73,7 +73,7 @@ public data class PropertySetMessage(
     public val property: String,
     public val value: Meta,
     override val sourceDevice: Name? = null,
-    override val targetDevice: Name,
+    override val targetDevice: Name?,
     override val comment: String? = null,
     @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {

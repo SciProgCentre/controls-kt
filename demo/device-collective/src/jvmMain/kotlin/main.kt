@@ -7,16 +7,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
-import androidx.compose.material.Card
-import androidx.compose.material.Checkbox
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,7 +56,8 @@ fun rememberContext(name: String, contextBuilder: ContextBuilder.() -> Unit = {}
     Context(name, contextBuilder)
 }
 
-private val gmcMetaConverter = MetaConverter.serializable<Gmc>()
+internal val gmcMetaConverter = MetaConverter.serializable<Gmc>()
+internal val gmcVelocityMetaConverter = MetaConverter.serializable<GmcVelocity>()
 
 @Composable
 fun App() {
@@ -79,7 +78,6 @@ fun App() {
     val client = remember { CompletableDeferred<MagixEndpoint>() }
 
     val devices = remember { mutableStateMapOf<CollectiveDeviceId, DeviceClient>() }
-
 
     LaunchedEffect(collectiveModel) {
         launchCollectiveMagixServer(collectiveModel)
@@ -113,10 +111,27 @@ fun App() {
 
     var movementProgram: Job? by remember { mutableStateOf(null) }
 
+    val trawler: CollectiveDeviceConstructor = remember {
+        collectiveModel.createTrawler(Gmc.ofDegrees(55.925, 37.50))
+    }
+
     HorizontalSplitPane(
         splitPaneState = rememberSplitPaneState(0.9f)
     ) {
         first(400.dp) {
+            var clickPoint by remember { mutableStateOf<Gmc?>(null) }
+
+            CursorDropdownMenu(clickPoint != null, { clickPoint = null }) {
+                clickPoint?.let { point ->
+                    TextButton({
+                        trawler.moveTo(point)
+                        clickPoint = null
+                    }) {
+                        Text("Move trawler here")
+                    }
+                }
+            }
+
             MapView(
                 mapTileProvider = remember {
                     OpenStreetMapTileProvider(
@@ -124,8 +139,15 @@ fun App() {
                         cacheDirectory = Path.of("mapCache")
                     )
                 },
-                config = ViewConfig()
+                config = ViewConfig(
+                    onClick = { event, point ->
+                        if (event.buttons.isSecondaryPressed) {
+                            clickPoint = point.focus
+                        }
+                    }
+                )
             ) {
+                //draw real positions
                 collectiveModel.deviceStates.forEach { device ->
                     circle(device.position.value, id = device.id + ".position").color(Color.Red)
                     device.position.valueFlow.sample(50.milliseconds).onEach {
@@ -154,8 +176,8 @@ fun App() {
                     }.launchIn(scope)
                 }
 
+                //draw received data
                 scope.launch {
-
                     client.await().subscribe(DeviceManager.magixFormat).onEach { (magixMessage, deviceMessage) ->
                         if (deviceMessage is PropertyChangedMessage && deviceMessage.property == "position") {
                             val id = magixMessage.sourceEndpoint
@@ -169,6 +191,12 @@ fun App() {
                     }.launchIn(scope)
 
                 }
+
+                // draw trawler
+
+                trawler.position.valueFlow.onEach {
+                    circle(it, id = "trawler").color(Color.Black)
+                }.launchIn(scope)
             }
         }
         second(200.dp) {
