@@ -134,6 +134,11 @@ Automatically checks consistency.
 >
 > **Maturity**: PROTOTYPE
 
+### [controls-visualisation-compose](controls-visualisation-compose)
+> Visualisation extension using compose-multiplatform
+>
+> **Maturity**: PROTOTYPE
+
 ### [demo](demo)
 >
 > **Maturity**: EXPERIMENTAL
@@ -156,6 +161,10 @@ Automatically checks consistency.
 > **Maturity**: EXPERIMENTAL
 
 ### [demo/constructor](demo/constructor)
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/device-collective](demo/device-collective)
 >
 > **Maturity**: EXPERIMENTAL
 

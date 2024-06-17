@@ -6,7 +6,7 @@ ZMQ client endpoint for Magix
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:magix-zmq:0.4.0-dev-1`.
+The Maven coordinates of this project are `space.kscience:magix-zmq:0.4.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:magix-zmq:0.4.0-dev-1")
+    implementation("space.kscience:magix-zmq:0.4.0-dev-4")
 }
 ```

@@ -6,7 +6,7 @@ Magix endpoint (client) based on RSocket
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:magix-rsocket:0.4.0-dev-1`.
+The Maven coordinates of this project are `space.kscience:magix-rsocket:0.4.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:magix-rsocket:0.4.0-dev-1")
+    implementation("space.kscience:magix-rsocket:0.4.0-dev-4")
 }
 ```
