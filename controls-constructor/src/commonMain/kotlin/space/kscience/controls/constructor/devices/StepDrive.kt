@@ -22,6 +22,7 @@ import kotlin.time.DurationUnit
 public class StepDrive(
     context: Context,
     ticksPerSecond: MutableDeviceState<Double>,
+    position: MutableDeviceState<Long> = MutableDeviceState(0),
     target: MutableDeviceState<Long> = MutableDeviceState(0),
     private val writeTicks: suspend (ticks: Long, speed: Double) -> Unit = { _, _ -> },
 ) : DeviceConstructor(context) {
@@ -30,10 +31,7 @@ public class StepDrive(
 
     public val speed: MutableDeviceState<Double> by property(MetaConverter.double, ticksPerSecond)
 
-    private val positionState = stateOf(target.value)
-
-    public val position: DeviceState<Long> by property(MetaConverter.long, positionState)
-
+    public val position: DeviceState<Long> by property(MetaConverter.long, position)
 
     //FIXME round to zero problem
     private val ticker = onTimer(reads = setOf(target, position), writes = setOf(position)) { prev, next ->
@@ -46,7 +44,7 @@ public class StepDrive(
             else -> return@onTimer
         }
         writeTicks(steps, tickSpeed)
-        positionState.value += steps
+        position.value += steps
     }
 }
 
