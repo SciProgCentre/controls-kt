@@ -83,7 +83,7 @@ private suspend fun Plotter.square(xRange: IntRange, yRange: IntRange) {
 
 private val xRange = NumericalValue<Meters>(-0.5)..NumericalValue<Meters>(0.5)
 private val yRange = NumericalValue<Meters>(-0.5)..NumericalValue<Meters>(0.5)
-private val ticksPerSecond = MutableDeviceState(3000.0)
+private const val ticksPerSecond = 3000.0
 private val step = NumericalValue<Degrees>(1.8)
 
 
