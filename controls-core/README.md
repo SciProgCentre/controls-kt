@@ -16,7 +16,7 @@ Core interfaces for building a device server
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-core:0.4.0-dev-1`.
+The Maven coordinates of this project are `space.kscience:controls-core:0.4.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -26,6 +26,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-core:0.4.0-dev-1")
+    implementation("space.kscience:controls-core:0.4.0-dev-4")
 }
 ```

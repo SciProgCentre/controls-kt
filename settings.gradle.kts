@@ -87,5 +87,5 @@ include(
     ":demo:echo",
     ":demo:mks-pdr900",
     ":demo:constructor",
-    ":demo:devices-on-map"
+    ":demo:device-collective"
 )

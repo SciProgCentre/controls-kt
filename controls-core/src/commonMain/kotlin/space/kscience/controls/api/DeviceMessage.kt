@@ -73,7 +73,7 @@ public data class PropertySetMessage(
     public val property: String,
     public val value: Meta,
     override val sourceDevice: Name? = null,
-    override val targetDevice: Name,
+    override val targetDevice: Name?,
     override val comment: String? = null,
     @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
@@ -166,12 +166,18 @@ public data class ActionResultMessage(
 }
 
 /**
- * Notifies listeners that a new binary with given [binaryID] is available. The binary itself could not be provided via [DeviceMessage] API.
+ * Notifies listeners that a new binary with given [contentId] and [contentMeta] is available.
+ *
+ * [contentMeta] includes public information that could be shared with loop subscribers. It should not contain sensitive data.
+ *
+ * The binary itself could not be provided via [DeviceMessage] API.
+ * [space.kscience.controls.peer.PeerConnection] must be used instead
  */
 @Serializable
 @SerialName("binary.notification")
 public data class BinaryNotificationMessage(
-    val binaryID: String,
+    val contentId: String,
+    val contentMeta: Meta,
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,

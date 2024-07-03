@@ -1,6 +1,6 @@
 [versions]
 
-dataforge = "0.8.0"
+dataforge = "0.9.0"
 rsocket = "0.15.4"
 xodus = "2.0.1"
 
@@ -10,7 +10,7 @@ fazecast = "2.10.3"
 
 tornadofx = "1.7.20"
 
-plotlykt = "0.7.0"
+plotlykt = "0.7.2"
 
 logback = "1.2.11"
 
@@ -29,7 +29,7 @@ pi4j-ktx = "2.4.0"
 
 plc4j = "0.12.0"
 
-visionforge = "0.4.1"
+visionforge = "0.4.2"
 
 versions = "0.51.0"
 

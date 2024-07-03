@@ -68,7 +68,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
 
 /**
  * Process incoming [DeviceMessage], using hub naming to find target.
- * If the `targetDevice` is `null`, then message is sent to each device in this hub
+ * If the `targetDevice` is `null`, then the message is sent to each device in this hub
  */
 public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<DeviceMessage> {
     return try {

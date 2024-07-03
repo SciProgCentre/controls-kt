@@ -38,6 +38,7 @@ import space.kscience.dataforge.names.get
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.api.start
 import space.kscience.magix.server.magixModule
 
 
@@ -215,5 +216,6 @@ public fun Application.deviceManagerModule(
     plugins.forEach {
         it.start(this, magixFlow)
     }
+
     magixModule(magixFlow)
 }

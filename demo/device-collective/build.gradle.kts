@@ -13,6 +13,9 @@ kscience {
     commonMain {
         implementation(projects.controlsVisualisationCompose)
         implementation(projects.controlsConstructor)
+        implementation(projects.magix.magixServer)
+        implementation(projects.magix.magixRsocket)
+        implementation(projects.controlsMagix)
     }
     jvmMain {
 //        implementation("io.ktor:ktor-server-cio")
@@ -36,6 +39,6 @@ kotlin.explicitApi = ExplicitApiMode.Disabled
 
 compose.desktop {
     application {
-        mainClass = "space.kscience.controls.demo.map.MainKt"
+        mainClass = "space.kscience.controls.demo.collective.MainKt"
     }
 }

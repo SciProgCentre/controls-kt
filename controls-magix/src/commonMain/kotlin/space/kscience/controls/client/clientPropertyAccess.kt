@@ -19,9 +19,12 @@ import space.kscience.dataforge.meta.Meta
 public suspend fun <T> DeviceClient.read(propertySpec: DevicePropertySpec<*, T>): T =
     propertySpec.converter.readOrNull(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
-
 public suspend fun <T> DeviceClient.request(propertySpec: DevicePropertySpec<*, T>): T =
     propertySpec.converter.read(getOrReadProperty(propertySpec.name))
+
+public fun <T> DeviceClient.getCached(propertySpec: DevicePropertySpec<*, T>): T? =
+    getProperty(propertySpec.name)?.let { propertySpec.converter.read(it) }
+
 
 public suspend fun <T> DeviceClient.write(propertySpec: MutableDevicePropertySpec<*, T>, value: T) {
     writeProperty(propertySpec.name, propertySpec.converter.convert(value))

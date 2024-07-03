@@ -41,9 +41,10 @@ private object InstantConverter : MetaConverter<Instant> {
 public val MetaConverter.Companion.instant: MetaConverter<Instant> get() = InstantConverter
 
 private object DoubleRangeConverter : MetaConverter<ClosedFloatingPointRange<Double>> {
-    override fun readOrNull(source: Meta): ClosedFloatingPointRange<Double>? = source.value?.doubleArray?.let { (start, end)->
-        start..end
-    }
+    override fun readOrNull(source: Meta): ClosedFloatingPointRange<Double>? =
+        source.value?.doubleArray?.let { (start, end) ->
+            start..end
+        }
 
     override fun convert(
         obj: ClosedFloatingPointRange<Double>,
@@ -51,3 +52,11 @@ private object DoubleRangeConverter : MetaConverter<ClosedFloatingPointRange<Dou
 }
 
 public val MetaConverter.Companion.doubleRange: MetaConverter<ClosedFloatingPointRange<Double>> get() = DoubleRangeConverter
+
+private object StringListConverter : MetaConverter<List<String>> {
+    override fun convert(obj: List<String>): Meta = Meta(obj.map { it.asValue() }.asValue())
+
+    override fun readOrNull(source: Meta): List<String>? = source.stringList ?: source["@jsonArray"]?.stringList
+}
+
+public val MetaConverter.Companion.stringList: MetaConverter<List<String>> get() = StringListConverter

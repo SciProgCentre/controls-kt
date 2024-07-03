@@ -74,15 +74,16 @@ public fun <T, R> DeviceState.Companion.map(
 
 public fun <T, R> DeviceState<T>.map(mapper: (T) -> R): DeviceStateWithDependencies<R> = DeviceState.map(this, mapper)
 
-public fun DeviceState<NumericalValue<out UnitsOfMeasurement>>.values(): DeviceState<Double> = object : DeviceState<Double> {
-    override val value: Double
-        get() = this@values.value.value
+public fun DeviceState<NumericalValue<out UnitsOfMeasurement>>.values(): DeviceState<Double> =
+    object : DeviceState<Double> {
+        override val value: Double
+            get() = this@values.value.value
 
-    override val valueFlow: Flow<Double>
-        get() = this@values.valueFlow.map { it.value }
+        override val valueFlow: Flow<Double>
+            get() = this@values.valueFlow.map { it.value }
 
-    override fun toString(): String = this@values.toString()
-}
+        override fun toString(): String = this@values.toString()
+    }
 
 /**
  * Combine two device states into one read-only [DeviceState]. Only the latest value of each state is used.

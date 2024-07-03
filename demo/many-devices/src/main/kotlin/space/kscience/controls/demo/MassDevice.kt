@@ -83,8 +83,7 @@ suspend fun main() {
 
         val endpointId = "device$it"
         val deviceEndpoint = MagixEndpoint.rSocketStreamWithWebSockets("localhost")
-        deviceManager.launchMagixService(deviceEndpoint, endpointId, Dispatchers.IO)
-
+        deviceManager.launchMagixService(deviceEndpoint, endpointId)
     }
 
     val trace = Bar {

@@ -93,7 +93,7 @@ internal class RemoteDeviceConnect {
 
         val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager)
 
-        val remoteDevice = virtualMagixEndpoint.remoteDevice(context, "client", "device", "test".asName())
+        val remoteDevice: DeviceClient = virtualMagixEndpoint.remoteDevice(context, "client", "device", "test".asName())
 
         assertContains(0.0..1.0, remoteDevice.read(TestDevice.value))
 
