@@ -1,19 +1,29 @@
 package space.kscience.controls.demo.constructor
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.MaterialTheme
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
+import org.jetbrains.compose.splitpane.HorizontalSplitPane
+import space.kscience.controls.compose.*
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.devices.LimitSwitch
 import space.kscience.controls.constructor.devices.StepDrive
@@ -121,24 +131,30 @@ private class PlotterModel(
         context = context,
         xDrive = xDrive,
         yDrive = yDrive,
-        xStartLimit = LimitSwitch(context,x.atStart),
-        xEndLimit = LimitSwitch(context,x.atEnd),
-        yStartLimit = LimitSwitch(context,x.atStart),
-        yEndLimit = LimitSwitch(context,x.atEnd),
+        xStartLimit = LimitSwitch(context, x.atStart),
+        xEndLimit = LimitSwitch(context, x.atEnd),
+        yStartLimit = LimitSwitch(context, x.atStart),
+        yEndLimit = LimitSwitch(context, x.atEnd),
     ) { color ->
         println("Point X: ${x.value.value}, Y: ${y.value.value}, color: $color")
         callback(PlotterPoint(x.value, y.value, color))
     }
 }
 
+private val range = -1000..1000
+
+@OptIn(ExperimentalSplitPaneApi::class)
 suspend fun main() = application {
     Window(title = "Pid regulator simulator", onCloseRequest = ::exitApplication) {
         window.minimumSize = Dimension(400, 400)
 
-        val points = remember { mutableStateListOf<PlotterPoint>() }
-        var position by remember { mutableStateOf(XY<Meters>(0, 0)) }
+        val scope = rememberCoroutineScope()
 
-        LaunchedEffect(Unit) {
+        var updateJob: Job? = remember { null }
+
+        var points by remember { mutableStateOf<List<PlotterPoint>>(emptyList()) }
+
+        val plotterModel = remember {
             val context = Context {
                 plugin(DeviceManager)
                 plugin(ClockManager)
@@ -146,53 +162,81 @@ suspend fun main() = application {
 
             /* Here goes the device definition block */
 
-            val plotterModel = PlotterModel(context) { plotterPoint ->
-                points.add(plotterPoint)
+            PlotterModel(context) { plotterPoint ->
+                points += plotterPoint
             }
-
-            /* Start visualization program */
-
-            plotterModel.xy.valueFlow.onEach {
-                position = it
-            }.launchIn(this)
-
-            /* run program */
-
-
-            val range = -1000..1000
-//            plotterModel.plotter.modernArt(range, range)
-            plotterModel.plotter.square(range, range)
-
         }
-
 
         /* Here goes the visualization block */
 
         MaterialTheme {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                fun toOffset(x: NumericalValue<Meters>, y: NumericalValue<Meters>): Offset {
-                    val canvasX = (x - xRange.start) / (xRange.endInclusive - xRange.start) * size.width
-                    val canvasY = (y - yRange.start) / (yRange.endInclusive - yRange.start) * size.height
-                    return Offset(canvasX.toFloat(), canvasY.toFloat())
+            HorizontalSplitPane {
+                first(200.dp) {
+                    Column(modifier = Modifier.fillMaxHeight()) {
+                        Button({
+                            updateJob?.cancel()
+                            updateJob = scope.launch {
+                                plotterModel.plotter.square(range, range)
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Rectangle")
+                        }
+                        Button({
+                            updateJob?.cancel()
+                            updateJob = scope.launch {
+                                plotterModel.plotter.modernArt(range, range)
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Modern Art")
+                        }
+                        Button({
+                            updateJob?.cancel()
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Stop")
+                        }
+                    }
+
                 }
+                second {
+                    Device2DCanvas(modifier = Modifier.fillMaxSize()) {
+                        fun xToPx(x: NumericalValue<Meters>): Float =
+                            ((x - xRange.start) / (xRange.endInclusive - xRange.start) * size.width).toFloat()
 
-                val center = toOffset(position.x, position.y)
-
-
-                drawRect(
-                    Color.LightGray,
-                    topLeft = Offset(0f, center.y - 5f),
-                    size = Size(size.width, 10f)
-                )
-
-                drawCircle(Color.Black, radius = 10f, center = center)
+                        fun yToPx(y: NumericalValue<Meters>): Float =
+                            ((y - yRange.start) / (yRange.endInclusive - yRange.start) * size.height).toFloat()
 
 
-                points.forEach {
-                    drawCircle(it.color, radius = 2f, center = toOffset(it.x, it.y))
+                        fun toOffset(xy: XY<Meters>): Offset = Offset(xToPx(xy.x), yToPx(xy.y))
+
+                        observeState(plotterModel.y, "beam") { y ->
+                            RectangleDrawable2D(
+                                position = Offset(size.width / 2, yToPx(y)),
+                                rectangleSize = Size(size.width, 10f),
+                                color = Color.LightGray
+                            )
+                        }
+
+                        observeState(plotterModel.xy, "head") { xy ->
+                            CircleDrawable2D(
+                                position = toOffset(xy),
+                                radius = 10f,
+                                color = Color.Black
+                            )
+                        }
+
+                        snapshotFlow { points }.onEach {
+                            it.forEachIndexed { index, plotterPoint ->
+                                circle(
+                                    "point[$index]",
+                                    Offset(xToPx(plotterPoint.x), yToPx(plotterPoint.y)),
+                                    radius = 5f,
+                                    color = plotterPoint.color
+                                )
+                            }
+                        }.launchIn(scope)
+                    }
                 }
             }
         }
     }
-
 }

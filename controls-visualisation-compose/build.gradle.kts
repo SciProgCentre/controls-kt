@@ -18,25 +18,11 @@ kscience {
     useContextReceivers()
     commonMain {
         api(projects.controlsConstructor)
-        api("io.github.koalaplot:koalaplot-core:0.6.0")
-    }
-}
-
-kotlin {
-    sourceSets {
-        commonMain {
-            dependencies {
-                api(compose.foundation)
-                api(compose.material3)
-                @OptIn(ExperimentalComposeLibrary::class)
-                api(compose.desktop.components.splitPane)
-            }
-        }
-//        jvmMain {
-//            dependencies {
-//                implementation(compose.desktop.currentOs)
-//            }
-//        }
+        api(libs.koala.plots)
+        api(compose.foundation)
+        api(compose.material3)
+        @OptIn(ExperimentalComposeLibrary::class)
+        api(compose.desktop.components.splitPane)
     }
 }
 

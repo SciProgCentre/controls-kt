@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.emptyFlow
  */
 private class VirtualDeviceState<T>(
     initialValue: T,
-    private val callback: (T) -> Unit = {},
+    private val callback: (T) -> Unit = {}
 ) : MutableDeviceState<T> {
     private val flow = MutableStateFlow(initialValue)
     override val valueFlow: Flow<T> get() = flow
@@ -34,7 +34,7 @@ private class VirtualDeviceState<T>(
  */
 public fun <T> MutableDeviceState(
     initialValue: T,
-    callback: (T) -> Unit = {},
+    callback: (T) -> Unit = {}
 ): MutableDeviceState<T> = VirtualDeviceState(initialValue, callback)
 
 

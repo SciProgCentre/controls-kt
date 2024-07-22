@@ -8,6 +8,7 @@
 - Shortcuts to access all Controls devices in a magix network.
 - `DeviceClient` properly evaluates lifecycle and logs
 - `PeerConnection` API for direct device-device binary sharing
+- DeviceDrawable2D intermediate visualization implementation
 
 ### Changed
 - Constructor properties return `DeviceState` in order to be able to subscribe to them

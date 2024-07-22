@@ -37,8 +37,8 @@ kotlin{
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjvm-default=all")
     }
 }
 
