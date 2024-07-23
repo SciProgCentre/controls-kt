@@ -14,7 +14,7 @@ import space.kscience.dataforge.context.Context
 
 
 /**
- * Virtual [LimitSwitch]
+ * A device that detects if a motor hits the end of its range
  */
 public class LimitSwitch(
     context: Context,

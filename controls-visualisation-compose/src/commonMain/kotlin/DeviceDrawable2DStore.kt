@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.toSize
@@ -24,11 +25,11 @@ public class DeviceDrawable2DStore(public val scope: CoroutineScope, public val 
     public val drawableFlow: MutableStateFlow<Map<String, DeviceDrawable2D>> = MutableStateFlow(emptyMap())
 }
 
-public fun DeviceDrawable2DStore.emit(id: String, drawable2D: DeviceDrawable2D){
+public fun DeviceDrawable2DStore.emit(id: String, drawable2D: DeviceDrawable2D) {
     drawableFlow.value += (id to drawable2D)
 }
 
-public fun DeviceDrawable2DStore.emitAll(drawables: Map<String, DeviceDrawable2D>){
+public fun DeviceDrawable2DStore.emitAll(drawables: Map<String, DeviceDrawable2D>) {
     drawableFlow.value += drawables
 }
 
@@ -62,6 +63,7 @@ public fun <T, D : Device, P : DevicePropertySpec<D, T>> DeviceDrawable2DStore.o
 @Composable
 public fun Device2DCanvas(
     modifier: Modifier = Modifier,
+    onDraw: DrawScope.() -> Unit = {},
     flowBuilder: suspend DeviceDrawable2DStore.() -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -85,6 +87,7 @@ public fun Device2DCanvas(
                 drawables.values.forEach {
                     with(it) { draw() }
                 }
+                onDraw()
             }
         }
     }
