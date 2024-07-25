@@ -31,8 +31,6 @@ plc4j = "0.12.0"
 
 visionforge = "0.4.2"
 
-versions = "0.51.0"
-
 [libraries]
 
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
@@ -89,4 +87,5 @@ koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.6.1"
 
 [plugins]
 
-versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
+versions = "com.github.ben-manes.versions:0.51.0"
+versions-update = "nl.littlerobots.version-catalog-update:0.8.4"

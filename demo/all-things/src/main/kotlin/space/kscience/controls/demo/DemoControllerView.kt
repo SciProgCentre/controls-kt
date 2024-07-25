@@ -82,22 +82,24 @@ class DemoController : ContextAware {
         opcUaServer.startup()
         opcUaServer.serveDevices(deviceManager)
 
-
+        //create a remote listener endpoint
         val listenerEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
+        // subscribe remote endpoint
         listenerEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, deviceMessage) ->
             // print all messages that are not property change message
             if (deviceMessage !is PropertyChangedMessage) {
                 println(">> ${json.encodeToString(MagixMessage.serializer(), magixMessage)}")
             }
         }.launchIn(this)
+
+        // send description request
         listenerEndpoint.send(
             format = DeviceManager.magixFormat,
             payload = GetDescriptionMessage(),
             source = "listener",
 //            target = "demoDevice"
         )
-
     }
 
     fun shutdown(): Job = context.launch {

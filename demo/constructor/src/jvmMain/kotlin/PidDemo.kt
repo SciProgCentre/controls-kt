@@ -19,10 +19,13 @@ import io.github.koalaplot.core.util.toString
 import io.github.koalaplot.core.xygraph.XYGraph
 import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.Instant
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.compose.NumberTextField
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
@@ -39,11 +42,9 @@ import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Meters
 import space.kscience.controls.constructor.units.NumericalValue
-import space.kscience.controls.manager.ClockManager
-import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.clock
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.request
 import java.awt.Dimension
 import kotlin.math.PI
 import kotlin.math.sin
@@ -165,6 +166,15 @@ fun main() = application {
 
     //bind pid parameters
     LaunchedEffect(Unit) {
+
+        // start listening to local device hub
+        context.request(DeviceManager).hubMessageFlow()
+            .filterIsInstance<PropertyChangedMessage>() // filter only property change messages
+            //.filter { it.sourceDevice == "linearDrive".asName()} //optionally filter by device name
+            .onEach {
+                println("${it.sourceDevice} >> ${it.property} changed to ${it.value}")
+            }.launchIn(this)
+
         snapshotFlow {
             pidParameters
         }.onEach {
