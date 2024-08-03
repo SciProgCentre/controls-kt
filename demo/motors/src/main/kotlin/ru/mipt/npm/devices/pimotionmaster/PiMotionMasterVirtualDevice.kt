@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.AsynchronousSocket
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.ports.AbstractAsynchronousPort
 import space.kscience.controls.ports.withDelimiter
 import space.kscience.dataforge.context.*
@@ -48,10 +49,10 @@ abstract class VirtualDevice(val scope: CoroutineScope) : AsynchronousSocket<Byt
         respond(response())
     }
 
-    override val isOpen: Boolean
-        get() = scope.isActive
+    override val lifecycleState: LifecycleState
+        get() = if(scope.isActive) LifecycleState.STARTED else LifecycleState.STOPPED
 
-    override fun close() = scope.cancel()
+    override suspend fun stop() = scope.cancel()
 }
 
 class VirtualPort(private val device: VirtualDevice, context: Context) : AbstractAsynchronousPort(context, Meta.EMPTY) {
@@ -72,12 +73,12 @@ class VirtualPort(private val device: VirtualDevice, context: Context) : Abstrac
         device.send(data)
     }
 
-    override val isOpen: Boolean
-        get() = respondJob?.isActive == true
+    override val lifecycleState: LifecycleState
+        get() = if(respondJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
-    override fun close() {
+    override suspend fun stop() {
         respondJob?.cancel()
-        super.close()
+        super.stop()
     }
 }
 
@@ -88,7 +89,7 @@ class PiMotionMasterVirtualDevice(
     scope: CoroutineScope = context,
 ) : VirtualDevice(scope), ContextAware {
 
-    override fun open() {
+    override suspend fun start() {
         //add asynchronous send logic here
     }
 

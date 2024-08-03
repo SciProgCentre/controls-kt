@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.Serializable
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
@@ -16,39 +15,12 @@ import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.parseAsName
 
 /**
- * A lifecycle state of a device
- */
-@Serializable
-public enum class DeviceLifecycleState {
-
-    /**
-     * Device is initializing
-     */
-    STARTING,
-
-    /**
-     * The Device is initialized and running
-     */
-    STARTED,
-
-    /**
-     * The Device is closed
-     */
-    STOPPED,
-
-    /**
-     * The device encountered irrecoverable error
-     */
-    ERROR
-}
-
-/**
  *  General interface describing a managed Device.
  *  [Device] is a supervisor scope encompassing all operations on a device.
  *  When canceled, cancels all running processes.
  */
 @DfType(DEVICE_TARGET)
-public interface Device : ContextAware, CoroutineScope {
+public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
 
     /**
      * Initial configuration meta for the device
@@ -94,17 +66,15 @@ public interface Device : ContextAware, CoroutineScope {
      * Initialize the device. This function suspends until the device is finished initialization.
      * Does nothing if the device is started or is starting
      */
-    public suspend fun start(): Unit = Unit
+    override suspend fun start(): Unit = Unit
 
     /**
      * Close and terminate the device. This function does not wait for the device to be closed.
      */
-    public suspend fun stop() {
+    override suspend fun stop() {
         coroutineContext[Job]?.cancel("The device is closed")
         logger.info { "Device $this is closed" }
     }
-
-    public val lifecycleState: DeviceLifecycleState
 
     public companion object {
         public const val DEVICE_TARGET: String = "device"
@@ -114,7 +84,7 @@ public interface Device : ContextAware, CoroutineScope {
 /**
  * Inner id of a device. Not necessary corresponds to the name in the parent container
  */
-public val Device.id: String get() = meta["id"].string?: "device[${hashCode().toString(16)}]"
+public val Device.id: String get() = meta["id"].string ?: "device[${hashCode().toString(16)}]"
 
 /**
  * Device that caches properties values
@@ -167,3 +137,12 @@ public fun Device.onPropertyChange(
 public fun Device.propertyMessageFlow(propertyName: String): Flow<PropertyChangedMessage> = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == propertyName }
+
+/**
+ * React on device lifecycle events
+ */
+public fun Device.onLifecycleEvent(
+    block: suspend (LifecycleState) -> Unit
+): Job = messageFlow.filterIsInstance<DeviceLifeCycleMessage>().onEach {
+    block(it.state)
+}.launchIn(this)

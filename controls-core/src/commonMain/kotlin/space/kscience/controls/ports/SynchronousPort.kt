@@ -7,6 +7,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
+import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.WithLifeCycle
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 
@@ -14,11 +16,7 @@ import space.kscience.dataforge.context.ContextAware
  * A port handler for synchronous (request-response) communication with a port.
  * Only one request could be active at a time (others are suspended).
  */
-public interface SynchronousPort : ContextAware, AutoCloseable {
-
-    public fun open()
-
-    public val isOpen: Boolean
+public interface SynchronousPort : ContextAware, WithLifeCycle {
 
     /**
      * Send a single message and wait for the flow of response chunks.
@@ -71,14 +69,14 @@ private class SynchronousOverAsynchronousPort(
 
     override val context: Context get() = port.context
 
-    override fun open() {
-        if (!port.isOpen) port.open()
+    override suspend fun start() {
+        if (port.lifecycleState == LifecycleState.STOPPED) port.start()
     }
 
-    override val isOpen: Boolean get() = port.isOpen
+    override val lifecycleState: LifecycleState get() = port.lifecycleState
 
-    override fun close() {
-        if (port.isOpen) port.close()
+    override suspend fun stop() {
+        if (port.lifecycleState == LifecycleState.STARTED) port.stop()
     }
 
     override suspend fun <R> respond(

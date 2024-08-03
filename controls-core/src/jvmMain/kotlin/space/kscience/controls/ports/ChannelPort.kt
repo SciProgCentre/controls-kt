@@ -1,6 +1,7 @@
 package space.kscience.controls.ports
 
 import kotlinx.coroutines.*
+import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import java.net.InetSocketAddress
@@ -30,7 +31,7 @@ public class ChannelPort(
     meta: Meta,
     coroutineContext: CoroutineContext = context.coroutineContext,
     channelBuilder: suspend () -> ByteChannel,
-) : AbstractAsynchronousPort(context, meta, coroutineContext), AutoCloseable {
+) : AbstractAsynchronousPort(context, meta, coroutineContext) {
 
     /**
      * A handler to await port connection
@@ -41,7 +42,8 @@ public class ChannelPort(
 
     private var listenerJob: Job? = null
 
-    override val isOpen: Boolean get() = listenerJob?.isActive == true
+    override val lifecycleState: LifecycleState
+        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
     override fun onOpen() {
         listenerJob = scope.launch(Dispatchers.IO) {
@@ -71,12 +73,12 @@ public class ChannelPort(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun close() {
+    override suspend fun stop() {
         listenerJob?.cancel()
         if (futureChannel.isCompleted) {
             futureChannel.getCompleted().close()
         }
-        super.close()
+        super.stop()
     }
 }
 
@@ -105,12 +107,12 @@ public object TcpPort : Factory<AsynchronousPort> {
     /**
      * Create and open TCP port
      */
-    public fun open(
+    public suspend fun start(
         context: Context,
         host: String,
         port: Int,
         coroutineContext: CoroutineContext = context.coroutineContext,
-    ): ChannelPort = build(context, host, port, coroutineContext).apply { open() }
+    ): ChannelPort = build(context, host, port, coroutineContext).apply { start() }
 
     override fun build(context: Context, meta: Meta): ChannelPort {
         val host = meta["host"].string ?: "localhost"
@@ -156,13 +158,13 @@ public object UdpPort : Factory<AsynchronousPort> {
     /**
      * Connect a datagram channel to a remote host/port. If [localPort] is provided, it is used to bind local port for receiving messages.
      */
-    public fun open(
+    public suspend fun start(
         context: Context,
         remoteHost: String,
         remotePort: Int,
         localPort: Int? = null,
         localHost: String = "localhost",
-    ): ChannelPort = build(context, remoteHost, remotePort, localPort, localHost).apply { open() }
+    ): ChannelPort = build(context, remoteHost, remotePort, localPort, localHost).apply { start() }
 
 
     override fun build(context: Context, meta: Meta): ChannelPort {

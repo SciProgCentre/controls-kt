@@ -5,6 +5,7 @@ import com.pi4j.io.serial.Serial
 import com.pi4j.io.serial.SerialConfigBuilder
 import com.pi4j.ktx.io.serial
 import kotlinx.coroutines.*
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.ports.AbstractAsynchronousPort
 import space.kscience.controls.ports.AsynchronousPort
 import space.kscience.controls.ports.copyToArray
@@ -49,9 +50,10 @@ public class AsynchronousPiPort(
     }
 
 
-    override val isOpen: Boolean get() = listenerJob?.isActive == true
+    override val lifecycleState: LifecycleState
+        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
-    override fun close() {
+    override suspend fun stop() {
         listenerJob?.cancel()
         serial.close()
     }
@@ -74,11 +76,11 @@ public class AsynchronousPiPort(
             return AsynchronousPiPort(context, meta, serial)
         }
 
-        public fun open(
+        public suspend fun start(
             context: Context,
             device: String,
             block: SerialConfigBuilder.() -> Unit,
-        ): AsynchronousPiPort = build(context, device, block).apply { open() }
+        ): AsynchronousPiPort = build(context, device, block).apply { start() }
 
         override fun build(context: Context, meta: Meta): AsynchronousPort {
             val device: String = meta["device"].string ?: error("Device name not defined")

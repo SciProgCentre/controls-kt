@@ -168,7 +168,7 @@ class PiMotionMasterDevice(
             }
             //Update port
             //address = portSpec.node
-            port = portFactory(portSpec, context).apply { open() }
+            port = portFactory(portSpec, context).apply { start() }
 //        connector.open()
             //Initialize axes
             val idn = read(identity)
@@ -190,7 +190,7 @@ class PiMotionMasterDevice(
         }) {
             port?.let {
                 execute(stop)
-                it.close()
+                it.stop()
             }
             port = null
             propertyChanged(connected, false)

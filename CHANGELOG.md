@@ -9,6 +9,7 @@
 - `DeviceClient` properly evaluates lifecycle and logs
 - `PeerConnection` API for direct device-device binary sharing
 - DeviceDrawable2D intermediate visualization implementation
+- New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
 - Constructor properties return `DeviceState` in order to be able to subscribe to them
@@ -16,6 +17,8 @@
 - `DeviceClient` now initializes property and action descriptors eagerly.
 - `DeviceHub` now works with `Name` instead of `NameToken`. Tree-like structure is made using `Path`. Device messages no longer have access to sub-devices.
 - Add some utility methods to ports. Synchronous port response could be now consumed as `Source`.
+- `DeviceLifecycleState` is replaced by `LifecycleState`.
+
 
 ### Deprecated
 

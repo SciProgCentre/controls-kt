@@ -29,8 +29,8 @@ internal class AsynchronousPortIOTest {
 
     @Test
     fun testUdpCommunication() = runTest {
-        val receiver = UdpPort.open(Global, "localhost", 8811, localPort = 8812)
-        val sender = UdpPort.open(Global, "localhost", 8812, localPort = 8811)
+        val receiver = UdpPort.start(Global, "localhost", 8811, localPort = 8812)
+        val sender = UdpPort.start(Global, "localhost", 8812, localPort = 8811)
 
         delay(30)
         repeat(10) {
@@ -44,7 +44,7 @@ internal class AsynchronousPortIOTest {
             .toList()
 
         assertEquals("Line number 3", res[3].trim())
-        receiver.close()
-        sender.close()
+        receiver.stop()
+        sender.stop()
     }
 }

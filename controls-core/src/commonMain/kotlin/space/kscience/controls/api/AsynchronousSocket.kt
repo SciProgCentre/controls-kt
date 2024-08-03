@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * A generic bidirectional asynchronous sender/receiver object
  */
-public interface AsynchronousSocket<T> : AutoCloseable {
+public interface AsynchronousSocket<T> : WithLifeCycle {
     /**
      * Send an object to the socket
      */
@@ -15,16 +15,6 @@ public interface AsynchronousSocket<T> : AutoCloseable {
      * Flow of objects received from socket
      */
     public fun subscribe(): Flow<T>
-
-    /**
-     * Start socket operation
-     */
-    public fun open()
-
-    /**
-     * Check if this socket is open
-     */
-    public val isOpen: Boolean
 }
 
 /**

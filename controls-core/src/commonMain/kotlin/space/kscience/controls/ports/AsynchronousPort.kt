@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.io.Source
 import space.kscience.controls.api.AsynchronousSocket
+import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
@@ -65,8 +66,8 @@ public abstract class AbstractAsynchronousPort(
 
     protected abstract fun onOpen()
 
-    final override fun open() {
-        if (!isOpen) {
+    final override suspend fun start() {
+        if (lifecycleState == LifecycleState.STOPPED) {
             sendJob = scope.launch {
                 for (data in outgoing) {
                     try {
@@ -80,7 +81,7 @@ public abstract class AbstractAsynchronousPort(
             }
             onOpen()
         } else {
-            logger.warn { "$this already opened" }
+            logger.warn { "$this already started" }
         }
     }
 
@@ -89,7 +90,7 @@ public abstract class AbstractAsynchronousPort(
      * Send a data packet via the port
      */
     override suspend fun send(data: ByteArray) {
-        check(isOpen) { "The port is not opened" }
+        check(lifecycleState == LifecycleState.STARTED) { "The port is not opened" }
         outgoing.send(data)
     }
 
@@ -100,7 +101,7 @@ public abstract class AbstractAsynchronousPort(
      */
     override fun subscribe(): Flow<ByteArray> = incoming.receiveAsFlow()
 
-    override fun close() {
+    override suspend fun stop() {
         outgoing.close()
         incoming.close()
         sendJob?.cancel()

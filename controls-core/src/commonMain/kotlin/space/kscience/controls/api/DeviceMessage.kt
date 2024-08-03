@@ -240,7 +240,7 @@ public data class DeviceErrorMessage(
 @Serializable
 @SerialName("lifecycle")
 public data class DeviceLifeCycleMessage(
-    val state: DeviceLifecycleState,
+    val state: LifecycleState,
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,

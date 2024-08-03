@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.ports.SynchronousPort
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -28,16 +29,17 @@ public class SynchronousSerialPort(
     override fun toString(): String = "port[${comPort.descriptivePortName}]"
 
 
-    override fun open() {
-        if (!isOpen) {
+    override suspend fun start() {
+        if (!comPort.isOpen) {
             comPort.openPort()
         }
     }
 
-    override val isOpen: Boolean get() = comPort.isOpen
+    override val lifecycleState: LifecycleState
+        get() = if(comPort.isOpen) LifecycleState.STARTED else LifecycleState.STOPPED
 
 
-    override fun close() {
+    override suspend fun stop() {
         if (comPort.isOpen) {
             comPort.closePort()
         }
@@ -52,7 +54,7 @@ public class SynchronousSerialPort(
         comPort.flushIOBuffers()
         comPort.writeBytes(request, request.size)
         flow<ByteArray> {
-            while (isOpen) {
+            while (comPort.isOpen) {
                 try {
                     val available = comPort.bytesAvailable()
                     if (available > 0) {
@@ -108,7 +110,7 @@ public class SynchronousSerialPort(
         /**
          * Construct ComPort with given parameters
          */
-        public fun open(
+        public suspend fun start(
             context: Context,
             portName: String,
             baudRate: Int = 9600,
@@ -124,7 +126,7 @@ public class SynchronousSerialPort(
             stopBits = stopBits,
             parity = parity,
             additionalConfig = additionalConfig
-        ).apply { open() }
+        ).apply { start() }
 
 
         override fun build(context: Context, meta: Meta): SynchronousPort {

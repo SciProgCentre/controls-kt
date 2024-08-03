@@ -6,9 +6,9 @@ import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.consumeEachBufferRange
-import io.ktor.utils.io.core.Closeable
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
+import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
@@ -25,7 +25,7 @@ public class KtorTcpPort internal constructor(
     public val port: Int,
     coroutineContext: CoroutineContext = context.coroutineContext,
     socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
-) : AbstractAsynchronousPort(context, meta, coroutineContext), Closeable {
+) : AbstractAsynchronousPort(context, meta, coroutineContext) {
 
     override fun toString(): String = "port[tcp:$host:$port]"
 
@@ -55,13 +55,13 @@ public class KtorTcpPort internal constructor(
         writeChannel.await().writeAvailable(data)
     }
 
-    override val isOpen: Boolean
-        get() = listenerJob?.isActive == true
+    override val lifecycleState: LifecycleState
+        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
-    override fun close() {
+    override suspend fun stop() {
         listenerJob?.cancel()
         futureSocket.cancel()
-        super.close()
+        super.stop()
     }
 
     public companion object : Factory<AsynchronousPort> {
@@ -82,13 +82,13 @@ public class KtorTcpPort internal constructor(
             return KtorTcpPort(context, meta, host, port, coroutineContext, socketOptions)
         }
 
-        public fun open(
+        public suspend fun start(
             context: Context,
             host: String,
             port: Int,
             coroutineContext: CoroutineContext = context.coroutineContext,
             socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
-        ): KtorTcpPort = build(context, host, port, coroutineContext, socketOptions).apply { open() }
+        ): KtorTcpPort = build(context, host, port, coroutineContext, socketOptions).apply { start() }
 
         override fun build(context: Context, meta: Meta): AsynchronousPort {
             val host = meta["host"].string ?: "localhost"

@@ -3,7 +3,7 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
-import space.kscience.controls.api.DeviceLifecycleState.*
+import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
@@ -165,11 +165,11 @@ public open class DeviceGroup(
         return action(argument)
     }
 
-    final override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
+    final override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
 
 
-    private suspend fun setLifecycleState(lifecycleState: DeviceLifecycleState) {
+    private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
         sharedMessageFlow.emit(
             DeviceLifeCycleMessage(lifecycleState)

@@ -99,9 +99,9 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
         val error by logicalProperty(MetaConverter.string)
 
 
-        override fun MksPdr900Device.onClose() {
+        override suspend fun MksPdr900Device.onClose() {
             if (portDelegate.isInitialized()) {
-                port.close()
+                port.stop()
             }
         }
     }

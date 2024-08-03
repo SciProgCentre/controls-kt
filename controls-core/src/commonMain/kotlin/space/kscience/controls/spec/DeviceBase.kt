@@ -72,7 +72,6 @@ public abstract class DeviceBase<D : Device>(
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
                 CoroutineName("Device $id") +
@@ -188,11 +187,11 @@ public abstract class DeviceBase<D : Device>(
         return spec.executeWithMeta(self, argument ?: Meta.EMPTY)
     }
 
-    final override var lifecycleState: DeviceLifecycleState = DeviceLifecycleState.STOPPED
+    final override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
 
 
-    private suspend fun setLifecycleState(lifecycleState: DeviceLifecycleState) {
+    private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
         sharedMessageFlow.emit(
             DeviceLifeCycleMessage(lifecycleState)
@@ -204,11 +203,11 @@ public abstract class DeviceBase<D : Device>(
     }
 
     final override suspend fun start() {
-        if (lifecycleState == DeviceLifecycleState.STOPPED) {
+        if (lifecycleState == LifecycleState.STOPPED) {
             super.start()
-            setLifecycleState(DeviceLifecycleState.STARTING)
+            setLifecycleState(LifecycleState.STARTING)
             onStart()
-            setLifecycleState(DeviceLifecycleState.STARTED)
+            setLifecycleState(LifecycleState.STARTED)
         } else {
             logger.debug { "Device $this is already started" }
         }
@@ -220,7 +219,7 @@ public abstract class DeviceBase<D : Device>(
 
     final override suspend fun stop() {
         onStop()
-        setLifecycleState(DeviceLifecycleState.STOPPED)
+        setLifecycleState(LifecycleState.STOPPED)
         super.stop()
     }
 

@@ -99,10 +99,10 @@ public class DeviceClient internal constructor(
     }
 
     private val lifecycleStateFlow = messageFlow.filterIsInstance<DeviceLifeCycleMessage>()
-        .map { it.state }.stateIn(this, started = SharingStarted.Eagerly, DeviceLifecycleState.STARTED)
+        .map { it.state }.stateIn(this, started = SharingStarted.Eagerly, LifecycleState.STARTED)
 
     @DFExperimental
-    override val lifecycleState: DeviceLifecycleState get() = lifecycleStateFlow.value
+    override val lifecycleState: LifecycleState get() = lifecycleStateFlow.value
 }
 
 /**

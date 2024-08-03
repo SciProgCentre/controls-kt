@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceLifeCycleMessage
-import space.kscience.controls.api.DeviceLifecycleState
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.doRecurring
@@ -37,7 +37,7 @@ class DeviceGroupTest {
             }
             error("Error!")
         }
-        testDevice.messageFlow.first { it is DeviceLifeCycleMessage && it.state == DeviceLifecycleState.STOPPED }
+        testDevice.messageFlow.first { it is DeviceLifeCycleMessage && it.state == LifecycleState.STOPPED }
         println("stopped")
     }
 }

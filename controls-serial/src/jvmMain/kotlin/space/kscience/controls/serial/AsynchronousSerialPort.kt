@@ -5,6 +5,7 @@ import com.fazecast.jSerialComm.SerialPortDataListener
 import com.fazecast.jSerialComm.SerialPortEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.ports.AbstractAsynchronousPort
 import space.kscience.controls.ports.AsynchronousPort
 import space.kscience.dataforge.context.Context
@@ -55,18 +56,20 @@ public class AsynchronousSerialPort(
         comPort.addDataListener(serialPortListener)
     }
 
-    override val isOpen: Boolean get() = comPort.isOpen
+    override val lifecycleState: LifecycleState
+        get() = if(comPort.isOpen) LifecycleState.STARTED else LifecycleState.STOPPED
+
 
     override suspend fun write(data: ByteArray) {
         comPort.writeBytes(data, data.size)
     }
 
-    override fun close() {
+    override suspend fun stop() {
         comPort.removeDataListener()
         if (comPort.isOpen) {
             comPort.closePort()
         }
-        super.close()
+        super.stop()
     }
 
     public companion object : Factory<AsynchronousPort> {
@@ -100,7 +103,7 @@ public class AsynchronousSerialPort(
         /**
          * Construct ComPort with given parameters
          */
-        public fun open(
+        public suspend fun start(
             context: Context,
             portName: String,
             baudRate: Int = 9600,
@@ -118,7 +121,7 @@ public class AsynchronousSerialPort(
             parity = parity,
             coroutineContext = coroutineContext,
             additionalConfig = additionalConfig
-        ).apply { open() }
+        ).apply { start() }
 
 
         override fun build(context: Context, meta: Meta): AsynchronousPort {

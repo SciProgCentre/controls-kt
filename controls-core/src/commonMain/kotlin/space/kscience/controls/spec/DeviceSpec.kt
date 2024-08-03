@@ -33,7 +33,7 @@ public abstract class DeviceSpec<D : Device> {
     public open suspend fun D.onOpen() {
     }
 
-    public open fun D.onClose() {
+    public open suspend fun D.onClose() {
     }
 
 

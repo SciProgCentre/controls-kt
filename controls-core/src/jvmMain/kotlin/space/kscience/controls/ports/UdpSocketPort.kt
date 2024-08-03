@@ -1,6 +1,7 @@
 package space.kscience.controls.ports
 
 import kotlinx.coroutines.*
+import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import java.net.DatagramPacket
@@ -39,13 +40,13 @@ public class UdpSocketPort(
         }
     }
 
-    override fun close() {
+    override suspend fun stop() {
         listenerJob?.cancel()
-        super.close()
+        super.stop()
     }
 
-    override val isOpen: Boolean get() = listenerJob?.isActive == true
-
+    override val lifecycleState: LifecycleState
+        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
     override suspend fun write(data: ByteArray): Unit = withContext(Dispatchers.IO) {
         val packet = DatagramPacket(

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.ports.SynchronousPort
 import space.kscience.controls.ports.copyToArray
 import space.kscience.dataforge.context.*
@@ -27,11 +28,13 @@ public class SynchronousPiPort(
 ) : SynchronousPort {
 
     private val pi = context.request(PiPlugin)
-    override fun open() {
+
+    override suspend fun start() {
         serial.open()
     }
 
-    override val isOpen: Boolean get() = serial.isOpen
+    override val lifecycleState: LifecycleState
+        get() = if(serial.isOpen) LifecycleState.STARTED else LifecycleState.STOPPED
 
     override suspend fun <R> respond(
         request: ByteArray,
@@ -41,7 +44,7 @@ public class SynchronousPiPort(
         serial.write(request)
         flow<ByteArray> {
             val buffer = ByteBuffer.allocate(1024)
-            while (isOpen) {
+            while (serial.isOpen) {
                 try {
                     val num = serial.read(buffer)
                     if (num > 0) {
@@ -64,7 +67,7 @@ public class SynchronousPiPort(
         }
     }
 
-    override fun close() {
+    override suspend fun stop() {
         serial.close()
     }
 
@@ -86,11 +89,11 @@ public class SynchronousPiPort(
             return SynchronousPiPort(context, meta, serial)
         }
 
-        public fun open(
+        public suspend fun start(
             context: Context,
             device: String,
             block: SerialConfigBuilder.() -> Unit,
-        ): SynchronousPiPort = build(context, device, block).apply { open() }
+        ): SynchronousPiPort = build(context, device, block).apply { start() }
 
         override fun build(context: Context, meta: Meta): SynchronousPiPort {
             val device: String = meta["device"].string ?: error("Device name not defined")
