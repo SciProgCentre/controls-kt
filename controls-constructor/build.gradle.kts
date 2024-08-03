@@ -10,6 +10,8 @@ description = """
 kscience{
     jvm()
     js()
+    native()
+    wasm()
     useCoroutines()
     useSerialization()
     commonMain {

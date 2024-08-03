@@ -13,6 +13,7 @@ kscience {
     jvm()
     js()
     native()
+    wasm()
     useCoroutines()
     useSerialization{
         json()
