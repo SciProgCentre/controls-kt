@@ -52,6 +52,7 @@ dependencyResolutionManagement {
 }
 
 include(
+    ":simulation-kt",
     ":controls-core",
     ":controls-ports-ktor",
     ":controls-serial",
