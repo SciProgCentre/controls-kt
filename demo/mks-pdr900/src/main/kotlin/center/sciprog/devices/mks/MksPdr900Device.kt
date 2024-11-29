@@ -88,15 +88,15 @@ class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Devi
 
         override fun build(context: Context, meta: Meta): MksPdr900Device = MksPdr900Device(context, meta)
 
-        val powerOn by booleanProperty(read = { readPowerOn() }, write = { _, value -> writePowerOn(value) })
+        val powerOn by mutableBooleanProperty(read = { readPowerOn() }, write = { _, value -> writePowerOn(value) })
 
-        val channel by logicalProperty(MetaConverter.int)
+        val channel by property(MetaConverter.int)
 
         val value by doubleProperty(read = {
             readChannelData(getOrRead(channel))
         })
 
-        val error by logicalProperty(MetaConverter.string)
+        val error by property(MetaConverter.string)
 
 
         override suspend fun MksPdr900Device.onClose() {

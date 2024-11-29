@@ -23,8 +23,6 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -238,7 +236,7 @@ class PiMotionMasterDevice(
             private fun axisBooleanProperty(
                 command: String,
                 descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-            ) = booleanProperty(
+            ) = mutableBooleanProperty(
                 read = {
                     readAxisBoolean("$command?")
                 },
@@ -251,7 +249,7 @@ class PiMotionMasterDevice(
             private fun axisNumberProperty(
                 command: String,
                 descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-            ) = doubleProperty(
+            ) = mutableDoubleProperty(
                 read = {
                     mm.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
                         ?: error("Malformed $command response. Should include float value for $axisId")
