@@ -29,7 +29,7 @@ public class AsynchronousSerialPort(
 
     private val serialPortListener = object : SerialPortDataListener {
         override fun getListeningEvents(): Int =
-            SerialPort.LISTENING_EVENT_DATA_RECEIVED and SerialPort.LISTENING_EVENT_DATA_AVAILABLE
+            SerialPort.LISTENING_EVENT_DATA_RECEIVED or SerialPort.LISTENING_EVENT_DATA_AVAILABLE
 
         override fun serialEvent(event: SerialPortEvent) {
             when (event.eventType) {

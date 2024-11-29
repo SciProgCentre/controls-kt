@@ -11,6 +11,8 @@ import space.kscience.dataforge.names.asName
 
 public class SerialPortPlugin : AbstractPlugin() {
 
+    public val ports: Ports by require(Ports)
+
     override val tag: PluginTag get() = Companion.tag
 
     override fun content(target: String): Map<Name, Any> = when (target) {
