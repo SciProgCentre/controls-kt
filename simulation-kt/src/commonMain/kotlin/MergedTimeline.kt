@@ -1,14 +1,15 @@
 package space.kscience.simulation
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 
 public class MergedTimeline<E : TimelineEvent>(
-    timelineScope: CoroutineScope,
-    private val timelines: List<Timeline<E>>
-) : AbstractTimeline<E>(timelineScope, timelines.minOf { it.time.value }) {
+    private val timelines: List<Timeline<E>>,
+    coroutineContext: CoroutineContext = EmptyCoroutineContext
+) : AbstractTimeline<E>(timelines.minOf { it.time.value }, coroutineContext) {
 
     override fun events(): Flow<E> = flow {
         val buffer = TODO()

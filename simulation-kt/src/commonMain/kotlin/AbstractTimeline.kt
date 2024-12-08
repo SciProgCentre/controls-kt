@@ -1,18 +1,23 @@
 package space.kscience.simulation
 
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
+import kotlin.coroutines.CoroutineContext
 
 public abstract class AbstractTimeline<E : TimelineEvent>(
-    protected val timelineScope: CoroutineScope,
     protected var startTime: Instant,
-) : Timeline<E> {
+    coroutineContext: CoroutineContext
+) : Timeline<E>, AutoCloseable {
+
+    protected val timelineScope: CoroutineScope = CoroutineScope(
+        coroutineContext +
+        SupervisorJob(coroutineContext[Job]) +
+        CoroutineExceptionHandler{ _, throwable -> throwable.printStackTrace() } +
+        CoroutineName("Timeline")
+    )
 
     private val observers: MutableSet<TimelineObserver> = mutableSetOf()
 
@@ -66,5 +71,10 @@ public abstract class AbstractTimeline<E : TimelineEvent>(
         }
         observers.add(observer)
         return observer
+    }
+
+    override fun close() {
+        observers.forEach { it.close() }
+        timelineScope.cancel()
     }
 }

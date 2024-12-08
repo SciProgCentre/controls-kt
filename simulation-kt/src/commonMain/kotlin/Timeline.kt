@@ -34,7 +34,10 @@ public interface TimelineObserver : AutoCloseable {
     public suspend fun collect(upTo: Instant = Instant.DISTANT_FUTURE)
 }
 
-public suspend fun TimelineObserver.collect(duration: Duration) = collect(time.value + duration)
+/**
+ * Collect events for a fixed [duration] since last observed time
+ */
+public suspend fun TimelineObserver.collect(duration: Duration): Unit = collect(time.value + duration)
 
 /**
  * A time-ordered sequence of events of type [E]. There time of events is strictly monotonic, meaning that the time of
@@ -66,11 +69,13 @@ public interface Timeline<E : TimelineEvent> {
      * This method suspends until all advancement is done
      */
     public suspend fun advance(toTime: Instant)
+}
 
-//    /**
-//     * Interrupt generation of this timeline and discard unconsumed events after [atTime].
-//     *
-//     * Throw exception if at least one observer advanced
-//     */
-//    public suspend fun interrupt(atTime: Instant): Unit
+/**
+ * Perform [collector] action on each event
+ */
+public suspend fun <E : TimelineEvent> Timeline<E>.observeEach(
+    collector: suspend (E) -> Unit
+): TimelineObserver = observe {
+    collect(collector)
 }

@@ -1,10 +1,11 @@
 package space.kscience.simulation
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 
 /**
@@ -21,11 +22,11 @@ public fun <E : TimelineEvent> Flow<E>.withTimeThreshold(
  * @param lookaheadInterval an interval for generated events ahead of the last observed event.
  */
 public class GeneratingTimeline<E : TimelineEvent>(
-    private val generationScope: CoroutineScope,
     private val origin: E,
     private val lookaheadInterval: Duration,
+    coroutineContext: CoroutineContext = EmptyCoroutineContext,
     private val generator: suspend FlowCollector<E>.(E) -> Unit
-) : AbstractTimeline<E>(generationScope, origin.time) {
+) : AbstractTimeline<E>(origin.time, coroutineContext) {
 
     private val startEventFlow = MutableStateFlow(origin)
 
@@ -46,11 +47,11 @@ public class GeneratingTimeline<E : TimelineEvent>(
     }.withTimeThreshold(
         threshold = time.map { it + lookaheadInterval }
     ).buffer(Channel.UNLIMITED).mapNotNull {
-        //it.event
+        //a barrier to avoid leaking stale events after interruption from buffer
         it.takeIf { it.origin == startEventFlow.value }?.event
     }.shareIn(
-        scope = generationScope,
-        started = SharingStarted.Eagerly,
+        scope = timelineScope,
+        started = SharingStarted.Lazily,
     )
 
     override fun events(): Flow<E> = events

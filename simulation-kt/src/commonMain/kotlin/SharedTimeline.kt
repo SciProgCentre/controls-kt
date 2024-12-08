@@ -1,18 +1,19 @@
 package space.kscience.simulation
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.datetime.Instant
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * A manually mutable [Timeline] that could be modified via [emit] method by multiple
  */
 public class SharedTimeline<E : TimelineEvent>(
-    timelineScope: CoroutineScope,
-    startTime: Instant
-) : AbstractTimeline<E>(timelineScope, startTime) {
+    startTime: Instant,
+    coroutineContext: CoroutineContext = EmptyCoroutineContext
+) : AbstractTimeline<E>(startTime, coroutineContext) {
 
     private val events = MutableSharedFlow<E>(replay = Channel.UNLIMITED)
 
