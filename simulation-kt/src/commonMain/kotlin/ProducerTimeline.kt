@@ -4,10 +4,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 
-public abstract class AbstractTimeline<E : TimelineEvent>(
+public abstract class ProducerTimeline<E : TimelineEvent>(
     protected var startTime: Instant,
     coroutineContext: CoroutineContext
 ) : Timeline<E>, AutoCloseable {
@@ -53,8 +55,9 @@ public abstract class AbstractTimeline<E : TimelineEvent>(
                 }.collector()
             }
 
+            private val mutex = Mutex()
 
-            override suspend fun collect(upTo: Instant) = coroutineScope {
+            override suspend fun collect(upTo: Instant) = mutex.withLock {
                 require(upTo >= time.value) { "Requested time $upTo is lower than observed ${time.value}" }
                 events().takeWhile {
                     it.time <= upTo

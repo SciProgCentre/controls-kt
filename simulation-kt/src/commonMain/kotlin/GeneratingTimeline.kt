@@ -22,11 +22,11 @@ public fun <E : TimelineEvent> Flow<E>.withTimeThreshold(
  * @param lookaheadInterval an interval for generated events ahead of the last observed event.
  */
 public class GeneratingTimeline<E : TimelineEvent>(
-    private val origin: E,
+    origin: E,
     private val lookaheadInterval: Duration,
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
     private val generator: suspend FlowCollector<E>.(E) -> Unit
-) : AbstractTimeline<E>(origin.time, coroutineContext) {
+) : ProducerTimeline<E>(origin.time, coroutineContext) {
 
     private val startEventFlow = MutableStateFlow(origin)
 

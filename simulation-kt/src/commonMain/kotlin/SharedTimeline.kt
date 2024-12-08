@@ -13,7 +13,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 public class SharedTimeline<E : TimelineEvent>(
     startTime: Instant,
     coroutineContext: CoroutineContext = EmptyCoroutineContext
-) : AbstractTimeline<E>(startTime, coroutineContext) {
+) : ProducerTimeline<E>(startTime, coroutineContext) {
 
     private val events = MutableSharedFlow<E>(replay = Channel.UNLIMITED)
 
