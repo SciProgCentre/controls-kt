@@ -12,7 +12,7 @@ A client and server connectors for OPC-UA via Eclipse Milo
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-opcua:0.4.0-dev-4`.
+The Maven coordinates of this project are `space.kscience:controls-opcua:0.4.0-dev-7`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -22,6 +22,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-opcua:0.4.0-dev-4")
+    implementation("space.kscience:controls-opcua:0.4.0-dev-7")
 }
 ```

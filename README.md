@@ -147,6 +147,15 @@ Automatically checks consistency.
 >
 > **Maturity**: EXPERIMENTAL
 
+### [simulation-kt](simulation-kt)
+> A framework for combination of asynchronous simulations.        
+>
+> **Maturity**: PROTOTYPE
+>
+> **Features:**
+> - [timeline](simulation-kt/#) : Timeline is an ordered discrete history containing TimeLineEvent
+
+
 ### [controls-storage/controls-xodus](controls-storage/controls-xodus)
 > An implementation of controls-storage on top of JetBrains Xodus.
 >

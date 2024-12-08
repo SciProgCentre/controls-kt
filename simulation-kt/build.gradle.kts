@@ -5,10 +5,6 @@ plugins {
     `maven-publish`
 }
 
-description = """
-    Core interfaces for building a device server
-""".trimIndent()
-
 kscience {
     jvm()
     js()
@@ -21,12 +17,17 @@ kscience {
         api(spclibs.kotlinx.datetime)
     }
 
-    jvmTest{
+    jvmTest {
         implementation(spclibs.logback.classic)
     }
 }
 
 
-readme{
+readme {
     maturity = Maturity.PROTOTYPE
+    description = """
+        A framework for combination of asynchronous simulations.        
+    """.trimIndent()
+
+    feature("timeline") { "Timeline is an ordered discrete history containing TimeLineEvent" }
 }

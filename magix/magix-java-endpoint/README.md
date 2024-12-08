@@ -6,7 +6,7 @@ Java API to work with magix endpoints without Kotlin
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:magix-java-endpoint:0.4.0-dev-4`.
+The Maven coordinates of this project are `space.kscience:magix-java-endpoint:0.4.0-dev-7`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:magix-java-endpoint:0.4.0-dev-4")
+    implementation("space.kscience:magix-java-endpoint:0.4.0-dev-7")
 }
 ```

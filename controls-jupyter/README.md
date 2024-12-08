@@ -6,7 +6,7 @@
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-jupyter:0.4.0-dev-4`.
+The Maven coordinates of this project are `space.kscience:controls-jupyter:0.4.0-dev-7`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-jupyter:0.4.0-dev-4")
+    implementation("space.kscience:controls-jupyter:0.4.0-dev-7")
 }
 ```
