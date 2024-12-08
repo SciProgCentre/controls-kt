@@ -1,132 +1,65 @@
 package space.kscience.simulation
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
+
+/**
+ * Suspend the collection of this [Flow] until event time is lower that threshold
+ */
+public fun <E : TimelineEvent> Flow<E>.withTimeThreshold(
+    threshold: Flow<Instant>
+): Flow<E> = transform { event ->
+    threshold.first { it > event.time }
+    emit(event)
+}
 
 /**
  * @param lookaheadInterval an interval for generated events ahead of the last observed event.
  */
 public class GeneratingTimeline<E : TimelineEvent>(
     private val generationScope: CoroutineScope,
-    private val initialEvent: E,
+    private val origin: E,
     private val lookaheadInterval: Duration,
-    private val generatorChain: suspend (E) -> E
-) : Timeline<E>, AutoCloseable {
+    private val generator: suspend FlowCollector<E>.(E) -> Unit
+) : AbstractTimeline<E>(generationScope, origin.time) {
 
-    // push to this channel to trigger event generation
-    private val wakeupChannel = Channel<Unit>(onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val startEventFlow = MutableStateFlow(origin)
 
-    private suspend fun kickGenerator() {
-        wakeupChannel.send(Unit)
+    private data class EventWithOrigin<E : TimelineEvent>(val origin: E, val event: E) : TimelineEvent {
+        override val time: Instant get() = event.time
     }
 
-    private val mutex = Mutex()
-
-    private val history = ArrayDeque<E>()
-
-    private val lastEvent = MutableSharedFlow<E>(replay = Int.MAX_VALUE)
-
-    private val updateHistoryJob = generationScope.launch {
-        lastEvent.onEach {
-            mutex.withLock {
-                history.add(it)
-                //cleanup old events
-                val threshold = observedTime ?: return@withLock
-                while (history.isNotEmpty() && history.last().time > threshold) {
-                    history.removeFirst()
-                }
-
+    private val events: SharedFlow<E> = flow {
+        coroutineScope {
+            startEventFlow.collect { startEvent ->
+                emitAll(
+                    flow { generator(startEvent) }.takeWhile { startEvent == startEventFlow.value }.map {
+                        EventWithOrigin(startEvent, it)
+                    }
+                )
             }
         }
-    }
+    }.withTimeThreshold(
+        threshold = time.map { it + lookaheadInterval }
+    ).buffer(Channel.UNLIMITED).mapNotNull {
+        //it.event
+        it.takeIf { it.origin == startEventFlow.value }?.event
+    }.shareIn(
+        scope = generationScope,
+        started = SharingStarted.Eagerly,
+    )
 
-    private val observers: MutableSet<TimelineObserver> = mutableSetOf()
-
-    override val time: Instant
-        get() = history.lastOrNull()?.time ?: initialEvent.time
-
-    override val observedTime: Instant?
-        get() = observers.minOfNotNullOrNull { it.time }
-
-    override fun flowUnobservedEvents(): Flow<E> = flow {
-        history.forEach { e ->
-            emit(e)
-        }
-        emitAll(lastEvent)
-    }
-
-    override suspend fun advance(toTime: Instant) {
-        observers.forEach {
-            it.collect(toTime)
-        }
-    }
-
-    private var generatorJob: Job = launchGenerator(initialEvent)
-
-    private fun launchGenerator(event: E): Job = generationScope.launch {
-        kickGenerator()
-        var currentEvent = event
-        // for each wakeup generate all events in lookaheadInterval
-        for (u in wakeupChannel) {
-            while (currentEvent.time < (observedTime ?: event.time) + lookaheadInterval) {
-                val nextEvent = generatorChain(currentEvent)
-                lastEvent.emit(nextEvent)
-                currentEvent = nextEvent
-            }
-        }
-    }
-
+    override fun events(): Flow<E> = events
 
     public suspend fun interrupt(newStart: E) {
-        check(newStart.time > (observedTime ?: Instant.DISTANT_FUTURE)) {
+        check(newStart.time >= time.value) {
             "Can't interrupt generating timeline after observed event"
         }
-        mutex.withLock {
-            while (history.isNotEmpty() && history.last().time > newStart.time) {
-                history.removeLast()
-            }
-            generatorJob.cancel()
-            generatorJob = launchGenerator(newStart)
-
-        }
-        kickGenerator()
-    }
-
-    override fun close() {
-        updateHistoryJob.cancel()
-        generatorJob.cancel()
-    }
-
-    override suspend fun observe(collector: suspend Flow<E>.() -> Unit): TimelineObserver {
-        val observer = object : TimelineObserver {
-            override var time: Instant = this@GeneratingTimeline.time
-
-            override suspend fun collect(upTo: Instant) {
-                flowUnobservedEvents().takeWhile {
-                    it.time <= upTo
-                }.onEach {
-                    time = it.time
-                    kickGenerator()
-                }.collector()
-            }
-
-            override fun close() {
-                observers.remove(this)
-                if(observers.isEmpty()){
-                    this@GeneratingTimeline.close()
-                }
-            }
-
-        }
-        observers.add(observer)
-        return observer
+        startTime = newStart.time
+        startEventFlow.emit(newStart)
     }
 }

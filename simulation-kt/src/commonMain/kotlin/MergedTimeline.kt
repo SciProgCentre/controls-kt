@@ -1,51 +1,25 @@
 package space.kscience.simulation
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.takeWhile
-import kotlinx.datetime.Instant
+import kotlinx.coroutines.flow.flow
 
 
 public class MergedTimeline<E : TimelineEvent>(
+    timelineScope: CoroutineScope,
     private val timelines: List<Timeline<E>>
-) : Timeline<E> {
-    override val time: Instant
-        get() = timelines.minOfNotNullOrNull { it.time } ?: Instant.DISTANT_PAST
+) : AbstractTimeline<E>(timelineScope, timelines.minOf { it.time.value }) {
 
-    override val observedTime: Instant?
-        get() = timelines.maxOfNotNullOrNull { it.observedTime }
-
-    override fun flowUnobservedEvents(): Flow<E> = timelines.map { flowUnobservedEvents() }.merge()
-
-    override suspend fun advance(toTime: Instant) {
-        timelines.forEach { it.advance(toTime) }
+    override fun events(): Flow<E> = flow {
+        val buffer = TODO()
+//
+//        timelines.forEach { timeline ->
+//            timeline.observe {
+//                collect{
+//                    buffer.add(it)
+//                }
+//            }
+//        }
     }
 
-//    override suspend fun interrupt(atTime: Instant) {
-//        timelines.forEach { it.interrupt(atTime) }
-//    }
-
-    private val observers: MutableSet<TimelineObserver> = mutableSetOf()
-
-    override suspend fun observe(collector: suspend Flow<E>.() -> Unit): TimelineObserver {
-        val observer = object : TimelineObserver {
-            override var time: Instant = this@MergedTimeline.time
-
-            override suspend fun collect(upTo: Instant) = timelines
-                .map { flowUnobservedEvents() }
-                .merge()
-                .takeWhile { it.time <= upTo }.onEach {
-                    time = it.time
-                }.collector()
-
-
-            override fun close() {
-                observers.remove(this)
-            }
-
-        }
-        observers.add(observer)
-        return observer
-    }
 }

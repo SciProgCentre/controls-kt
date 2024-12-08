@@ -1,6 +1,7 @@
 package space.kscience.simulation
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
@@ -21,9 +22,9 @@ public data class SimpleTimelineEvent<T>(override val time: Instant, val value: 
 
 public interface TimelineObserver : AutoCloseable {
     /**
-     * The subjective time of this observer
+     * The subjective time of this observer (last observed time)
      */
-    public val time: Instant
+    public val time: StateFlow<Instant>
 
     /**
      * Collect all uncollected events from [time] to [upTo].
@@ -32,6 +33,8 @@ public interface TimelineObserver : AutoCloseable {
      */
     public suspend fun collect(upTo: Instant = Instant.DISTANT_FUTURE)
 }
+
+public suspend fun TimelineObserver.collect(duration: Duration) = collect(time.value + duration)
 
 /**
  * A time-ordered sequence of events of type [E]. There time of events is strictly monotonic, meaning that the time of
@@ -43,29 +46,15 @@ public interface TimelineObserver : AutoCloseable {
  */
 public interface Timeline<E : TimelineEvent> {
     /**
-     * A subjective time of this timeline. The time could advance without events being produced.
+     * A subjective time of this timeline. The subjective time is the last observed time.
      */
-    public val time: Instant
+    public val time: StateFlow<Instant>
 
-    /**
-     * The time of the last event that was observed by all observers
-     */
-    public val observedTime: Instant?
-
-    /**
-     * Flow events from [observedTime] to [time].
-     *
-     * The resulting flow is finite and should not suspend.
-     *
-     * This method does not affect [observedTime].
-     */
-    public fun flowUnobservedEvents(): Flow<E>
 
     /**
      * Attach observer to this [Timeline]. The observer collection is not triggered right away, but only on demand.
      *
      * Each collection shifts [TimelineObserver.time] for this observer.
-     * The value of [observedTime] is the least of all observers [TimelineObserver.time].
      */
     public suspend fun observe(
         collector: suspend Flow<E>.() -> Unit

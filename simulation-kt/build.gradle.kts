@@ -28,5 +28,5 @@ kscience {
 
 
 readme{
-    maturity = Maturity.EXPERIMENTAL
+    maturity = Maturity.PROTOTYPE
 }
