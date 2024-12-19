@@ -44,24 +44,24 @@ public abstract class DeviceSpec<D : Device> {
 
     public fun <T> property(
         converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
         name: String? = null,
         read: suspend D.(propertyName: String) -> T?,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property ->
             val propertyName = name ?: property.name
-            val deviceProperty = object : DevicePropertySpec<D, T> {
-
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(propertyName).apply {
-                    converter.descriptor?.let { converterDescriptor ->
-                        metaDescriptor {
-                            from(converterDescriptor)
-                        }
+            val descriptor = propertyDescriptor(propertyName) {
+                mutable = false
+                converter.descriptor?.let { converterDescriptor ->
+                    metaDescriptor {
+                        from(converterDescriptor)
                     }
-                    fromSpec(property)
-                    descriptorBuilder()
                 }
-
+                fromSpec(property)
+                descriptorBuilder()
+            }
+            val deviceProperty = object : DevicePropertySpec<D, T> {
+                override val descriptor = descriptor
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? =
@@ -75,26 +75,25 @@ public abstract class DeviceSpec<D : Device> {
 
     public fun <T> mutableProperty(
         converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
         name: String? = null,
         read: suspend D.(propertyName: String) -> T?,
         write: suspend D.(propertyName: String, value: T) -> Unit,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val propertyName = name ?: property.name
-            val deviceProperty = object : MutableDevicePropertySpec<D, T> {
-                override val descriptor: PropertyDescriptor = PropertyDescriptor(
-                    propertyName,
-                    mutable = true
-                ).apply {
-                    converter.descriptor?.let { converterDescriptor ->
-                        metaDescriptor {
-                            from(converterDescriptor)
-                        }
+            val descriptor = propertyDescriptor(propertyName) {
+                this.mutable = true
+                converter.descriptor?.let { converterDescriptor ->
+                    metaDescriptor {
+                        from(converterDescriptor)
                     }
-                    fromSpec(property)
-                    descriptorBuilder()
                 }
+                fromSpec(property)
+                descriptorBuilder()
+            }
+            val deviceProperty = object : MutableDevicePropertySpec<D, T> {
+                override val descriptor = descriptor
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? =
@@ -119,30 +118,28 @@ public abstract class DeviceSpec<D : Device> {
     public fun <I, O> action(
         inputConverter: MetaConverter<I>,
         outputConverter: MetaConverter<O>,
-        descriptorBuilder: ActionDescriptor.() -> Unit = {},
+        descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
         name: String? = null,
         execute: suspend D.(I) -> O,
     ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
         PropertyDelegateProvider { _: DeviceSpec<D>, property: KProperty<*> ->
             val actionName = name ?: property.name
-            val deviceAction = object : DeviceActionSpec<D, I, O> {
-                override val descriptor: ActionDescriptor = ActionDescriptor(actionName).apply {
-                    inputConverter.descriptor?.let { converterDescriptor ->
-                        inputMetaDescriptor = MetaDescriptor {
-                            from(converterDescriptor)
-                            from(inputMetaDescriptor)
-                        }
+            val descriptor = actionDescriptor(actionName) {
+                inputConverter.descriptor?.let { converterDescriptor ->
+                    inputMeta {
+                        from(converterDescriptor)
                     }
-                    outputConverter.descriptor?.let { converterDescriptor ->
-                        outputMetaDescriptor = MetaDescriptor {
-                            from(converterDescriptor)
-                            from(outputMetaDescriptor)
-                        }
-                    }
-
-                    fromSpec(property)
-                    descriptorBuilder()
                 }
+                outputConverter.descriptor?.let { converterDescriptor ->
+                    outputMeta {
+                        from(converterDescriptor)
+                    }
+                }
+                fromSpec(property)
+                descriptorBuilder()
+            }
+            val deviceAction = object : DeviceActionSpec<D, I, O> {
+                override val descriptor: ActionDescriptor = descriptor
 
                 override val inputConverter: MetaConverter<I> = inputConverter
                 override val outputConverter: MetaConverter<O> = outputConverter
@@ -162,7 +159,7 @@ public abstract class DeviceSpec<D : Device> {
  * An action that takes no parameters and returns no values
  */
 public fun <D : Device> DeviceSpec<D>.unitAction(
-    descriptorBuilder: ActionDescriptor.() -> Unit = {},
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
     name: String? = null,
     execute: suspend D.() -> Unit,
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
@@ -179,7 +176,7 @@ public fun <D : Device> DeviceSpec<D>.unitAction(
  * An action that takes [Meta] and returns [Meta]. No conversions are done
  */
 public fun <D : Device> DeviceSpec<D>.metaAction(
-    descriptorBuilder: ActionDescriptor.() -> Unit = {},
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
     name: String? = null,
     execute: suspend D.(Meta) -> Meta,
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =

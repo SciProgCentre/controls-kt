@@ -2,7 +2,6 @@ package space.kscience.controls.demo
 
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
-import space.kscience.controls.api.metaDescriptor
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory

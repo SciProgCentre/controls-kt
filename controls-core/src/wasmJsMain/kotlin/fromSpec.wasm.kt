@@ -1,9 +1,9 @@
 package space.kscience.controls.spec
 
-import space.kscience.controls.api.ActionDescriptor
-import space.kscience.controls.api.PropertyDescriptor
+import space.kscience.controls.api.ActionDescriptorBuilder
+import space.kscience.controls.api.PropertyDescriptorBuilder
 import kotlin.reflect.KProperty
 
-internal actual fun PropertyDescriptor.fromSpec(property: KProperty<*>){}
+internal actual fun PropertyDescriptorBuilder.fromSpec(property: KProperty<*>){}
 
-internal actual fun ActionDescriptor.fromSpec(property: KProperty<*>){}
+internal actual fun ActionDescriptorBuilder.fromSpec(property: KProperty<*>){}
