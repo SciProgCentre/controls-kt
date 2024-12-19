@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import space.kscience.controls.api.DeviceHub
 import space.kscience.controls.api.PropertyDescriptor
+import space.kscience.controls.api.PropertyDescriptorBuilder
 import space.kscience.controls.misc.asMeta
 import space.kscience.controls.misc.duration
 import space.kscience.controls.ports.AsynchronousPort
@@ -235,7 +236,7 @@ class PiMotionMasterDevice(
 
             private fun axisBooleanProperty(
                 command: String,
-                descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+                descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
             ) = mutableBooleanProperty(
                 read = {
                     readAxisBoolean("$command?")
@@ -248,7 +249,7 @@ class PiMotionMasterDevice(
 
             private fun axisNumberProperty(
                 command: String,
-                descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+                descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
             ) = mutableDoubleProperty(
                 read = {
                     mm.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
