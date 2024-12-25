@@ -1,104 +1,117 @@
 package space.kscience.controls.spec
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.error
-import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.MutableMeta
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
-import space.kscience.dataforge.names.parseAsName
-import space.kscience.dataforge.names.plus
+import space.kscience.dataforge.context.*
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.names.*
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 import kotlin.time.Duration
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.launchIn
-import space.kscience.dataforge.context.AbstractPlugin
-import space.kscience.dataforge.context.ContextAware
-import space.kscience.dataforge.context.ContextBuilder
-import space.kscience.dataforge.context.PluginFactory
-import space.kscience.dataforge.context.PluginTag
 
 /**
  * Defines how child device lifecycle should be managed.
  */
 public enum class LifecycleMode {
     /**
-     * Device starts and stops with parent
+     * The device starts and stops together with the parent.
      */
     LINKED,
 
     /**
-     * Device is started and stopped independently
+     * The device is started and stopped independently from the parent.
      */
     INDEPENDENT,
 
     /**
-     * Device is created but starts only when explicitly requested
+     * The device is created but starts only upon an explicit request.
      */
     LAZY
 }
 
-public sealed class DeviceChangeEvent {
+/**
+ * An interface for external configuration sources.
+ */
+public interface ExternalConfigurationProvider {
+    /**
+     * Load custom configuration from an external system. Return a [Meta] if any.
+     */
+    public suspend fun loadExternalConfig(name: Name): Meta?
+}
+
+/**
+ * A basic interface for device health checking.
+ */
+public fun interface HealthChecker {
+    /**
+     * Return true if the given [device] is healthy, false otherwise.
+     */
+    public suspend fun isHealthy(device: Device): Boolean
+}
+
+/**
+ * Defines child device error handling policy, extended with a CUSTOM option.
+ */
+public enum class ChildDeviceErrorHandler {
+    IGNORE,
+    RESTART,
+    STOP_PARENT,
+    PROPAGATE,
+    /**
+     * A custom user-defined strategy can be handled in [AbstractDeviceHubManager.onCustomError].
+     */
+    CUSTOM,
+}
+
+/**
+ * Represents different possible device state changes or events.
+ */
+public sealed class DeviceStateEvent {
     public abstract val deviceName: Name
 
-    public data class Added(override val deviceName: Name, val device: Device) : DeviceChangeEvent()
-    public data class Removed(override val deviceName: Name) : DeviceChangeEvent()
+    public data class DeviceStarted(override val deviceName: Name) : DeviceStateEvent()
+    public data class DeviceStopped(override val deviceName: Name) : DeviceStateEvent()
+    public data class DeviceRemoved(override val deviceName: Name) : DeviceStateEvent()
+    public data class DeviceFailed(override val deviceName: Name, val error: Throwable) : DeviceStateEvent()
+    public data class DeviceDetached(override val deviceName: Name) : DeviceStateEvent()
 }
 
-public interface ComponentRegistry : ContextAware {
-    public fun <D: ConfigurableCompositeControlComponent<*>> getSpec(name: Name): CompositeControlComponentSpec<D>?
-}
+/**
+ * A simple separate event describing child addition (optional usage).
+ */
+public data class DeviceAddedEvent(val deviceName: Name, val device: Device)
 
-public class ComponentRegistryManager : AbstractPlugin(), ComponentRegistry {
-    private val specs = mutableMapOf<Name, CompositeControlComponentSpec<*>>()
-
-    override val tag: PluginTag = Companion.tag
-
-    override fun <D : ConfigurableCompositeControlComponent<*>> getSpec(name: Name): CompositeControlComponentSpec<D>? {
-        try {
-            return specs[name] as? CompositeControlComponentSpec<D>
-        } catch (e: ClassCastException) {
-            logger.error(e) { "Failed to get spec $name" }
-        }
-        return null
-    }
-
-    public fun registerSpec(spec: CompositeControlComponentSpec<*>) {
-        specs[(spec as DevicePropertySpec<*, *>).name.asName()] = spec
-    }
-
-    public companion object : PluginFactory<ComponentRegistryManager> {
-        override val tag: PluginTag = PluginTag("controls.spechub", group = PluginTag.DATAFORGE_GROUP)
-
-        override fun build(context: Context, meta: Meta): ComponentRegistryManager = ComponentRegistryManager()
-
+/**
+ * Holds lifecycle-related configuration for devices, with optional fields.
+ */
+public data class DeviceLifecycleConfig(
+    val lifecycleMode: LifecycleMode = LifecycleMode.LINKED,
+    val messageBuffer: Int = 1000,
+    val startDelay: Duration = Duration.ZERO,
+    val startTimeout: Duration? = null,
+    val stopTimeout: Duration? = null,
+    val coroutineScope: CoroutineScope? = null,
+    val dispatcher: CoroutineDispatcher? = null,
+    val onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART,
+    val healthChecker: HealthChecker? = null,
+) {
+    init {
+        require(messageBuffer > 0) { "Message buffer size must be positive." }
+        startTimeout?.let { require(it.isPositive()) { "Start timeout must be positive." } }
+        stopTimeout?.let { require(it.isPositive()) { "Stop timeout must be positive." } }
     }
 }
-public val Context.componentRegistry: ComponentRegistry? get() = plugins[ComponentRegistryManager]
 
-public fun ContextBuilder.withSpecHub() {
-    plugin(ComponentRegistryManager)
+/**
+ * An interface to attach external config to a [DeviceLifecycleConfigBuilder].
+ */
+public fun interface ExternalConfigApplier {
+    public suspend fun applyConfig(builder: DeviceLifecycleConfigBuilder, deviceName: Name)
 }
 
 /**
@@ -113,294 +126,101 @@ public class DeviceLifecycleConfigBuilder {
     public var coroutineScope: CoroutineScope? = null
     public var dispatcher: CoroutineDispatcher? = null
     public var onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART
+    public var healthChecker: HealthChecker? = null
+
+    public suspend fun applyExternalConfig(deviceName: Name, externalApplier: ExternalConfigApplier) {
+        externalApplier.applyConfig(this, deviceName)
+    }
 
     public fun build(): DeviceLifecycleConfig = DeviceLifecycleConfig(
-        lifecycleMode, messageBuffer, startDelay, startTimeout, stopTimeout, coroutineScope, dispatcher, onError
+        lifecycleMode = lifecycleMode,
+        messageBuffer = messageBuffer,
+        startDelay = startDelay,
+        startTimeout = startTimeout,
+        stopTimeout = stopTimeout,
+        coroutineScope = coroutineScope,
+        dispatcher = dispatcher,
+        onError = onError,
+        healthChecker = healthChecker,
     )
 }
 
-public fun DeviceLifecycleConfigBuilder.linked() {
-    lifecycleMode = LifecycleMode.LINKED
-}
-
-public fun DeviceLifecycleConfigBuilder.independent() {
-    lifecycleMode = LifecycleMode.INDEPENDENT
-}
-
-public fun DeviceLifecycleConfigBuilder.lazy() {
-    lifecycleMode = LifecycleMode.LAZY
-}
-
-public fun DeviceLifecycleConfigBuilder.restartOnError() {
-    onError = ChildDeviceErrorHandler.RESTART
-}
-
-public fun DeviceLifecycleConfigBuilder.propagateError() {
-    onError = ChildDeviceErrorHandler.PROPAGATE
-}
-
+public fun DeviceLifecycleConfigBuilder.linked() { lifecycleMode = LifecycleMode.LINKED }
+public fun DeviceLifecycleConfigBuilder.independent() { lifecycleMode = LifecycleMode.INDEPENDENT }
+public fun DeviceLifecycleConfigBuilder.lazy() { lifecycleMode = LifecycleMode.LAZY }
+public fun DeviceLifecycleConfigBuilder.restartOnError() { onError = ChildDeviceErrorHandler.RESTART }
+public fun DeviceLifecycleConfigBuilder.propagateError() { onError = ChildDeviceErrorHandler.PROPAGATE }
 public fun DeviceLifecycleConfigBuilder.withCustomTimeout(timeout: Duration) {
     startTimeout = timeout
     stopTimeout = timeout
 }
 
-@OptIn(InternalDeviceAPI::class)
-public abstract class CompositeControlComponentSpec<D : Device>() : CompositeDeviceSpec<D> {
-
-    private val _properties = hashMapOf<String, DevicePropertySpec<D, *>>(
-        DeviceMetaPropertySpec.name to DeviceMetaPropertySpec
-    )
-
-    override val properties: Map<String, DevicePropertySpec<D, *>> get() = _properties
-
-    private val _actions = hashMapOf<String, DeviceActionSpec<D, *, *>>()
-
-    override val actions: Map<String, DeviceActionSpec<D, *, *>> get() = _actions
-
-    private val _childSpecs = mutableMapOf<String, ChildComponentConfig<*>>()
-
-    override val childSpecs: Map<String, ChildComponentConfig<*>> get() = _childSpecs
-
-    public fun <CDS: CompositeControlComponentSpec<CD>, CD: ConfigurableCompositeControlComponent<CD>> childSpec(
-        deviceName: String? = null,
-        specName: Name? = null,
-        metaBuilder: (MutableMeta.() -> Unit)? = null,
-        configBuilder: DeviceLifecycleConfigBuilder.() -> Unit = {},
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, CompositeControlComponentSpec<CD>>> =
-        PropertyDelegateProvider { thisRef, property ->
-            ReadOnlyProperty { _, _ ->
-                val childSpecName = specName ?: property.name.asName()
-                val nameForDevice = deviceName?.asName() ?: property.name.asName()
-                val config = DeviceLifecycleConfigBuilder().apply(configBuilder).build()
-                val meta = metaBuilder?.let { Meta(it) }
-                val spec = (thisRef as ConfigurableCompositeControlComponent<*>).context.componentRegistry?.getSpec<CD>(childSpecName) ?: error("Spec with name '$specName' is not found")
-                val childComponentConfig = object : ChildComponentConfig<CD>{
-                    override val spec: CompositeControlComponentSpec<CD> = spec
-                    override val config: DeviceLifecycleConfig = config
-                    override val meta: Meta? = meta
-                    override val name: Name = nameForDevice
-                }
-                _childSpecs[property.name] = childComponentConfig
-                childComponentConfig.spec
-            }
-        }
-
-    override fun validate(device: D) {
-        properties.map { it.value.descriptor }.forEach { specProperty ->
-            check(specProperty in device.propertyDescriptors) { "Property ${specProperty.name} not registered in ${device.id}" }
-        }
-        actions.map { it.value.descriptor }.forEach { specAction ->
-            check(specAction in device.actionDescriptors) { "Action ${specAction.name} not registered in ${device.id}" }
-        }
-    }
-
-    override fun <T, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P {
-        _properties[deviceProperty.name] = deviceProperty
-        return deviceProperty
-    }
-
-    override fun <I, O> registerAction(deviceAction: DeviceActionSpec<D, I, O>): DeviceActionSpec<D, I, O> {
-        _actions[deviceAction.name] = deviceAction
-        return deviceAction
-    }
-
-    override fun createPropertyDescriptorInternal(
-        propertyName: String,
-        converter: MetaConverter<*>,
-        mutable: Boolean,
-        property: KProperty<*>,
-        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit,
-    ): PropertyDescriptor {
-        return propertyDescriptor(propertyName) {
-            this.mutable = mutable
-            converter.descriptor?.let { converterDescriptor ->
-                metaDescriptor {
-                    from(converterDescriptor)
-                }
-            }
-            fromSpec(property)
-            descriptorBuilder()
-        }
-    }
-
-    override fun createActionDescriptor(
-        actionName: String,
-        inputConverter: MetaConverter<*>,
-        outputConverter: MetaConverter<*>,
-        property: KProperty<*>,
-        descriptorBuilder: ActionDescriptorBuilder.() -> Unit,
-    ): ActionDescriptor {
-        return actionDescriptor(actionName) {
-            inputConverter.descriptor?.let { converterDescriptor ->
-                inputMeta {
-                    from(converterDescriptor)
-                }
-            }
-            outputConverter.descriptor?.let { converterDescriptor ->
-                outputMeta {
-                    from(converterDescriptor)
-                }
-            }
-            fromSpec(property)
-            descriptorBuilder()
-        }
-    }
-
-    override fun <T> property(
-        converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit,
-        name: String?,
-        read: suspend D.(propertyName: String) -> T?,
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _: CompositeControlComponentSpec<D>, property ->
-            val propertyName = name ?: property.name
-            val descriptor = createPropertyDescriptorInternal(
-                propertyName = propertyName,
-                converter = converter,
-                mutable = false,
-                property = property,
-                descriptorBuilder = descriptorBuilder
-            )
-            val deviceProperty = registerProperty(object : DevicePropertySpec<D, T> {
-                override val descriptor = descriptor
-                override val converter = converter
-
-                override suspend fun read(device: D): T? =
-                    withContext(device.coroutineContext) { device.read(propertyName) }
-            })
-            ReadOnlyProperty { _, _ ->
-                deviceProperty
-            }
-        }
-
-
-    override fun <T> mutableProperty(
-        converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit,
-        name: String?,
-        read: suspend D.(propertyName: String) -> T?,
-        write: suspend D.(propertyName: String, value: T) -> Unit
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _: CompositeControlComponentSpec<D>, property ->
-            val propertyName = name ?: property.name
-            val descriptor = createPropertyDescriptorInternal(
-                propertyName = propertyName,
-                converter = converter,
-                mutable = true,
-                property = property,
-                descriptorBuilder = descriptorBuilder
-            )
-            val deviceProperty = registerProperty(object : MutableDevicePropertySpec<D, T> {
-                override val descriptor = descriptor
-                override val converter = converter
-                override suspend fun read(device: D): T? =
-                    withContext(device.coroutineContext) { device.read(propertyName) }
-
-                override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext) {
-                    device.write(propertyName, value)
-                }
-            })
-            ReadOnlyProperty { _, _ ->
-                deviceProperty
-            }
-        }
-
-
-    override fun <I, O> action(
-        inputConverter: MetaConverter<I>,
-        outputConverter: MetaConverter<O>,
-        descriptorBuilder: ActionDescriptorBuilder.() -> Unit,
-        name: String?,
-        execute: suspend D.(I) -> O,
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, I, O>>> =
-        PropertyDelegateProvider { _: CompositeControlComponentSpec<D>, property ->
-            val actionName = name ?: property.name
-            val descriptor = createActionDescriptor(
-                actionName = actionName,
-                inputConverter = inputConverter,
-                outputConverter = outputConverter,
-                property = property,
-                descriptorBuilder = descriptorBuilder
-            )
-            val deviceAction = registerAction(object : DeviceActionSpec<D, I, O> {
-                override val descriptor = descriptor
-                override val inputConverter = inputConverter
-                override val outputConverter = outputConverter
-                override suspend fun execute(device: D, input: I): O = withContext(device.coroutineContext) {
-                    device.execute(input)
-                }
-            })
-
-            ReadOnlyProperty { _, _ ->
-                deviceAction
-            }
-        }
-
-    override suspend fun D.onOpen() {}
-    override suspend fun D.onClose() {}
-
+/**
+ * Provides access to a registry of specifications.
+ */
+public interface ComponentRegistry : ContextAware {
+    public fun <D : ConfigurableCompositeControlComponent<D>> getSpec(name: Name): CompositeControlComponentSpec<D>?
 }
 
-public fun <D : Device> CompositeControlComponentSpec<D>.unitAction(
-    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    execute: suspend D.() -> Unit,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
-    action(
-        MetaConverter.unit,
-        MetaConverter.unit,
-        descriptorBuilder,
-        name
-    ) {
-        execute()
+/**
+ * A default plugin implementation of [ComponentRegistry].
+ */
+public class ComponentRegistryManager : AbstractPlugin(), ComponentRegistry {
+    private val specs = mutableMapOf<Name, CompositeControlComponentSpec<*>>()
+
+    override val tag: PluginTag = Companion.tag
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <D : ConfigurableCompositeControlComponent<D>> getSpec(name: Name): CompositeControlComponentSpec<D>? {
+        return try {
+            specs[name] as? CompositeControlComponentSpec<D>
+        } catch (e: ClassCastException) {
+            logger.error(e) { "Failed to get spec $name" }
+            null
+        }
     }
 
-
-public fun <D : Device> CompositeControlComponentSpec<D>.metaAction(
-    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    execute: suspend D.(Meta) -> Meta,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
-    action(
-        MetaConverter.meta,
-        MetaConverter.meta,
-        descriptorBuilder,
-        name
-    ) {
-        execute(it)
+    public fun registerSpec(spec: CompositeControlComponentSpec<*>, name: Name) {
+        specs[name] = spec
     }
+
+    public companion object : PluginFactory<ComponentRegistryManager> {
+        override val tag: PluginTag = PluginTag("controls.spechub", group = PluginTag.DATAFORGE_GROUP)
+        override fun build(context: Context, meta: Meta): ComponentRegistryManager = ComponentRegistryManager()
+    }
+}
+
+public val Context.componentRegistry: ComponentRegistry?
+    get() = plugins[ComponentRegistryManager]
+
+public fun ContextBuilder.withSpecHub() {
+    plugin(ComponentRegistryManager)
+}
 
 /**
- *  Basic interface for device description
+ * Aggregates configuration for a child device.
  */
-public interface CompositeDeviceSpec<D : Device> {
+public interface ChildComponentConfig<CD : ConfigurableCompositeControlComponent<CD>> {
+    public val spec: CompositeControlComponentSpec<CD>
+    public val config: DeviceLifecycleConfig
+    public val meta: Meta?
+    public val name: Name
+}
+
+/**
+ * Base specification for a composite device.
+ */
+public interface CompositeDeviceSpec<D : ConfigurableCompositeControlComponent<D>> {
     public val properties: Map<String, DevicePropertySpec<D, *>>
-
     public val actions: Map<String, DeviceActionSpec<D, *, *>>
-
     public val childSpecs: Map<String, ChildComponentConfig<*>>
 
-    /**
-     *  Called on `start()`
-     */
     public suspend fun D.onOpen()
-
-    /**
-     * Called on `stop()`
-     */
     public suspend fun D.onClose()
-
-    /**
-     * Registers a property in the spec.
-     */
-    public fun <T, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P
-
-    /**
-     * Registers an action in the spec.
-     */
-    public fun <I, O> registerAction(deviceAction: DeviceActionSpec<D, I, O>): DeviceActionSpec<D, I, O>
-
     public fun validate(device: D)
+
+    public fun <T, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P
+    public fun <I, O> registerAction(deviceAction: DeviceActionSpec<D, I, O>): DeviceActionSpec<D, I, O>
 
     public fun createPropertyDescriptorInternal(
         propertyName: String,
@@ -423,7 +243,7 @@ public interface CompositeDeviceSpec<D : Device> {
         descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
         name: String? = null,
         read: suspend D.(propertyName: String) -> T?,
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, T>>>
+    ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DevicePropertySpec<D, T>>>
 
     public fun <T> mutableProperty(
         converter: MetaConverter<T>,
@@ -431,7 +251,7 @@ public interface CompositeDeviceSpec<D : Device> {
         name: String? = null,
         read: suspend D.(propertyName: String) -> T?,
         write: suspend D.(propertyName: String, value: T) -> Unit,
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, T>>>
+    ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, MutableDevicePropertySpec<D, T>>>
 
     public fun <I, O> action(
         inputConverter: MetaConverter<I>,
@@ -439,228 +259,622 @@ public interface CompositeDeviceSpec<D : Device> {
         descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
         name: String? = null,
         execute: suspend D.(I) -> O,
-    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, I, O>>>
-}
-
-public data class DeviceLifecycleConfig(
-    val lifecycleMode: LifecycleMode = LifecycleMode.LINKED,
-    val messageBuffer: Int = 1000,
-    val startDelay: Duration = Duration.ZERO,
-    val startTimeout: Duration? = null,
-    val stopTimeout: Duration? = null,
-    val coroutineScope: CoroutineScope? = null,
-    val dispatcher: CoroutineDispatcher? = null,
-    val onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART
-) {
-    init {
-        require(messageBuffer > 0) { "Message buffer size must be positive." }
-        startTimeout?.let { require(it.isPositive()) { "Start timeout must be positive." } }
-        stopTimeout?.let { require(it.isPositive()) { "Stop timeout must be positive." } }
-    }
-}
-
-public enum class ChildDeviceErrorHandler {
-    IGNORE,
-    RESTART,
-    STOP_PARENT,
-    PROPAGATE
+    ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, I, O>>>
 }
 
 /**
- * Base class for managing child devices. Manages lifecycle and message flow.
+ * Default implementation of [CompositeDeviceSpec].
+ */
+@OptIn(InternalDeviceAPI::class)
+public open class CompositeControlComponentSpec<D : ConfigurableCompositeControlComponent<D>>(
+    public val registry: ComponentRegistry? = null
+) : CompositeDeviceSpec<D> {
+    private val propertyMap = hashMapOf<String, DevicePropertySpec<D, *>>(
+        DeviceMetaPropertySpec.name to DeviceMetaPropertySpec
+    )
+    private val actionMap = hashMapOf<String, DeviceActionSpec<D, *, *>>()
+    private val childSpecMap = mutableMapOf<String, ChildComponentConfig<*>>()
+
+    override val properties: Map<String, DevicePropertySpec<D, *>>
+        get() = propertyMap
+
+    override val actions: Map<String, DeviceActionSpec<D, *, *>>
+        get() = actionMap
+
+    override val childSpecs: Map<String, ChildComponentConfig<*>>
+        get() = childSpecMap
+
+    override suspend fun D.onOpen() {}
+    override suspend fun D.onClose() {}
+
+    override fun validate(device: D) {
+        properties.values.forEach { prop ->
+            check(prop.descriptor in device.propertyDescriptors) {
+                "Property ${prop.descriptor.name} not registered in ${device.id}"
+            }
+        }
+        actions.values.forEach { act ->
+            check(act.descriptor in device.actionDescriptors) {
+                "Action ${act.descriptor.name} not registered in ${device.id}"
+            }
+        }
+    }
+
+    override fun <T, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P {
+        propertyMap[deviceProperty.name] = deviceProperty
+        return deviceProperty
+    }
+
+    override fun <I, O> registerAction(deviceAction: DeviceActionSpec<D, I, O>): DeviceActionSpec<D, I, O> {
+        actionMap[deviceAction.name] = deviceAction
+        return deviceAction
+    }
+
+    override fun createPropertyDescriptorInternal(
+        propertyName: String,
+        converter: MetaConverter<*>,
+        mutable: Boolean,
+        property: KProperty<*>,
+        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit
+    ): PropertyDescriptor {
+        return propertyDescriptor(propertyName) {
+            this.mutable = mutable
+            converter.descriptor?.let { conv -> metaDescriptor { from(conv) } }
+            fromSpec(property)
+            descriptorBuilder()
+        }
+    }
+
+    override fun createActionDescriptor(
+        actionName: String,
+        inputConverter: MetaConverter<*>,
+        outputConverter: MetaConverter<*>,
+        property: KProperty<*>,
+        descriptorBuilder: ActionDescriptorBuilder.() -> Unit
+    ): ActionDescriptor {
+        return actionDescriptor(actionName) {
+            inputConverter.descriptor?.let { convIn -> inputMeta { from(convIn) } }
+            outputConverter.descriptor?.let { convOut -> outputMeta { from(convOut) } }
+            fromSpec(property)
+            descriptorBuilder()
+        }
+    }
+
+    override fun <T> property(
+        converter: MetaConverter<T>,
+        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit,
+        name: String?,
+        read: suspend D.(propertyName: String) -> T?
+    ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DevicePropertySpec<D, T>>> =
+        PropertyDelegateProvider { _, prop ->
+            val propertyName = name ?: prop.name
+            val descriptor = createPropertyDescriptorInternal(
+                propertyName, converter, mutable = false, property = prop, descriptorBuilder = descriptorBuilder
+            )
+            val devProp = registerProperty(object : DevicePropertySpec<D, T> {
+                override val descriptor: PropertyDescriptor = descriptor
+                override val converter: MetaConverter<T> = converter
+                override suspend fun read(device: D): T? =
+                    withContext(device.coroutineContext) { device.read(propertyName) }
+            })
+            ReadOnlyProperty { _, _ -> devProp }
+        }
+
+    override fun <T> mutableProperty(
+        converter: MetaConverter<T>,
+        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit,
+        name: String?,
+        read: suspend D.(propertyName: String) -> T?,
+        write: suspend D.(propertyName: String, value: T) -> Unit
+    ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
+        PropertyDelegateProvider { _, prop ->
+            val propertyName = name ?: prop.name
+            val descriptor = createPropertyDescriptorInternal(
+                propertyName, converter, mutable = true, property = prop, descriptorBuilder = descriptorBuilder
+            )
+            val devProp = registerProperty(object : MutableDevicePropertySpec<D, T> {
+                override val descriptor: PropertyDescriptor = descriptor
+                override val converter: MetaConverter<T> = converter
+                override suspend fun read(device: D): T? =
+                    withContext(device.coroutineContext) { device.read(propertyName) }
+
+                override suspend fun write(device: D, value: T) =
+                    withContext(device.coroutineContext) { device.write(propertyName, value) }
+            })
+            ReadOnlyProperty { _, _ -> devProp }
+        }
+
+    public fun <CDS : CompositeControlComponentSpec<CD>, CD : ConfigurableCompositeControlComponent<CD>> childSpec(
+        fallbackSpec: CDS,
+        specKeyInRegistry: Name? = null,
+        childDeviceName: Name? = null,
+        metaBuilder: (MutableMeta.() -> Unit)? = null,
+        configBuilder: DeviceLifecycleConfigBuilder.() -> Unit = {},
+    ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, CompositeControlComponentSpec<CD>>> =
+        PropertyDelegateProvider { _, property ->
+            ReadOnlyProperty { _, _ ->
+                val registryKey = specKeyInRegistry ?: property.name.asName()
+                val childName = childDeviceName ?: property.name.asName()
+                val config = DeviceLifecycleConfigBuilder().apply(configBuilder).build()
+                val meta = metaBuilder?.let { Meta(it) }
+                val fromRegistry: CompositeControlComponentSpec<CD>? =
+                    registry?.getSpec<CD>(registryKey)
+
+                val foundSpec: CompositeControlComponentSpec<CD> = fromRegistry ?: fallbackSpec
+
+                val mapKey = childName.toString()
+                check(childSpecMap[mapKey] == null) {
+                    "Child spec with name '$mapKey' is already registered in $this."
+                }
+
+                val childConfig = object : ChildComponentConfig<CD> {
+                    override val spec: CompositeControlComponentSpec<CD> = foundSpec
+                    override val config: DeviceLifecycleConfig = config
+                    override val meta: Meta? = meta
+                    override val name: Name = childName
+                }
+                childSpecMap[mapKey] = childConfig
+                childConfig.spec
+            }
+        }
+
+    override fun <I, O> action(
+        inputConverter: MetaConverter<I>,
+        outputConverter: MetaConverter<O>,
+        descriptorBuilder: ActionDescriptorBuilder.() -> Unit,
+        name: String?,
+        execute: suspend D.(I) -> O
+    ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
+        PropertyDelegateProvider { _, prop ->
+            val actionName = name ?: prop.name
+            val descriptor = createActionDescriptor(actionName, inputConverter, outputConverter, prop, descriptorBuilder)
+            val devAction = registerAction(object : DeviceActionSpec<D, I, O> {
+                override val descriptor: ActionDescriptor = descriptor
+                override val inputConverter: MetaConverter<I> = inputConverter
+                override val outputConverter: MetaConverter<O> = outputConverter
+                override suspend fun execute(device: D, input: I): O =
+                    withContext(device.coroutineContext) { device.execute(input) }
+            })
+            ReadOnlyProperty { _, _ -> devAction }
+        }
+}
+
+/**
+ * Defines an action with Unit input and Unit output.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.unitAction(
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
+    name: String? = null,
+    execute: suspend D.() -> Unit,
+): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
+    action(MetaConverter.unit, MetaConverter.unit, descriptorBuilder, name) {
+        execute()
+    }
+
+/**
+ * Defines an action with Meta input and Meta output.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.metaAction(
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
+    name: String? = null,
+    execute: suspend D.(Meta) -> Meta,
+): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
+    action(MetaConverter.meta, MetaConverter.meta, descriptorBuilder, name) {
+        execute(it)
+    }
+
+/**
+ * An extended device manager that supports advanced lifecycle, errors, transactions, etc.
  */
 public abstract class AbstractDeviceHubManager(
     public val context: Context,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
-    internal val childrenJobs: MutableMap<Name, ChildJob> = mutableMapOf()
-    public val devices: Map<Name, Device> get() = childrenJobs.mapValues { it.value.device }
+    /**
+     * An optional parentJob to differentiate the parent's context from the child's context.
+     */
+    protected val parentJob: Job = SupervisorJob()
 
+    private val childLock = Mutex()
+
+    internal val childrenJobs: MutableMap<Name, ChildJob> = mutableMapOf()
+
+    public val devices: Map<Name, Device>
+        get() = childrenJobs.mapValues { it.value.device }
+
+    public abstract val messageBus: MutableSharedFlow<DeviceMessage>
+    public abstract val deviceChanges: MutableSharedFlow<DeviceStateEvent>
+
+    /**
+     * A data class describing a child device, its job, config, and dedicated messageBus.
+     */
     internal data class ChildJob(
         val device: Device,
         val job: Job,
-        val lifecycleMode: LifecycleMode,
+        val config: DeviceLifecycleConfig,
         val messageBus: MutableSharedFlow<DeviceMessage>,
-        val meta: Meta? = null
-    )
+        val meta: Meta? = null,
+        /**
+         * If true, we keep the old messageBus on hotSwap.
+         */
+        val reuseBus: Boolean = false
+    ) {
+        val lifecycleMode: LifecycleMode get() = config.lifecycleMode
+    }
 
     /**
-     * A centralized bus for messages
+     * Called when a child device error occurs.
      */
-    public abstract val messageBus: MutableSharedFlow<DeviceMessage>
+    protected open suspend fun onChildErrorCaught(ex: Throwable, childName: Name, config: DeviceLifecycleConfig) {
+        context.logger.error(ex) { "Error in child device $childName with policy ${config.onError}" }
+    }
 
     /**
-     * A centralized bus for device change events
+     * Called when STOP_PARENT policy is triggered.
+     * We cancel the [parentJob] instead of the current context to avoid self-cancellation in child coroutines.
      */
-    public abstract val deviceChanges: MutableSharedFlow<DeviceChangeEvent>
-
+    protected open suspend fun onParentStopRequested(ex: Throwable, childName: Name) {
+        context.logger.error(ex) { "Stopping parent due to error in child $childName" }
+        parentJob.cancelAndJoin()
+    }
 
     /**
-     * Launches a child device with a specific lifecycle mode and error handling.
+     * Called when a CUSTOM error policy is triggered.
      */
+    protected open suspend fun onCustomError(ex: Throwable, childName: Name, config: DeviceLifecycleConfig) {
+        context.logger.error(ex) { "Custom error strategy for device $childName: override onCustomError." }
+    }
+
+    /**
+     * Called if the device's start operation times out.
+     */
+    protected open suspend fun onStartTimeout(deviceName: Name, config: DeviceLifecycleConfig) {
+        context.logger.error { "Timeout while starting $deviceName." }
+        throw RuntimeException("Timeout on start for $deviceName")
+    }
+
+    /**
+     * Called if the device's stop operation times out.
+     */
+    internal open suspend fun onStopTimeout(deviceName: Name, config: DeviceLifecycleConfig) {
+        context.logger.warn { "Timeout while stopping $deviceName. Consider overriding onStopTimeout." }
+    }
+
+    /**
+     * Perform a health check if configured.
+     */
+    internal open suspend fun checkHealth(child: ChildJob) {
+        val hc = child.config.healthChecker ?: return
+        if (!hc.isHealthy(child.device)) {
+            val ex = RuntimeException("Health check failed for device ${child.device.id}")
+            deviceChanges.emit(DeviceStateEvent.DeviceFailed(child.device.id.parseAsName(), ex))
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    internal fun launchChild(name: Name, device: Device, config: DeviceLifecycleConfig, meta: Meta? = null): ChildJob {
-        val childMessageBus = MutableSharedFlow<DeviceMessage>(
+    internal fun launchChild(
+        name: Name,
+        device: Device,
+        config: DeviceLifecycleConfig,
+        meta: Meta?,
+        /**
+         * If true, we reuse the old messageBus from previous device on hotSwap.
+         * Otherwise, we create a new bus.
+         */
+        reuseBus: MutableSharedFlow<DeviceMessage>? = null
+    ): ChildJob {
+        val childMessageBus = reuseBus ?: MutableSharedFlow(
             replay = config.messageBuffer,
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
-        val childScope = config.coroutineScope ?: context
-        val job = childScope.launch(dispatcher + CoroutineName("Child device $name")) {
+        val childScope = config.coroutineScope ?: CoroutineScope(parentJob + dispatcher)
+
+        val childJob = childScope.launch(CoroutineName("Child device $name")) {
             try {
+                // Attempt to auto-start if not independent.
                 if (config.lifecycleMode != LifecycleMode.INDEPENDENT) {
-                    if (config.lifecycleMode == LifecycleMode.LINKED || device.lifecycleState == LifecycleState.STARTING){
+                    if (config.lifecycleMode == LifecycleMode.LINKED ||
+                        device.lifecycleState == LifecycleState.STARTING ||
+                        device.lifecycleState == LifecycleState.INITIAL
+                    ) {
                         delay(config.startDelay)
-                        withTimeoutOrNull(config.startTimeout ?: Duration.INFINITE) {
+                        val started = withTimeoutOrNull(config.startTimeout ?: Duration.INFINITE) {
                             device.start()
-                        } ?: error("Timeout on start for $name")
+                        }
+                        if (started == null) {
+                            onStartTimeout(name, config)
+                        } else {
+                            deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
+                            checkHealth(
+                                ChildJob(device, this.coroutineContext[Job]!!, config, childMessageBus, meta, reuseBus != null)
+                            )
+                        }
                     }
                 }
-
-                device.messageFlow.collect { message ->
-                    childMessageBus.emit(message.changeSource { name.plus(it) })
-                    messageBus.emit(message.changeSource { name.plus(it) })
+                // Collect all device messages
+                device.messageFlow.collect { msg ->
+                    val wrapped = msg.changeSource { name.plus(it) }
+                    childMessageBus.emit(wrapped)
+                    messageBus.emit(wrapped)
                 }
             } catch (ex: Exception) {
-                val errorMessage = DeviceMessage.error(ex, name)
-                messageBus.emit(errorMessage)
+                onChildErrorCaught(ex, name, config)
+                deviceChanges.emit(DeviceStateEvent.DeviceFailed(name, ex))
+                messageBus.emit(DeviceMessage.error(ex, name))
 
                 when (config.onError) {
-                    ChildDeviceErrorHandler.IGNORE -> context.logger.error(ex) { "Error in child device $name ignored" }
+                    ChildDeviceErrorHandler.IGNORE -> {}
                     ChildDeviceErrorHandler.RESTART -> {
-                        context.logger.error(ex) { "Error in child device $name, restarting" }
-                        removeDevice(name)
-                        childrenJobs[name] = launchChild(name, device, config, meta)
+                        // schedule restart
+                        CoroutineScope(parentJob + dispatcher).launch {
+                            restartDevice(name)
+                        }
                     }
-                    ChildDeviceErrorHandler.STOP_PARENT -> {
-                        context.logger.error(ex) { "Error in child device $name, stopping parent" }
-                        coroutineContext[Job]?.cancelAndJoin()
-                    }
-                    ChildDeviceErrorHandler.PROPAGATE -> {
-                        context.logger.error(ex) { "Error in child device $name propagated to parent" }
-                        throw ex
-                    }
+                    ChildDeviceErrorHandler.STOP_PARENT -> onParentStopRequested(ex, name)
+                    ChildDeviceErrorHandler.PROPAGATE -> throw ex
+                    ChildDeviceErrorHandler.CUSTOM -> onCustomError(ex, name, config)
                 }
             } finally {
-                childrenJobs.remove(name)
-                clearReplayCache(childMessageBus)
-                deviceChanges.emit(DeviceChangeEvent.Removed(name))
-                messageBus.emit(DeviceLogMessage("Device $name stopped", sourceDevice = name))
-                if (device is ConfigurableCompositeControlComponent<*>) {
-                    device.onChildStop()
+                // If ended, device is considered stopped.
+                if (!isActive) {
+                    removeJobFromRegistry(name, device, childMessageBus)
+                    deviceChanges.emit(DeviceStateEvent.DeviceStopped(name))
                 }
             }
         }
-        return ChildJob(device, job, config.lifecycleMode, childMessageBus, meta)
+        return ChildJob(device, childJob, config, childMessageBus, meta, reuseBus != null)
     }
 
+    /**
+     * Removes the child device from registry.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun <T> clearReplayCache(mutableSharedFlow: MutableSharedFlow<T>){
-        val cached = mutableSharedFlow.replayCache
-        mutableSharedFlow.resetReplayCache()
-        cached.forEach { mutableSharedFlow.tryEmit(it) }
+    private suspend fun removeJobFromRegistry(
+        name: Name,
+        device: Device,
+        bus: MutableSharedFlow<DeviceMessage>
+    ) {
+        childLock.withLock {
+            val current = childrenJobs[name]
+            if (current?.device == device) {
+                childrenJobs.remove(name)
+            }
+        }
+        bus.resetReplayCache()
+        deviceChanges.emit(DeviceStateEvent.DeviceDetached(name))
+        messageBus.emit(DeviceLogMessage("Device $name physically removed.", sourceDevice = name))
+        if (device is ConfigurableCompositeControlComponent<*>) {
+            device.onChildStop()
+        }
     }
 
     /**
-     * Add a device to the hub and manage its lifecycle according to its spec
+     * Adds a device asynchronously (does not wait for full start).
      */
-    public fun addDevice(name: Name, device: Device, config: DeviceLifecycleConfig, meta: Meta? = null) {
-        val existingDevice = devices[name]
-        if (existingDevice != null) {
-            if(existingDevice == device) {
-                error("Device with name $name is already installed")
+    public suspend fun addDevice(
+        name: Name,
+        device: Device,
+        config: DeviceLifecycleConfig,
+        meta: Meta? = null
+    ) {
+        childLock.withLock {
+            val existing = childrenJobs[name]
+            if (existing != null && existing.device != device) {
+                removeDeviceUnlocked(name, waitStop = false)
             }
-            context.launch(device.coroutineContext) { existingDevice.stopWithTimeout(config.stopTimeout ?: Duration.INFINITE) }
+            val newChild = launchChild(name, device, config, meta)
+            childrenJobs[name] = newChild
         }
-        childrenJobs[name] = launchChild(name, device, config, meta)
+        deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
+        messageBus.emit(DeviceLogMessage("Device $name added", sourceDevice = name))
+    }
 
-        context.launch {
-            deviceChanges.emit(DeviceChangeEvent.Added(name, device))
-            messageBus.emit(DeviceLogMessage("Device $name added", sourceDevice = name))
+    /**
+     * Adds a device and joins the child job if it completes.
+     */
+    public suspend fun addDeviceSync(
+        name: Name,
+        device: Device,
+        config: DeviceLifecycleConfig,
+        meta: Meta? = null
+    ) {
+        addDevice(name, device, config, meta)
+        childLock.withLock {
+            childrenJobs[name]?.job?.join()
         }
     }
 
-    public fun removeDevice(name: Name) {
-        childrenJobs[name]?.let { childJob ->
-            context.launch(childJob.device.coroutineContext) {
-                val timeout = when (childJob.lifecycleMode) {
-                    LifecycleMode.INDEPENDENT -> childJob.device.meta["stopTimeout".asName()]?.value?.let {
-                        Duration.parse(it.toString())
-                    } ?: Duration.INFINITE
+    /**
+     * Removes a device asynchronously (not waiting for full stop).
+     */
+    public suspend fun removeDevice(name: Name) {
+        childLock.withLock {
+            removeDeviceUnlocked(name, waitStop = false)
+        }
+    }
 
-                    else -> Duration.INFINITE
+    /**
+     * Restarts a device, preserving the same config & meta.
+     */
+    public suspend fun restartDevice(name: Name) {
+        childLock.withLock {
+            val old = childrenJobs[name] ?: return
+            removeDeviceUnlocked(name, waitStop = true)
+            val newChild = launchChild(name, old.device, old.config, old.meta, if (old.reuseBus) old.messageBus else null)
+            childrenJobs[name] = newChild
+            messageBus.emit(DeviceLogMessage("Device $name restarted", sourceDevice = name))
+        }
+    }
+
+    /**
+     * Changes the child's lifecycle mode.
+     */
+    public suspend fun changeLifecycleMode(name: Name, newMode: LifecycleMode) {
+        childLock.withLock {
+            val old = childrenJobs[name] ?: error("Device $name not found")
+            val newConfig = old.config.copy(lifecycleMode = newMode)
+            removeDeviceUnlocked(name, waitStop = true)
+            val newChild = launchChild(name, old.device, newConfig, old.meta, if (old.reuseBus) old.messageBus else null)
+            childrenJobs[name] = newChild
+            messageBus.emit(DeviceLogMessage("Device $name lifecycle changed to $newMode", sourceDevice = name))
+        }
+    }
+
+    /**
+     * A "hot swap" approach, optionally reusing the old bus to keep subscribers.
+     */
+    public suspend fun hotSwapDevice(
+        name: Name,
+        newDevice: Device,
+        config: DeviceLifecycleConfig,
+        meta: Meta? = null,
+        reuseMessageBus: Boolean = false
+    ) {
+        childLock.withLock {
+            val old = childrenJobs[name]
+            val oldBus = if (reuseMessageBus) old?.messageBus else null
+            removeDeviceUnlocked(name, waitStop = true)
+            val newChild = launchChild(name, newDevice, config, meta, oldBus)
+            childrenJobs[name] = newChild
+            messageBus.emit(DeviceLogMessage("Device $name hot-swapped", sourceDevice = name))
+        }
+    }
+
+    /**
+     * Remove device, either waiting or not. Will attempt to stop within [stopTimeout].
+     */
+    private suspend fun removeDeviceUnlocked(name: Name, waitStop: Boolean) {
+        val child = childrenJobs[name] ?: return
+        childrenJobs.remove(name)
+        val timeout = child.config.stopTimeout ?: Duration.INFINITE
+        if (waitStop) {
+            child.job.cancelAndJoin()
+            val stopped = withTimeoutOrNull(timeout) {
+                child.device.stop()
+            }
+            if (stopped == null) onStopTimeout(name, child.config)
+            deviceChanges.emit(DeviceStateEvent.DeviceRemoved(name))
+            messageBus.emit(DeviceLogMessage("Device $name removed (waitStop=true)", sourceDevice = name))
+        } else {
+            // do not wait, just launch
+            CoroutineScope(parentJob + dispatcher).launch {
+                val stopped = withTimeoutOrNull(timeout) {
+                    child.job.cancelAndJoin()
+                    child.device.stop()
                 }
-                withTimeoutOrNull(timeout) {
-                    childJob.job.cancelAndJoin()
-                    childJob.device.stop()
-                } ?: error("Timeout on stop for $name")
+                if (stopped == null) onStopTimeout(name, child.config)
             }
-            childrenJobs.remove(name)
-            context.launch {
-                messageBus.emit(DeviceLogMessage("Device $name removed", sourceDevice = name))
-                deviceChanges.emit(DeviceChangeEvent.Removed(name))
+            deviceChanges.emit(DeviceStateEvent.DeviceRemoved(name))
+            messageBus.emit(DeviceLogMessage("Device $name removed (async)", sourceDevice = name))
+        }
+    }
+
+    public fun getChildMessageBus(name: Name): MutableSharedFlow<DeviceMessage>? = childrenJobs[name]?.messageBus
+
+    internal open fun onChildStop() {}
+
+    /**
+     * Starts multiple devices in a transactional manner.
+     * If any fails, we stop all that started successfully, logging any rollback errors.
+     */
+    public suspend fun startDevicesBatch(deviceNames: List<Name>): Boolean {
+        val startedSuccessfully = mutableListOf<Name>()
+        try {
+            for (dn in deviceNames) {
+                val job = childrenJobs[dn] ?: continue
+                if (job.device.lifecycleState == LifecycleState.INITIAL) {
+                    job.device.start()
+                    deviceChanges.emit(DeviceStateEvent.DeviceStarted(dn))
+                    startedSuccessfully += dn
+                }
             }
+            return true
+        } catch (_: Exception) {
+            // rollback
+            for (dn in startedSuccessfully) {
+                val job = childrenJobs[dn] ?: continue
+                try {
+                    job.device.stop()
+                    deviceChanges.emit(DeviceStateEvent.DeviceStopped(dn))
+                } catch (rollbackEx: Exception) {
+                    context.logger.error(rollbackEx) { "Failed to rollback stop for device $dn" }
+                }
+            }
+            return false
         }
     }
 
     /**
-     * Change lifecycle mode of a child device
+     * Stops multiple devices in a transactional manner.
+     * If any fails to stop, we attempt to restart those already stopped, logging any errors.
      */
-    public fun changeLifecycleMode(name: Name, mode: LifecycleMode) {
-        val job = childrenJobs[name] ?: error("Device with name '$name' is not found")
-        val config = DeviceLifecycleConfig(lifecycleMode = mode, messageBuffer = job.messageBus.replayCache.size)
-        context.launch {
-            job.job.cancelAndJoin()
-            childrenJobs[name] = launchChild(name, job.device, config, job.meta)
+    public suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean {
+        val stoppedSuccessfully = mutableListOf<Name>()
+        try {
+            for (dn in deviceNames) {
+                val job = childrenJobs[dn] ?: continue
+                if (job.device.lifecycleState == LifecycleState.STARTED) {
+                    job.device.stop()
+                    deviceChanges.emit(DeviceStateEvent.DeviceStopped(dn))
+                    stoppedSuccessfully += dn
+                }
+            }
+            return true
+        } catch (_: Exception) {
+            for (dn in stoppedSuccessfully) {
+                val job = childrenJobs[dn] ?: continue
+                try {
+                    job.device.start()
+                    deviceChanges.emit(DeviceStateEvent.DeviceStarted(dn))
+                } catch (rollbackEx: Exception) {
+                    context.logger.error(rollbackEx) { "Failed to rollback start for device $dn" }
+                }
+            }
+            return false
         }
     }
 
     /**
-     * Get local message bus for a child device
+     * A placeholder method to install distributed transport.
      */
-    public fun getChildMessageBus(name: Name) : MutableSharedFlow<DeviceMessage>? = childrenJobs[name]?.messageBus
-
-    /**
-     * Method for explicit call when child device is stopped.
-     */
-    internal open fun onChildStop(){
-
+    public open fun installDistributedTransport() {
+        context.logger.info { "installDistributedTransport: implement broker here." }
     }
 }
 
-
-private class DeviceHubManagerImpl(context: Context, dispatcher: CoroutineDispatcher = Dispatchers.Default) : AbstractDeviceHubManager(context, dispatcher){
+/**
+ * A default implementation of the device hub manager with extended event types.
+ * We store a [parentJob] for controlling all child coroutines from the parent side.
+ */
+private class DeviceHubManagerImpl(context: Context, dispatcher: CoroutineDispatcher) : AbstractDeviceHubManager(context, dispatcher) {
     override val messageBus: MutableSharedFlow<DeviceMessage> = MutableSharedFlow(
         replay = 1000,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val deviceChanges: MutableSharedFlow<DeviceChangeEvent> = MutableSharedFlow(replay = 1)
+    override val deviceChanges: MutableSharedFlow<DeviceStateEvent> = MutableSharedFlow(replay = 1)
 }
 
 /**
- * An interface for a device that contains other devices as children.
+ * A device that can host child devices.
  */
 public interface CompositeControlComponent : Device {
-    /**
-     * A centralized flow of all device messages from this node and all its children
-     */
     public val messageBus: SharedFlow<DeviceMessage>
-
-    /**
-     * A map of child devices
-     */
     public val devices: Map<Name, Device>
 }
 
 /**
- * A base class for devices created from specification, using AbstractDeviceHubManager for children management
+ * A base device created from [spec] with an optional [registry].
  */
-public open class ConfigurableCompositeControlComponent<D : Device>(
+public open class ConfigurableCompositeControlComponent<D : ConfigurableCompositeControlComponent<D>>(
     public open val spec: CompositeControlComponentSpec<D>,
     context: Context,
     meta: Meta = Meta.EMPTY,
     config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
+    registry: ComponentRegistry? = null,
     private val hubManager: AbstractDeviceHubManager = DeviceHubManagerImpl(context, config.dispatcher ?: Dispatchers.Default),
 ) : DeviceBase<D>(context, meta), CompositeControlComponent {
+
+    protected val effectiveRegistry: ComponentRegistry? = registry ?: context.componentRegistry
 
     override val properties: Map<String, DevicePropertySpec<D, *>>
         get() = spec.properties
@@ -671,33 +885,74 @@ public open class ConfigurableCompositeControlComponent<D : Device>(
     final override val messageBus: MutableSharedFlow<DeviceMessage>
         get() = hubManager.messageBus
 
-    public val deviceChanges: MutableSharedFlow<DeviceChangeEvent>
-        get() = hubManager.deviceChanges
+    override fun toString(): String = "Device(id=$id, spec=$spec)"
 
-    public val aggregatedMessageFlow: SharedFlow<DeviceMessage>
-        get() = hubManager.messageBus
+    override val devices: Map<Name, Device>
+        get() = hubManager.devices
+
+    private val childConfigs: List<ChildComponentConfig<*>> = spec.childSpecs.values.toList()
 
     init {
-        spec.childSpecs.forEach{ (name, childSpec) ->
-            val childDevice = ConfigurableCompositeControlComponent(childSpec.spec, context, childSpec.meta ?: Meta.EMPTY, childSpec.config)
-            addDevice(childSpec.name, childDevice, childSpec.config, childSpec.meta)
-        }
-
+        // Register action execution logic for local device
         spec.actions.values.forEach { actionSpec ->
             launch {
                 val actionName = actionSpec.name
-                messageFlow.filterIsInstance<ActionExecuteMessage>().filter { it.action == actionName }.onEach {
-                    val result = execute(actionName, it.argument)
-                    messageBus.emit(
-                        ActionResultMessage(
-                            action = actionName,
-                            result = result,
-                            requestId = it.requestId,
-                            sourceDevice = id.asName()
+                messageFlow
+                    .filterIsInstance<ActionExecuteMessage>()
+                    .filter { it.action == actionName }
+                    .onEach { msg ->
+                        val result = execute(actionName, msg.argument)
+                        messageBus.emit(
+                            ActionResultMessage(
+                                action = actionName,
+                                result = result,
+                                requestId = msg.requestId,
+                                sourceDevice = id.asName()
+                            )
                         )
-                    )
-                }.launchIn(this)
+                    }
+                    .launchIn(this)
             }
+        }
+    }
+
+    /**
+     * Creates all child devices and waits for them if needed.
+     */
+    public suspend fun initChildren() {
+        for (childCfg in childConfigs) {
+            val childDevice = ConfigurableCompositeControlComponent(
+                spec = childCfg.spec,
+                registry = effectiveRegistry,
+                context = context,
+                meta = childCfg.meta ?: Meta.EMPTY,
+                config = childCfg.config
+            )
+            hubManager.addDeviceSync(childCfg.name, childDevice, childCfg.config, childCfg.meta)
+        }
+    }
+
+    /**
+     * A factory method that creates a device and immediately calls [initChildren].
+     */
+    public companion object {
+        public suspend fun <D : ConfigurableCompositeControlComponent<D>> create(
+            spec: CompositeControlComponentSpec<D>,
+            context: Context,
+            meta: Meta = Meta.EMPTY,
+            config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
+            registry: ComponentRegistry? = null,
+        ): D {
+            @Suppress("UNCHECKED_CAST")
+            val device = ConfigurableCompositeControlComponent(
+                spec = spec,
+                context = context,
+                meta = meta,
+                config = config,
+                registry = registry
+            ) as D
+            device.initChildren()
+            return device
         }
     }
 
@@ -706,30 +961,30 @@ public open class ConfigurableCompositeControlComponent<D : Device>(
             self.onOpen()
             validate(self)
         }
-        hubManager.devices.values.filter {
-            it.lifecycleState != LifecycleState.STARTED && it.lifecycleState != LifecycleState.STARTING
-        }.forEach {
-            if (hubManager.childrenJobs[it.id.parseAsName()]?.lifecycleMode != LifecycleMode.LAZY) {
-                it.start()
+        // Autostart children if not LAZY
+        hubManager.devices.values
+            .filter { it.lifecycleState != LifecycleState.STARTED && it.lifecycleState != LifecycleState.STARTING }
+            .forEach { child ->
+                val mode = hubManager.childrenJobs[child.id.parseAsName()]?.lifecycleMode
+                if (mode != LifecycleMode.LAZY) {
+                    child.start()
+                }
             }
-        }
-    }
-
-    private suspend fun getTimeout(device: Device): Duration {
-        return (hubManager.childrenJobs[device.id.parseAsName()]?.lifecycleMode ?:  LifecycleMode.LINKED).let{
-            if(it == LifecycleMode.INDEPENDENT)
-                it.name.let{ meta["stopTimeout".parseAsName()]?.let { durationMeta ->
-                    Duration.parse(durationMeta.value.toString())
-                } ?: Duration.INFINITE }
-            else Duration.INFINITE
-        }
     }
 
     override suspend fun onStop() {
-        hubManager.devices.values.forEach {
-            launch(it.coroutineContext){
-                withTimeoutOrNull(getTimeout(it)){
-                    it.stop()
+        // Stop children, respecting each child's stopTimeout
+        hubManager.devices.values.forEach { child ->
+            launch(child.coroutineContext) {
+                val stopResult = withTimeoutOrNull(getChildStopTimeout(child)) {
+                    child.stop()
+                }
+                if (stopResult == null) {
+                    // calls onStopTimeout if child config has it
+                    val job = hubManager.childrenJobs[child.id.parseAsName()]
+                    if (job != null) {
+                        hubManager.onStopTimeout(child.id.parseAsName(), job.config)
+                    }
                 }
             }
         }
@@ -738,72 +993,47 @@ public open class ConfigurableCompositeControlComponent<D : Device>(
         }
     }
 
-    override fun toString(): String = "Device(spec=$spec)"
-
-    internal open fun onChildStop() {
+    private fun getChildStopTimeout(device: Device): Duration {
+        val job = hubManager.childrenJobs[device.id.parseAsName()]
+        return job?.config?.stopTimeout ?: Duration.INFINITE
     }
 
     /**
-     * Add existing device to this hub
+     * Called when a child device is stopped in [AbstractDeviceHubManager].
      */
-    private fun addDevice(name: Name = device.id.asName(), device: Device, config: DeviceLifecycleConfig = DeviceLifecycleConfig(), meta: Meta? = null) {
-        hubManager.addDevice(name, device, config, meta)
+    internal open fun onChildStop() {}
+
+    @Suppress("UNCHECKED_CAST")
+    public fun <CD : ConfigurableCompositeControlComponent<CD>> getChildDevice(name: Name): CD {
+        return (hubManager.devices[name] as? CD)
+            ?: error("Child device $name not found or type mismatch")
     }
 
-    /**
-     * Remove a child device from the hub by name.
-     */
-    private fun removeDevice(name: Name) {
-        hubManager.removeDevice(name)
-    }
+    public fun getChildMessageBus(name: Name): SharedFlow<DeviceMessage>? =
+        hubManager.getChildMessageBus(name)
 
-    /**
-     * Get list of all children devices
-     */
-    public override val devices: Map<Name, Device>
-        get() = hubManager.devices
-
-    /**
-     * Get child device from this hub by name
-     */
-    public fun <CD : ConfigurableCompositeControlComponent<CD>> getChildDevice(name: Name): ConfigurableCompositeControlComponent<CD> =
-        hubManager.devices[name] as? ConfigurableCompositeControlComponent<CD>? ?: error("Device $name not found")
-
-    public fun <CD: ConfigurableCompositeControlComponent<CD>> childDevice(name: Name? = null):
-            PropertyDelegateProvider<ConfigurableCompositeControlComponent<D>, ReadOnlyProperty<ConfigurableCompositeControlComponent<D>, CD>>
-            = PropertyDelegateProvider{ thisRef, property ->
-        ReadOnlyProperty{ _, _ ->
-            val deviceName = name ?: property.name.asName()
-            thisRef.devices[deviceName] as? CD ?: error("Device $deviceName not found")
+    public fun <CD : ConfigurableCompositeControlComponent<CD>> childDevice(name: Name? = null):
+            PropertyDelegateProvider<ConfigurableCompositeControlComponent<D>, ReadOnlyProperty<ConfigurableCompositeControlComponent<D>, CD>> =
+        PropertyDelegateProvider { _, property ->
+            ReadOnlyProperty { _, _ ->
+                val devName = name ?: property.name.asName()
+                getChildDevice<CD>(devName)
+            }
         }
-    }
 
-    /**
-     * Get child device message bus by name
-     */
-    public fun getChildMessageBus(name: Name): SharedFlow<DeviceMessage>? = hubManager.getChildMessageBus(name)
-
-    /**
-     * Get device, using delegate method
-     */
-    public inline operator fun <reified D : Device> get(name: Name): D? = devices[name] as? D
-
-    /**
-     * Get device, using delegate method
-     */
-    public inline operator fun <reified D : Device> get(name: String): D? = devices[name.asName()] as? D
-
+    public inline operator fun <reified Dev : Device> get(name: Name): Dev? = devices[name] as? Dev
+    public inline operator fun <reified Dev : Device> get(name: String): Dev? = this[name.asName()]
 }
 
+/**
+ * Stops the device with a given [timeout].
+ * Logs a warning if the timeout is reached.
+ */
 public suspend fun WithLifeCycle.stopWithTimeout(timeout: Duration = Duration.INFINITE) {
-    withTimeoutOrNull(timeout) {
+    val result = withTimeoutOrNull(timeout) {
         stop()
     }
-}
-
-public interface ChildComponentConfig<CD: Device>{
-    public val spec: CompositeControlComponentSpec<CD>
-    public val config: DeviceLifecycleConfig
-    public val meta: Meta?
-    public val name: Name
+    if (result == null) {
+        (this as? DeviceBase<*>)?.logger?.warn { "Timeout on stop for device ${this.id}" }
+    }
 }

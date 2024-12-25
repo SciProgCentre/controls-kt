@@ -9,6 +9,11 @@ import kotlinx.serialization.Serializable
 public enum class LifecycleState {
 
     /**
+     * The device is newly created and has not started yet.
+     */
+    INITIAL,
+
+    /**
      * Device is initializing
      */
     STARTING,
@@ -17,6 +22,11 @@ public enum class LifecycleState {
      * The Device is initialized and running
      */
     STARTED,
+
+    /**
+     * The Device is stopping
+     */
+    STOPPING,
 
     /**
      * The Device is closed
@@ -50,8 +60,10 @@ public interface WithLifeCycle {
 public fun WithLifeCycle.bindToDeviceLifecycle(device: Device){
     device.onLifecycleEvent {
         when(it){
+            LifecycleState.INITIAL -> {/*ignore*/}
             LifecycleState.STARTING -> start()
             LifecycleState.STARTED -> {/*ignore*/}
+            LifecycleState.STOPPING -> stop()
             LifecycleState.STOPPED -> stop()
             LifecycleState.ERROR -> stop()
         }

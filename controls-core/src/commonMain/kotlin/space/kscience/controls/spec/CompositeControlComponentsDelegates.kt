@@ -1,384 +1,248 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.Deferred
-import space.kscience.controls.api.ActionDescriptorBuilder
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyDescriptorBuilder
-import space.kscience.controls.api.id
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.ValueType
+import space.kscience.controls.api.*
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.dataforge.meta.string
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.KProperty1
 
 /**
- * Create a [MetaConverter] for enum values
+ * Create a [MetaConverter] for enum values using [reified] type with an option to ignore case.
  */
-public fun <E : Enum<E>> createEnumConverter(enumValues: Array<E>): MetaConverter<E> = object : MetaConverter<E> {
-    override val descriptor: MetaDescriptor = MetaDescriptor {
-        valueType(ValueType.STRING)
-        allowedValues(enumValues.map { it.name })
-    }
+public inline fun <reified E : Enum<E>> createEnumConverter(ignoreCase: Boolean = false): MetaConverter<E> {
+    val allValues = enumValues<E>()
+    return object : MetaConverter<E> {
+        override val descriptor: MetaDescriptor = MetaDescriptor {
+            valueType(ValueType.STRING)
+            allowedValues(allValues.map { it.name })
+        }
 
-    override fun readOrNull(source: Meta): E? {
-        val value = source.value ?: return null
-        return enumValues.firstOrNull { it.name == value.string }
-    }
+        override fun readOrNull(source: Meta): E? {
+            val stringVal = source.value?.string ?: return null
+            return allValues.firstOrNull { it.name.equals(stringVal, ignoreCase) }
+        }
 
-    override fun convert(obj: E): Meta = Meta(obj.name)
+        override fun convert(obj: E): Meta = Meta(obj.name)
+    }
 }
 
 /**
- * A read-only device property that delegates reading to a device [KProperty1]
+ * Unified function: if [write] == null -> read-only property, else -> mutable property.
  */
-public fun <T, D : Device> CompositeControlComponentSpec<D>.property(
+public fun <T, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.typedProperty(
     converter: MetaConverter<T>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
     name: String? = null,
-    read: suspend D.(propertyName: String) -> T?,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> T?,
+    write: (suspend D.(String, T) -> Unit)? = null,
 ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, T>>> {
-    return  property(converter, descriptorBuilder, name, read)
+    return if (write == null) {
+        property(converter, descriptorBuilder, name, read)
+    } else {
+        mutableProperty(converter, descriptorBuilder, name, read, write)
+    }
 }
 
 /**
- * Mutable property that delegates reading and writing to a device [KMutableProperty1]
+ * Boolean property: read-only or mutable (if [write] is not null).
  */
-public fun <T, D : Device> CompositeControlComponentSpec<D>.mutableProperty(
-    converter: MetaConverter<T>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.booleanProperty(
     name: String? = null,
-    read: suspend D.(propertyName: String) -> T?,
-    write: suspend D.(propertyName: String, value: T) -> Unit,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, T>>> {
-    return  mutableProperty(converter, descriptorBuilder, name, read, write)
-}
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Boolean?,
+    write: (suspend D.(String, Boolean) -> Unit)? = null,
+) = typedProperty(MetaConverter.boolean, name, descriptorBuilder, read, write)
 
 /**
- * Register a mutable logical property (without a corresponding physical state) for a device
+ * Int property: read-only or mutable.
  */
-public fun <T, D : DeviceBase<D>> CompositeControlComponentSpec<D>.logical(
-    converter: MetaConverter<T>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.intProperty(
     name: String? = null,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, T>>> =
-    mutableProperty(
-        converter,
-        descriptorBuilder,
-        name,
-        read = { propertyName -> getProperty(propertyName)?.let(converter::readOrNull) },
-        write = { propertyName, value -> writeProperty(propertyName, converter.convert(value)) }
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Int?,
+    write: (suspend D.(String, Int) -> Unit)? = null,
+) = typedProperty(MetaConverter.int, name, descriptorBuilder, read, write)
+
+/**
+ * Double property: read-only or mutable.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.doubleProperty(
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Double?,
+    write: (suspend D.(String, Double) -> Unit)? = null,
+) = typedProperty(MetaConverter.double, name, descriptorBuilder, read, write)
+
+/**
+ * Long property: read-only or mutable.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.longProperty(
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Long?,
+    write: (suspend D.(String, Long) -> Unit)? = null,
+) = typedProperty(MetaConverter.long, name, descriptorBuilder, read, write)
+
+/**
+ * Float property: read-only or mutable.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.floatProperty(
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Float?,
+    write: (suspend D.(String, Float) -> Unit)? = null,
+) = typedProperty(MetaConverter.float, name, descriptorBuilder, read, write)
+
+/**
+ * Number property: read-only or mutable.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.numberProperty(
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Number?,
+    write: (suspend D.(String, Number) -> Unit)? = null,
+) = typedProperty(MetaConverter.number, name, descriptorBuilder, read, write)
+
+/**
+ * String property: read-only or mutable.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.stringProperty(
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> String?,
+    write: (suspend D.(String, String) -> Unit)? = null,
+) = typedProperty(MetaConverter.string, name, descriptorBuilder, read, write)
+
+/**
+ * Meta property: read-only or mutable.
+ */
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.metaProperty(
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> Meta?,
+    write: (suspend D.(String, Meta) -> Unit)? = null,
+) = typedProperty(MetaConverter.meta, name, descriptorBuilder, read, write)
+
+
+/**
+ * Enum property (read-only or mutable).
+ * [ignoreCase] controls case sensitivity when reading the enum value from Meta.
+ * If [write] is null, the property is read-only; otherwise it's read-write.
+ */
+public inline fun <reified E : Enum<E>, D : ConfigurableCompositeControlComponent<D>>
+        CompositeControlComponentSpec<D>.enumProperty(
+    name: String? = null,
+    ignoreCase: Boolean = false,
+    noinline descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    noinline read: suspend D.(String) -> E?,
+    noinline write: (suspend D.(String, E) -> Unit)? = null,
+): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, E>>> =
+    typedProperty(
+        converter = createEnumConverter<E>(ignoreCase),
+        name = name,
+        descriptorBuilder = descriptorBuilder,
+        read = read,
+        write = write
     )
 
 /**
- * Creates a boolean property for a device.
+ * List property: read-only or mutable.
  */
-public fun <D : Device> CompositeControlComponentSpec<D>.boolean(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+public fun <T, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.listProperty(
+    listConverter: MetaConverter<List<T>>,
     name: String? = null,
-    read: suspend D.(propertyName: String) -> Boolean?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Boolean>>> =
-    property(MetaConverter.boolean, descriptorBuilder, name, read)
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> List<T>?,
+    write: (suspend D.(String, List<T>) -> Unit)? = null,
+) = typedProperty(listConverter, name, descriptorBuilder, read, write)
 
 /**
- * Creates a mutable boolean property for a device.
+ * Logical property (no real hardware I/O).
  */
-public fun <D : Device> CompositeControlComponentSpec<D>.booleanMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+public fun <T, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.logicalProperty(
+    converter: MetaConverter<T>,
     name: String? = null,
-    read: suspend D.(propertyName: String) -> Boolean?,
-    write: suspend D.(propertyName: String, value: Boolean) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Boolean>>> =
-    mutableProperty(MetaConverter.boolean, descriptorBuilder, name, read, write)
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+) = typedProperty(
+    converter = converter,
+    name = name,
+    descriptorBuilder = descriptorBuilder,
+    read = { propertyName -> getProperty(propertyName)?.let(converter::readOrNull) },
+    write = { propertyName, value -> writeProperty(propertyName, converter.convert(value)) }
+)
 
 /**
- * Creates a read-only number property for a device.
+ * Creates an action with optional input/output converters.
  */
-public fun <D : Device> CompositeControlComponentSpec<D>.number(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Number?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Number>>> =
-    property(MetaConverter.number, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable number property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.numberMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Number?,
-    write: suspend D.(propertyName: String, value: Number) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Number>>> =
-    mutableProperty(MetaConverter.number, descriptorBuilder, name, read, write)
-
-
-/**
- * Creates a read-only double property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.double(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Double?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Double>>> =
-    property(MetaConverter.double, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable double property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.doubleMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Double?,
-    write: suspend D.(propertyName: String, value: Double) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Double>>> =
-    mutableProperty(MetaConverter.double, descriptorBuilder, name, read, write)
-
-/**
- * Creates a read-only string property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.string(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> String?
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, String>>> =
-    property(MetaConverter.string, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable string property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.stringMutableProperty(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> String?,
-    write: suspend D.(propertyName: String, value: String) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, String>>> =
-    mutableProperty(MetaConverter.string, descriptorBuilder, name, read, write)
-
-/**
- * Creates a read-only meta property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.meta(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Meta?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Meta>>> =
-    property(MetaConverter.meta, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable meta property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.metaMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Meta?,
-    write: suspend D.(propertyName: String, value: Meta) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Meta>>> =
-    mutableProperty(MetaConverter.meta, descriptorBuilder, name, read, write)
-
-/**
- * Creates a read-only enum property for a device.
- */
-public fun <E : Enum<E>, D : Device> CompositeControlComponentSpec<D>.enum(
-    enumValues: Array<E>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> E?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, E>>> {
-    val converter = createEnumConverter(enumValues)
-    return property(converter, descriptorBuilder, name, read)
-}
-
-/**
- * Creates a mutable enum property for a device.
- */
-public fun <E : Enum<E>, D : Device> CompositeControlComponentSpec<D>.enumMutable(
-    enumValues: Array<E>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> E?,
-    write: suspend D.(propertyName: String, value: E) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, E>>> {
-    val converter = createEnumConverter(enumValues)
-    return mutableProperty(converter, descriptorBuilder, name, read, write)
-}
-
-/**
- * Creates a read-only float property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.float(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Float?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Float>>> =
-    property(MetaConverter.float, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable float property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.floatMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Float?,
-    write: suspend D.(propertyName: String, value: Float) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Float>>> =
-    mutableProperty(MetaConverter.float, descriptorBuilder, name, read, write)
-
-/**
- * Creates a read-only long property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.long(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Long?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Long>>> =
-    property(MetaConverter.long, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable long property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.longMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Long?,
-    write: suspend D.(propertyName: String, value: Long) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Long>>> =
-    mutableProperty(MetaConverter.long, descriptorBuilder, name, read, write)
-
-/**
- * Creates a read-only int property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.int(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Int?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Int>>> =
-    property(MetaConverter.int, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable int property for a device.
- */
-public fun <D : Device> CompositeControlComponentSpec<D>.intMutable(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Int?,
-    write: suspend D.(propertyName: String, value: Int) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Int>>> =
-    mutableProperty(MetaConverter.int, descriptorBuilder, name, read, write)
-
-/**
- * Creates a read-only list property for a device.
- */
-public fun <T, D : Device> CompositeControlComponentSpec<D>.list(
-    converter: MetaConverter<List<T>>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> List<T>?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, List<T>>>> =
-    property(converter, descriptorBuilder, name, read)
-
-/**
- * Creates a mutable list property for a device.
- */
-public fun <T, D : Device> CompositeControlComponentSpec<D>.listMutable(
-    converter: MetaConverter<List<T>>,
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> List<T>?,
-    write: suspend D.(propertyName: String, value: List<T>) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, List<T>>>> =
-    mutableProperty(converter, descriptorBuilder, name, read, write)
-
-
-public fun <I, O, D : Device> CompositeControlComponentSpec<D>.asyncActionProperty(
+public fun <I, O, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.typedAction(
     inputConverter: MetaConverter<I>,
     outputConverter: MetaConverter<O>,
+    name: String? = null,
     descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    execute: suspend D.(I) -> Deferred<O>,
+    execute: suspend D.(I) -> O,
 ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, I, O>>> =
-    action(inputConverter, outputConverter, descriptorBuilder, name) { input ->
-        execute(input).await()
-    }
-
-public fun <T, D : Device> CompositeControlComponentSpec<D>.metaProperty(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Meta?,
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, Meta>>> =
-    property(MetaConverter.meta, descriptorBuilder, name, read)
-
-
-public fun <T, D : Device> CompositeControlComponentSpec<D>.mutableMetaProperty(
-    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
-    name: String? = null,
-    read: suspend D.(propertyName: String) -> Meta?,
-    write: suspend D.(propertyName: String, value: Meta) -> Unit
-): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, Meta>>> =
-    mutableProperty(MetaConverter.meta, descriptorBuilder, name, read, write)
+    action(
+        inputConverter = inputConverter,
+        outputConverter = outputConverter,
+        descriptorBuilder = descriptorBuilder,
+        name = name,
+        execute = execute
+    )
 
 /**
- * An action that takes no parameters and returns no values
+ * Action with no parameters and no return values.
  */
-public fun <T, D : Device> CompositeControlComponentSpec<D>.unitAction(
-    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.unitAction(
     name: String? = null,
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
     execute: suspend D.() -> Unit,
 ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
-    action(
-        MetaConverter.unit,
-        MetaConverter.unit,
-        descriptorBuilder,
-        name
+    typedAction(
+        inputConverter = MetaConverter.unit,
+        outputConverter = MetaConverter.unit,
+        name = name,
+        descriptorBuilder = descriptorBuilder,
     ) {
         execute()
     }
 
-public fun <I, O, D : Device> CompositeControlComponentSpec<D>.asyncAction(
+/**
+ * Action with async result. The result is awaited.
+ */
+public fun <I, O, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.asyncAction(
     inputConverter: MetaConverter<I>,
     outputConverter: MetaConverter<O>,
-    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
     name: String? = null,
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
     execute: suspend D.(I) -> Deferred<O>,
 ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, I, O>>> =
-    action(
-        inputConverter,
-        outputConverter,
-        descriptorBuilder,
-        name
-    ) {
-        execute(it).await()
+    typedAction(inputConverter, outputConverter, name, descriptorBuilder) { input ->
+        execute(input).await()
     }
 
 /**
- * An action that takes [Meta] and returns [Meta]. No conversions are done
+ * Action that takes and returns [Meta].
  */
-public fun <T, D : Device> CompositeControlComponentSpec<D>.metaAction(
-    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
+public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.metaAction(
     name: String? = null,
+    descriptorBuilder: ActionDescriptorBuilder.() -> Unit = {},
     execute: suspend D.(Meta) -> Meta,
 ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
-    action(
-        MetaConverter.meta,
-        MetaConverter.meta,
-        descriptorBuilder,
-        name
-    ) {
-        execute(it)
-    }
+    typedAction(MetaConverter.meta, MetaConverter.meta, name, descriptorBuilder, execute)
 
 /**
- * Throw an exception if device does not have all properties and actions defined by this specification
+ * Validates that [device] has all properties and actions defined by this spec.
  */
-public fun CompositeControlComponentSpec<*>.validate(device: Device) {
-    properties.map { it.value.descriptor }.forEach { specProperty ->
-        check(specProperty in device.propertyDescriptors) { "Property ${specProperty.name} not registered in ${device.id}" }
+public fun CompositeControlComponentSpec<*>.validateSpec(device: Device) {
+    properties.values.forEach { propSpec ->
+        check(propSpec.descriptor in device.propertyDescriptors) {
+            "Property ${propSpec.descriptor.name} not registered in ${device.id}"
+        }
     }
-
-    actions.map { it.value.descriptor }.forEach { specAction ->
-        check(specAction in device.actionDescriptors) { "Action ${specAction.name} not registered in ${device.id}" }
+    actions.values.forEach { actSpec ->
+        check(actSpec.descriptor in device.actionDescriptors) {
+            "Action ${actSpec.descriptor.name} not registered in ${device.id}"
+        }
     }
 }

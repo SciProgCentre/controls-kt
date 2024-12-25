@@ -18,98 +18,92 @@ class CompositeControlTest {
     // ---------------------- Device Specifications ----------------------------------
 
     public object StepperMotorSpec : CompositeControlComponentSpec<StepperMotorDevice>() {
-        public val position by intMutable(
+        public val position by intProperty(
             name = "position",
             read = { getPosition() },
             write = { _, value -> setPosition(value) }
         )
 
-        public val maxPosition by int(
+        public val maxPosition by intProperty(
             name = "maxPosition",
             read = { maxPosition }
         )
     }
 
     public object ValveSpec : CompositeControlComponentSpec<ValveDevice>() {
-        public val state by booleanMutable(
+        public val state by booleanProperty(
             read = { getState() },
             write = { _, value -> setState(value) }
         )
     }
 
     public object PressureChamberSpec : CompositeControlComponentSpec<PressureChamberDevice>() {
-        public val pressure by doubleMutable(
+        public val pressure by doubleProperty(
             read = { getPressure() },
             write = { _, value -> setPressure(value) }
         )
     }
 
     public object SyringePumpSpec : CompositeControlComponentSpec<SyringePumpDevice>() {
-        public val volume by doubleMutable(
+        public val volume by doubleProperty(
             read = { getVolume() },
             write = { _, value -> setVolume(value) }
         )
     }
 
     public object ReagentSensorSpec : CompositeControlComponentSpec<ReagentSensorDevice>() {
-        public val isPresent by boolean(
+        public val isPresent by booleanProperty(
             read = { checkReagent() }
         )
     }
 
     public object NeedleSpec : CompositeControlComponentSpec<NeedleDevice>() {
-        public val mode by enumMutable(
-            enumValues = NeedleDevice.Mode.entries.toTypedArray(),
+        public val mode by enumProperty<NeedleDevice.Mode, NeedleDevice>(
             read = { getMode() },
             write = { _, value -> setMode(value) }
         )
 
-        public val position by doubleMutable(
+        public val position by doubleProperty(
             read = { getPosition() },
             write = { _, value -> setPosition(value) }
         )
     }
 
     public object ShakerSpec : CompositeControlComponentSpec<ShakerDevice>() {
-        public val verticalMotor by childSpec<StepperMotorSpec, StepperMotorDevice>()
-        public val horizontalMotor by childSpec<StepperMotorSpec, StepperMotorDevice>()
+        public val verticalMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
+        public val horizontalMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
     }
 
     public object TransportationSystemSpec : CompositeControlComponentSpec<TransportationSystem>() {
-        public val slideMotor by childSpec<StepperMotorSpec, StepperMotorDevice>()
-
-        public val pushMotor by childSpec<StepperMotorSpec, StepperMotorDevice>()
-
-        public val receiveMotor by childSpec<StepperMotorSpec, StepperMotorDevice>()
+        public val slideMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
+        public val pushMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
+        public val receiveMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
     }
 
 
     public object AnalyzerSpec : CompositeControlComponentSpec<AnalyzerDevice>() {
-        public val transportationSystem by childSpec<TransportationSystemSpec, TransportationSystemSpec>()
-        public val shakerDevice by childSpec<ShakerSpec, ShakerDevice>()
-        public val needleDevice by childSpec<NeedleSpec, NeedleDevice>()
+        public val transportationSystem by childSpec<TransportationSystemSpec, TransportationSystem>(TransportationSystemSpec)
+        public val shakerDevice by childSpec<ShakerSpec, ShakerDevice>(ShakerSpec)
+        public val needleDevice by childSpec<NeedleSpec, NeedleDevice>(NeedleSpec)
 
+        public val valveV20 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
+        public val valveV17 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
+        public val valveV18 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
+        public val valveV35 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
 
-        public val valveV20 by childSpec<ValveSpec, ValveDevice>()
-        public val valveV17 by childSpec<ValveSpec, ValveDevice>()
-        public val valveV18 by childSpec<ValveSpec, ValveDevice>()
-        public val valveV35 by childSpec<ValveSpec, ValveDevice>()
+        public val pressureChamberHigh by childSpec<PressureChamberSpec, PressureChamberDevice>(PressureChamberSpec)
+        public val pressureChamberLow by childSpec<PressureChamberSpec, PressureChamberDevice>(PressureChamberSpec)
 
+        public val syringePumpMA100 by childSpec<SyringePumpSpec, SyringePumpDevice>(SyringePumpSpec)
+        public val syringePumpMA25 by childSpec<SyringePumpSpec, SyringePumpDevice>(SyringePumpSpec)
 
-        public val pressureChamberHigh by childSpec<PressureChamberSpec, PressureChamberDevice>()
-        public val pressureChamberLow by childSpec<PressureChamberSpec, PressureChamberDevice>()
-
-        public val syringePumpMA100 by childSpec<SyringePumpSpec, SyringePumpDevice>()
-        public val syringePumpMA25 by childSpec<SyringePumpSpec, SyringePumpDevice>()
-
-        public val reagentSensor1 by childSpec<ReagentSensorSpec, ReagentSensorDevice>()
-        public val reagentSensor2 by childSpec<ReagentSensorSpec, ReagentSensorDevice>()
-        public val reagentSensor3 by childSpec<ReagentSensorSpec, ReagentSensorDevice>()
+        public val reagentSensor1 by childSpec<ReagentSensorSpec, ReagentSensorDevice>(ReagentSensorSpec)
+        public val reagentSensor2 by childSpec<ReagentSensorSpec, ReagentSensorDevice>(ReagentSensorSpec)
+        public val reagentSensor3 by childSpec<ReagentSensorSpec, ReagentSensorDevice>(ReagentSensorSpec)
     }
 
-// ---------------------- Device Implementations ----------------------------------
+    // ---------------------- Device Implementations ----------------------------------
 
-    // Implementation of Stepper Motor Device
     public class StepperMotorDevice(
         context: Context,
         meta: Meta = Meta.EMPTY
@@ -774,6 +768,9 @@ class CompositeControlTest {
         val context = createTestContext()
         val shaker = ShakerDevice(context)
 
+        shaker.initChildren()
+        shaker.start()// Start the device
+
         // Access properties to initialize motors and test shaking
         val verticalMotor = shaker.verticalMotor
         val horizontalMotor = shaker.horizontalMotor
@@ -791,19 +788,23 @@ class CompositeControlTest {
         val context = createTestContext()
         val transportationSystem = TransportationSystem(context)
 
+        transportationSystem.initChildren()
+        transportationSystem.start()// Start the device
+
         // Access properties to initialize motors and test existence
         assertNotNull(transportationSystem.slideMotor, "slideMotor should exist")
         assertNotNull(transportationSystem.pushMotor, "pushMotor should exist")
         assertNotNull(transportationSystem.receiveMotor, "receiveMotor should exist")
     }
 
-
     @Test
-    fun `test AnalyzerDevice device access`() = runTest{
+    fun `test AnalyzerDevice device access`() = runTest {
         val context = createTestContext()
         val analyzer = AnalyzerDevice(context)
+        analyzer.initChildren()
+        analyzer.start()// Start the device
 
-        // Access properties to initialize child devices and test existence
+        // Access properties to initialize child devices
         assertNotNull(analyzer.transportationSystem, "Transportation system should exist")
         assertNotNull(analyzer.shakerDevice, "Shaker device should exist")
         assertNotNull(analyzer.needleDevice, "Needle device should exist")
