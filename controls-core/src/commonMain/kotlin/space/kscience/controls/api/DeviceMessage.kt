@@ -217,6 +217,19 @@ public data class DeviceLogMessage(
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
+@Serializable
+@SerialName("system.log")
+public data class SystemLogMessage(
+    val message: String,
+    val data: Meta? = null,
+    override val sourceDevice: Name = Name.EMPTY,
+    override val targetDevice: Name? = null,
+    override val comment: String? = null,
+    @EncodeDefault override val time: Instant = Clock.System.now(),
+) : DeviceMessage() {
+    override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
+}
+
 /**
  * The evaluation of the message produced a service error
  */

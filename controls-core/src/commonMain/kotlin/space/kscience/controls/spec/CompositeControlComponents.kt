@@ -9,6 +9,7 @@ import space.kscience.controls.api.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.*
+import kotlin.math.pow
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -68,23 +69,32 @@ public enum class ChildDeviceErrorHandler {
     CUSTOM,
 }
 
+public data class RestartPolicy(
+    val maxAttempts: Int = Int.MAX_VALUE,
+    val delayBetweenAttempts: Duration = Duration.ZERO,
+    val resetOnSuccess: Boolean = true,
+    val strategy: RestartStrategy = RestartStrategy.LINEAR,
+)
+
+public enum class RestartStrategy {
+    LINEAR,
+    EXPONENTIAL_BACKOFF,
+    CUSTOM,
+}
+
 /**
  * Represents different possible device state changes or events.
  */
 public sealed class DeviceStateEvent {
     public abstract val deviceName: Name
 
+    public data class DeviceAdded(override val deviceName: Name) : DeviceStateEvent()
     public data class DeviceStarted(override val deviceName: Name) : DeviceStateEvent()
     public data class DeviceStopped(override val deviceName: Name) : DeviceStateEvent()
     public data class DeviceRemoved(override val deviceName: Name) : DeviceStateEvent()
     public data class DeviceFailed(override val deviceName: Name, val error: Throwable) : DeviceStateEvent()
     public data class DeviceDetached(override val deviceName: Name) : DeviceStateEvent()
 }
-
-/**
- * A simple separate event describing child addition (optional usage).
- */
-public data class DeviceAddedEvent(val deviceName: Name, val device: Device)
 
 /**
  * Holds lifecycle-related configuration for devices, with optional fields.
@@ -99,6 +109,7 @@ public data class DeviceLifecycleConfig(
     val dispatcher: CoroutineDispatcher? = null,
     val onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART,
     val healthChecker: HealthChecker? = null,
+    val restartPolicy: RestartPolicy? = null,
 ) {
     init {
         require(messageBuffer > 0) { "Message buffer size must be positive." }
@@ -127,6 +138,7 @@ public class DeviceLifecycleConfigBuilder {
     public var dispatcher: CoroutineDispatcher? = null
     public var onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART
     public var healthChecker: HealthChecker? = null
+    public var restartPolicy: RestartPolicy? = null
 
     public suspend fun applyExternalConfig(deviceName: Name, externalApplier: ExternalConfigApplier) {
         externalApplier.applyConfig(this, deviceName)
@@ -142,6 +154,7 @@ public class DeviceLifecycleConfigBuilder {
         dispatcher = dispatcher,
         onError = onError,
         healthChecker = healthChecker,
+        restartPolicy = restartPolicy
     )
 }
 
@@ -483,7 +496,14 @@ public abstract class AbstractDeviceHubManager(
         get() = childrenJobs.mapValues { it.value.device }
 
     public abstract val messageBus: MutableSharedFlow<DeviceMessage>
+    /**
+     * Additional stream for system events/logs.
+     */
+    public abstract val systemBus: MutableSharedFlow<SystemLogMessage>
+
     public abstract val deviceChanges: MutableSharedFlow<DeviceStateEvent>
+
+    internal val restartAttemptsMap: MutableMap<Name, Int> = mutableMapOf()
 
     /**
      * A data class describing a child device, its job, config, and dedicated messageBus.
@@ -493,6 +513,7 @@ public abstract class AbstractDeviceHubManager(
         val job: Job,
         val config: DeviceLifecycleConfig,
         val messageBus: MutableSharedFlow<DeviceMessage>,
+        val systemBus: MutableSharedFlow<SystemLogMessage>,
         val meta: Meta? = null,
         /**
          * If true, we keep the old messageBus on hotSwap.
@@ -585,8 +606,11 @@ public abstract class AbstractDeviceHubManager(
                             onStartTimeout(name, config)
                         } else {
                             deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
+                            if (config.restartPolicy?.resetOnSuccess == true) {
+                                restartAttemptsMap[name] = 0
+                            }
                             checkHealth(
-                                ChildJob(device, this.coroutineContext[Job]!!, config, childMessageBus, meta, reuseBus != null)
+                                ChildJob(device, this.coroutineContext[Job]!!, config, childMessageBus, systemBus, meta, reuseBus != null)
                             )
                         }
                     }
@@ -605,9 +629,27 @@ public abstract class AbstractDeviceHubManager(
                 when (config.onError) {
                     ChildDeviceErrorHandler.IGNORE -> {}
                     ChildDeviceErrorHandler.RESTART -> {
-                        // schedule restart
-                        CoroutineScope(parentJob + dispatcher).launch {
-                            restartDevice(name)
+                        val policy = config.restartPolicy
+                        if (policy != null) {
+                            val attempts = (restartAttemptsMap[name] ?: 0) + 1
+                            restartAttemptsMap[name] = attempts
+
+                            if (attempts > policy.maxAttempts) {
+                                context.logger.warn { "Max restart attempts exceeded for $name." }
+                            } else {
+                                val delayDuration = calculateDelay(policy, attempts)
+                                if (delayDuration > Duration.ZERO) {
+                                    delay(delayDuration)
+                                }
+                                CoroutineScope(parentJob + dispatcher).launch {
+                                    restartDevice(name)
+                                }
+                            }
+                        } else {
+                            // schedule restart
+                            CoroutineScope(parentJob + dispatcher).launch {
+                                restartDevice(name)
+                            }
                         }
                     }
                     ChildDeviceErrorHandler.STOP_PARENT -> onParentStopRequested(ex, name)
@@ -622,7 +664,21 @@ public abstract class AbstractDeviceHubManager(
                 }
             }
         }
-        return ChildJob(device, childJob, config, childMessageBus, meta, reuseBus != null)
+        return ChildJob(device, childJob, config, childMessageBus, systemBus, meta, reuseBus != null)
+    }
+
+    private fun calculateDelay(policy: RestartPolicy, attempts: Int): Duration {
+        return when (policy.strategy) {
+            RestartStrategy.LINEAR -> {
+                policy.delayBetweenAttempts
+            }
+            RestartStrategy.EXPONENTIAL_BACKOFF -> {
+                policy.delayBetweenAttempts * 2.0.pow((attempts - 1).toDouble())
+            }
+            RestartStrategy.CUSTOM -> {
+                Duration.ZERO
+            }
+        }
     }
 
     /**
@@ -638,11 +694,12 @@ public abstract class AbstractDeviceHubManager(
             val current = childrenJobs[name]
             if (current?.device == device) {
                 childrenJobs.remove(name)
+                restartAttemptsMap.remove(name)
             }
         }
         bus.resetReplayCache()
         deviceChanges.emit(DeviceStateEvent.DeviceDetached(name))
-        messageBus.emit(DeviceLogMessage("Device $name physically removed.", sourceDevice = name))
+        systemBus.emit(SystemLogMessage("Device $name physically removed.", sourceDevice = name))
         if (device is ConfigurableCompositeControlComponent<*>) {
             device.onChildStop()
         }
@@ -665,8 +722,8 @@ public abstract class AbstractDeviceHubManager(
             val newChild = launchChild(name, device, config, meta)
             childrenJobs[name] = newChild
         }
-        deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
-        messageBus.emit(DeviceLogMessage("Device $name added", sourceDevice = name))
+        deviceChanges.emit(DeviceStateEvent.DeviceAdded(name))
+        systemBus.emit(SystemLogMessage("Device $name added", sourceDevice = name))
     }
 
     /**
@@ -702,7 +759,7 @@ public abstract class AbstractDeviceHubManager(
             removeDeviceUnlocked(name, waitStop = true)
             val newChild = launchChild(name, old.device, old.config, old.meta, if (old.reuseBus) old.messageBus else null)
             childrenJobs[name] = newChild
-            messageBus.emit(DeviceLogMessage("Device $name restarted", sourceDevice = name))
+            systemBus.emit(SystemLogMessage("Device $name restarted", sourceDevice = name))
         }
     }
 
@@ -716,7 +773,7 @@ public abstract class AbstractDeviceHubManager(
             removeDeviceUnlocked(name, waitStop = true)
             val newChild = launchChild(name, old.device, newConfig, old.meta, if (old.reuseBus) old.messageBus else null)
             childrenJobs[name] = newChild
-            messageBus.emit(DeviceLogMessage("Device $name lifecycle changed to $newMode", sourceDevice = name))
+            systemBus.emit(SystemLogMessage("Device $name lifecycle changed to $newMode", sourceDevice = name))
         }
     }
 
@@ -736,16 +793,17 @@ public abstract class AbstractDeviceHubManager(
             removeDeviceUnlocked(name, waitStop = true)
             val newChild = launchChild(name, newDevice, config, meta, oldBus)
             childrenJobs[name] = newChild
-            messageBus.emit(DeviceLogMessage("Device $name hot-swapped", sourceDevice = name))
+            systemBus.emit(SystemLogMessage("Device $name hot-swapped", sourceDevice = name))
         }
     }
 
     /**
-     * Remove device, either waiting or not. Will attempt to stop within [stopTimeout].
+     * Remove device, either waiting or not. Will attempt to stop within [DeviceLifecycleConfig.stopTimeout].
      */
     private suspend fun removeDeviceUnlocked(name: Name, waitStop: Boolean) {
         val child = childrenJobs[name] ?: return
         childrenJobs.remove(name)
+        restartAttemptsMap.remove(name)
         val timeout = child.config.stopTimeout ?: Duration.INFINITE
         if (waitStop) {
             child.job.cancelAndJoin()
@@ -754,18 +812,22 @@ public abstract class AbstractDeviceHubManager(
             }
             if (stopped == null) onStopTimeout(name, child.config)
             deviceChanges.emit(DeviceStateEvent.DeviceRemoved(name))
-            messageBus.emit(DeviceLogMessage("Device $name removed (waitStop=true)", sourceDevice = name))
+            systemBus.emit(SystemLogMessage("Device $name removed (waitStop=true)", sourceDevice = name))
         } else {
             // do not wait, just launch
             CoroutineScope(parentJob + dispatcher).launch {
-                val stopped = withTimeoutOrNull(timeout) {
-                    child.job.cancelAndJoin()
-                    child.device.stop()
+                try{
+                    val stopped = withTimeoutOrNull(timeout) {
+                        child.job.cancelAndJoin()
+                        child.device.stop()
+                    }
+                    if (stopped == null) onStopTimeout(name, child.config)
+                } catch (ex: Throwable) {
+                    context.logger.error(ex) { "Exception while stopping device $name (async remove)" }
                 }
-                if (stopped == null) onStopTimeout(name, child.config)
             }
             deviceChanges.emit(DeviceStateEvent.DeviceRemoved(name))
-            messageBus.emit(DeviceLogMessage("Device $name removed (async)", sourceDevice = name))
+            systemBus.emit(SystemLogMessage("Device $name removed (async)", sourceDevice = name))
         }
     }
 
@@ -849,6 +911,10 @@ public abstract class AbstractDeviceHubManager(
 private class DeviceHubManagerImpl(context: Context, dispatcher: CoroutineDispatcher) : AbstractDeviceHubManager(context, dispatcher) {
     override val messageBus: MutableSharedFlow<DeviceMessage> = MutableSharedFlow(
         replay = 1000,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    override val systemBus: MutableSharedFlow<SystemLogMessage> = MutableSharedFlow(
+        replay = 50,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     override val deviceChanges: MutableSharedFlow<DeviceStateEvent> = MutableSharedFlow(replay = 1)
@@ -976,15 +1042,19 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
         // Stop children, respecting each child's stopTimeout
         hubManager.devices.values.forEach { child ->
             launch(child.coroutineContext) {
-                val stopResult = withTimeoutOrNull(getChildStopTimeout(child)) {
-                    child.stop()
-                }
-                if (stopResult == null) {
-                    // calls onStopTimeout if child config has it
-                    val job = hubManager.childrenJobs[child.id.parseAsName()]
-                    if (job != null) {
-                        hubManager.onStopTimeout(child.id.parseAsName(), job.config)
+                try{
+                    val stopResult = withTimeoutOrNull(getChildStopTimeout(child)) {
+                        child.stop()
                     }
+                    if (stopResult == null) {
+                        // calls onStopTimeout if child config has it
+                        val job = hubManager.childrenJobs[child.id.parseAsName()]
+                        if (job != null) {
+                            hubManager.onStopTimeout(child.id.parseAsName(), job.config)
+                        }
+                    }
+                } catch (ex: Throwable) {
+                    context.logger.error(ex) { "Error while stopping child device ${child.id}" }
                 }
             }
         }
