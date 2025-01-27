@@ -539,10 +539,10 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         name: String?,
         read: suspend D.(propertyName: String) -> T?
     ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _, prop ->
-            val propertyName = name ?: prop.name
+        PropertyDelegateProvider { _, property ->
+            val propertyName = name ?: property.name
             val descriptor = createPropertyDescriptorInternal(
-                propertyName, converter, mutable = false, property = prop, descriptorBuilder = descriptorBuilder
+                propertyName, converter, mutable = false, property = property, descriptorBuilder = descriptorBuilder
             )
             val devProp = registerProperty(object : DevicePropertySpec<D, T> {
                 override val descriptor: PropertyDescriptor = descriptor
@@ -560,10 +560,10 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         read: suspend D.(propertyName: String) -> T?,
         write: suspend D.(propertyName: String, value: T) -> Unit
     ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
-        PropertyDelegateProvider { _, prop ->
-            val propertyName = name ?: prop.name
+        PropertyDelegateProvider { _, property ->
+            val propertyName = name ?: property.name
             val descriptor = createPropertyDescriptorInternal(
-                propertyName, converter, mutable = true, property = prop, descriptorBuilder = descriptorBuilder
+                propertyName, converter, mutable = true, property = property, descriptorBuilder = descriptorBuilder
             )
             val devProp = registerProperty(object : MutableDevicePropertySpec<D, T> {
                 override val descriptor: PropertyDescriptor = descriptor
@@ -593,30 +593,28 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         metaBuilder: (MutableMeta.() -> Unit)? = null,
         configBuilder: DeviceLifecycleConfigBuilder.() -> Unit = {},
     ): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, CompositeControlComponentSpec<CD>>> =
-        PropertyDelegateProvider { _, property ->
-            ReadOnlyProperty { _, _ ->
-                val registryKey = specKeyInRegistry ?: property.name.asName()
-                val childName = childDeviceName ?: property.name.asName()
-                val config = DeviceLifecycleConfigBuilder().apply(configBuilder).build()
-                val meta = metaBuilder?.let { Meta(it) }
-                val fromRegistry: CompositeControlComponentSpec<CD>? = registry?.getSpec<CD>(registryKey)
+        PropertyDelegateProvider { thisRef, property ->
+            val registryKey = specKeyInRegistry ?: property.name.asName()
+            val childName = childDeviceName ?: property.name.asName()
+            val config = DeviceLifecycleConfigBuilder().apply(configBuilder).build()
+            val meta = metaBuilder?.let { Meta(it) }
+            val fromRegistry: CompositeControlComponentSpec<CD>? = thisRef.registry?.getSpec<CD>(registryKey)
 
-                val foundSpec: CompositeControlComponentSpec<CD> = fromRegistry ?: fallbackSpec
+            val foundSpec: CompositeControlComponentSpec<CD> = fromRegistry ?: fallbackSpec
 
-                val mapKey = childName.toString()
-                check(childSpecMap[mapKey] == null) {
-                    "Child spec with name '$mapKey' is already registered in $this."
-                }
-
-                val childConfig = object : ChildComponentConfig<CD> {
-                    override val spec: CompositeControlComponentSpec<CD> = foundSpec
-                    override val config: DeviceLifecycleConfig = config
-                    override val meta: Meta? = meta
-                    override val name: Name = childName
-                }
-                childSpecMap[mapKey] = childConfig
-                childConfig.spec
+            val mapKey = childName.toString()
+            check(thisRef.childSpecMap[mapKey] == null) {
+                "Child spec with name '$mapKey' is already registered in $thisRef."
             }
+
+            val childConfig = object : ChildComponentConfig<CD> {
+                override val spec: CompositeControlComponentSpec<CD> = foundSpec
+                override val config: DeviceLifecycleConfig = config
+                override val meta: Meta? = meta
+                override val name: Name = childName
+            }
+            thisRef.childSpecMap[mapKey] = childConfig
+            ReadOnlyProperty { _, _ -> foundSpec }
         }
 
     override fun <I, O> action(
@@ -626,9 +624,9 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         name: String?,
         execute: suspend D.(I) -> O
     ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
-        PropertyDelegateProvider { _, prop ->
-            val actionName = name ?: prop.name
-            val descriptor = createActionDescriptor(actionName, inputConverter, outputConverter, prop, descriptorBuilder)
+        PropertyDelegateProvider { _, property ->
+            val actionName = name ?: property.name
+            val descriptor = createActionDescriptor(actionName, inputConverter, outputConverter, property, descriptorBuilder)
             val devAction = registerAction(object : DeviceActionSpec<D, I, O> {
                 override val descriptor: ActionDescriptor = descriptor
                 override val inputConverter: MetaConverter<I> = inputConverter

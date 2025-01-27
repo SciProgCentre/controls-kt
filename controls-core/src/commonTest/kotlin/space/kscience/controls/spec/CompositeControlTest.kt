@@ -70,36 +70,36 @@ class CompositeControlTest {
     }
 
     public object ShakerSpec : CompositeControlComponentSpec<ShakerDevice>() {
-        public val verticalMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
-        public val horizontalMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
+        public val verticalMotor by childSpec(StepperMotorSpec)
+        public val horizontalMotor by childSpec(StepperMotorSpec)
     }
 
     public object TransportationSystemSpec : CompositeControlComponentSpec<TransportationSystem>() {
-        public val slideMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
-        public val pushMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
-        public val receiveMotor by childSpec<StepperMotorSpec, StepperMotorDevice>(StepperMotorSpec)
+        public val slideMotor by childSpec(StepperMotorSpec)
+        public val pushMotor by childSpec(StepperMotorSpec)
+        public val receiveMotor by childSpec(StepperMotorSpec)
     }
 
 
     public object AnalyzerSpec : CompositeControlComponentSpec<AnalyzerDevice>() {
-        public val transportationSystem by childSpec<TransportationSystemSpec, TransportationSystem>(TransportationSystemSpec)
-        public val shakerDevice by childSpec<ShakerSpec, ShakerDevice>(ShakerSpec)
-        public val needleDevice by childSpec<NeedleSpec, NeedleDevice>(NeedleSpec)
+        public val transportationSystem by childSpec(TransportationSystemSpec)
+        public val shakerDevice by childSpec(ShakerSpec)
+        public val needleDevice by childSpec(NeedleSpec)
 
-        public val valveV20 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
-        public val valveV17 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
-        public val valveV18 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
-        public val valveV35 by childSpec<ValveSpec, ValveDevice>(ValveSpec)
+        public val valveV20 by childSpec(ValveSpec)
+        public val valveV17 by childSpec(ValveSpec)
+        public val valveV18 by childSpec(ValveSpec)
+        public val valveV35 by childSpec(ValveSpec)
 
-        public val pressureChamberHigh by childSpec<PressureChamberSpec, PressureChamberDevice>(PressureChamberSpec)
-        public val pressureChamberLow by childSpec<PressureChamberSpec, PressureChamberDevice>(PressureChamberSpec)
+        public val pressureChamberHigh by childSpec(PressureChamberSpec)
+        public val pressureChamberLow by childSpec(PressureChamberSpec)
 
-        public val syringePumpMA100 by childSpec<SyringePumpSpec, SyringePumpDevice>(SyringePumpSpec)
-        public val syringePumpMA25 by childSpec<SyringePumpSpec, SyringePumpDevice>(SyringePumpSpec)
+        public val syringePumpMA100 by childSpec(SyringePumpSpec)
+        public val syringePumpMA25 by childSpec(SyringePumpSpec)
 
-        public val reagentSensor1 by childSpec<ReagentSensorSpec, ReagentSensorDevice>(ReagentSensorSpec)
-        public val reagentSensor2 by childSpec<ReagentSensorSpec, ReagentSensorDevice>(ReagentSensorSpec)
-        public val reagentSensor3 by childSpec<ReagentSensorSpec, ReagentSensorDevice>(ReagentSensorSpec)
+        public val reagentSensor1 by childSpec(ReagentSensorSpec)
+        public val reagentSensor2 by childSpec(ReagentSensorSpec)
+        public val reagentSensor3 by childSpec(ReagentSensorSpec)
     }
 
     // ---------------------- Device Implementations ----------------------------------
