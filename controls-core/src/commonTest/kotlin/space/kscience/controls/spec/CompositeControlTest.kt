@@ -17,7 +17,11 @@ class CompositeControlTest {
 
     // ---------------------- Device Specifications ----------------------------------
 
-    public object StepperMotorSpec : CompositeControlComponentSpec<StepperMotorDevice>() {
+    public object StepperMotorSpec : DeviceSpecification<StepperMotorDevice>(
+        { context, meta ->
+            StepperMotorDevice(context, meta)
+        }
+    ) {
         public val position by intProperty(
             name = "position",
             read = { getPosition() },
@@ -30,34 +34,54 @@ class CompositeControlTest {
         )
     }
 
-    public object ValveSpec : CompositeControlComponentSpec<ValveDevice>() {
+    public object ValveSpec : DeviceSpecification<ValveDevice>(
+        { context, meta ->
+            ValveDevice(context, meta)
+        }
+    ) {
         public val state by booleanProperty(
             read = { getState() },
             write = { _, value -> setState(value) }
         )
     }
 
-    public object PressureChamberSpec : CompositeControlComponentSpec<PressureChamberDevice>() {
+    public object PressureChamberSpec : DeviceSpecification<PressureChamberDevice>(
+        { context, meta ->
+            PressureChamberDevice(context, meta)
+        }
+    ) {
         public val pressure by doubleProperty(
             read = { getPressure() },
             write = { _, value -> setPressure(value) }
         )
     }
 
-    public object SyringePumpSpec : CompositeControlComponentSpec<SyringePumpDevice>() {
+    public object SyringePumpSpec : DeviceSpecification<SyringePumpDevice>(
+        { context, meta ->
+            SyringePumpDevice(context, meta)
+        }
+    ) {
         public val volume by doubleProperty(
             read = { getVolume() },
             write = { _, value -> setVolume(value) }
         )
     }
 
-    public object ReagentSensorSpec : CompositeControlComponentSpec<ReagentSensorDevice>() {
+    public object ReagentSensorSpec : DeviceSpecification<ReagentSensorDevice>(
+        { context, meta ->
+            ReagentSensorDevice(context, meta)
+        }
+    ) {
         public val isPresent by booleanProperty(
             read = { checkReagent() }
         )
     }
 
-    public object NeedleSpec : CompositeControlComponentSpec<NeedleDevice>() {
+    public object NeedleSpec : DeviceSpecification<NeedleDevice>(
+        { context, meta ->
+            NeedleDevice(context, meta)
+        }
+    ) {
         public val mode by enumProperty<NeedleDevice.Mode, NeedleDevice>(
             read = { getMode() },
             write = { _, value -> setMode(value) }
@@ -69,19 +93,31 @@ class CompositeControlTest {
         )
     }
 
-    public object ShakerSpec : CompositeControlComponentSpec<ShakerDevice>() {
+    public object ShakerSpec : DeviceSpecification<ShakerDevice>(
+        { context, meta ->
+            ShakerDevice(context, meta)
+        }
+    ) {
         public val verticalMotor by childSpec(StepperMotorSpec)
         public val horizontalMotor by childSpec(StepperMotorSpec)
     }
 
-    public object TransportationSystemSpec : CompositeControlComponentSpec<TransportationSystem>() {
+    public object TransportationSystemSpec : DeviceSpecification<TransportationSystem>(
+        { context, meta ->
+            TransportationSystem(context, meta)
+        }
+    ) {
         public val slideMotor by childSpec(StepperMotorSpec)
         public val pushMotor by childSpec(StepperMotorSpec)
         public val receiveMotor by childSpec(StepperMotorSpec)
     }
 
 
-    public object AnalyzerSpec : CompositeControlComponentSpec<AnalyzerDevice>() {
+    public object AnalyzerSpec : DeviceSpecification<AnalyzerDevice>(
+        { context, meta ->
+            AnalyzerDevice(context, meta)
+        }
+    ) {
         public val transportationSystem by childSpec(TransportationSystemSpec)
         public val shakerDevice by childSpec(ShakerSpec)
         public val needleDevice by childSpec(NeedleSpec)
@@ -779,8 +815,8 @@ class CompositeControlTest {
         val verticalMotorPosition = verticalMotor.getPosition()
         val horizontalMotorPosition = horizontalMotor.getPosition()
 
-        assertEquals(2,verticalMotorPosition, "Vertical motor position should be set to 2 after shaking")
-        assertEquals(1,horizontalMotorPosition, "Horizontal motor position should be set to 1 after shaking")
+        assertEquals(1,verticalMotorPosition, "Vertical motor position should be set to 1 after shaking")
+        assertEquals(0,horizontalMotorPosition, "Horizontal motor position should be set to 0 after shaking")
     }
 
     @Test

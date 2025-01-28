@@ -926,7 +926,7 @@ public abstract class AbstractDeviceHubManager(
     }
 
     /**
-     * Adds a device synchronously, waiting for the child job to complete if necessary.
+     * Adds a device synchronously, TODO: wait until it starts.
      */
     public suspend fun addDeviceSync(
         name: Name,
@@ -935,9 +935,6 @@ public abstract class AbstractDeviceHubManager(
         meta: Meta? = null
     ) {
         addDevice(name, device, config, meta)
-        childLock.withLock {
-            childrenJobs[name]?.job?.join()
-        }
     }
 
     /**
@@ -1225,38 +1222,21 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
      */
     public suspend fun initChildren() {
         for (childCfg in childConfigs) {
-            val childDevice = ConfigurableCompositeControlComponent(
-                spec = childCfg.spec,
-                registry = effectiveRegistry,
-                context = context,
-                meta = childCfg.meta ?: Meta.EMPTY,
-                config = childCfg.config
-            )
-            hubManager.addDeviceSync(childCfg.name, childDevice, childCfg.config, childCfg.meta)
-        }
-    }
+            val spec = childCfg.spec
 
-    /**
-     * A factory method to create a device instance and immediately call [initChildren].
-     */
-    public companion object {
-        public suspend fun <D : ConfigurableCompositeControlComponent<D>> create(
-            spec: CompositeControlComponentSpec<D>,
-            context: Context,
-            meta: Meta = Meta.EMPTY,
-            config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
-            registry: ComponentRegistry? = null,
-        ): D {
-            @Suppress("UNCHECKED_CAST")
-            val device = ConfigurableCompositeControlComponent(
-                spec = spec,
-                context = context,
-                meta = meta,
-                config = config,
-                registry = registry
-            ) as D
-            device.initChildren()
-            return device
+            val childDevice: ConfigurableCompositeControlComponent<*> = if (spec is DeviceSpecification<*>) {
+                val instance = spec.deviceFactory(context, childCfg.meta ?: Meta.EMPTY)
+                instance
+            } else {
+                ConfigurableCompositeControlComponent(
+                    spec,
+                    context,
+                    childCfg.meta ?: Meta.EMPTY,
+                    childCfg.config,
+                    effectiveRegistry
+                )
+            }
+            hubManager.addDeviceSync(childCfg.name, childDevice, childCfg.config, childCfg.meta)
         }
     }
 
@@ -1365,3 +1345,11 @@ public suspend fun WithLifeCycle.stopWithTimeout(timeout: Duration = Duration.IN
         (this as? DeviceBase<*>)?.logger?.warn { "Timeout on stop for device ${this.id}" }
     }
 }
+
+public abstract class DeviceSpecification<D : ConfigurableCompositeControlComponent<D>>(
+    public val deviceFactory: (Context, Meta) -> D
+) : CompositeControlComponentSpec<D>()
+
+public inline fun <reified D : ConfigurableCompositeControlComponent<D>> typedSpec(
+    noinline factory: (Context, Meta) -> D,
+): DeviceSpecification<D> = object : DeviceSpecification<D>(factory) {}
