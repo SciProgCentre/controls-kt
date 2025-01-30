@@ -1,17 +1,36 @@
+@file:Suppress("UNUSED_PARAMETER", "MemberVisibilityCanBePrivate")
+
 package space.kscience.controls.spec
 
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runTest
+import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import kotlin.test.*
+
+/**
+ * A simple [AbstractDeviceHubManager] implementation for tests, providing
+ * message flows and basic logging of events.
+ */
+private class TestDeviceHubManager(
+    context: Context,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default
+) : AbstractDeviceHubManager(context, dispatcher) {
+    override val messageBus = MutableSharedFlow<DeviceMessage>(replay = 100)
+    override val systemBus = MutableSharedFlow<SystemLogMessage>(replay = 50)
+    override val deviceChanges = MutableSharedFlow<DeviceStateEvent>(replay = 50)
+}
+
+/**
+ * A custom error to test error propagation or custom strategies.
+ */
+private class DeviceTestException(msg: String) : RuntimeException(msg)
 
 class CompositeControlTest {
 
@@ -112,7 +131,6 @@ class CompositeControlTest {
         public val receiveMotor by childSpec(StepperMotorSpec)
     }
 
-
     public object AnalyzerSpec : DeviceSpecification<AnalyzerDevice>(
         { context, meta ->
             AnalyzerDevice(context, meta)
@@ -167,7 +185,6 @@ class CompositeControlTest {
                 println("StepperMotorDevice: Invalid position $value (max: $maxPosition)")
             }
         }
-
     }
 
     // Implementation of Valve Device
@@ -205,7 +222,6 @@ class CompositeControlTest {
             setState(false)
             println("ValveDevice: Valve click completed")
         }
-
     }
 
     // Implementation of Pressure Chamber Device
@@ -231,7 +247,6 @@ class CompositeControlTest {
             println("PressureChamberDevice: Pressure is now $_pressure")
             delay(50)
         }
-
     }
 
     // Implementation of Syringe Pump Device
@@ -262,7 +277,6 @@ class CompositeControlTest {
                 println("SyringePumpDevice: Invalid volume $value (max: $maxVolume)")
             }
         }
-
     }
 
     // Implementation of Reagent Sensor Device
@@ -277,12 +291,11 @@ class CompositeControlTest {
          */
         public suspend fun checkReagent(): Boolean {
             println("ReagentSensorDevice: Checking for reagent presence...")
-            delay(100) // Simulate detection time
-            val isPresent = true // Assume reagent is present
+            delay(100)
+            val isPresent = true
             println("ReagentSensorDevice: Reagent is ${if (isPresent) "present" else "not present"}")
             return isPresent
         }
-
     }
 
     // Implementation of Needle Device
@@ -338,7 +351,7 @@ class CompositeControlTest {
          */
         public suspend fun performWashing(duration: Int) {
             println("NeedleDevice: Washing in progress for $duration seconds")
-            delay(duration * 1000L) // Simulate washing (1 second = 1000 ms)
+            delay(duration * 1000L)
         }
 
         /**
@@ -346,9 +359,8 @@ class CompositeControlTest {
          */
         public suspend fun performSampling() {
             println("NeedleDevice: Performing sample intake at position $_position mm")
-            delay(500) // Simulate sampling time
+            delay(500)
         }
-
     }
 
     // Implementation of Shaker Device
@@ -376,7 +388,7 @@ class CompositeControlTest {
             repeat(cycles) {
                 verticalMotor.setPosition(3)
                 verticalMotor.setPosition(1)
-                println("ShakerDevice: cycle ${it+1} done")
+                println("ShakerDevice: cycle ${it + 1} done")
             }
             println("ShakerDevice: Shaking completed")
         }
@@ -388,22 +400,9 @@ class CompositeControlTest {
         meta: Meta = Meta.EMPTY
     ) : ConfigurableCompositeControlComponent<TransportationSystem>(TransportationSystemSpec, context, meta) {
 
-        /**
-         * Get slide stepper motor
-         */
         public val slideMotor by childDevice<StepperMotorDevice>()
-
-
-        /**
-         * Get push stepper motor
-         */
         public val pushMotor by childDevice<StepperMotorDevice>()
-
-        /**
-         * Get receive stepper motor
-         */
         public val receiveMotor by childDevice<StepperMotorDevice>()
-
     }
 
     // Implementation of Analyzer Device
@@ -412,145 +411,76 @@ class CompositeControlTest {
         meta: Meta = Meta.EMPTY
     ) : ConfigurableCompositeControlComponent<AnalyzerDevice>(AnalyzerSpec, context, meta) {
 
-        /**
-         * Get transportation system
-         */
         public val transportationSystem by childDevice<TransportationSystem>()
-
-        /**
-         * Get shaker device
-         */
         public val shakerDevice by childDevice<ShakerDevice>()
-
-        /**
-         * Get needle device
-         */
         public val needleDevice by childDevice<NeedleDevice>()
 
-        /**
-         * Get valve V20
-         */
         public val valveV20 by childDevice<ValveDevice>()
-
-        /**
-         * Get valve V17
-         */
         public val valveV17 by childDevice<ValveDevice>()
-
-        /**
-         * Get valve V18
-         */
         public val valveV18 by childDevice<ValveDevice>()
-
-        /**
-         * Get valve V35
-         */
         public val valveV35 by childDevice<ValveDevice>()
 
-        /**
-         * Get high pressure chamber
-         */
         public val pressureChamberHigh by childDevice<PressureChamberDevice>()
-
-        /**
-         * Get low pressure chamber
-         */
         public val pressureChamberLow by childDevice<PressureChamberDevice>()
 
-        /**
-         * Get syringe pump MA100
-         */
         public val syringePumpMA100 by childDevice<SyringePumpDevice>()
-
-        /**
-         * Get syringe pump MA25
-         */
         public val syringePumpMA25 by childDevice<SyringePumpDevice>()
 
-        /**
-         * Get reagent sensor 1
-         */
         public val reagentSensor1 by childDevice<ReagentSensorDevice>()
-
-        /**
-         * Get reagent sensor 2
-         */
         public val reagentSensor2 by childDevice<ReagentSensorDevice>()
-
-        /**
-         * Get reagent sensor 3
-         */
         public val reagentSensor3 by childDevice<ReagentSensorDevice>()
 
-        /**
-         * Simulates a process of taking sample from tubes.
-         */
         public suspend fun processSample() {
             println("The beginning of the sampling process")
 
-            // Step 1: Open valve V20 and start taking a sample with a syringe pump MA 100 mcl
             valveV20.setState(true)
             syringePumpMA100.setVolume(0.1)
-            delay(500)  // Simulating waiting time for liquid collection
+            delay(500)
             valveV20.setState(false)
 
-            // Step 2: Open valve V17 and start delivering lysis buffer with syringe pump MA 2.5 ml
             valveV17.setState(true)
             syringePumpMA25.setVolume(2.5)
-            delay(500)  // Simulate lysis buffer delivery time
+            delay(500)
             valveV17.setState(false)
 
-            // Step 3: Cleaning system
             syringePumpMA100.setVolume(0.0)
             syringePumpMA25.setVolume(0.0)
 
             println("The sampling process is completed")
         }
 
-
-        /**
-         * Simulates the analyzer calibration procedure.
-         */
         public suspend fun calibrate() {
             println("The beginning of calibration...")
 
-            // Step 1: Calibrate positions of all motors
             val motors = listOf(
                 transportationSystem.slideMotor,
                 transportationSystem.pushMotor,
                 transportationSystem.receiveMotor,
                 shakerDevice.verticalMotor,
                 shakerDevice.horizontalMotor,
-
-                )
+            )
 
             for (motor in motors) {
-                for (position in 0..motor.maxPosition) {
-                    motor.setPosition(position)
+                for (pos in 0..motor.maxPosition) {
+                    motor.setPosition(pos)
                 }
                 motor.setPosition(0)
             }
 
-            // Step 2: Click all valves and set them to zero position
             val valves = listOf(valveV20, valveV17, valveV18, valveV35)
             for (valve in valves) {
                 valve.click()
                 valve.setState(false)
             }
 
-            // Step 3: Pump up pressure in high pressure chamber
             pressureChamberHigh.setPressure(2.0)
-            // Step 4: Pump out pressure from low pressure chamber
             pressureChamberLow.setPressure(-1.0)
 
-            // Step 5: Fill the hydraulic system
-            // 5.1 Check if reagents are present
             val sensors = listOf(reagentSensor1, reagentSensor2, reagentSensor3)
             for (sensor in sensors) {
                 sensor.checkReagent()
             }
 
-            // 5.2 Perform 5 times full pump movement with all syringe pumps
             val pumps = listOf(syringePumpMA100, syringePumpMA25)
             for (pump in pumps) {
                 repeat(5) {
@@ -559,7 +489,6 @@ class CompositeControlTest {
                 }
             }
 
-            // 5.3 Wash needle at its washing position
             needleDevice.setPosition(0.0)
             needleDevice.setMode(NeedleDevice.Mode.WASHING)
             needleDevice.performWashing(5)
@@ -567,21 +496,14 @@ class CompositeControlTest {
             println("Calibration is completed")
         }
 
-        /**
-         * Execute recipe 1 - sample tube deliver
-         */
         public suspend fun executeRecipe1() {
             println("Executing recipe 1")
-
-            // Step 1: Move a slide to the next position
             val currentSlidePosition = transportationSystem.slideMotor.getPosition()
             transportationSystem.slideMotor.setPosition(currentSlidePosition + 1)
-            println("Moved a slide to position ${currentSlidePosition+1}")
+            println("Moved a slide to position ${currentSlidePosition + 1}")
 
-            // Step 2: Capture a tube for mixing
             println("Capturing tube for mixing")
 
-            // 2.1 - 2.10: Control over a shaker and motors
             shakerDevice.verticalMotor.setPosition(1)
             shakerDevice.horizontalMotor.setPosition(1)
             println("Shaker: vertical - 1, horizontal - 1")
@@ -592,35 +514,31 @@ class CompositeControlTest {
             shakerDevice.verticalMotor.setPosition(2)
             println("Shaker: vertical - 2")
 
-            // Shake
             shakerDevice.shake(5)
             println("Shaker: movement done")
 
-            // Step 3: Sampling and measurement
             executeSampling()
             needleDevice.setPosition(0.0)
             println("Needle moved to its initial position")
-
         }
 
-        /**
-         * Execute recipe 2 - Automatic Measurement
-         */
         public suspend fun executeRecipe2() {
             println("Executing Recipe 2 - Automatic Measurement")
 
-            transportationSystem.receiveMotor.setPosition(transportationSystem.receiveMotor.getPosition() + 1)
+            transportationSystem.receiveMotor.setPosition(
+                transportationSystem.receiveMotor.getPosition() + 1
+            )
             println("Pusher moved to position ${transportationSystem.receiveMotor.getPosition() + 1}")
 
-            //Check for a tray, if missing move again
             if (!checkTrayInPushSystem()) {
                 println("Tray missing. Trying to move again")
-                transportationSystem.receiveMotor.setPosition(transportationSystem.receiveMotor.getPosition() + 1)
+                transportationSystem.receiveMotor.setPosition(
+                    transportationSystem.receiveMotor.getPosition() + 1
+                )
             } else {
                 executeSampling()
             }
 
-            // If last position, reset the plate
             if (transportationSystem.receiveMotor.getPosition() >= transportationSystem.receiveMotor.maxPosition) {
                 println("Plate is complete. Resetting pusher to initial position")
                 transportationSystem.receiveMotor.setPosition(0)
@@ -631,9 +549,6 @@ class CompositeControlTest {
             println("Needle moved to its initial position")
         }
 
-        /**
-         * Execute recipe 3 - Single Measurement
-         */
         public suspend fun executeRecipe3() {
             println("Executing Recipe 3 - Single measurement")
             executeSampling()
@@ -642,19 +557,12 @@ class CompositeControlTest {
             println("Needle moved to its initial position")
         }
 
-
-        /**
-         * Simulates tray presence check
-         */
         private suspend fun checkTrayInPushSystem(): Boolean {
             println("Checking for a tray in a pushing system")
             delay(200)
-            return true // Simulate tray presence
+            return true
         }
 
-        /**
-         * Function to execute sampling process with the needle
-         */
         private suspend fun executeSampling() {
             needleDevice.setMode(NeedleDevice.Mode.SAMPLING)
             needleDevice.performSampling()
@@ -685,10 +593,9 @@ class CompositeControlTest {
         val context = createTestContext()
         val motor = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
 
-        motor.setPosition(200) //Should be outside the range, so not changed
-        assertEquals(0, motor.getPosition(), "Position should not be set for invalid value")
+        motor.setPosition(200) //Should be outside the range
+        assertEquals(0, motor.getPosition(), "Position should not be changed for invalid value")
     }
-
 
     @Test
     fun `test ValveDevice state toggling`() = runTest {
@@ -724,10 +631,10 @@ class CompositeControlTest {
         assertEquals(1.5, chamber.getPressure(), "Pressure should be set correctly")
 
         chamber.setPressure(0.0)
-        assertEquals(0.0, chamber.getPressure(), "Pressure should be set to 0")
+        assertEquals(0.0, chamber.getPressure(), "Pressure should be 0")
 
         chamber.setPressure(-1.0)
-        assertEquals(-1.0, chamber.getPressure(), "Pressure should be set to negative value")
+        assertEquals(-1.0, chamber.getPressure(), "Pressure can be negative")
     }
 
     @Test
@@ -743,9 +650,7 @@ class CompositeControlTest {
 
         pump.setVolume(10.0)
         assertEquals(10.0, pump.getVolume(), "Volume should be set to max value")
-
     }
-
 
     @Test
     fun `test SyringePumpDevice invalid volume`() = runTest {
@@ -753,7 +658,7 @@ class CompositeControlTest {
         val pump = SyringePumpDevice(context, Meta { "maxVolume" put 5.0 })
 
         pump.setVolume(10.0)
-        assertEquals(0.0, pump.getVolume(), "Pump volume should not be set for invalid value")
+        assertEquals(0.0, pump.getVolume(), "Volume should not change on invalid value")
     }
 
     @Test
@@ -769,24 +674,21 @@ class CompositeControlTest {
         val context = createTestContext()
         val needle = NeedleDevice(context)
 
-        //Test setting mode
         needle.setMode(NeedleDevice.Mode.SAMPLING)
-        assertEquals(NeedleDevice.Mode.SAMPLING, needle.getMode(), "Mode should be set to SAMPLING")
+        assertEquals(NeedleDevice.Mode.SAMPLING, needle.getMode(), "Mode should be SAMPLING")
 
         needle.setMode(NeedleDevice.Mode.WASHING)
-        assertEquals(NeedleDevice.Mode.WASHING, needle.getMode(), "Mode should be set to WASHING")
+        assertEquals(NeedleDevice.Mode.WASHING, needle.getMode(), "Mode should be WASHING")
 
-        //Test setting position
         needle.setPosition(50.0)
-        assertEquals(50.0, needle.getPosition(), "Position should be set correctly")
+        assertEquals(50.0, needle.getPosition(), "Position should be set to 50")
 
         needle.setPosition(0.0)
-        assertEquals(0.0, needle.getPosition(), "Position should be set to 0")
+        assertEquals(0.0, needle.getPosition(), "Position should be 0")
 
         needle.setPosition(100.0)
-        assertEquals(100.0, needle.getPosition(), "Position should be set to max")
+        assertEquals(100.0, needle.getPosition(), "Position should be set to 100")
     }
-
 
     @Test
     fun `test NeedleDevice invalid position`() = runTest {
@@ -794,10 +696,8 @@ class CompositeControlTest {
         val needle = NeedleDevice(context)
 
         needle.setPosition(200.0)
-        assertEquals(0.0, needle.getPosition(), "Needle position should not be set for invalid value")
-
+        assertEquals(0.0, needle.getPosition(), "Needle position should remain 0 on invalid input")
     }
-
 
     @Test
     fun `test ShakerDevice shaking`() = runTest {
@@ -805,18 +705,14 @@ class CompositeControlTest {
         val shaker = ShakerDevice(context)
 
         shaker.initChildren()
-        shaker.start()// Start the device
-
-        // Access properties to initialize motors and test shaking
-        val verticalMotor = shaker.verticalMotor
-        val horizontalMotor = shaker.horizontalMotor
+        shaker.start() // Start the device
 
         shaker.shake(2)
-        val verticalMotorPosition = verticalMotor.getPosition()
-        val horizontalMotorPosition = horizontalMotor.getPosition()
+        val verticalMotorPosition = shaker.verticalMotor.getPosition()
+        val horizontalMotorPosition = shaker.horizontalMotor.getPosition()
 
-        assertEquals(1,verticalMotorPosition, "Vertical motor position should be set to 1 after shaking")
-        assertEquals(0,horizontalMotorPosition, "Horizontal motor position should be set to 0 after shaking")
+        assertEquals(1, verticalMotorPosition, "Vertical motor expected to end at position 1 (based on logic).")
+        assertEquals(0, horizontalMotorPosition, "Horizontal motor expected to be 0 after shaking cycles.")
     }
 
     @Test
@@ -825,9 +721,8 @@ class CompositeControlTest {
         val transportationSystem = TransportationSystem(context)
 
         transportationSystem.initChildren()
-        transportationSystem.start()// Start the device
+        transportationSystem.start()
 
-        // Access properties to initialize motors and test existence
         assertNotNull(transportationSystem.slideMotor, "slideMotor should exist")
         assertNotNull(transportationSystem.pushMotor, "pushMotor should exist")
         assertNotNull(transportationSystem.receiveMotor, "receiveMotor should exist")
@@ -838,9 +733,8 @@ class CompositeControlTest {
         val context = createTestContext()
         val analyzer = AnalyzerDevice(context)
         analyzer.initChildren()
-        analyzer.start()// Start the device
+        analyzer.start()
 
-        // Access properties to initialize child devices
         assertNotNull(analyzer.transportationSystem, "Transportation system should exist")
         assertNotNull(analyzer.shakerDevice, "Shaker device should exist")
         assertNotNull(analyzer.needleDevice, "Needle device should exist")
@@ -856,4 +750,72 @@ class CompositeControlTest {
         assertNotNull(analyzer.reagentSensor2, "Reagent sensor 2 should exist")
         assertNotNull(analyzer.reagentSensor3, "Reagent sensor 3 should exist")
     }
+
+    @Test
+    fun `test add and remove device using manager`() = runTest {
+        val context = createTestContext()
+        val manager = TestDeviceHubManager(context)
+
+        val motor = StepperMotorDevice(context)
+        val name = "motorTest".asName()
+
+        manager.addDeviceSync(name, motor, DeviceLifecycleConfig())
+        assertTrue(name in manager.devices.keys, "The device should be in the manager after add.")
+
+        manager.removeDeviceSync(name)
+        assertFalse(name in manager.devices.keys, "The device should be removed from the manager.")
+    }
+
+    @Test
+    fun `test batch start and stop`() = runTest {
+        val context = createTestContext()
+        val manager = TestDeviceHubManager(context)
+        val config = DeviceLifecycleConfig()
+
+        val motor1 = StepperMotorDevice(context)
+        val motor2 = StepperMotorDevice(context)
+
+        manager.addDeviceSync("m1".asName(), motor1, config)
+        manager.addDeviceSync("m2".asName(), motor2, config)
+
+        val stopSuccess = manager.stopDevicesBatch(listOf("m1".asName(), "m2".asName()))
+        assertTrue(stopSuccess, "Batch stop should succeed for normal devices")
+
+        assertEquals(LifecycleState.STOPPED, motor1.lifecycleState, "m1 should be STOPPED after stop")
+        assertEquals(LifecycleState.STOPPED, motor2.lifecycleState, "m2 should be STOPPED after stop")
+
+        val startSuccess = manager.startDevicesBatch(listOf("m1".asName(), "m2".asName()))
+        assertTrue(startSuccess, "Batch start should succeed")
+
+        assertEquals(LifecycleState.STARTED, motor1.lifecycleState, "m1 should be STARTED")
+        assertEquals(LifecycleState.STARTED, motor2.lifecycleState, "m2 should be STARTED")
+    }
+
+    @Test
+    fun `test hot swap device`() = runTest {
+        val context = createTestContext()
+        val manager = TestDeviceHubManager(context)
+
+        val oldDevice = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
+        val name = "motorSwap".asName()
+        manager.addDeviceSync(name, oldDevice, DeviceLifecycleConfig())
+
+        assertEquals(100, oldDevice.maxPosition, "Old motor should have maxPosition=100")
+
+        val newDevice = StepperMotorDevice(context, Meta { "maxPosition" put 999 })
+
+        manager.hotSwapDevice(
+            name,
+            newDevice,
+            DeviceLifecycleConfig(),
+            reuseMessageBus = true
+        )
+
+        val current = manager.devices[name]
+        assertNotNull(current, "New device should be present after hot swap")
+        assertTrue(current === newDevice, "Manager should reference the new device instance")
+
+        assertEquals(999, newDevice.maxPosition)
+    }
+
 }
