@@ -33,6 +33,28 @@ public enum class LifecycleMode {
 }
 
 /**
+ * Defines how the manager should initiate start of a device when [attachDevice] is called.
+ */
+public enum class StartMode {
+    /**
+     * Do not start device at all, just attach/register it in the manager.
+     */
+    NONE,
+
+    /**
+     * Start the device asynchronously (do not wait for completion of [device.start()]).
+     * If [DeviceLifecycleConfig.lifecycleMode] = INDEPENDENT, no start will be performed anyway.
+     */
+    ASYNC,
+
+    /**
+     * Start the device synchronously, waiting up to [DeviceLifecycleConfig.startTimeout].
+     * If [DeviceLifecycleConfig.lifecycleMode] = INDEPENDENT, no auto-start is performed.
+     */
+    SYNC
+}
+
+/**
  * Allows loading an external configuration for a device.
  * The implementation might, for example, fetch configuration from a database or file.
  */
@@ -529,11 +551,15 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
     }
 
     override fun <T, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P {
+        // Prevent duplicate registration
+        check(propertyMap[deviceProperty.name] == null) { "Property ${deviceProperty.name} is already registered." }
         propertyMap[deviceProperty.name] = deviceProperty
         return deviceProperty
     }
 
     override fun <I, O> registerAction(deviceAction: DeviceActionSpec<D, I, O>): DeviceActionSpec<D, I, O> {
+        // Prevent duplicate registration
+        check(actionMap[deviceAction.name] == null) { "Action ${deviceAction.name} is already registered." }
         actionMap[deviceAction.name] = deviceAction
         return deviceAction
     }
@@ -605,7 +631,6 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
                 override val converter: MetaConverter<T> = converter
                 override suspend fun read(device: D): T? =
                     withContext(device.coroutineContext) { device.read(propertyName) }
-
                 override suspend fun write(device: D, value: T) =
                     withContext(device.coroutineContext) { device.write(propertyName, value) }
             })
@@ -665,7 +690,12 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
                 override val inputConverter: MetaConverter<I> = inputConverter
                 override val outputConverter: MetaConverter<O> = outputConverter
                 override suspend fun execute(device: D, input: I): O =
-                    withContext(device.coroutineContext) { device.execute(input) }
+                    try {
+                        withContext(device.coroutineContext) { device.execute(input) }
+                    } catch (ex: Exception) {
+                        device.logger.error(ex) { "Error executing action $actionName on device ${device.id}" }
+                        throw ex
+                    }
             })
             ReadOnlyProperty { _, _ -> devAction }
         }
@@ -716,7 +746,7 @@ public abstract class AbstractDeviceHubManager(
      */
     protected val parentJob: Job = SupervisorJob()
 
-    private val childLock = Mutex()
+    protected val childLock = Mutex()
 
     /**
      * Internal map that keeps track of each child's [ChildJob].
@@ -724,10 +754,18 @@ public abstract class AbstractDeviceHubManager(
     internal val childrenJobs: MutableMap<Name, ChildJob> = mutableMapOf()
 
     /**
-     * A map of current devices keyed by [Name].
+     * Snapshot of current devices (not guaranteed to be consistent without lock).
+     * For a safe snapshot, use [getDevicesSafe].
      */
     public val devices: Map<Name, Device>
         get() = childrenJobs.mapValues { it.value.device }
+
+    /**
+     * Returns a safe snapshot of current devices by locking [childLock].
+     */
+    public suspend fun getDevicesSafe(): Map<Name, Device> = childLock.withLock {
+        childrenJobs.mapValues { it.value.device }
+    }
 
     /**
      * A [MutableSharedFlow] for broadcasting (or replaying) [DeviceMessage]s from all devices.
@@ -872,7 +910,6 @@ public abstract class AbstractDeviceHubManager(
                 onChildErrorCaught(ex, name, config)
                 deviceChanges.emit(DeviceStateEvent.DeviceFailed(name, ex))
                 messageBus.emit(DeviceMessage.error(ex, name))
-
                 handleErrorPolicy(ex, name, config)
             } finally {
                 if (!isActive) {
@@ -889,8 +926,9 @@ public abstract class AbstractDeviceHubManager(
      */
     private suspend fun handleErrorPolicy(ex: Throwable, childName: Name, config: DeviceLifecycleConfig) {
         when (config.onError) {
-            ChildDeviceErrorHandler.IGNORE -> {}
+            ChildDeviceErrorHandler.IGNORE -> { /* do nothing */ }
             ChildDeviceErrorHandler.RESTART -> {
+                context.logger.info { "Scheduling restart for $childName due to error: ${ex.message}" }
                 scheduleRestart(childName, config.restartPolicy)
             }
             ChildDeviceErrorHandler.STOP_PARENT -> onParentStopRequested(ex, childName)
@@ -904,42 +942,33 @@ public abstract class AbstractDeviceHubManager(
      */
     private suspend fun scheduleRestart(childName: Name, policy: RestartPolicy) {
         childLock.withLock {
-            if (childName in restartingDevices) {
-                return
-            }
+            if (childName in restartingDevices) return
             restartingDevices.add(childName)
         }
-
         try {
             val attempts = (restartAttemptsMap[childName] ?: 0) + 1
             restartAttemptsMap[childName] = attempts
-
             if (attempts > policy.maxAttempts) {
                 context.logger.warn { "Max restart attempts exceeded for $childName." }
                 return
             }
-
             val delayDuration = calculateDelay(policy, attempts)
             if (delayDuration > Duration.ZERO) {
+                context.logger.info { "Delaying restart of $childName by $delayDuration (attempt $attempts)" }
                 delay(delayDuration)
             }
-
             restartDevice(childName)
-
         } finally {
-            childLock.withLock {
-                restartingDevices.remove(childName)
-            }
+            childLock.withLock { restartingDevices.remove(childName) }
         }
     }
 
     private fun calculateDelay(policy: RestartPolicy, attempts: Int): Duration {
         return when (policy.strategy) {
             RestartStrategy.LINEAR -> policy.delayBetweenAttempts
-            RestartStrategy.EXPONENTIAL_BACKOFF -> {
+            RestartStrategy.EXPONENTIAL_BACKOFF ->
                 policy.delayBetweenAttempts * 2.0.pow((attempts - 1).toDouble())
-            }
-            RestartStrategy.CUSTOM -> Duration.ZERO // user-override
+            RestartStrategy.CUSTOM -> Duration.ZERO // custom strategy can be overridden
         }
     }
 
@@ -969,14 +998,27 @@ public abstract class AbstractDeviceHubManager(
     }
 
     /**
-     * Add a device asynchronously, i.e. does **not** wait for the device to fully start.
+     * Attaches (registers) a device in this manager under [name], using [config] and optional [meta].
      *
-     * @param name The name of the new device.
-     * @param device The [Device] instance.
+     * If [startMode] = [StartMode.NONE], the device is simply attached (no start).
+     * If [startMode] = [StartMode.ASYNC], the device is launched in background if [lifecycleMode] != [LifecycleMode.INDEPENDENT].
+     * If [startMode] = [StartMode.SYNC], the device is launched *synchronously* if [lifecycleMode] != [LifecycleMode.INDEPENDENT].
+     *
+     * If an old device existed under [name], it is removed first (non-blocking).
+     *
+     * @param name The device name (unique in manager).
+     * @param device The [Device] instance to attach.
      * @param config The [DeviceLifecycleConfig].
-     * @param meta Optional [Meta].
+     * @param meta Optional metadata for the child.
+     * @param startMode Determines whether to auto-start the device or not.
      */
-    public suspend fun addDevice(name: Name, device: Device, config: DeviceLifecycleConfig, meta: Meta? = null) {
+    public suspend fun attachDevice(
+        name: Name,
+        device: Device,
+        config: DeviceLifecycleConfig,
+        meta: Meta? = null,
+        startMode: StartMode = StartMode.NONE
+    ) {
         childLock.withLock {
             val existing = childrenJobs[name]
             if (existing != null && existing.device != device) {
@@ -986,36 +1028,26 @@ public abstract class AbstractDeviceHubManager(
             childrenJobs[name] = newChild
         }
         deviceChanges.emit(DeviceStateEvent.DeviceAdded(name))
-        systemBus.emit(SystemLogMessage("Device $name added", sourceDevice = name))
+        systemBus.emit(SystemLogMessage("Device $name attached, startMode=$startMode", sourceDevice = name))
+        if (config.lifecycleMode == LifecycleMode.INDEPENDENT) return
+
+        when (startMode) {
+            StartMode.NONE -> {}
+            StartMode.ASYNC -> {
+                CoroutineScope(parentJob + dispatcher).launch {
+                    doStartDevice(name, config, device)
+                }
+            }
+            StartMode.SYNC -> doStartDevice(name, config, device)
+        }
     }
 
     /**
-     * Add a device **synchronously**: it waits for the device to start (unless [LifecycleMode.INDEPENDENT]).
-     *
-     * @param name The name of the new device.
-     * @param device The [Device] instance.
-     * @param config The [DeviceLifecycleConfig].
-     * @param meta Optional [Meta].
-     * @throws RuntimeException if the start times out.
+     * Internal helper that respects [startDelay], [startTimeout], etc.
      */
-    public suspend fun addDeviceSync(name: Name, device: Device, config: DeviceLifecycleConfig, meta: Meta? = null) {
-        addDevice(name, device, config, meta)
-        if (config.lifecycleMode == LifecycleMode.INDEPENDENT) {
-            return
-        }
-        finalizeDeviceStart(name, config, device)
-    }
-
-    /**
-     * Called by [addDeviceSync] to do the actual start with a potential [startDelay] and [startTimeout].
-     */
-    private suspend fun finalizeDeviceStart(name: Name, config: DeviceLifecycleConfig, device: Device) {
-        // If there's a requested startDelay, we do it now
-        if (config.startDelay > Duration.ZERO) {
-            delay(config.startDelay)
-        }
+    internal open suspend fun doStartDevice(name: Name, config: DeviceLifecycleConfig, device: Device) {
+        if (config.startDelay > Duration.ZERO) delay(config.startDelay)
         val startTimeout = config.startTimeout ?: Duration.INFINITE
-
         val success = withTimeoutOrNull(startTimeout) {
             device.start()
         }
@@ -1023,29 +1055,30 @@ public abstract class AbstractDeviceHubManager(
             onStartTimeout(name, config)
         } else {
             deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
-            // If the policy says so, reset attempt count
-            if (config.restartPolicy.resetOnSuccess) {
-                restartAttemptsMap[name] = 0
-            }
+            if (config.restartPolicy.resetOnSuccess) restartAttemptsMap[name] = 0
         }
     }
 
     /**
-     * Remove a device asynchronously (non-blocking).
-     * It does not wait for the device to fully stop if [waitStop] = false.
+     * Detaches (removes) a device from the manager by [name].
+     * If [waitStop] = true, waits until the device fully stops.
      */
-    public suspend fun removeDevice(name: Name) {
-        childLock.withLock {
-            removeDeviceUnlocked(name, waitStop = false)
-        }
+    public suspend fun detachDevice(name: Name, waitStop: Boolean = false) {
+        childLock.withLock { removeDeviceUnlocked(name, waitStop = waitStop) }
     }
 
     /**
-     * Remove a device **synchronously**: it waits for the device to fully stop.
+     * Called by [attachDevice] to do the actual start with a potential [startDelay] and [startTimeout].
      */
-    public suspend fun removeDeviceSync(name: Name) {
-        childLock.withLock {
-            removeDeviceUnlocked(name, waitStop = true)
+    private suspend fun finalizeDeviceStart(name: Name, config: DeviceLifecycleConfig, device: Device) {
+        if (config.startDelay > Duration.ZERO) delay(config.startDelay)
+        val startTimeout = config.startTimeout ?: Duration.INFINITE
+        val success = withTimeoutOrNull(startTimeout) { device.start() }
+        if (success == null) {
+            onStartTimeout(name, config)
+        } else {
+            deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
+            if (config.restartPolicy.resetOnSuccess) restartAttemptsMap[name] = 0
         }
     }
 
@@ -1069,7 +1102,6 @@ public abstract class AbstractDeviceHubManager(
             childrenJobs[name] = newChild
             systemBus.emit(SystemLogMessage("Device $name restarted", sourceDevice = name))
         }
-        // If device is not INDEPENDENT, attempt synchronous start
         val deviceRef = childrenJobs[name]?.device ?: return
         if (childrenJobs[name]?.config?.lifecycleMode != LifecycleMode.INDEPENDENT) {
             finalizeDeviceStart(name, childrenJobs[name]!!.config, deviceRef)
@@ -1095,7 +1127,6 @@ public abstract class AbstractDeviceHubManager(
             childrenJobs[name] = newChild
             systemBus.emit(SystemLogMessage("Device $name lifecycle changed to $newMode", sourceDevice = name))
         }
-        // Possibly start if needed
         val deviceRef = childrenJobs[name]?.device ?: return
         if (newMode != LifecycleMode.INDEPENDENT) {
             finalizeDeviceStart(name, childrenJobs[name]!!.config, deviceRef)
@@ -1126,7 +1157,6 @@ public abstract class AbstractDeviceHubManager(
             childrenJobs[name] = newChild
             systemBus.emit(SystemLogMessage("Device $name hot-swapped", sourceDevice = name))
         }
-        // Possibly start the new device if mode != INDEPENDENT
         val deviceRef = childrenJobs[name]?.device ?: return
         if (config.lifecycleMode != LifecycleMode.INDEPENDENT) {
             finalizeDeviceStart(name, config, deviceRef)
@@ -1143,16 +1173,12 @@ public abstract class AbstractDeviceHubManager(
         val child = childrenJobs[name] ?: return
         childrenJobs.remove(name)
         restartAttemptsMap.remove(name)
-
         deviceChanges.emit(DeviceStateEvent.DeviceRemoved(name))
         systemBus.emit(SystemLogMessage("Device $name removed (waitStop=$waitStop)", sourceDevice = name))
-
         if (waitStop) {
             performStop(child)
         } else {
-            CoroutineScope(parentJob + dispatcher).launch {
-                performStop(child)
-            }
+            CoroutineScope(parentJob + dispatcher).launch { performStop(child) }
         }
     }
 
@@ -1170,7 +1196,6 @@ public abstract class AbstractDeviceHubManager(
         if (result == null) {
             onStopTimeout(deviceName, child.config)
         }
-        // Finally, cancel the collector job
         child.collectorJob.cancelAndJoin()
     }
 
@@ -1192,32 +1217,42 @@ public abstract class AbstractDeviceHubManager(
      * @param deviceNames The list of devices to start.
      * @return `true` if all devices started successfully, `false` otherwise.
      */
-    public suspend fun startDevicesBatch(deviceNames: List<Name>): Boolean {
-        val startedSuccessfully = mutableListOf<Name>()
-        try {
-            for (dn in deviceNames) {
-                val job = childrenJobs[dn] ?: continue
-                if (job.device.lifecycleState == LifecycleState.INITIAL ||
-                    job.device.lifecycleState == LifecycleState.STOPPED) {
-                    job.device.start()
-                    deviceChanges.emit(DeviceStateEvent.DeviceStarted(dn))
-                    startedSuccessfully += dn
-                }
+    public suspend fun startDevicesBatch(deviceNames: List<Name>): Boolean = coroutineScope {
+        val deferredList = deviceNames.mapNotNull { dn ->
+            childrenJobs[dn]?.let { job ->
+                if (job.config.lifecycleMode != LifecycleMode.LAZY &&
+                    (job.device.lifecycleState == LifecycleState.INITIAL || job.device.lifecycleState == LifecycleState.STOPPED)
+                ) {
+                    async {
+                        try {
+                            job.device.start()
+                            deviceChanges.emit(DeviceStateEvent.DeviceStarted(dn))
+                            dn
+                        } catch (ex: Exception) {
+                            context.logger.error(ex) { "Error starting device $dn in batch" }
+                            throw ex
+                        }
+                    }
+                } else null
             }
-            return true
+        }
+        return@coroutineScope try {
+            deferredList.awaitAll()
+            true
         } catch (ex: Exception) {
             context.logger.error(ex) { "Failed to start device batch. Rolling back." }
-            // rollback
-            for (dn in startedSuccessfully) {
-                val job = childrenJobs[dn] ?: continue
-                try {
-                    job.device.stop()
-                    deviceChanges.emit(DeviceStateEvent.DeviceStopped(dn))
-                } catch (rollbackEx: Exception) {
-                    context.logger.error(rollbackEx) { "Failed to rollback stop for device $dn" }
+            // rollback: stop those that were started
+            deferredList.mapNotNull { it.getCompletedOrNull() }.forEach { dn ->
+                childrenJobs[dn]?.let { job ->
+                    try {
+                        job.device.stop()
+                        deviceChanges.emit(DeviceStateEvent.DeviceStopped(dn))
+                    } catch (rollbackEx: Exception) {
+                        context.logger.error(rollbackEx) { "Failed to rollback stop for device $dn" }
+                    }
                 }
             }
-            return false
+            false
         }
     }
 
@@ -1228,33 +1263,45 @@ public abstract class AbstractDeviceHubManager(
      * @param deviceNames The list of devices to stop.
      * @return `true` if all devices were stopped successfully, `false` otherwise.
      */
-    public suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean {
-        val stoppedSuccessfully = mutableListOf<Name>()
-        try {
-            for (dn in deviceNames) {
-                val job = childrenJobs[dn] ?: continue
+    public suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean = coroutineScope {
+        val deferredList = deviceNames.mapNotNull { dn ->
+            childrenJobs[dn]?.let { job ->
                 if (job.device.lifecycleState == LifecycleState.STARTED) {
-                    job.device.stop()
-                    deviceChanges.emit(DeviceStateEvent.DeviceStopped(dn))
-                    stoppedSuccessfully += dn
-                }
+                    async {
+                        try {
+                            job.device.stop()
+                            deviceChanges.emit(DeviceStateEvent.DeviceStopped(dn))
+                            dn
+                        } catch (ex: Exception) {
+                            context.logger.error(ex) { "Error stopping device $dn in batch" }
+                            throw ex
+                        }
+                    }
+                } else null
             }
-            return true
+        }
+        return@coroutineScope try {
+            deferredList.awaitAll()
+            true
         } catch (ex: Exception) {
             context.logger.error(ex) { "Failed to stop device batch. Rolling back." }
-            // rollback
-            for (dn in stoppedSuccessfully) {
-                val job = childrenJobs[dn] ?: continue
-                try {
-                    job.device.start()
-                    deviceChanges.emit(DeviceStateEvent.DeviceStarted(dn))
-                } catch (rollbackEx: Exception) {
-                    context.logger.error(rollbackEx) { "Failed to rollback start for device $dn" }
+            // rollback: start those that were stopped
+            deferredList.mapNotNull { it.getCompletedOrNull() }.forEach { dn ->
+                childrenJobs[dn]?.let { job ->
+                    try {
+                        job.device.start()
+                        deviceChanges.emit(DeviceStateEvent.DeviceStarted(dn))
+                    } catch (rollbackEx: Exception) {
+                        context.logger.error(rollbackEx) { "Failed to rollback start for device $dn" }
+                    }
                 }
             }
-            return false
+            false
         }
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> Deferred<T>.getCompletedOrNull(): T? = if (isCompleted && !isCancelled) getCompleted() else null
 
     /**
      * Optionally set up a distributed transport or message broker for the managed devices.
@@ -1270,7 +1317,7 @@ public abstract class AbstractDeviceHubManager(
      */
     public suspend fun runHealthChecks() {
         childLock.withLock {
-            for ((name, child) in childrenJobs) {
+            for ((_, child) in childrenJobs) {
                 checkHealth(child)
             }
         }
@@ -1327,10 +1374,10 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     meta: Meta = Meta.EMPTY,
     config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
     registry: ComponentRegistry? = null,
-    private val hubManager: AbstractDeviceHubManager = DeviceHubManagerImpl(context, config.dispatcher ?: Dispatchers.Default),
+    public val hubManager: AbstractDeviceHubManager = DeviceHubManagerImpl(context, config.dispatcher ?: Dispatchers.Default),
 ) : DeviceBase<D>(context, meta), CompositeControlComponent {
 
-    protected val effectiveRegistry: ComponentRegistry? = registry ?: context.componentRegistry
+    public val effectiveRegistry: ComponentRegistry? = registry ?: context.componentRegistry
 
     override val properties: Map<String, DevicePropertySpec<D, *>>
         get() = spec.properties
@@ -1353,7 +1400,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     private val childConfigs: List<ChildComponentConfig<*>> = spec.childSpecs.values.toList()
 
     init {
-        // Optionally, we can handle action execution here if needed
+        // Setup action execution: wrap execute block with error handling
         spec.actions.values.forEach { actionSpec ->
             launch {
                 val actionName = actionSpec.name
@@ -1361,15 +1408,20 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                     .filterIsInstance<ActionExecuteMessage>()
                     .filter { it.action == actionName }
                     .onEach { msg ->
-                        val result = execute(actionName, msg.argument)
-                        messageBus.emit(
-                            ActionResultMessage(
-                                action = actionName,
-                                result = result,
-                                requestId = msg.requestId,
-                                sourceDevice = id.asName()
+                        try {
+                            val result = execute(actionName, msg.argument)
+                            messageBus.emit(
+                                ActionResultMessage(
+                                    action = actionName,
+                                    result = result,
+                                    requestId = msg.requestId,
+                                    sourceDevice = id.asName()
+                                )
                             )
-                        )
+                        } catch (ex: Exception) {
+                            logger.error(ex) { "Error executing action $actionName on device $id" }
+                            messageBus.emit(DeviceMessage.error(ex, id.asName()))
+                        }
                     }
                     .launchIn(this)
             }
@@ -1396,8 +1448,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                     effectiveRegistry
                 )
             }
-            // Synchronous add; also will start if not INDEPENDENT
-            hubManager.addDeviceSync(childCfg.name, childDevice, childCfg.config, childCfg.meta)
+            hubManager.attachDevice(childCfg.name, childDevice, childCfg.config, childCfg.meta, StartMode.SYNC)
         }
     }
 
@@ -1411,15 +1462,13 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
             self.onOpen()
             validate(self)
         }
-        // Start child devices if not LAZY or already started
-        hubManager.devices.values
-            .filter { it.lifecycleState == LifecycleState.INITIAL }
-            .forEach { child ->
-                val mode = hubManager.childrenJobs[child.id.parseAsName()]?.lifecycleMode
-                if (mode != LifecycleMode.LAZY) {
-                    child.start()
-                }
+        // Start child devices that are in INITIAL state and not marked as LAZY
+        hubManager.devices.values.filter { it.lifecycleState == LifecycleState.INITIAL }.forEach { child ->
+            val mode = hubManager.childrenJobs[child.id.parseAsName()]?.lifecycleMode
+            if (mode != LifecycleMode.LAZY) {
+                child.start()
             }
+        }
     }
 
     /**
@@ -1427,19 +1476,16 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
      * Default logic: attempt to stop each child device (if started), then call [spec.onClose].
      */
     override suspend fun onStop() {
-        // For each child that is started, try to stop them gracefully
+        // Stop each child device concurrently with proper error handling
         hubManager.devices.values.forEach { child ->
             if (child.lifecycleState == LifecycleState.STARTED) {
-                // We do this in parallel, but might consider sequential in certain scenarios
                 launch(child.coroutineContext) {
                     val stopTimeout = hubManager.childrenJobs[child.id.parseAsName()]?.config?.stopTimeout ?: Duration.INFINITE
                     val stopped = withTimeoutOrNull(stopTimeout) {
                         child.stop()
                     }
                     if (stopped == null) {
-                        // If timed out, let manager handle
-                        val job = hubManager.childrenJobs[child.id.parseAsName()]
-                        if (job != null) {
+                        hubManager.childrenJobs[child.id.parseAsName()]?.let { job ->
                             hubManager.onStopTimeout(child.id.parseAsName(), job.config)
                         }
                     }
@@ -1456,7 +1502,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
      * By default, does nothing.
      */
     internal open fun onChildStop() {
-        // no-op
+        // no-op; override if needed
     }
 
     /**
@@ -1506,9 +1552,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
  * @param timeout The maximum time to wait for stopping.
  */
 public suspend fun WithLifeCycle.stopWithTimeout(timeout: Duration = Duration.INFINITE) {
-    val result = withTimeoutOrNull(timeout) {
-        stop()
-    }
+    val result = withTimeoutOrNull(timeout) { stop() }
     if (result == null) {
         (this as? DeviceBase<*>)?.logger?.warn { "Timeout on stop for device ${this.id}" }
     }

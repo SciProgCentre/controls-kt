@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_PARAMETER", "MemberVisibilityCanBePrivate")
+@file:Suppress("UNUSED_PARAMETER", "RedundantVisibilityModifier")
 
 package space.kscience.controls.spec
 
@@ -759,10 +759,10 @@ class CompositeControlTest {
         val motor = StepperMotorDevice(context)
         val name = "motorTest".asName()
 
-        manager.addDeviceSync(name, motor, DeviceLifecycleConfig())
+        manager.attachDevice(name, motor, DeviceLifecycleConfig(), null, StartMode.SYNC)
         assertTrue(name in manager.devices.keys, "The device should be in the manager after add.")
 
-        manager.removeDeviceSync(name)
+        manager.detachDevice(name, true)
         assertFalse(name in manager.devices.keys, "The device should be removed from the manager.")
     }
 
@@ -775,8 +775,8 @@ class CompositeControlTest {
         val motor1 = StepperMotorDevice(context)
         val motor2 = StepperMotorDevice(context)
 
-        manager.addDeviceSync("m1".asName(), motor1, config)
-        manager.addDeviceSync("m2".asName(), motor2, config)
+        manager.attachDevice("m1".asName(), motor1, config, null, StartMode.SYNC)
+        manager.attachDevice("m2".asName(), motor2, config, null, StartMode.SYNC)
 
         val stopSuccess = manager.stopDevicesBatch(listOf("m1".asName(), "m2".asName()))
         assertTrue(stopSuccess, "Batch stop should succeed for normal devices")
@@ -798,7 +798,7 @@ class CompositeControlTest {
 
         val oldDevice = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
         val name = "motorSwap".asName()
-        manager.addDeviceSync(name, oldDevice, DeviceLifecycleConfig())
+        manager.attachDevice(name, oldDevice, DeviceLifecycleConfig(), null, StartMode.SYNC)
 
         assertEquals(100, oldDevice.maxPosition, "Old motor should have maxPosition=100")
 
