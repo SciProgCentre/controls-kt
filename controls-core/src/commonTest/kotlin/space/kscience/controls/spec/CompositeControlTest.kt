@@ -3,7 +3,9 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
@@ -13,18 +15,23 @@ import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 import kotlin.test.*
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.StandardTestDispatcher
 
 /**
  * A simple [AbstractDeviceHubManager] implementation for tests, providing
- * message flows and basic logging of events.
+ * message flows, event bus, and basic logging of events.
  */
 private class TestDeviceHubManager(
     context: Context,
     dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : AbstractDeviceHubManager(context, dispatcher) {
-    override val messageBus = MutableSharedFlow<DeviceMessage>(replay = 100)
-    override val systemBus = MutableSharedFlow<SystemLogMessage>(replay = 50)
-    override val deviceChanges = MutableSharedFlow<DeviceStateEvent>(replay = 50)
+    override val messageBus = MutableSharedFlow<DeviceMessage>(replay = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val systemBus = MutableSharedFlow<SystemLogMessage>(replay = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val deviceChanges = MutableSharedFlow<DeviceStateEvent>(replay = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    override val eventBus: EventBus = DefaultEventBus(replay = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    override val transactionManager: TransactionManager = DefaultTransactionManager(eventBus)
 }
 
 /**
@@ -658,7 +665,7 @@ class CompositeControlTest {
         val pump = SyringePumpDevice(context, Meta { "maxVolume" put 5.0 })
 
         pump.setVolume(10.0)
-        assertEquals(0.0, pump.getVolume(), "Volume should not change on invalid value")
+        assertEquals(0.0, pump.getVolume(), "Volume should remain 0 on invalid value")
     }
 
     @Test
@@ -764,6 +771,7 @@ class CompositeControlTest {
 
         manager.detachDevice(name, true)
         assertFalse(name in manager.devices.keys, "The device should be removed from the manager.")
+        manager.shutdown()
     }
 
     @Test
@@ -793,8 +801,9 @@ class CompositeControlTest {
 
     @Test
     fun `test hot swap device`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
         val context = createTestContext()
-        val manager = TestDeviceHubManager(context)
+        val manager = TestDeviceHubManager(context, testDispatcher)
 
         val oldDevice = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
         val name = "motorSwap".asName()
@@ -814,8 +823,14 @@ class CompositeControlTest {
         val current = manager.devices[name]
         assertNotNull(current, "New device should be present after hot swap")
         assertTrue(current === newDevice, "Manager should reference the new device instance")
-
         assertEquals(999, newDevice.maxPosition)
+
+        val events = manager.eventBus.events.take(2).toList()
+        assertTrue(events.any { it is TransactionEvent.TransactionStarted }, "TransactionStarted event expected")
+        assertTrue(events.any { it is TransactionEvent.TransactionCommitted }, "TransactionCommitted event expected")
+
+        manager.detachDevice(name, waitStop = true)
+        manager.shutdown()
     }
 
 }
