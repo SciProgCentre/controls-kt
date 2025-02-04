@@ -13,6 +13,7 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.*
+import kotlin.concurrent.Volatile
 import kotlin.math.pow
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
@@ -21,51 +22,144 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * A generic Actor class that processes messages sequentially.
+ * A sealed class representing the internal lifecycle state of an Actor.
+ */
+public sealed class ActorState {
+    public object Active : ActorState()
+    public object Closing : ActorState()
+    public object Closed : ActorState()
+}
+
+/**
+ * A generic Actor class that processes messages sequentially in a coroutine.
  *
  * @param M The type of messages processed by this actor.
  * @property scope The [CoroutineScope] in which the actor operates.
- * @property capacity The capacity of the actor's mailbox. Defaults to [Channel.UNLIMITED].
- * @property handler A suspend function that is invoked for each message.
+ * @property capacity The capacity of the actor's mailbox. Defaults to Channel.UNLIMITED.
+ * @property onBufferOverflow The strategy to apply when the channel is at capacity (if capacity != UNLIMITED).
+ * @property errorHandler A function to handle errors during message processing.
+ * @property onCompletion An optional callback invoked once the actor completes processing all messages
+ *                        (i.e., after the mailbox is closed and the loop terminates), unless force-closing.
+ * @property handler A suspend function invoked for each message.
  */
 public class Actor<M>(
     private val scope: CoroutineScope,
     private val capacity: Int = Channel.UNLIMITED,
+    private val onBufferOverflow: BufferOverflow = BufferOverflow.SUSPEND,
+    private val errorHandler: (Throwable) -> Unit = { e ->
+        println("Error processing message in Actor: ${e.message}")
+    },
+    private val onCompletion: (Throwable?) -> Unit = {},
     private val handler: suspend (M) -> Unit
 ) {
-    private val mailbox = Channel<M>(capacity)
 
-    init {
-        scope.launch {
+    /**
+     * Channel for receiving messages. By default, uses the provided capacity and
+     * onBufferOverflow strategy. For example:
+     *  - BufferOverflow.SUSPEND (default) will suspend senders when capacity is reached.
+     *  - BufferOverflow.DROP_OLDEST or DROP_LATEST can be used for dropping messages.
+     */
+    private val mailbox = Channel<M>(capacity, onBufferOverflow)
+
+    @Volatile
+    private var state: ActorState = ActorState.Active
+
+    /**
+     * The actor's main job that sequentially processes messages from the mailbox.
+     */
+    private val job = scope.launch {
+        var thrownException: Throwable? = null
+        try {
             for (message in mailbox) {
                 try {
                     handler(message)
-                } catch (e: Exception) {
-                    println("Error processing message in Actor: ${e.message}")
+                } catch (e: Throwable) {
+                    errorHandler(e)
                 }
             }
+        } catch (ex: Throwable) {
+            thrownException = ex
+        } finally {
+            state = ActorState.Closed
+            onCompletion(thrownException)
         }
     }
 
     /**
-     * Sends a message to the actor for processing.
+     * Sends a message to the actor for processing (suspend until the message is enqueued).
      *
      * @param message The message of type [M] to be processed.
      */
     public suspend fun send(message: M) {
+        checkStateBeforeSend()
         mailbox.send(message)
     }
 
     /**
-     * Closes the actor’s mailbox, stopping further message processing.
+     * Attempts to send a message without suspension, returning true if successfully enqueued,
+     * or false if the mailbox is full or closed.
+     *
+     * @param message The message of type [M] to be processed.
+     * @return True if the message was sent, false otherwise.
      */
-    public fun close() {
+    public fun trySendNonBlocking(message: M): Boolean {
+        checkStateBeforeSend()
+        return mailbox.trySend(message).isSuccess
+    }
+
+    /**
+     * Sends a collection of messages to the actor sequentially (suspending if needed).
+     *
+     * @param messages The list/collection of messages to send.
+     */
+    public suspend fun sendAll(messages: Iterable<M>) {
+        checkStateBeforeSend()
+        for (msg in messages) {
+            mailbox.send(msg)
+        }
+    }
+
+    /**
+     * Closes the actor's mailbox, transitioning to Closing state.
+     * If [force] is true, also cancels the job immediately.
+     *
+     * @param force If true, cancels the processing job without draining remaining messages.
+     * @param onClosed An optional callback that fires immediately after the channel is closed
+     *                 (and the job is optionally canceled). This is distinct from [onCompletion],
+     *                 which is invoked after the actor's main loop ends naturally.
+     */
+    public fun close(force: Boolean = false, onClosed: (Throwable?) -> Unit = {}) {
+        if (state == ActorState.Closed) return
+        state = ActorState.Closing
         mailbox.close()
+        if (force) {
+            val cancellation = CancellationException("Actor is force-closed.")
+            job.cancel(cancellation)
+            state = ActorState.Closed
+            onClosed(cancellation)
+        } else {
+            onClosed(null)
+        }
+    }
+
+    /**
+     * Suspends until the actor finishes processing all messages and the job completes.
+     */
+    public suspend fun join(): Unit = job.join()
+
+    /**
+     * A helper method to verify that the actor is not fully closed before sending.
+     * Throws an [IllegalStateException] if the actor is already closed.
+     */
+    private fun checkStateBeforeSend() {
+        if (state == ActorState.Closed || !job.isActive) {
+            throw IllegalStateException("Cannot send messages to a closed or inactive Actor.")
+        }
     }
 }
 
 /**
- * Sealed class representing the various device management commands to be processed
+ * Sealed class representing various device management commands to be processed
  * by the [DeviceManagerActor].
  */
 public sealed class DeviceCommand {
@@ -76,7 +170,7 @@ public sealed class DeviceCommand {
      * @param device The device instance to attach.
      * @param config The [DeviceLifecycleConfig] for the device.
      * @param meta Optional metadata associated with the device.
-     * @param startMode Specifies if the device should be started automatically (NONE, ASYNC, SYNC).
+     * @param startMode Specifies if the device should be started automatically.
      */
     public data class Attach(
         val name: Name,
@@ -92,7 +186,10 @@ public sealed class DeviceCommand {
      * @param name The unique name of the device.
      * @param waitStop If true, waits until the device fully stops before returning.
      */
-    public data class Detach(val name: Name, val waitStop: Boolean = false) : DeviceCommand()
+    public data class Detach(
+        val name: Name,
+        val waitStop: Boolean = false
+    ) : DeviceCommand()
 
     /**
      * Command to restart a device.
@@ -107,7 +204,10 @@ public sealed class DeviceCommand {
      * @param name The unique name of the device.
      * @param newMode The new [LifecycleMode] to be applied.
      */
-    public data class ChangeLifecycle(val name: Name, val newMode: LifecycleMode) : DeviceCommand()
+    public data class ChangeLifecycle(
+        val name: Name,
+        val newMode: LifecycleMode
+    ) : DeviceCommand()
 
     /**
      * Command to hot-swap a device.
@@ -116,7 +216,7 @@ public sealed class DeviceCommand {
      * @param newDevice The new device instance to use.
      * @param config The [DeviceLifecycleConfig] for the new device.
      * @param meta Optional metadata for the new device.
-     * @param reuseMessageBus If true, the old message bus is reused for continuous streaming.
+     * @param reuseMessageBus If true, reuses the old message bus.
      */
     public data class HotSwap(
         val name: Name,
@@ -132,7 +232,7 @@ public sealed class DeviceCommand {
  *
  * This class encapsulates an [AbstractDeviceHubManager] and processes device management
  * commands sequentially via an actor. This ensures that all operations (attach, detach,
- * restart, etc.) are executed in a thread-safe and predictable manner without explicit locks.
+ * restart, etc.) are executed in a thread-safe manner without the need for explicit locks.
  *
  * @param hubManager The underlying device manager instance.
  * @param scope The [CoroutineScope] in which the actor operates.
@@ -141,7 +241,14 @@ public class DeviceManagerActor(
     private val hubManager: AbstractDeviceHubManager,
     scope: CoroutineScope
 ) {
-    private val actor = Actor<DeviceCommand>(scope) { command ->
+    private val actor = Actor<DeviceCommand>(
+        scope = scope,
+        capacity = 100,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        errorHandler = { ex ->
+            hubManager.context.logger.error(ex) { "Error processing device command" }
+        }
+    ) { command ->
         when (command) {
             is DeviceCommand.Attach -> {
                 hubManager.attachDevice(
@@ -183,10 +290,28 @@ public class DeviceManagerActor(
     }
 
     /**
-     * Closes the actor’s mailbox and stops processing further commands.
+     * Attempts to send a device management command without suspension.
+     *
+     * @param command The [DeviceCommand] to process.
+     * @return True if the command was successfully enqueued, false otherwise.
      */
-    public fun close() {
-        actor.close()
+    public fun trySendNonBlocking(command: DeviceCommand): Boolean {
+        return actor.trySendNonBlocking(command)
+    }
+
+    /**
+     * Closes the actor's mailbox, stopping further command processing.
+     * If [force] = true, the actor job is cancelled immediately.
+     */
+    public fun close(force: Boolean = false) {
+        actor.close(force)
+    }
+
+    /**
+     * Suspends until the actor finishes processing all commands.
+     */
+    public suspend fun join() {
+        actor.join()
     }
 }
 
