@@ -1017,7 +1017,7 @@ public abstract class AbstractDeviceHubManager(
     /**
      * Metric publisher for logging and monitoring.
      */
-    public open val metricPublisher: MetricPublisher = DefaultMetricPublisher()
+    public open val metricPublisher: MetricPublisher = DefaultMetricPublisher(context.logger)
 
     /**
      * Transaction manager for wrapping critical operations.
