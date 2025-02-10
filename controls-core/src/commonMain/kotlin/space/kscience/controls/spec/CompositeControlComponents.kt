@@ -1,4 +1,4 @@
-@file:Suppress("MemberVisibilityCanBePrivate", "UNUSED_PARAMETER", "unused")
+@file:Suppress("MemberVisibilityCanBePrivate", "unused")
 
 package space.kscience.controls.spec
 
@@ -748,16 +748,7 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
 
     override fun validate(device: D) {
         // Verify that all declared properties and actions are registered in the device.
-        properties.values.forEach { prop ->
-            check(prop.descriptor in device.propertyDescriptors) {
-                "Property ${prop.descriptor.name} not registered in ${device.id}"
-            }
-        }
-        actions.values.forEach { act ->
-            check(act.descriptor in device.actionDescriptors) {
-                "Action ${act.descriptor.name} not registered in ${device.id}"
-            }
-        }
+        this.validateSpec(device)
     }
 
     override fun <T, P : DevicePropertySpec<D, T>> registerProperty(deviceProperty: P): P {
@@ -1371,26 +1362,6 @@ public abstract class AbstractDeviceHubManager(
     }
 
     /**
-     * Helper method called to start a device after attachment.
-     *
-     * @param name The device name.
-     * @param config The lifecycle configuration.
-     * @param device The device instance.
-     */
-    private suspend fun finalizeDeviceStart(name: Name, config: DeviceLifecycleConfig, device: Device) {
-        if (config.startDelay > Duration.ZERO) delay(config.startDelay)
-        val startTimeout = config.startTimeout ?: Duration.INFINITE
-        val success = withTimeoutOrNull(startTimeout) { device.start() }
-        if (success == null) {
-            onStartTimeout(name, config)
-        } else {
-            deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
-            metricPublisher.publishMetric("device.start", 1.0, mapOf("device" to name.toString()))
-            if (config.restartPolicy.resetOnSuccess) restartAttemptsMap[name] = 0
-        }
-    }
-
-    /**
      * Restarts a device, preserving its [DeviceLifecycleConfig] and [Meta].
      * This method stops the device (if running) and relaunches it.
      *
@@ -1413,7 +1384,7 @@ public abstract class AbstractDeviceHubManager(
         }
         val deviceRef = childrenJobs[name]?.device ?: return
         if (childrenJobs[name]?.config?.lifecycleMode != LifecycleMode.INDEPENDENT) {
-            finalizeDeviceStart(name, childrenJobs[name]!!.config, deviceRef)
+            doStartDevice(name, childrenJobs[name]!!.config, deviceRef)
         }
     }
 
@@ -1446,7 +1417,7 @@ public abstract class AbstractDeviceHubManager(
         metricPublisher.publishMetric("device.lifecycle.change", 1.0, mapOf("device" to name.toString(), "newMode" to newMode.name))
         val deviceRef = childrenJobs[name]?.device ?: return
         if (newMode != LifecycleMode.INDEPENDENT) {
-            finalizeDeviceStart(name, childrenJobs[name]!!.config, deviceRef)
+            doStartDevice(name, childrenJobs[name]!!.config, deviceRef)
         }
     }
 
@@ -1477,7 +1448,7 @@ public abstract class AbstractDeviceHubManager(
             }
             val deviceRef = childLock.withLock { childrenJobs[name]?.device }
             if (deviceRef != null && config.lifecycleMode != LifecycleMode.INDEPENDENT) {
-                finalizeDeviceStart(name, config, deviceRef)
+                doStartDevice(name, config, deviceRef)
             }
         }
     }
@@ -1707,7 +1678,7 @@ public interface CompositeControlComponent : Device {
  * @param hubManager A custom [AbstractDeviceHubManager], or a default instance if not provided.
  */
 public open class ConfigurableCompositeControlComponent<D : ConfigurableCompositeControlComponent<D>>(
-    public open val spec: CompositeControlComponentSpec<D>,
+    public val spec: CompositeControlComponentSpec<D>,
     context: Context,
     meta: Meta = Meta.EMPTY,
     config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
