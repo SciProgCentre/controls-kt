@@ -246,3 +246,84 @@ public fun CompositeControlComponentSpec<*>.validateSpec(device: Device) {
         }
     }
 }
+
+/**
+ * A read-only property with the ability to embed processing when reading a value.
+ */
+public fun <T, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.checkedReadOnlyProperty(
+    converter: MetaConverter<T>,
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    beforeRead: suspend D.(propertyName: String) -> Unit = { },
+    afterRead: suspend D.(propertyName: String, value: T?) -> Unit = { _, _ -> },
+    read: suspend D.(String) -> T?,
+): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, T>>> {
+
+    return property(
+        converter = converter,
+        descriptorBuilder = descriptorBuilder,
+        name = name
+    ) { propertyName ->
+        beforeRead(this, propertyName)
+        val result = read(propertyName)
+        afterRead(this, propertyName, result)
+        result
+    }
+}
+
+/**
+ * Mutable property with the ability to embed processing when reading a value.
+ */
+public fun <T, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.checkedMutableProperty(
+    converter: MetaConverter<T>,
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    beforeRead: suspend D.(propertyName: String) -> Unit = { },
+    afterRead: suspend D.(propertyName: String, value: T?) -> Unit = { _, _ -> },
+    beforeWrite: suspend D.(propertyName: String, newValue: T) -> Unit = { _, _ -> },
+    afterWrite: suspend D.(propertyName: String, newValue: T) -> Unit = { _, _ -> },
+    read: suspend D.(String) -> T?,
+    write: suspend D.(String, T) -> Unit,
+): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, MutableDevicePropertySpec<D, T>>> {
+
+    return mutableProperty(
+        converter = converter,
+        descriptorBuilder = descriptorBuilder,
+        name = name,
+        read = { propertyName ->
+            beforeRead(this, propertyName)
+            val result = read(propertyName)
+            afterRead(this, propertyName, result)
+            result
+        },
+        write = { propertyName, value ->
+            beforeWrite(this, propertyName, value)
+            write(propertyName, value)
+            afterWrite(this, propertyName, value)
+        }
+    )
+}
+
+/**
+ * Property with a defaultValue for the case when `read(...)` will return null.
+ */
+public fun <T, D : ConfigurableCompositeControlComponent<D>> CompositeControlComponentSpec<D>.defaultValueProperty(
+    converter: MetaConverter<T>,
+    defaultValue: T,
+    name: String? = null,
+    descriptorBuilder: PropertyDescriptorBuilder.() -> Unit = {},
+    read: suspend D.(String) -> T?,
+    write: (suspend D.(String, T) -> Unit)? = null
+): PropertyDelegateProvider<CompositeControlComponentSpec<D>, ReadOnlyProperty<CompositeControlComponentSpec<D>, DevicePropertySpec<D, T>>> {
+
+    return if (write == null) {
+        property(converter, descriptorBuilder, name) { propertyName ->
+            read(propertyName) ?: defaultValue
+        }
+    } else {
+        mutableProperty(converter, descriptorBuilder, name,
+            read = { propertyName -> read(propertyName) ?: defaultValue },
+            write = { propertyName, value -> write(propertyName, value) }
+        )
+    }
+}
