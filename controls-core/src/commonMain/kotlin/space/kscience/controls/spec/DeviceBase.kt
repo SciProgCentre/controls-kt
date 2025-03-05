@@ -72,6 +72,7 @@ public abstract class DeviceBase<D : Device>(
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
                 CoroutineName("Device $id") +

@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
-import space.kscience.controls.manager.ClockManager
+import space.kscience.controls.time.ClockManager
 import kotlin.time.Duration
 
 /**
@@ -20,14 +20,15 @@ import kotlin.time.Duration
 public class TimerState(
     public val clockManager: ClockManager,
     public val tick: Duration,
+    initialValue: Instant = Instant.DISTANT_PAST,
 ) : DeviceState<Instant> {
 
-    private val clock = MutableStateFlow(clockManager.clock.now())
+    private val clock = MutableStateFlow(initialValue)
 
     private val updateJob = clockManager.context.launch(clockManager.asDispatcher()) {
         while (isActive) {
-            delay(tick)
             clock.value = clockManager.clock.now()
+            delay(tick)
         }
     }
 

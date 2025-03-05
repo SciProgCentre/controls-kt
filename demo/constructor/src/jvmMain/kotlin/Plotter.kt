@@ -31,8 +31,8 @@ import space.kscience.controls.constructor.devices.angle
 import space.kscience.controls.constructor.models.Leadscrew
 import space.kscience.controls.constructor.models.coerceIn
 import space.kscience.controls.constructor.units.*
-import space.kscience.controls.manager.ClockManager
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
 import kotlin.random.Random

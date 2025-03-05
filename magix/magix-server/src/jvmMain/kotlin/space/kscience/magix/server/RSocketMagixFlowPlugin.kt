@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.io.readString
 import kotlinx.serialization.encodeToString
 import space.kscience.magix.api.*
 import space.kscience.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
@@ -59,10 +60,10 @@ public class RSocketMagixFlowPlugin(
             RSocketRequestHandler(coroutineScope.coroutineContext) {
                 //handler for request/stream
                 requestStream { request: Payload ->
-                    val requestText = request.data.readText()
-                    val filter = if(requestText.isBlank()) {
+                    val requestText = request.data.readString()
+                    val filter = if (requestText.isBlank()) {
                         MagixMessageFilter.ALL
-                    } else  MagixEndpoint.magixJson.decodeFromString(
+                    } else MagixEndpoint.magixJson.decodeFromString(
                         MagixMessageFilter.serializer(),
                         requestText
                     )
@@ -76,7 +77,7 @@ public class RSocketMagixFlowPlugin(
                 fireAndForget { request: Payload ->
                     val message = MagixEndpoint.magixJson.decodeFromString(
                         MagixMessage.serializer(),
-                        request.data.readText()
+                        request.data.readString()
                     )
 
                     sendMessage(message)
@@ -87,12 +88,12 @@ public class RSocketMagixFlowPlugin(
                         sendMessage(
                             MagixEndpoint.magixJson.decodeFromString(
                                 MagixMessage.serializer(),
-                                inputPayload.use { it.data.readText() }
+                                inputPayload.use { it.data.readString() }
                             )
                         )
                     }.launchIn(this)
 
-                    val filterText = request.data.readText()
+                    val filterText = request.data.readString()
 
                     val filter = if (filterText.isBlank()) {
                         MagixMessageFilter.ALL

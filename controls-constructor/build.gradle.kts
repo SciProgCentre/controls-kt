@@ -14,8 +14,10 @@ kscience{
     wasm()
     useCoroutines()
     useSerialization()
+
     commonMain {
         api(projects.controlsCore)
+        api(projects.simulationKt)
     }
 
     commonTest{

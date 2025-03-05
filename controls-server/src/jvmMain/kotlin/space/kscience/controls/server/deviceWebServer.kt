@@ -2,9 +2,12 @@ package space.kscience.controls.server
 
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.*
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStarted
+import io.ktor.server.application.install
+import io.ktor.server.application.pluginOrNull
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.html.respondHtml
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -63,10 +66,10 @@ public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
     host: String = "localhost",
-): ApplicationEngine = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
+): EmbeddedServer<*,*> = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
 
-public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
-    environment.monitor.subscribe(ApplicationStarted, callback)
+public fun EmbeddedServer<*,*>.whenStarted(callback: Application.() -> Unit) {
+    monitor.subscribe(ApplicationStarted, callback)
 }
 
 

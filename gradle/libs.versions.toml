@@ -1,7 +1,7 @@
 [versions]
 
-dataforge = "0.9.0"
-rsocket = "0.15.4"
+dataforge = "0.10.0"
+rsocket = "0.16.0"
 xodus = "2.0.1"
 
 uuid = "0.8.0"

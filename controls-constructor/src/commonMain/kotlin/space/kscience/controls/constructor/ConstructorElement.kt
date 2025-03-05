@@ -5,7 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
-import space.kscience.controls.manager.ClockManager
+import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import kotlin.time.Duration

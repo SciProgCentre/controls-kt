@@ -16,6 +16,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.io.readString
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -51,7 +52,7 @@ public class RSocketStreamMagixEndpoint(
     override fun subscribe(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage> = input.map {
-        MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
+        MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readString())
     }.filter(filter)
 
     override suspend fun broadcast(message: MagixMessage): Unit {

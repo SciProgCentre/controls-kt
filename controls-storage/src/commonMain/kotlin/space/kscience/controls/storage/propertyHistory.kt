@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.misc.PropertyHistory
-import space.kscience.controls.misc.ValueWithTime
+import space.kscience.controls.time.PropertyHistory
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
 
 public fun <T> DeviceMessageStorage.propertyHistory(

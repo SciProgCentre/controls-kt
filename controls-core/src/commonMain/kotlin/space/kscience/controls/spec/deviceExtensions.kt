@@ -4,7 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import space.kscience.controls.api.Device
-import space.kscience.controls.manager.getCoroutineDispatcher
+import space.kscience.controls.time.getCoroutineDispatcher
 import kotlin.time.Duration
 
 /**

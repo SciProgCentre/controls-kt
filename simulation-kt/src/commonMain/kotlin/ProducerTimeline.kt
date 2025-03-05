@@ -9,24 +9,33 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 
-public abstract class ProducerTimeline<E : TimelineEvent>(
+/**
+ *
+ */
+public abstract class ProducerTimeline<E : Any>(
     protected var startTime: Instant,
+    private val timeOf: E.() -> Instant,
     coroutineContext: CoroutineContext
 ) : Timeline<E>, AutoCloseable {
 
     protected val timelineScope: CoroutineScope = CoroutineScope(
         coroutineContext +
-        SupervisorJob(coroutineContext[Job]) +
-        CoroutineExceptionHandler{ _, throwable -> throwable.printStackTrace() } +
-        CoroutineName("Timeline")
+                SupervisorJob(coroutineContext[Job]) +
+                CoroutineExceptionHandler { _, throwable -> throwable.printStackTrace() } +
+                CoroutineName("Timeline")
     )
+
+    override fun timeOf(event: E): Instant = event.timeOf()
 
     private val observers: MutableSet<TimelineObserver> = mutableSetOf()
 
+    /**
+     * Update time on this channel event
+     */
     private val feedbackChannel = Channel<Unit>(onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     override val time: StateFlow<Instant> = feedbackChannel.consumeAsFlow().map {
-        maxOf(startTime,observers.maxOfOrNull { it.time.value } ?: startTime)
+        maxOf(startTime, observers.maxOfOrNull { it.time.value } ?: startTime)
     }.stateIn(timelineScope, SharingStarted.Lazily, startTime)
 
     override suspend fun advance(toTime: Instant) {
@@ -50,7 +59,7 @@ public abstract class ProducerTimeline<E : TimelineEvent>(
 
             private val collectJob = timelineScope.launch(context) {
                 channel.consumeAsFlow().onEach {
-                    time.emit(it.time)
+                    time.emit(timeOf(it))
                     feedbackChannel.send(Unit)
                 }.collector()
             }
@@ -60,7 +69,7 @@ public abstract class ProducerTimeline<E : TimelineEvent>(
             override suspend fun collect(upTo: Instant) = mutex.withLock {
                 require(upTo >= time.value) { "Requested time $upTo is lower than observed ${time.value}" }
                 events().takeWhile {
-                    it.time <= upTo
+                    timeOf(it) <= upTo
                 }.collect {
                     channel.send(it)
                 }

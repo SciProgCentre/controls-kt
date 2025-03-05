@@ -28,6 +28,7 @@ kscience {
 
         api(libs.rsocket.ktor.server)
         api(libs.rsocket.transport.ktor.tcp)
+        api(spclibs.kotlinx.io.core)
     }
 
 }

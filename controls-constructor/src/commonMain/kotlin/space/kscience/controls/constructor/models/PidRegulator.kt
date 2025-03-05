@@ -7,7 +7,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
-import space.kscience.controls.manager.clock
 import space.kscience.dataforge.context.Context
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -47,8 +46,6 @@ public class PidRegulator<P : UnitsOfMeasurement, O : UnitsOfMeasurement>(
         var integral: NumericalValue<P> = NumericalValue(0.0)
 
         val mutex = Mutex()
-
-        val clock = context.clock
 
         var lastTime = clock.now()
 

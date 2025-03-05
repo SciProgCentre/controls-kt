@@ -2,8 +2,8 @@ package space.kscience.controls.jupyter
 
 import org.jetbrains.kotlinx.jupyter.api.declare
 import org.jetbrains.kotlinx.jupyter.api.libraries.resources
-import space.kscience.controls.manager.ClockManager
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.plotly.Plot

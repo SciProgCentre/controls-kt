@@ -11,10 +11,10 @@ import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.manager.clock
-import space.kscience.controls.misc.ValueWithTime
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.misc.DFExperimental

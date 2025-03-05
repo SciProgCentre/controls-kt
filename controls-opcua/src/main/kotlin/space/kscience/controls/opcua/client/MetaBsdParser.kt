@@ -13,8 +13,8 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.*
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.*
 import org.opcfoundation.opcua.binaryschema.EnumeratedType
 import org.opcfoundation.opcua.binaryschema.StructuredType
-import space.kscience.controls.misc.instant
-import space.kscience.controls.misc.toMeta
+import space.kscience.controls.instant
+import space.kscience.controls.toMeta
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName

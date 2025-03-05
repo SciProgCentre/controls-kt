@@ -5,8 +5,8 @@ import io.ktor.network.sockets.SocketOptions
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
-import io.ktor.utils.io.consumeEachBufferRange
-import io.ktor.utils.io.writeAvailable
+import io.ktor.utils.io.read
+import io.ktor.utils.io.writeByteArray
 import kotlinx.coroutines.*
 import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.Context
@@ -15,7 +15,6 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.string
-import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 
 public class KtorTcpPort internal constructor(
@@ -42,21 +41,22 @@ public class KtorTcpPort internal constructor(
     override fun onOpen() {
         listenerJob = scope.launch {
             val input = futureSocket.await().openReadChannel()
-            input.consumeEachBufferRange { buffer: ByteBuffer, last ->
-                val array = ByteArray(buffer.remaining())
-                buffer.get(array)
-                receive(array)
-                !last && isActive
+            while (!input.isClosedForRead && isActive) {
+                input.read { arraySource, begin, endExclusive ->
+                    val array = arraySource.copyOfRange(begin, endExclusive)
+                    receive(array)
+                    array.size
+                }
             }
         }
     }
 
     override suspend fun write(data: ByteArray) {
-        writeChannel.await().writeAvailable(data)
+        writeChannel.await().writeByteArray(data)
     }
 
     override val lifecycleState: LifecycleState
-        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
+        get() = if (listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
     override suspend fun stop() {
         listenerJob?.cancel()

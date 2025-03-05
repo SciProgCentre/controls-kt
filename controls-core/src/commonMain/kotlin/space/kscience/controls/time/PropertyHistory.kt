@@ -1,4 +1,4 @@
-package space.kscience.controls.misc
+package space.kscience.controls.time
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*

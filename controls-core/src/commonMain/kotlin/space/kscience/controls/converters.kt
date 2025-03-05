@@ -1,7 +1,16 @@
-package space.kscience.controls.misc
+package space.kscience.controls
 
 import kotlinx.datetime.Instant
+import kotlinx.io.Sink
+import kotlinx.io.Source
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.io.IOFormat
+import space.kscience.dataforge.io.IOFormatFactory
 import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -40,6 +49,33 @@ private object InstantConverter : MetaConverter<Instant> {
 
 public val MetaConverter.Companion.instant: MetaConverter<Instant> get() = InstantConverter
 
+public fun Instant.toMeta(): Meta = Meta(toString())
+
+public val Meta.instant: Instant? get() = value?.string?.let { Instant.parse(it) }
+
+/**
+ * An [IOFormat] for [Instant]
+ */
+public object InstantIOFormat : IOFormat<Instant>, IOFormatFactory<Instant> {
+    override fun build(context: Context, meta: Meta): IOFormat<Instant> = this
+
+    override val name: Name = "instant".asName()
+
+    override val type: KType get() = typeOf<Instant>()
+
+    override fun writeTo(sink: Sink, obj: Instant) {
+        sink.writeLong(obj.epochSeconds)
+        sink.writeInt(obj.nanosecondsOfSecond)
+    }
+
+    override fun readFrom(source: Source): Instant {
+        val seconds = source.readLong()
+        val nanoseconds = source.readInt()
+        return Instant.fromEpochSeconds(seconds, nanoseconds)
+    }
+}
+
+
 private object DoubleRangeConverter : MetaConverter<ClosedFloatingPointRange<Double>> {
     override fun readOrNull(source: Meta): ClosedFloatingPointRange<Double>? =
         source.value?.doubleArray?.let { (start, end) ->
@@ -52,11 +88,3 @@ private object DoubleRangeConverter : MetaConverter<ClosedFloatingPointRange<Dou
 }
 
 public val MetaConverter.Companion.doubleRange: MetaConverter<ClosedFloatingPointRange<Double>> get() = DoubleRangeConverter
-
-private object StringListConverter : MetaConverter<List<String>> {
-    override fun convert(obj: List<String>): Meta = Meta(obj.map { it.asValue() }.asValue())
-
-    override fun readOrNull(source: Meta): List<String>? = source.stringList ?: source["@jsonArray"]?.stringList
-}
-
-public val MetaConverter.Companion.stringList: MetaConverter<List<String>> get() = StringListConverter

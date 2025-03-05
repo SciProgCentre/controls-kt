@@ -1,7 +1,7 @@
 package space.kscience.controls.vision
 
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.http.content.staticResources
 import io.ktor.server.routing.Routing
@@ -17,7 +17,6 @@ import space.kscience.visionforge.markup.MarkupPlugin
 import space.kscience.visionforge.plotly.PlotlyPlugin
 import space.kscience.visionforge.plotly.plotly
 import space.kscience.visionforge.server.VisionRoute
-import space.kscience.visionforge.server.close
 import space.kscience.visionforge.server.openInBrowser
 import space.kscience.visionforge.server.visionPage
 import space.kscience.visionforge.visionManager
@@ -27,7 +26,7 @@ public fun Context.showDashboard(
     routes: Routing.() -> Unit = {},
     configurationBuilder: VisionRoute.() -> Unit = {},
     visionFragment: HtmlVisionFragment,
-): ApplicationEngine {
+): EmbeddedServer<*, *> {
     //create a sub-context for visualization
     val visualisationContext = buildContext {
         plugin(PlotlyPlugin)
@@ -57,7 +56,7 @@ public fun Context.showDashboard(
             //
         }
 
-        it.close()
+        it.stop()
     }
 }
 

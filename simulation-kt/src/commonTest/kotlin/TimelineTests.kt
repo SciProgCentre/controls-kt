@@ -15,14 +15,15 @@ class TimelineTests {
         val startTime = Instant.parse("2020-01-01T00:00:00.000Z")
 
         val generation = GeneratingTimeline(
-            origin = SimpleTimelineEvent(startTime, Unit),
-            lookaheadInterval = 1.seconds
+            origin = TimelineEvent(startTime, Unit),
+            lookaheadInterval = 1.seconds,
+            timeOf = WithTime::time
         ) { event ->
             var time = event.time
             while (isActive) {
                 time += 0.1.seconds
                 println("Emit: ${time - startTime}")
-                emit(SimpleTimelineEvent(time, Unit))
+                emit(TimelineEvent(time, Unit))
             }
         }
 
@@ -38,7 +39,7 @@ class TimelineTests {
         observer.collect(2.seconds)
         println("Second collection complete")
         println("Interrupt")
-        generation.interrupt(SimpleTimelineEvent(startTime + 6.seconds, Unit))
+        generation.interrupt(TimelineEvent(startTime + 6.seconds, Unit))
         println("Collecting after interruption")
         observer.collect(startTime + 6.seconds + 2.5.seconds)
         println(result)

@@ -11,7 +11,7 @@ description = """
 """.trimIndent()
 
 dependencies {
-    implementation(project(":magix:magix-rsocket"))
+    implementation(projects.magix.magixRsocket)
     implementation(spclibs.kotlinx.coroutines.jdk9)
 }
 

@@ -37,8 +37,10 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
     }
 }
 
-open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta),
-    IVirtualCar {
+open class VirtualCar(
+    context: Context,
+    meta: Meta
+) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
     private val clock = context.clock
 
     private val timeScale = 1e-3

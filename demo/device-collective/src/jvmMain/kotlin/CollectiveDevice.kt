@@ -4,7 +4,6 @@ package space.kscience.controls.demo.collective
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.constructor.*
-import space.kscience.controls.misc.stringList
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.dataforge.context.Context

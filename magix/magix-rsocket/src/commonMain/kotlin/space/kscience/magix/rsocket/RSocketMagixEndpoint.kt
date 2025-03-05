@@ -17,6 +17,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.io.readString
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -32,7 +33,10 @@ public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint,
         }
         val flow = rSocket.requestStream(payload)
         return flow.map {
-            MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
+            MagixEndpoint.magixJson.decodeFromString(
+                MagixMessage.serializer(),
+                it.data.readString()
+            )
         }.filter(filter).flowOn(rSocket.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 

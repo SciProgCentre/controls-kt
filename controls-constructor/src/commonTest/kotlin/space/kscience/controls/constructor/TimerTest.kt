@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.manager.ClockManager
+import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.context.request
 import kotlin.test.Test

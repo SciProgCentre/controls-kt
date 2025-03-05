@@ -6,20 +6,6 @@ import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
 
-public interface TimelineEvent {
-    public val time: Instant
-}
-
-public interface TimelineInterval : TimelineEvent {
-    public val startTime: Instant
-    public val duration: Duration
-
-    override val time: Instant
-        get() = startTime + duration
-}
-
-public data class SimpleTimelineEvent<T>(override val time: Instant, val value: T) : TimelineEvent
-
 public interface TimelineObserver : AutoCloseable {
     /**
      * The subjective time of this observer (last observed time)
@@ -47,15 +33,16 @@ public suspend fun TimelineObserver.collect(duration: Duration): Unit = collect(
  *
  * Timeline guarantees that already read events won't change, but unread events could change.
  */
-public interface Timeline<E : TimelineEvent> {
+public interface Timeline<E : Any> {
     /**
      * A subjective time of this timeline. The subjective time is the last observed time.
      */
     public val time: StateFlow<Instant>
 
+    public fun timeOf(event: E): Instant
 
     /**
-     * Attach observer to this [Timeline]. The observer collection is not triggered right away, but only on demand.
+     * Attach observer to this [Timeline]. The observer collection is triggered by timeline itself.
      *
      * Each collection shifts [TimelineObserver.time] for this observer.
      */
@@ -71,10 +58,11 @@ public interface Timeline<E : TimelineEvent> {
     public suspend fun advance(toTime: Instant)
 }
 
+
 /**
  * Perform [collector] action on each event
  */
-public suspend fun <E : TimelineEvent> Timeline<E>.observeEach(
+public suspend fun <E : Any> Timeline<E>.observeEach(
     collector: suspend (E) -> Unit
 ): TimelineObserver = observe {
     collect(collector)

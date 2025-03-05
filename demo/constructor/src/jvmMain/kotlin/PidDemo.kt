@@ -42,7 +42,11 @@ import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Meters
 import space.kscience.controls.constructor.units.NumericalValue
-import space.kscience.controls.manager.*
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.manager.hubMessageFlow
+import space.kscience.controls.manager.install
+import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import java.awt.Dimension
@@ -181,8 +185,6 @@ fun main() = application {
             linearDrive.pid.pidParameters = pidParameters
         }.collect()
     }
-
-    val clock = remember { context.clock }
 
     Window(title = "Pid regulator simulator", onCloseRequest = ::exitApplication) {
         window.minimumSize = Dimension(800, 400)

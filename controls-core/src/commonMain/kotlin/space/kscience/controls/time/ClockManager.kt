@@ -1,4 +1,4 @@
-package space.kscience.controls.manager
+package space.kscience.controls.time
 
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
@@ -25,8 +25,16 @@ private class CompressedTimeDispatcher(
 
     override fun isDispatchNeeded(context: CoroutineContext): Boolean = dispatcher.isDispatchNeeded(context)
 
-    @ExperimentalCoroutinesApi
-    override fun limitedParallelism(parallelism: Int): CoroutineDispatcher = dispatcher.limitedParallelism(parallelism)
+//    @Deprecated(
+//        "Deprecated for good. Override 'limitedParallelism(parallelism: Int, name: String?)' instead",
+//        replaceWith = ReplaceWith("limitedParallelism(parallelism, null)"),
+//        level = DeprecationLevel.HIDDEN
+//    )
+//    @ExperimentalCoroutinesApi
+//    override fun limitedParallelism(parallelism: Int): CoroutineDispatcher = dispatcher.limitedParallelism(parallelism)
+
+    override fun limitedParallelism(parallelism: Int, name: String?): CoroutineDispatcher =
+        dispatcher.limitedParallelism(parallelism, name)
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         dispatcher.dispatch(context, block)
@@ -55,16 +63,16 @@ private class CompressedClock(
     }
 }
 
-public class ClockManager : AbstractPlugin() {
+public class ClockManager : AbstractPlugin(), AsyncTimeProvider {
     override val tag: PluginTag get() = Companion.tag
 
     public val timeCompression: Double by meta.double(1.0)
 
-    public val clock: Clock by lazy {
+    override val clock: AsyncClock by lazy {
         if (timeCompression == 1.0) {
-            Clock.System
+            AsyncClock.real(Clock.System)
         } else {
-            CompressedClock(Clock.System.now(), timeCompression)
+            AsyncClock.real(CompressedClock(Clock.System.now(), timeCompression))
         }
     }
 
@@ -94,9 +102,7 @@ public class ClockManager : AbstractPlugin() {
     }
 }
 
-public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
-
-public val Device.clock: Clock get() = context.clock
+public val Context.clock: AsyncClock get() = plugins[ClockManager]?.clock ?: AsyncClock.real(Clock.System)
 
 public fun Device.getCoroutineDispatcher(dispatcher: CoroutineDispatcher = Dispatchers.Default): CoroutineDispatcher =
     context.plugins[ClockManager]?.asDispatcher(dispatcher) ?: dispatcher
