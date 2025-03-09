@@ -12,7 +12,7 @@ import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.logger
 
-//TODO replace by plugin?
+
 public fun DeviceManager.storage(
     factory: Factory<DeviceMessageStorage>,
 ): DeviceMessageStorage = factory.build(context, meta)
@@ -31,7 +31,7 @@ public fun DeviceManager.storeMessages(
     val storage = factory.build(context, meta)
     logger.debug { "Message storage with meta = $meta created" }
 
-    return hubMessageFlow(context).filter(filterCondition).onEach { message ->
+    return hubMessageFlow().filter(filterCondition).onEach { message ->
         storage.write(message)
     }.onCompletion {
         storage.close()
@@ -39,26 +39,4 @@ public fun DeviceManager.storeMessages(
     }.launchIn(context)
 }
 
-///**
-// * @return the list of deviceMessages that describes changes of specified property of specified device sorted by time
-// * @param sourceDeviceName a name of device, history of which property we want to get
-// * @param propertyName a name of property, history of which we want to get
-// * @param factory a factory that produce mongo clients
-// */
-//public suspend fun getPropertyHistory(
-//    sourceDeviceName: String,
-//    propertyName: String,
-//    factory: Factory<EventStorage>,
-//    meta: Meta = Meta.EMPTY,
-//): List<PropertyChangedMessage> {
-//    return factory(meta).use {
-//        it.getPropertyHistory(sourceDeviceName, propertyName)
-//    }
-//}
-//
-//
-//public enum class StorageKind {
-//    DEVICE_HUB,
-//    MAGIX_SERVER
-//}
 

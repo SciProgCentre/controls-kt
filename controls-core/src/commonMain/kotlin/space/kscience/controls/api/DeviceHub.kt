@@ -1,73 +1,62 @@
 package space.kscience.controls.api
 
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.*
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.provider.Path
 import space.kscience.dataforge.provider.Provider
+import space.kscience.dataforge.provider.asPath
+import space.kscience.dataforge.provider.plus
 
 /**
  * A hub that could locate multiple devices and redirect actions to them
  */
 public interface DeviceHub : Provider {
-    public val devices: Map<NameToken, Device>
+    public val devices: Map<Name, Device>
 
     override val defaultTarget: String get() = Device.DEVICE_TARGET
 
     override val defaultChainTarget: String get() = Device.DEVICE_TARGET
 
     override fun content(target: String): Map<Name, Any> = if (target == Device.DEVICE_TARGET) {
-        buildMap {
-            fun putAll(prefix: Name, hub: DeviceHub) {
-                hub.devices.forEach {
-                    put(prefix + it.key, it.value)
-                }
-            }
-
-            devices.forEach {
-                val name = it.key.asName()
-                put(name, it.value)
-                (it.value as? DeviceHub)?.let { hub ->
-                    putAll(name, hub)
-                }
-            }
-        }
+        devices
     } else {
         emptyMap()
     }
+    //TODO send message on device change
 
     public companion object
 }
 
-public operator fun DeviceHub.get(nameToken: NameToken): Device =
-    devices[nameToken] ?: error("Device with name $nameToken not found in $this")
-
-public fun DeviceHub.getOrNull(name: Name): Device? = when {
-    name.isEmpty() -> this as? Device
-    name.length == 1 -> get(name.firstOrNull()!!)
-    else -> (get(name.firstOrNull()!!) as? DeviceHub)?.getOrNull(name.cutFirst())
+public fun DeviceHub(deviceMap: Map<Name, Device>): DeviceHub = object : DeviceHub {
+    override val devices: Map<Name, Device>
+        get() = deviceMap
 }
 
-public operator fun DeviceHub.get(name: Name): Device =
-    getOrNull(name) ?: error("Device with name $name not found in $this")
+/**
+ * List all devices, including sub-devices
+ */
+public fun DeviceHub.provideAllDevices(): Map<Path, Device> = buildMap {
+    fun putAll(prefix: Path, hub: DeviceHub) {
+        hub.devices.forEach {
+            put(prefix + it.key.asPath(), it.value)
+        }
+    }
 
-public fun DeviceHub.getOrNull(nameString: String): Device? = getOrNull(Name.parse(nameString))
-
-public operator fun DeviceHub.get(nameString: String): Device =
-    getOrNull(nameString) ?: error("Device with name $nameString not found in $this")
+    devices.forEach {
+        val name: Name = it.key
+        put(name.asPath(), it.value)
+        (it.value as? DeviceHub)?.let { hub ->
+            putAll(name.asPath(), hub)
+        }
+    }
+}
 
 public suspend fun DeviceHub.readProperty(deviceName: Name, propertyName: String): Meta =
-    this[deviceName].readProperty(propertyName)
+    (devices[deviceName] ?: error("Device with name $deviceName not found in $this")).readProperty(propertyName)
 
 public suspend fun DeviceHub.writeProperty(deviceName: Name, propertyName: String, value: Meta) {
-    this[deviceName].writeProperty(propertyName, value)
+    (devices[deviceName] ?: error("Device with name $deviceName not found in $this")).writeProperty(propertyName, value)
 }
 
 public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: Meta?): Meta? =
-    this[deviceName].execute(command, argument)
-
-
-//suspend fun DeviceHub.respond(request: Envelope): EnvelopeBuilder {
-//    val target = request.meta[DeviceMessage.TARGET_KEY].string ?: defaultTarget
-//    val device = this[target.toName()]
-//
-//    return device.respond(device, target, request)
-//}
+    (devices[deviceName] ?: error("Device with name $deviceName not found in $this")).execute(command, argument)

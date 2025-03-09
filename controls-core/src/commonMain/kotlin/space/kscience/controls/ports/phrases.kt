@@ -1,20 +1,26 @@
 package space.kscience.controls.ports
 
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.readBytes
-import io.ktor.utils.io.core.reset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.transform
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
 
 /**
  * Transform byte fragments into complete phrases using given delimiter. Not thread safe.
+ *
+ * TODO add type wrapper for phrases
  */
 public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> {
     require(delimiter.isNotEmpty()) { "Delimiter must not be empty" }
 
-    val output = BytePacketBuilder()
+    val output = Buffer()
     var matcherPosition = 0
+
+    onCompletion {
+        output.close()
+    }
 
     return transform { chunk ->
         chunk.forEach { byte ->
@@ -24,15 +30,39 @@ public fun Flow<ByteArray>.withDelimiter(delimiter: ByteArray): Flow<ByteArray> 
                 matcherPosition++
                 if (matcherPosition == delimiter.size) {
                     //full match achieved, sending result
-                    val bytes = output.build()
-                    emit(bytes.readBytes())
-                    output.reset()
+                    emit(output.readByteArray())
+                    output.clear()
                     matcherPosition = 0
                 }
             } else if (matcherPosition > 0) {
                 //Reset matcher since full match not achieved
                 matcherPosition = 0
             }
+        }
+    }
+}
+
+private fun Flow<ByteArray>.withFixedMessageSize(messageSize: Int): Flow<ByteArray> {
+    require(messageSize > 0) { "Message size should be positive" }
+
+    val output = Buffer()
+
+    onCompletion {
+        output.close()
+    }
+
+    return transform { chunk ->
+        val remaining: Int = (messageSize - output.size).toInt()
+        if (chunk.size >= remaining) {
+            output.write(chunk, endIndex = remaining)
+            emit(output.readByteArray())
+            output.clear()
+            //write the remaining chunk fragment
+            if(chunk.size> remaining) {
+                output.write(chunk, startIndex = remaining)
+            }
+        } else {
+            output.write(chunk)
         }
     }
 }
@@ -47,9 +77,9 @@ public fun Flow<ByteArray>.withStringDelimiter(delimiter: String): Flow<String> 
 /**
  * A flow of delimited phrases
  */
-public fun Port.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> = receiving().withDelimiter(delimiter)
+public fun AsynchronousPort.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> = subscribe().withDelimiter(delimiter)
 
 /**
  * A flow of delimited phrases with string content
  */
-public fun Port.stringsDelimitedIncoming(delimiter: String): Flow<String> = receiving().withStringDelimiter(delimiter)
+public fun AsynchronousPort.stringsDelimitedIncoming(delimiter: String): Flow<String> = subscribe().withStringDelimiter(delimiter)

@@ -1,6 +1,6 @@
 public final class ru/mipt/npm/devices/pimotionmaster/FxDevicePropertiesKt {
 	public static final fun fxProperty (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/spec/DevicePropertySpec;)Ljavafx/beans/property/ReadOnlyProperty;
-	public static final fun fxProperty (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/spec/WritableDevicePropertySpec;)Ljavafx/beans/property/Property;
+	public static final fun fxProperty (Lspace/kscience/controls/api/Device;Lspace/kscience/controls/spec/MutableDevicePropertySpec;)Ljavafx/beans/property/Property;
 }
 
 public final class ru/mipt/npm/devices/pimotionmaster/PiDebugServerKt {
@@ -50,19 +50,19 @@ public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Axis 
 }
 
 public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Axis$Companion : space/kscience/controls/spec/DeviceSpec {
-	public final fun getClosedLoop ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
-	public final fun getEnabled ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getClosedLoop ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
+	public final fun getEnabled ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 	public final fun getHalt ()Lspace/kscience/controls/spec/DeviceActionSpec;
 	public final fun getMaxPosition ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public final fun getMinPosition ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public final fun getMove ()Lspace/kscience/controls/spec/DeviceActionSpec;
 	public final fun getMoveToReference ()Lspace/kscience/controls/spec/DeviceActionSpec;
 	public final fun getOnTarget ()Lspace/kscience/controls/spec/DevicePropertySpec;
-	public final fun getOpenLoopTarget ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getOpenLoopTarget ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 	public final fun getPosition ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public final fun getReference ()Lspace/kscience/controls/spec/DevicePropertySpec;
-	public final fun getTargetPosition ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
-	public final fun getVelocity ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getTargetPosition ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
+	public final fun getVelocity ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 }
 
 public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Companion : space/kscience/controls/spec/DeviceSpec, space/kscience/dataforge/context/Factory {
@@ -75,7 +75,7 @@ public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterDevice$Compa
 	public final fun getIdentity ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public final fun getInitialize ()Lspace/kscience/controls/spec/DeviceActionSpec;
 	public final fun getStop ()Lspace/kscience/controls/spec/DeviceActionSpec;
-	public final fun getTimeout ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getTimeout ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 }
 
 public final class ru/mipt/npm/devices/pimotionmaster/PiMotionMasterView : tornadofx/View {

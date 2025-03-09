@@ -1,0 +1,8 @@
+public final class space/kscience/controls/jupyter/ControlsJupyter : space/kscience/visionforge/jupyter/VisionForgeIntegration {
+	public static final field Companion Lspace/kscience/controls/jupyter/ControlsJupyter$Companion;
+	public fun <init> ()V
+}
+
+public final class space/kscience/controls/jupyter/ControlsJupyter$Companion {
+}
+

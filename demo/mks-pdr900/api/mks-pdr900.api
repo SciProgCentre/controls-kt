@@ -10,19 +10,11 @@ public final class center/sciprog/devices/mks/MksPdr900Device : space/kscience/c
 public final class center/sciprog/devices/mks/MksPdr900Device$Companion : space/kscience/controls/spec/DeviceSpec, space/kscience/dataforge/context/Factory {
 	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lcenter/sciprog/devices/mks/MksPdr900Device;
 	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
-	public final fun getChannel ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
-	public final fun getError ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
-	public final fun getPowerOn ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getChannel ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
+	public final fun getError ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
+	public final fun getPowerOn ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 	public final fun getValue ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public fun onClose (Lcenter/sciprog/devices/mks/MksPdr900Device;)V
 	public synthetic fun onClose (Lspace/kscience/controls/api/Device;)V
-}
-
-public final class center/sciprog/devices/mks/NullableStringMetaConverter : space/kscience/dataforge/meta/transformations/MetaConverter {
-	public static final field INSTANCE Lcenter/sciprog/devices/mks/NullableStringMetaConverter;
-	public synthetic fun metaToObject (Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
-	public fun metaToObject (Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/String;
-	public synthetic fun objectToMeta (Ljava/lang/Object;)Lspace/kscience/dataforge/meta/Meta;
-	public fun objectToMeta (Ljava/lang/String;)Lspace/kscience/dataforge/meta/Meta;
 }
 

@@ -9,7 +9,7 @@ description = """
 
 dependencies {
     api(projects.magix.magixApi)
-    implementation("com.rabbitmq:amqp-client:5.14.2")
+    implementation(libs.rabbitmq.amqp.client)
 }
 
 readme{

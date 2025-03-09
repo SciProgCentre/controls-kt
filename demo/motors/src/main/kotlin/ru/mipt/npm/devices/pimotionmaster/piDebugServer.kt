@@ -8,6 +8,8 @@ import io.ktor.util.InternalAPI
 import io.ktor.util.moveToByteArray
 import io.ktor.utils.io.writeAvailable
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
 
@@ -18,41 +20,40 @@ val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
 @OptIn(InternalAPI::class)
 fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exceptionHandler) {
     val virtualDevice = PiMotionMasterVirtualDevice(this@launchPiDebugServer, axes)
-    val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", port)
-    println("Started virtual port server at ${server.localAddress}")
+    aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", port).use { server ->
+        println("Started virtual port server at ${server.localAddress}")
 
-    while (isActive) {
-        val socket = server.accept()
-        launch(SupervisorJob(coroutineContext[Job])) {
-            println("Socket accepted: ${socket.remoteAddress}")
-            val input = socket.openReadChannel()
-            val output = socket.openWriteChannel()
+        while (isActive) {
+            val socket = server.accept()
+            launch(SupervisorJob(coroutineContext[Job])) {
+                println("Socket accepted: ${socket.remoteAddress}")
+                val input = socket.openReadChannel()
+                val output = socket.openWriteChannel()
 
-            val sendJob = launch {
-                virtualDevice.receiving().collect {
+                val sendJob = virtualDevice.subscribe().onEach {
                     //println("Sending: ${it.decodeToString()}")
                     output.writeAvailable(it)
                     output.flush()
-                }
-            }
+                }.launchIn(this)
 
-            try {
-                while (isActive) {
-                    input.read { buffer ->
-                        val array = buffer.moveToByteArray()
-                        launch {
-                            virtualDevice.send(array)
+
+                try {
+                    while (isActive) {
+                        input.read { buffer ->
+                            val array = buffer.moveToByteArray()
+                            launch {
+                                virtualDevice.send(array)
+                            }
                         }
                     }
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    sendJob.cancel()
+                    socket.close()
+                } finally {
+                    println("Client socket closed")
                 }
-            } catch (e: Throwable) {
-                e.printStackTrace()
-                sendJob.cancel()
-                socket.close()
-            } finally {
-                println("Socket closed")
             }
-
         }
     }
 }

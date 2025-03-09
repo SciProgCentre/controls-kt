@@ -1,19 +1,21 @@
 package space.kscience.controls.ports
 
 import kotlinx.coroutines.*
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.error
-import space.kscience.dataforge.context.info
-import space.kscience.dataforge.context.logger
+import space.kscience.controls.api.LifecycleState
+import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.ByteChannel
 import java.nio.channels.DatagramChannel
 import java.nio.channels.SocketChannel
 import kotlin.coroutines.CoroutineContext
 
-public fun ByteBuffer.toArray(limit: Int = limit()): ByteArray {
+/**
+ * Copy the contents of this buffer to an array
+ */
+public fun ByteBuffer.copyToArray(limit: Int = limit()): ByteArray {
     rewind()
     val response = ByteArray(limit)
     get(response)
@@ -26,32 +28,42 @@ public fun ByteBuffer.toArray(limit: Int = limit()): ByteArray {
  */
 public class ChannelPort(
     context: Context,
+    meta: Meta,
     coroutineContext: CoroutineContext = context.coroutineContext,
     channelBuilder: suspend () -> ByteChannel,
-) : AbstractPort(context, coroutineContext), AutoCloseable {
-
-    private val futureChannel: Deferred<ByteChannel> = this.scope.async(Dispatchers.IO) {
-        channelBuilder()
-    }
+) : AbstractAsynchronousPort(context, meta, coroutineContext) {
 
     /**
      * A handler to await port connection
      */
-    public val startJob: Job get() = futureChannel
+    private val futureChannel: Deferred<ByteChannel> = scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
+        channelBuilder()
+    }
 
-    private val listenerJob = this.scope.launch(Dispatchers.IO) {
-        val channel = futureChannel.await()
-        val buffer = ByteBuffer.allocate(1024)
-        while (isActive) {
-            try {
-                val num = channel.read(buffer)
-                if (num > 0) {
-                    receive(buffer.toArray(num))
+    private var listenerJob: Job? = null
+
+    override val lifecycleState: LifecycleState
+        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
+
+    override fun onOpen() {
+        listenerJob = scope.launch(Dispatchers.IO) {
+            val channel = futureChannel.await()
+            val buffer = ByteBuffer.allocate(1024)
+            while (isActive && channel.isOpen) {
+                try {
+                    val num = channel.read(buffer)
+                    if (num > 0) {
+                        receive(buffer.copyToArray(num))
+                    }
+                    if (num < 0) cancel("The input channel is exhausted")
+                } catch (ex: Exception) {
+                    if (ex is AsynchronousCloseException) {
+                        logger.info { "Channel $channel closed" }
+                    } else {
+                        logger.error(ex) { "Channel read error, retrying in 1 second" }
+                        delay(1000)
+                    }
                 }
-                if (num < 0) cancel("The input channel is exhausted")
-            } catch (ex: Exception) {
-                logger.error(ex) { "Channel read error" }
-                delay(1000)
             }
         }
     }
@@ -61,73 +73,105 @@ public class ChannelPort(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun close() {
-        listenerJob.cancel()
+    override suspend fun stop() {
+        listenerJob?.cancel()
         if (futureChannel.isCompleted) {
             futureChannel.getCompleted().close()
-        } else {
-            futureChannel.cancel()
         }
-        super.close()
+        super.stop()
     }
 }
 
 /**
- * A [PortFactory] for TCP connections
+ * A [Factory] for TCP connections
  */
-public object TcpPort : PortFactory {
+public object TcpPort : Factory<AsynchronousPort> {
 
-    override val type: String = "tcp"
-
-    public fun open(
+    public fun build(
         context: Context,
         host: String,
         port: Int,
         coroutineContext: CoroutineContext = context.coroutineContext,
-    ): ChannelPort = ChannelPort(context, coroutineContext) {
-        SocketChannel.open(InetSocketAddress(host, port))
+    ): ChannelPort {
+        val meta = Meta {
+            "name" put "tcp://$host:$port"
+            "type" put "tcp"
+            "host" put host
+            "port" put port
+        }
+        return ChannelPort(context, meta, coroutineContext) {
+            SocketChannel.open(InetSocketAddress(host, port))
+        }
     }
+
+    /**
+     * Create and open TCP port
+     */
+    public suspend fun start(
+        context: Context,
+        host: String,
+        port: Int,
+        coroutineContext: CoroutineContext = context.coroutineContext,
+    ): ChannelPort = build(context, host, port, coroutineContext).apply { start() }
 
     override fun build(context: Context, meta: Meta): ChannelPort {
         val host = meta["host"].string ?: "localhost"
         val port = meta["port"].int ?: error("Port value for TCP port is not defined in $meta")
-        return open(context, host, port)
+        return build(context, host, port)
     }
+
 }
 
 
 /**
- * A [PortFactory] for UDP connections
+ * A [Factory] for UDP connections
  */
-public object UdpPort : PortFactory {
+public object UdpPort : Factory<AsynchronousPort> {
 
-    override val type: String = "udp"
+    public fun build(
+        context: Context,
+        remoteHost: String,
+        remotePort: Int,
+        localPort: Int? = null,
+        localHost: String? = null,
+        coroutineContext: CoroutineContext = context.coroutineContext,
+    ): ChannelPort {
+        val meta = Meta {
+            "name" put "udp://$remoteHost:$remotePort"
+            "type" put "udp"
+            "remoteHost" put remoteHost
+            "remotePort" put remotePort
+            localHost?.let { "localHost" put it }
+            localPort?.let { "localPort" put it }
+        }
+        return ChannelPort(context, meta, coroutineContext) {
+            DatagramChannel.open().apply {
+                //bind the channel to a local port to receive messages
+                localPort?.let { bind(InetSocketAddress(localHost ?: "localhost", it)) }
+                //connect to remote port to send messages
+                connect(InetSocketAddress(remoteHost, remotePort.toInt()))
+                context.logger.info { "Connected to UDP $remotePort on $remoteHost" }
+            }
+        }
+    }
 
     /**
      * Connect a datagram channel to a remote host/port. If [localPort] is provided, it is used to bind local port for receiving messages.
      */
-    public fun open(
+    public suspend fun start(
         context: Context,
         remoteHost: String,
         remotePort: Int,
         localPort: Int? = null,
         localHost: String = "localhost",
-        coroutineContext: CoroutineContext = context.coroutineContext,
-    ): ChannelPort = ChannelPort(context, coroutineContext) {
-        DatagramChannel.open().apply {
-            //bind the channel to a local port to receive messages
-            localPort?.let { bind(InetSocketAddress(localHost, localPort)) }
-            //connect to remote port to send messages
-            connect(InetSocketAddress(remoteHost, remotePort))
-            context.logger.info { "Connected to UDP $remotePort on $remoteHost" }
-        }
-    }
+    ): ChannelPort = build(context, remoteHost, remotePort, localPort, localHost).apply { start() }
+
 
     override fun build(context: Context, meta: Meta): ChannelPort {
         val remoteHost by meta.string { error("Remote host is not specified") }
         val remotePort by meta.number { error("Remote port is not specified") }
         val localHost: String? by meta.string()
         val localPort: Int? by meta.int()
-        return open(context, remoteHost, remotePort.toInt(), localPort, localHost ?: "localhost")
+        return build(context, remoteHost, remotePort.toInt(), localPort, localHost)
     }
 }

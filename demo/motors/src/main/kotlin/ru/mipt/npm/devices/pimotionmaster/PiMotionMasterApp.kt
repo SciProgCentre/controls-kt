@@ -1,31 +1,195 @@
 package ru.mipt.npm.devices.pimotionmaster
 
-import javafx.beans.property.ReadOnlyProperty
-import javafx.beans.property.SimpleIntegerProperty
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
-import javafx.geometry.Pos
-import javafx.scene.Parent
-import javafx.scene.layout.Priority
-import javafx.scene.layout.VBox
-import kotlinx.coroutines.CoroutineScope
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.Button
+import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Slider
+import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.maxPosition
-import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.minPosition
-import ru.mipt.npm.devices.pimotionmaster.PiMotionMasterDevice.Axis.Companion.position
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installing
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
-import tornadofx.*
 
-class PiMotionMasterApp : App(PiMotionMasterView::class)
+//class PiMotionMasterApp : App(PiMotionMasterView::class)
+//
+//class PiMotionMasterController : Controller() {
+//    //initialize context
+//    val context = Context("piMotionMaster") {
+//        plugin(DeviceManager)
+//    }
+//
+//    //initialize deviceManager plugin
+//    val deviceManager: DeviceManager = context.request(DeviceManager)
+//
+//    // install device
+//    val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
+//}
 
-class PiMotionMasterController : Controller() {
-    //initialize context
-    val context = Context("piMotionMaster"){
+@Composable
+fun ColumnScope.piMotionMasterAxis(
+    axisName: String,
+    axis: PiMotionMasterDevice.Axis,
+) {
+    var min by remember { mutableStateOf(0f) }
+    var max by remember { mutableStateOf(1f) }
+    var targetPosition by remember { mutableStateOf(0f) }
+    val position: Double by axis.composeState(PiMotionMasterDevice.Axis.position, 0.0)
+
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(axis) {
+        min = axis.read(PiMotionMasterDevice.Axis.minPosition).toFloat()
+        max = axis.read(PiMotionMasterDevice.Axis.maxPosition).toFloat()
+        targetPosition = axis.read(PiMotionMasterDevice.Axis.position).toFloat()
+    }
+
+
+    Row {
+        Text(axisName)
+
+        Column {
+            Slider(
+                value = position.toFloat(),
+                enabled = false,
+                onValueChange = { },
+                valueRange = min..max
+            )
+            Slider(
+                value = targetPosition,
+                onValueChange = { newPosition ->
+                    targetPosition = newPosition
+                    scope.launch {
+                        axis.move(newPosition.toDouble())
+                    }
+                },
+                valueRange = min..max
+            )
+
+        }
+    }
+}
+
+@Composable
+fun AxisPane(axes: Map<String, PiMotionMasterDevice.Axis>) {
+    Column {
+        axes.forEach { (name, axis) ->
+            this.piMotionMasterAxis(name, axis)
+        }
+    }
+}
+
+
+@Composable
+fun PiMotionMasterApp(device: PiMotionMasterDevice) {
+
+//    val scope = rememberCoroutineScope()
+    val connected by device.composeState(PiMotionMasterDevice.connected, false)
+    var debugServerJob by remember { mutableStateOf<Job?>(null) }
+    var axes by remember { mutableStateOf<Map<String, PiMotionMasterDevice.Axis>?>(null) }
+    //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
+    var host by remember { mutableStateOf("127.0.0.1") }
+    var port by remember { mutableStateOf(10024) }
+
+    Scaffold {
+        Column {
+
+
+            Text("Address:")
+            Row {
+                OutlinedTextField(
+                    value = host,
+                    onValueChange = { host = it },
+                    label = { Text("Host") },
+                    enabled = debugServerJob == null,
+                    modifier = Modifier.weight(1f)
+                )
+                var portError by remember { mutableStateOf(false) }
+                OutlinedTextField(
+                    value = port.toString(),
+                    onValueChange = {
+                        it.toIntOrNull()?.let { value ->
+                            port = value
+                            portError = false
+                        } ?: run {
+                            portError = true
+                        }
+                    },
+                    label = { Text("Port") },
+                    enabled = debugServerJob == null,
+                    isError = portError,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row {
+                Button(
+                    onClick = {
+                        if (debugServerJob == null) {
+                            debugServerJob = device.context.launchPiDebugServer(port, listOf("1", "2", "3", "4"))
+                        } else {
+                            debugServerJob?.cancel()
+                            debugServerJob = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (debugServerJob == null) {
+                        Text("Start debug server")
+                    } else {
+                        Text("Stop debug server")
+                    }
+                }
+            }
+            Row {
+                Button(
+                    onClick = {
+                        if (!connected) {
+                            device.launch {
+                                device.connect(host, port)
+                                axes = device.axes
+                            }
+                        } else {
+                            device.launch {
+                                device.disconnect()
+                                axes = null
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (!connected) {
+                        Text("Connect")
+                    } else {
+                        Text("Disconnect")
+                    }
+                }
+            }
+
+            axes?.let { axes ->
+                AxisPane(axes)
+            }
+        }
+    }
+}
+
+
+fun main() = application {
+
+    val context = Context("piMotionMaster") {
         plugin(DeviceManager)
     }
 
@@ -34,131 +198,14 @@ class PiMotionMasterController : Controller() {
 
     // install device
     val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
-}
 
-fun VBox.piMotionMasterAxis(
-    axisName: String,
-    axis: PiMotionMasterDevice.Axis,
-    coroutineScope: CoroutineScope,
-) = hbox {
-    alignment = Pos.CENTER
-    label(axisName)
-    coroutineScope.launch {
-        with(axis) {
-            val min: Double = read(minPosition)
-            val max: Double = read(maxPosition)
-            val positionProperty = fxProperty(position)
-            val startPosition = read(position)
-            runLater {
-                vbox {
-                    hgrow = Priority.ALWAYS
-                    slider(min..max, startPosition) {
-                        minWidth = 300.0
-                        isShowTickLabels = true
-                        isShowTickMarks = true
-                        minorTickCount = 10
-                        majorTickUnit = 1.0
-                        valueProperty().onChange {
-                            coroutineScope.launch {
-                                axis.move(value)
-                            }
-                        }
-                    }
-                    slider(min..max) {
-                        isDisable = true
-                        valueProperty().bind(positionProperty)
-                    }
-                }
-            }
+    Window(
+        title = "Pi motion master demo",
+        onCloseRequest = { exitApplication() },
+        state = rememberWindowState(width = 400.dp, height = 300.dp)
+    ) {
+        MaterialTheme {
+            PiMotionMasterApp(motionMaster)
         }
     }
-}
-
-fun Parent.axisPane(axes: Map<String, PiMotionMasterDevice.Axis>, coroutineScope: CoroutineScope) {
-    vbox {
-        axes.forEach { (name, axis) ->
-            this.piMotionMasterAxis(name, axis, coroutineScope)
-        }
-    }
-}
-
-
-class PiMotionMasterView : View() {
-
-    private val controller: PiMotionMasterController by inject()
-    val device = controller.motionMaster
-
-    private val connectedProperty: ReadOnlyProperty<Boolean> = device.fxProperty(PiMotionMasterDevice.connected)
-    private val debugServerJobProperty = SimpleObjectProperty<Job>()
-    private val debugServerStarted = debugServerJobProperty.booleanBinding { it != null }
-    //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
-
-    override val root: Parent = borderpane {
-        top {
-            form {
-                val host = SimpleStringProperty("127.0.0.1")
-                val port = SimpleIntegerProperty(10024)
-                fieldset("Address:") {
-                    field("Host:") {
-                        textfield(host) {
-                            enableWhen(debugServerStarted.not())
-                        }
-                    }
-                    field("Port:") {
-                        textfield(port) {
-                            stripNonNumeric()
-                        }
-                        button {
-                            hgrow = Priority.ALWAYS
-                            textProperty().bind(debugServerStarted.stringBinding {
-                                if (it != true) {
-                                    "Start debug server"
-                                } else {
-                                    "Stop debug server"
-                                }
-                            })
-                            action {
-                                if (!debugServerStarted.get()) {
-                                    debugServerJobProperty.value =
-                                        controller.context.launchPiDebugServer(port.get(), listOf("1", "2", "3", "4"))
-                                } else {
-                                    debugServerJobProperty.get().cancel()
-                                    debugServerJobProperty.value = null
-                                }
-                            }
-                        }
-                    }
-                }
-
-                button {
-                    hgrow = Priority.ALWAYS
-                    textProperty().bind(connectedProperty.stringBinding {
-                        if (it == false) {
-                            "Connect"
-                        } else {
-                            "Disconnect"
-                        }
-                    })
-                    action {
-                        if (!connectedProperty.value) {
-                            device.connect(host.get(), port.get())
-                            center {
-                                axisPane(device.axes,controller.context)
-                            }
-                        } else {
-                            this@borderpane.center = null
-                            device.disconnect()
-                        }
-                    }
-                }
-
-
-            }
-        }
-
-    }
-}
-
-fun main() {
-    launch<PiMotionMasterApp>()
 }

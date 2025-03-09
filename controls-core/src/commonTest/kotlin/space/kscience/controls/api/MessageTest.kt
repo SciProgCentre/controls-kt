@@ -1,9 +1,8 @@
 package space.kscience.controls.api
 
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import space.kscience.controls.spec.asMeta
+import space.kscience.controls.misc.asMeta
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

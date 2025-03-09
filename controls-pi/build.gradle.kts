@@ -1,5 +1,5 @@
 plugins {
-    id("space.kscience.gradle.jvm")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
@@ -7,10 +7,15 @@ description = """
     Utils to work with controls-kt on Raspberry pi
 """.trimIndent()
 
-dependencies{
-    api(project(":controls-core"))
-    api("com.pi4j:pi4j-ktx:2.4.0") // Kotlin DSL
-    api("com.pi4j:pi4j-core:2.3.0")
-    api("com.pi4j:pi4j-plugin-raspberrypi:2.3.0")
-    api("com.pi4j:pi4j-plugin-pigpio:2.3.0")
+kscience {
+    jvm()
+
+
+    jvmMain {
+        api(project(":controls-core"))
+        api(libs.pi4j.ktx) // Kotlin DSL
+        api(libs.pi4j.core)
+        api(libs.pi4j.plugin.raspberrypi)
+        api(libs.pi4j.plugin.pigpio)
+    }
 }

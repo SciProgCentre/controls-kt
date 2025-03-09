@@ -1,21 +1,24 @@
 plugins {
-    id("space.kscience.gradle.jvm")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
-
-val xodusVersion: String by rootProject.extra
 
 description = """
     An implementation of controls-storage on top of JetBrains Xodus.
 """.trimIndent()
 
-dependencies {
-    api(projects.controlsStorage)
-    implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
+kscience {
+    jvm()
+    jvmMain {
+        api(projects.controlsStorage)
+        implementation(libs.xodus.entity.store)
 //    implementation("org.jetbrains.xodus:xodus-environment:$xodusVersion")
 //    implementation("org.jetbrains.xodus:xodus-vfs:$xodusVersion")
 
-    testImplementation(spclibs.kotlinx.coroutines.test)
+    }
+    jvmTest{
+        implementation(spclibs.kotlinx.coroutines.test)
+    }
 }
 
 readme{

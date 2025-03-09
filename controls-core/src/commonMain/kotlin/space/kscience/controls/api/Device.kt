@@ -3,40 +3,30 @@ package space.kscience.controls.api
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.misc.DFExperimental
-import space.kscience.dataforge.misc.Type
-import space.kscience.dataforge.names.Name
-
-/**
- * A lifecycle state of a device
- */
-public enum class DeviceLifecycleState{
-    INIT,
-    OPEN,
-    CLOSED
-}
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.misc.DfType
+import space.kscience.dataforge.names.parseAsName
 
 /**
  *  General interface describing a managed Device.
  *  [Device] is a supervisor scope encompassing all operations on a device.
  *  When canceled, cancels all running processes.
  */
-@Type(DEVICE_TARGET)
-public interface Device : AutoCloseable, ContextAware, CoroutineScope {
+@DfType(DEVICE_TARGET)
+public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
 
     /**
      * Initial configuration meta for the device
      */
     public val meta: Meta get() = Meta.EMPTY
+
 
     /**
      * List of supported property descriptors
@@ -53,18 +43,6 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
      * Read the physical state of property and update/push notifications if needed.
      */
     public suspend fun readProperty(propertyName: String): Meta
-
-    /**
-     * Get the logical state of property or return null if it is invalid
-     */
-    public fun getProperty(propertyName: String): Meta?
-
-    /**
-     * Invalidate property (set logical state to invalid)
-     *
-     * This message is suspended to provide lock-free local property changes (they require coroutine context).
-     */
-    public suspend fun invalidate(propertyName: String)
 
     /**
      * Set property [value] for a property with name [propertyName].
@@ -85,20 +63,18 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
     public suspend fun execute(actionName: String, argument: Meta? = null): Meta?
 
     /**
-     * Initialize the device. This function suspends until the device is finished initialization
+     * Initialize the device. This function suspends until the device is finished initialization.
+     * Does nothing if the device is started or is starting
      */
-    public suspend fun open(): Unit = Unit
+    override suspend fun start(): Unit = Unit
 
     /**
      * Close and terminate the device. This function does not wait for the device to be closed.
      */
-    override fun close() {
+    override suspend fun stop() {
+        coroutineContext[Job]?.cancel("The device is closed")
         logger.info { "Device $this is closed" }
-        cancel("The device is closed")
     }
-
-    @DFExperimental
-    public val lifecycleState: DeviceLifecycleState
 
     public companion object {
         public const val DEVICE_TARGET: String = "device"
@@ -106,23 +82,67 @@ public interface Device : AutoCloseable, ContextAware, CoroutineScope {
 }
 
 /**
+ * Inner id of a device. Not necessary corresponds to the name in the parent container
+ */
+public val Device.id: String get() = meta["id"].string ?: "device[${hashCode().toString(16)}]"
+
+/**
+ * Device that caches properties values
+ */
+public interface CachingDevice : Device {
+
+    /**
+     * Immediately (without waiting) get the cached (logical) state of property or return null if it is invalid
+     */
+    public fun getProperty(propertyName: String): Meta?
+
+    /**
+     * Invalidate property (set logical state to invalid).
+     *
+     * This message is suspended to provide lock-free local property changes (they require coroutine context).
+     */
+    public suspend fun invalidate(propertyName: String)
+}
+
+/**
  * Get the logical state of property or suspend to read the physical value.
  */
-public suspend fun Device.getOrReadProperty(propertyName: String): Meta =
+public suspend fun Device.getOrReadProperty(propertyName: String): Meta = if (this is CachingDevice) {
     getProperty(propertyName) ?: readProperty(propertyName)
+} else {
+    readProperty(propertyName)
+}
 
 /**
  * Get a snapshot of the device logical state
  *
  */
-public fun Device.getAllProperties(): Meta = Meta {
+public fun CachingDevice.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {
-        setMeta(Name.parse(descriptor.name), getProperty(descriptor.name))
+        set(descriptor.name.parseAsName(), getProperty(descriptor.name))
     }
 }
 
 /**
  * Subscribe on property changes for the whole device
  */
-public fun Device.onPropertyChange(callback: suspend PropertyChangedMessage.() -> Unit): Job =
-    messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(this)
+public fun Device.onPropertyChange(
+    scope: CoroutineScope = this,
+    callback: suspend PropertyChangedMessage.() -> Unit,
+): Job = messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)
+
+/**
+ * A [Flow] of property change messages for specific property.
+ */
+public fun Device.propertyMessageFlow(propertyName: String): Flow<PropertyChangedMessage> = messageFlow
+    .filterIsInstance<PropertyChangedMessage>()
+    .filter { it.property == propertyName }
+
+/**
+ * React on device lifecycle events
+ */
+public fun Device.onLifecycleEvent(
+    block: suspend (LifecycleState) -> Unit
+): Job = messageFlow.filterIsInstance<DeviceLifeCycleMessage>().onEach {
+    block(it.state)
+}.launchIn(this)

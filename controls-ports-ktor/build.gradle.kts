@@ -1,7 +1,7 @@
 import space.kscience.gradle.Maturity
 
 plugins {
-    id("space.kscience.gradle.jvm")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
@@ -9,11 +9,12 @@ description = """
     Implementation of byte ports on top os ktor-io asynchronous API
 """.trimIndent()
 
-val ktorVersion: String by rootProject.extra
-
-dependencies {
-    api(projects.controlsCore)
-    api("io.ktor:ktor-network:$ktorVersion")
+kscience {
+    jvm()
+    jvmMain {
+        api(projects.controlsCore)
+        api(spclibs.ktor.network)
+    }
 }
 
 readme{

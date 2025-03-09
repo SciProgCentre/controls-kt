@@ -1,7 +1,7 @@
 import space.kscience.gradle.Maturity
 
 plugins {
-    id("space.kscience.gradle.jvm")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
@@ -9,10 +9,12 @@ description = """
     A plugin for Controls-kt device server on top of modbus-rtu/modbus-tcp protocols
 """.trimIndent()
 
-
-dependencies {
-    api(projects.controlsCore)
-    api("com.ghgande:j2mod:3.1.1")
+kscience {
+    jvm()
+    jvmMain {
+        api(projects.controlsCore)
+        api(libs.j2mod)
+    }
 }
 
 readme{

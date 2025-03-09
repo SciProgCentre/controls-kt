@@ -1,5 +1,7 @@
 [![JetBrains Research](https://jb.gg/badges/research.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 
+[![](https://maven.sciprog.center/api/badge/latest/kscience/space/kscience/controls-core-jvm?color=40c14a&name=repo.kotlin.link&prefix=v)](https://maven.sciprog.center/)
+
 # Controls.kt
 
 Controls.kt (former DataForge-control) is a data acquisition framework (work in progress). It is based on DataForge, a software framework for automated data processing.
@@ -42,6 +44,11 @@ Example view of a demo:
 ## Modules
 
 
+### [controls-constructor](controls-constructor)
+> A low-code constructor for composite devices simulation
+>
+> **Maturity**: PROTOTYPE
+
 ### [controls-core](controls-core)
 > Core interfaces for building a device server
 >
@@ -55,6 +62,10 @@ Example view of a demo:
 > - [deviceManager](controls-core/src/commonMain/kotlin/space/kscience/controls/manager) : DataForge DI integration for devices. Includes device builders.
 > - [ports](controls-core/src/commonMain/kotlin/space/kscience/controls/ports) : Working with asynchronous data sending and receiving raw byte arrays
 
+
+### [controls-jupyter](controls-jupyter)
+>
+> **Maturity**: EXPERIMENTAL
 
 ### [controls-magix](controls-magix)
 > Magix service for binding controls devices (both as RPC client and server)
@@ -93,6 +104,11 @@ Automatically checks consistency.
 >
 > **Maturity**: EXPERIMENTAL
 
+### [controls-plc4x](controls-plc4x)
+> A plugin for Controls-kt device server on top of plc4x library
+>
+> **Maturity**: EXPERIMENTAL
+
 ### [controls-ports-ktor](controls-ports-ktor)
 > Implementation of byte ports on top os ktor-io asynchronous API
 >
@@ -113,6 +129,16 @@ Automatically checks consistency.
 >
 > **Maturity**: PROTOTYPE
 
+### [controls-vision](controls-vision)
+> Dashboard and visualization extensions for devices
+>
+> **Maturity**: PROTOTYPE
+
+### [controls-visualisation-compose](controls-visualisation-compose)
+> Visualisation extension using compose-multiplatform
+>
+> **Maturity**: PROTOTYPE
+
 ### [demo](demo)
 >
 > **Maturity**: EXPERIMENTAL
@@ -120,6 +146,15 @@ Automatically checks consistency.
 ### [magix](magix)
 >
 > **Maturity**: EXPERIMENTAL
+
+### [simulation-kt](simulation-kt)
+> A framework for combination of asynchronous simulations.        
+>
+> **Maturity**: PROTOTYPE
+>
+> **Features:**
+> - [timeline](simulation-kt/#) : Timeline is an ordered discrete history containing TimeLineEvent
+
 
 ### [controls-storage/controls-xodus](controls-storage/controls-xodus)
 > An implementation of controls-storage on top of JetBrains Xodus.
@@ -131,6 +166,14 @@ Automatically checks consistency.
 > **Maturity**: EXPERIMENTAL
 
 ### [demo/car](demo/car)
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/constructor](demo/constructor)
+>
+> **Maturity**: EXPERIMENTAL
+
+### [demo/device-collective](demo/device-collective)
 >
 > **Maturity**: EXPERIMENTAL
 
@@ -188,6 +231,11 @@ Automatically checks consistency.
 > Magix history database API
 >
 > **Maturity**: PROTOTYPE
+
+### [magix/magix-utils](magix/magix-utils)
+> Common utilities and services for Magix endpoints.   
+>
+> **Maturity**: EXPERIMENTAL
 
 ### [magix/magix-zmq](magix/magix-zmq)
 > ZMQ client endpoint for Magix

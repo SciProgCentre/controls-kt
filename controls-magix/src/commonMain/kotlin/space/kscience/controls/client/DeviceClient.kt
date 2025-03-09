@@ -1,12 +1,17 @@
 package space.kscience.controls.client
 
 import com.benasher44.uuid.uuid4
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.newCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.name
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
@@ -21,46 +26,41 @@ private fun stringUID() = uuid4().leastSignificantBits.toString(16)
 /**
  * A remote accessible device that relies on connection via Magix
  */
-public class DeviceClient(
+public class DeviceClient internal constructor(
     override val context: Context,
     private val deviceName: Name,
+    propertyDescriptors: Collection<PropertyDescriptor>,
+    actionDescriptors: Collection<ActionDescriptor>,
     incomingFlow: Flow<DeviceMessage>,
     private val send: suspend (DeviceMessage) -> Unit,
-) : Device {
+) : CachingDevice {
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    override val coroutineContext: CoroutineContext = newCoroutineContext(context.coroutineContext)
+
+    override var actionDescriptors: Collection<ActionDescriptor> = actionDescriptors
+        internal set
+
+    override var propertyDescriptors: Collection<PropertyDescriptor> = propertyDescriptors
+        internal set
+
+    override val coroutineContext: CoroutineContext = context.coroutineContext + Job(context.coroutineContext[Job])
 
     private val mutex = Mutex()
 
     private val propertyCache = HashMap<String, Meta>()
 
-    override var propertyDescriptors: Collection<PropertyDescriptor> = emptyList()
-        private set
-
-    override var actionDescriptors: Collection<ActionDescriptor> = emptyList()
-        private set
-
     private val flowInternal = incomingFlow.filter {
         it.sourceDevice == deviceName
-    }.shareIn(this, started = SharingStarted.Eagerly).also {
-        it.onEach { message ->
-            when (message) {
-                is PropertyChangedMessage -> mutex.withLock {
-                    propertyCache[message.property] = message.value
-                }
-
-                is DescriptionMessage -> mutex.withLock {
-                    propertyDescriptors = message.properties
-                    actionDescriptors = message.actions
-                }
-
-                else -> {
-                    //ignore
-                }
+    }.onEach { message ->
+        when (message) {
+            is PropertyChangedMessage -> mutex.withLock {
+                propertyCache[message.property] = message.value
             }
-        }.launchIn(this)
-    }
+
+            else -> {
+                //ignore
+            }
+        }
+    }.shareIn(this, started = SharingStarted.Eagerly)
 
     override val messageFlow: Flow<DeviceMessage> get() = flowInternal
 
@@ -69,7 +69,7 @@ public class DeviceClient(
         send(
             PropertyGetMessage(propertyName, targetDevice = deviceName)
         )
-        return flowInternal.filterIsInstance<PropertyChangedMessage>().first {
+        return messageFlow.filterIsInstance<PropertyChangedMessage>().first {
             it.property == propertyName
         }.value
     }
@@ -93,25 +93,181 @@ public class DeviceClient(
         send(
             ActionExecuteMessage(actionName, argument, id, targetDevice = deviceName)
         )
-        return flowInternal.filterIsInstance<ActionResultMessage>().first {
+        return messageFlow.filterIsInstance<ActionResultMessage>().first {
             it.action == actionName && it.requestId == id
         }.result
     }
 
+    private val lifecycleStateFlow = messageFlow.filterIsInstance<DeviceLifeCycleMessage>()
+        .map { it.state }.stateIn(this, started = SharingStarted.Eagerly, LifecycleState.STARTED)
+
     @DFExperimental
-    override val lifecycleState: DeviceLifecycleState = DeviceLifecycleState.OPEN
+    override val lifecycleState: LifecycleState get() = lifecycleStateFlow.value
 }
 
 /**
  * Connect to a remote device via this endpoint.
  *
  * @param context a [Context] to run device in
- * @param endpointName the name of endpoint in Magix to connect to
+ * @param thisEndpoint the name of this endpoint
+ * @param deviceEndpoint the name of endpoint in Magix to connect to
  * @param deviceName the name of device within endpoint
  */
-public fun MagixEndpoint.remoteDevice(context: Context, endpointName: String, deviceName: Name): DeviceClient {
-    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
-    return DeviceClient(context, deviceName, subscription) {
-        send(DeviceManager.magixFormat, it, endpointName, id = stringUID())
+public suspend fun MagixEndpoint.remoteDevice(
+    context: Context,
+    thisEndpoint: String,
+    deviceEndpoint: String,
+    deviceName: Name,
+): DeviceClient = coroutineScope {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
+        .map { it.second }
+        .filter {
+            it.sourceDevice == null || it.sourceDevice == deviceName
+        }
+
+    val deferredDescriptorMessage = CompletableDeferred<DescriptionMessage>()
+
+    launch {
+        deferredDescriptorMessage.complete(
+            subscription.filterIsInstance<DescriptionMessage>().first()
+        )
     }
+
+    send(
+        format = DeviceManager.magixFormat,
+        payload = GetDescriptionMessage(targetDevice = deviceName),
+        source = thisEndpoint,
+        target = deviceEndpoint,
+        id = stringUID()
+    )
+
+
+    val descriptionMessage = deferredDescriptorMessage.await()
+
+    DeviceClient(
+        context = context,
+        deviceName = deviceName,
+        propertyDescriptors = descriptionMessage.properties,
+        actionDescriptors = descriptionMessage.actions,
+        incomingFlow = subscription
+    ) {
+        send(
+            format = DeviceManager.magixFormat,
+            payload = it,
+            source = thisEndpoint,
+            target = deviceEndpoint,
+            id = stringUID()
+        )
+    }
+}
+
+/**
+ * Create a dynamic [DeviceHub] from incoming messages
+ */
+public suspend fun MagixEndpoint.remoteDeviceHub(
+    context: Context,
+    thisEndpoint: String,
+    deviceEndpoint: String,
+): DeviceHub {
+    val devices = mutableMapOf<Name, DeviceClient>()
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint)).map { it.second }
+    subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
+        devices.getOrPut(descriptionMessage.sourceDevice) {
+            DeviceClient(
+                context = context,
+                deviceName = descriptionMessage.sourceDevice,
+                propertyDescriptors = descriptionMessage.properties,
+                actionDescriptors = descriptionMessage.actions,
+                incomingFlow = subscription
+            ) {
+                send(
+                    format = DeviceManager.magixFormat,
+                    payload = it,
+                    source = thisEndpoint,
+                    target = deviceEndpoint,
+                    id = stringUID()
+                )
+            }
+        }.run {
+            propertyDescriptors = descriptionMessage.properties
+        }
+    }.launchIn(context)
+
+
+    send(
+        format = DeviceManager.magixFormat,
+        payload = GetDescriptionMessage(targetDevice = null),
+        source = thisEndpoint,
+        target = deviceEndpoint,
+        id = stringUID()
+    )
+
+    return DeviceHub(devices)
+}
+
+/**
+ * Request a description update for all devices on an endpoint
+ */
+public suspend fun MagixEndpoint.requestDeviceUpdate(
+    thisEndpoint: String,
+    deviceEndpoint: String,
+) {
+    send(
+        format = DeviceManager.magixFormat,
+        payload = GetDescriptionMessage(),
+        source = thisEndpoint,
+        target = deviceEndpoint,
+        id = stringUID()
+    )
+}
+
+/**
+ * Subscribe on specific property of a device without creating a device
+ */
+public fun <T> MagixEndpoint.controlsPropertyFlow(
+    endpointName: String,
+    deviceName: Name,
+    propertySpec: DevicePropertySpec<*, T>,
+): Flow<T> {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
+
+    return subscription.filterIsInstance<PropertyChangedMessage>()
+        .filter { message ->
+            message.sourceDevice == deviceName && message.property == propertySpec.name
+        }.map {
+            propertySpec.converter.read(it.value)
+        }
+}
+
+public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
+    sourceEndpointName: String,
+    targetEndpointName: String,
+    deviceName: Name,
+    propertySpec: DevicePropertySpec<*, T>,
+    value: T,
+) {
+    val message = PropertySetMessage(
+        property = propertySpec.name,
+        value = propertySpec.converter.convert(value),
+        targetDevice = deviceName
+    )
+    send(DeviceManager.magixFormat, message, source = sourceEndpointName, target = targetEndpointName)
+}
+
+/**
+ * Subscribe on property change messages together with property values
+ */
+public fun <T> MagixEndpoint.controlsPropertyMessageFlow(
+    endpointName: String,
+    deviceName: Name,
+    propertySpec: DevicePropertySpec<*, T>,
+): Flow<Pair<PropertyChangedMessage, T>> {
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
+
+    return subscription.filterIsInstance<PropertyChangedMessage>()
+        .filter { message ->
+            message.sourceDevice == deviceName && message.property == propertySpec.name
+        }.map {
+            it to propertySpec.converter.read(it.value)
+        }
 }

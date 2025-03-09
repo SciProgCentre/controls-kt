@@ -1,18 +1,7 @@
 plugins {
     id("space.kscience.gradle.jvm")
-    application
-    id("org.openjfx.javafxplugin")
-}
-
-//TODO to be moved to a separate project
-
-javafx {
-    version = "17"
-    modules = listOf("javafx.controls")
-}
-
-application{
-    mainClass.set("ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt")
+    alias(spclibs.plugins.compose.compiler)
+    alias(spclibs.plugins.compose.jb)
 }
 
 kotlin{
@@ -25,5 +14,17 @@ val dataforgeVersion: String by extra
 dependencies {
     implementation(project(":controls-ports-ktor"))
     implementation(projects.controlsMagix)
-    implementation("no.tornado:tornadofx:1.7.20")
+
+    implementation(compose.runtime)
+    implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
+    implementation(spclibs.logback.classic)
+}
+
+compose{
+    desktop{
+        application{
+            mainClass = "ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt"
+        }
+    }
 }

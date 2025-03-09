@@ -1,5 +1,7 @@
 package space.kscience.controls.client
 
+import com.benasher44.uuid.uuid4
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
@@ -12,6 +14,8 @@ import space.kscience.controls.manager.respondHubMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.magix.api.*
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 
 internal val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(
@@ -27,22 +31,25 @@ public val DeviceManager.Companion.magixFormat: MagixFormat<DeviceMessage> get()
 internal fun generateId(request: MagixMessage): String = if (request.id != null) {
     "${request.id}.response"
 } else {
-    "controls[${request.payload.hashCode().toString(16)}"
+    uuid4().leastSignificantBits.toULong().toString(16)
 }
 
 /**
  * Communicate with server in [Magix format](https://github.com/waltz-controls/rfc/tree/master/1)
+ *
+ * Accepts messages with target that equals [endpointID] or null (broadcast messages)
  */
 public fun DeviceManager.launchMagixService(
     endpoint: MagixEndpoint,
-    endpointID: String = controlsMagixFormat.defaultFormat,
-): Job = context.launch {
-    endpoint.subscribe(controlsMagixFormat, targetFilter = listOf(endpointID)).onEach { (request, payload) ->
-        val responsePayload = respondHubMessage(payload)
-        if (responsePayload != null) {
+    endpointID: String,
+    coroutineContext: CoroutineContext = EmptyCoroutineContext,
+): Job = context.launch(coroutineContext) {
+    endpoint.subscribe(controlsMagixFormat, targetFilter = listOf(endpointID, null)).onEach { (request, payload) ->
+        val responsePayload: List<DeviceMessage> = respondHubMessage(payload)
+        responsePayload.forEach {
             endpoint.send(
                 format = controlsMagixFormat,
-                payload = responsePayload,
+                payload = it,
                 source = endpointID,
                 target = request.sourceEndpoint,
                 id = generateId(request),
@@ -50,10 +57,10 @@ public fun DeviceManager.launchMagixService(
             )
         }
     }.catch { error ->
-        logger.error(error) { "Error while responding to message: ${error.message}" }
+        if (error !is CancellationException) logger.error(error) { "Error while responding to message: ${error.message}" }
     }.launchIn(this)
 
-    hubMessageFlow(this).onEach { payload ->
+    hubMessageFlow().onEach { payload ->
         endpoint.send(
             format = controlsMagixFormat,
             payload = payload,

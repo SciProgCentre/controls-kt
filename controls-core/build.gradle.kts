@@ -9,20 +9,23 @@ description = """
     Core interfaces for building a device server
 """.trimIndent()
 
-val dataforgeVersion: String by rootProject.extra
-
 kscience {
     jvm()
     js()
     native()
+    wasm()
     useCoroutines()
     useSerialization{
         json()
     }
     useContextReceivers()
-    dependencies {
-        api("space.kscience:dataforge-io:$dataforgeVersion")
+    commonMain {
+        api(libs.dataforge.io)
         api(spclibs.kotlinx.datetime)
+    }
+
+    jvmTest{
+        implementation(spclibs.logback.classic)
     }
 }
 

@@ -13,9 +13,14 @@ kscience {
     jvm()
     js()
     native()
+    wasm()
     useCoroutines()
     useSerialization{
         json()
+    }
+
+    commonMain{
+        implementation(spclibs.atomicfu)
     }
 }
 

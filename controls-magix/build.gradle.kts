@@ -12,13 +12,26 @@ description = """
 kscience {
     jvm()
     js()
+    native()
+    wasm()
+    useCoroutines()
     useSerialization {
         json()
     }
-    dependencies {
+
+    commonMain {
         api(projects.magix.magixApi)
         api(projects.controlsCore)
-        api("com.benasher44:uuid:0.8.0")
+        api(libs.uuid)
+    }
+
+    jvmTest{
+        implementation(spclibs.logback.classic)
+        implementation(projects.magix.magixServer)
+        implementation(projects.magix.magixRsocket)
+        implementation(spclibs.ktor.server.cio)
+        implementation(spclibs.ktor.server.websockets)
+        implementation(spclibs.ktor.client.cio)
     }
 }
 

@@ -1,21 +1,23 @@
 plugins {
-    id("space.kscience.gradle.jvm")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
-val xodusVersion: String by rootProject.extra
-
 kscience {
+    jvm()
     useCoroutines()
-}
-
-dependencies {
-    api(projects.magix.magixStorage)
-    implementation("org.jetbrains.xodus:xodus-entity-store:$xodusVersion")
+    jvmMain {
+        api(projects.magix.magixStorage)
+        implementation(libs.xodus.entity.store)
 //    implementation("org.jetbrains.xodus:dnq:2.0.0")
 
-    testImplementation(spclibs.kotlinx.coroutines.test)
+    }
+
+    jvmTest{
+        implementation(spclibs.kotlinx.coroutines.test)
+    }
 }
+
 
 readme {
     maturity = space.kscience.gradle.Maturity.PROTOTYPE

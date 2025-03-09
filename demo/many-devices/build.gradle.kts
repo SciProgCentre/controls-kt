@@ -9,17 +9,14 @@ repositories {
     maven("https://repo.kotlin.link")
 }
 
-val ktorVersion: String by rootProject.extra
-val rsocketVersion: String by rootProject.extra
-
 dependencies {
     implementation(projects.magix.magixServer)
     implementation(projects.controlsMagix)
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
 
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("space.kscience:plotlykt-server:0.6.0")
+    implementation(spclibs.ktor.client.cio)
+    implementation(libs.plotlykt.server)
     implementation(spclibs.logback.classic)
 }
 
@@ -29,8 +26,8 @@ kotlin{
 
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjvm-default=all")
     }
 }
 

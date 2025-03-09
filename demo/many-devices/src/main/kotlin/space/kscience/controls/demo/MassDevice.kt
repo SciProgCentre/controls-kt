@@ -1,8 +1,11 @@
 package space.kscience.controls.demo
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
@@ -19,18 +22,19 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
-import space.kscience.magix.rsocket.rSocketWithTcp
-import space.kscience.magix.rsocket.rSocketWithWebSockets
+import space.kscience.magix.rsocket.rSocketStreamWithWebSockets
 import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
 import space.kscience.plotly.Plotly
-import space.kscience.plotly.bar
+import space.kscience.plotly.PlotlyConfig
 import space.kscience.plotly.layout
+import space.kscience.plotly.models.Bar
 import space.kscience.plotly.plot
 import space.kscience.plotly.server.PlotlyUpdateMode
 import space.kscience.plotly.server.serve
 import space.kscience.plotly.server.show
 import space.kscince.magix.zmq.ZmqMagixFlowPlugin
+import space.kscince.magix.zmq.zmq
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
@@ -49,14 +53,13 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
         val value by doubleProperty { randomValue }
 
         override suspend fun MassDevice.onOpen() {
-            doRecurring((meta["delay"].int ?: 10).milliseconds) {
+            doRecurring((meta["delay"].int ?: 5).milliseconds) {
                 read(value)
             }
         }
     }
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 suspend fun main() {
     val context = Context("Mass")
 
@@ -65,65 +68,68 @@ suspend fun main() {
         ZmqMagixFlowPlugin()
     )
 
-    val numDevices = 100
+    val numDevices = 50
+
 
     repeat(numDevices) {
-        context.launch(newFixedThreadPoolContext(2, "Device${it}")) {
-            delay(1)
-            val deviceContext = Context("Device${it}") {
-                plugin(DeviceManager)
+        delay(1)
+        val deviceContext = Context("Device${it}") {
+            plugin(DeviceManager)
+        }
+
+        val deviceManager = deviceContext.request(DeviceManager)
+
+        deviceManager.install("device$it", MassDevice)
+
+        val endpointId = "device$it"
+        val deviceEndpoint = MagixEndpoint.rSocketStreamWithWebSockets("localhost")
+        deviceManager.launchMagixService(deviceEndpoint, endpointId)
+    }
+
+    val trace = Bar {
+        context.launch(Dispatchers.IO) {
+            val monitorEndpoint = MagixEndpoint.zmq("localhost")
+
+            val mutex = Mutex()
+
+            val latest = HashMap<String, Duration>()
+            val max = HashMap<String, Duration>()
+
+            monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
+                mutex.withLock {
+                    val delay = Clock.System.now() - payload.time
+                    latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time
+                    max[magixMessage.sourceEndpoint] =
+                        maxOf(delay, max[magixMessage.sourceEndpoint] ?: ZERO)
+                }
+            }.launchIn(this)
+
+            while (isActive) {
+                delay(200)
+                mutex.withLock {
+                    val sorted = max.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
+                    latest.clear()
+                    max.clear()
+                    x.numbers = sorted.keys
+                    y.numbers = sorted.values.map { it.inWholeMicroseconds / 1000.0 + 0.0001 }
+                }
             }
-
-            val deviceManager = deviceContext.request(DeviceManager)
-
-            deviceManager.install("device$it", MassDevice)
-
-            val endpointId = "device$it"
-            val deviceEndpoint = MagixEndpoint.rSocketWithTcp("localhost")
-            deviceManager.launchMagixService(deviceEndpoint, endpointId)
         }
     }
 
-    val application = Plotly.serve(port = 9091, scope = context) {
+    val application = Plotly.serve(port = 9091) {
         updateMode = PlotlyUpdateMode.PUSH
         updateInterval = 1000
+
         page { container ->
-            plot(renderer = container) {
+            plot(renderer = container, config = PlotlyConfig { saveAsSvg() }) {
                 layout {
-                    title = "Latest event"
+//                    title = "Latest event"
+
                     xaxis.title = "Device number"
                     yaxis.title = "Maximum latency in ms"
                 }
-                bar {
-                    launch(Dispatchers.IO) {
-                        val monitorEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
-
-                        val mutex = Mutex()
-
-                        val latest = HashMap<String, Duration>()
-                        val max = HashMap<String, Duration>()
-
-                        monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
-                            mutex.withLock {
-                                val delay = Clock.System.now() - payload.time!!
-                                latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time!!
-                                max[magixMessage.sourceEndpoint] =
-                                    maxOf(delay, max[magixMessage.sourceEndpoint] ?: ZERO)
-                            }
-                        }.launchIn(this)
-
-                        while (isActive) {
-                            delay(200)
-                            mutex.withLock {
-                                val sorted = max.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
-                                latest.clear()
-                                max.clear()
-                                x.numbers = sorted.keys
-                                y.numbers = sorted.values.map { it.inWholeMilliseconds / 1000.0 + 0.0001 }
-                            }
-                        }
-                    }
-                }
+                traces(trace)
             }
         }
     }

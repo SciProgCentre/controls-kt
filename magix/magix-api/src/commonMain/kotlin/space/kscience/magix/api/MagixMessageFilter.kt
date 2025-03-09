@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 public data class MagixMessageFilter(
     val format: Collection<String>? = null,
     val source: Collection<String>? = null,
-    val target: Collection<String>? = null,
+    val target: Collection<String?>? = null,
 ) {
 
     public fun accepts(message: MagixMessage): Boolean =

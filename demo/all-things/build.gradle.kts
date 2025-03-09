@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm")
-    id("org.openjfx.javafxplugin") version "0.0.13"
-    application
+    alias(spclibs.plugins.compose.compiler)
+    alias(spclibs.plugins.compose.jb)
 }
 
 
@@ -9,9 +9,6 @@ repositories {
     mavenCentral()
     maven("https://repo.kotlin.link")
 }
-
-val ktorVersion: String by rootProject.extra
-val rsocketVersion: String by rootProject.extra
 
 dependencies {
     implementation(projects.controlsCore)
@@ -22,29 +19,47 @@ dependencies {
     implementation(projects.magix.magixZmq)
     implementation(projects.controlsOpcua)
 
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("no.tornado:tornadofx:1.7.20")
-    implementation("space.kscience:plotlykt-server:0.5.3")
+    implementation(spclibs.ktor.client.cio)
+    implementation(libs.plotlykt.server)
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
+
+    implementation(compose.runtime)
+    implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
+//    implementation("org.pushing-pixels:aurora-window:1.3.0")
+//    implementation("org.pushing-pixels:aurora-component:1.3.0")
+//    implementation("org.pushing-pixels:aurora-theming:1.3.0")
+
     implementation(spclibs.logback.classic)
 }
 
 kotlin{
-    jvmToolchain(11)
-}
-
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
+    jvmToolchain(17)
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }
 }
 
-javafx {
-    version = "17"
-    modules("javafx.controls")
+compose{
+    desktop{
+        application{
+            mainClass = "space.kscience.controls.demo.DemoControllerViewKt"
+        }
+    }
 }
-
-application {
-    mainClass.set("space.kscience.controls.demo.DemoControllerViewKt")
-}
+//
+//
+//tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+//    kotlinOptions {
+//        freeCompilerArgs = freeCompilerArgs + listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
+//    }
+//}
+//
+//javafx {
+//    version = "17"
+//    modules("javafx.controls")
+//}
+//
+//application {
+//    mainClass.set("space.kscience.controls.demo.DemoControllerViewKt")
+//}

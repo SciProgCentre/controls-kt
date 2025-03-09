@@ -47,11 +47,12 @@ public final class space/kscience/controls/demo/DemoDevice$Companion : space/ksc
 	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/demo/DemoDevice;
 	public final fun getCoordinates ()Lspace/kscience/controls/spec/DevicePropertySpec;
 	public final fun getCos ()Lspace/kscience/controls/spec/DevicePropertySpec;
-	public final fun getCosScale ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getCosScale ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 	public final fun getResetScale ()Lspace/kscience/controls/spec/DeviceActionSpec;
+	public final fun getSetSinScale ()Lspace/kscience/controls/spec/DeviceActionSpec;
 	public final fun getSin ()Lspace/kscience/controls/spec/DevicePropertySpec;
-	public final fun getSinScale ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
-	public final fun getTimeScale ()Lspace/kscience/controls/spec/WritableDevicePropertySpec;
+	public final fun getSinScale ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
+	public final fun getTimeScale ()Lspace/kscience/controls/spec/MutableDevicePropertySpec;
 	public synthetic fun onOpen (Lspace/kscience/controls/api/Device;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun onOpen (Lspace/kscience/controls/demo/IDemoDevice;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }

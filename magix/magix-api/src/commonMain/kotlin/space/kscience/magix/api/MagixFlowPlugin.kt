@@ -21,9 +21,10 @@ public fun interface MagixFlowPlugin {
         sendMessage: suspend (MagixMessage) -> Unit,
     ): Job
 
-    /**
-     * Use the same [MutableSharedFlow] to send and receive messages. Could be a bottleneck in case of many plugins.
-     */
-    public fun start(scope: CoroutineScope, magixFlow: MutableSharedFlow<MagixMessage>): Job =
-        start(scope, magixFlow) { magixFlow.emit(it) }
 }
+
+/**
+ * Use the same [MutableSharedFlow] to send and receive messages. Could be a bottleneck in case of many plugins.
+ */
+public fun MagixFlowPlugin.start(scope: CoroutineScope, magixFlow: MutableSharedFlow<MagixMessage>): Job =
+    start(scope, magixFlow) { magixFlow.emit(it) }

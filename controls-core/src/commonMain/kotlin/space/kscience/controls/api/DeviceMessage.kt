@@ -22,10 +22,10 @@ public sealed class DeviceMessage {
     public abstract val sourceDevice: Name?
     public abstract val targetDevice: Name?
     public abstract val comment: String?
-    public abstract val time: Instant?
+    public abstract val time: Instant
 
     /**
-     * Update the source device name for composition. If the original name is null, resulting name is also null.
+     * Update the source device name for composition. If the original name is null, the resulting name is also null.
      */
     public abstract fun changeSource(block: (Name) -> Name): DeviceMessage
 
@@ -59,7 +59,7 @@ public data class PropertyChangedMessage(
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
@@ -71,11 +71,11 @@ public data class PropertyChangedMessage(
 @SerialName("property.set")
 public data class PropertySetMessage(
     public val property: String,
-    public val value: Meta?,
+    public val value: Meta,
     override val sourceDevice: Name? = null,
-    override val targetDevice: Name,
+    override val targetDevice: Name?,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -91,7 +91,7 @@ public data class PropertyGetMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -103,9 +103,9 @@ public data class PropertyGetMessage(
 @SerialName("description.get")
 public data class GetDescriptionMessage(
     override val sourceDevice: Name? = null,
-    override val targetDevice: Name,
+    override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -122,7 +122,7 @@ public data class DescriptionMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
@@ -141,7 +141,7 @@ public data class ActionExecuteMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -160,22 +160,28 @@ public data class ActionResultMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
 /**
- * Notifies listeners that a new binary with given [binaryID] is available. The binary itself could not be provided via [DeviceMessage] API.
+ * Notifies listeners that a new binary with given [contentId] and [contentMeta] is available.
+ *
+ * [contentMeta] includes public information that could be shared with loop subscribers. It should not contain sensitive data.
+ *
+ * The binary itself could not be provided via [DeviceMessage] API.
+ * [space.kscience.controls.peer.PeerConnection] must be used instead
  */
 @Serializable
 @SerialName("binary.notification")
 public data class BinaryNotificationMessage(
-    val binaryID: String,
+    val contentId: String,
+    val contentMeta: Meta,
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
@@ -190,7 +196,7 @@ public data class EmptyDeviceMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
@@ -203,12 +209,12 @@ public data class EmptyDeviceMessage(
 public data class DeviceLogMessage(
     val message: String,
     val data: Meta? = null,
-    override val sourceDevice: Name? = null,
+    override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
-    override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
+    override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
 /**
@@ -220,10 +226,25 @@ public data class DeviceErrorMessage(
     public val errorMessage: String?,
     public val errorType: String? = null,
     public val errorStackTrace: String? = null,
-    override val sourceDevice: Name,
+    override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-    @EncodeDefault override val time: Instant? = Clock.System.now(),
+    @EncodeDefault override val time: Instant = Clock.System.now(),
+) : DeviceMessage() {
+    override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
+}
+
+/**
+ * Device [Device.lifecycleState] is changed
+ */
+@Serializable
+@SerialName("lifecycle")
+public data class DeviceLifeCycleMessage(
+    val state: LifecycleState,
+    override val sourceDevice: Name = Name.EMPTY,
+    override val targetDevice: Name? = null,
+    override val comment: String? = null,
+    @EncodeDefault override val time: Instant = Clock.System.now(),
 ) : DeviceMessage() {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }

@@ -5,14 +5,16 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import space.kscience.controls.api.Socket
-import space.kscience.controls.ports.AbstractPort
+import space.kscience.controls.api.AsynchronousSocket
+import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.ports.AbstractAsynchronousPort
 import space.kscience.controls.ports.withDelimiter
 import space.kscience.dataforge.context.*
+import space.kscience.dataforge.meta.Meta
 import kotlin.math.abs
 import kotlin.time.Duration
 
-abstract class VirtualDevice(val scope: CoroutineScope) : Socket<ByteArray> {
+abstract class VirtualDevice(val scope: CoroutineScope) : AsynchronousSocket<ByteArray> {
 
     protected abstract suspend fun evaluateRequest(request: ByteArray)
 
@@ -40,34 +42,43 @@ abstract class VirtualDevice(val scope: CoroutineScope) : Socket<ByteArray> {
         toRespond.send(response)
     }
 
-    override fun receiving(): Flow<ByteArray> = toRespond.receiveAsFlow()
+    override fun subscribe(): Flow<ByteArray> = toRespond.receiveAsFlow()
 
     protected fun respondInFuture(delay: Duration, response: suspend () -> ByteArray): Job = scope.launch {
         delay(delay)
         respond(response())
     }
 
-    override fun isOpen(): Boolean = scope.isActive
+    override val lifecycleState: LifecycleState
+        get() = if(scope.isActive) LifecycleState.STARTED else LifecycleState.STOPPED
 
-    override fun close() = scope.cancel()
+    override suspend fun stop() = scope.cancel()
 }
 
-class VirtualPort(private val device: VirtualDevice, context: Context) : AbstractPort(context) {
+class VirtualPort(private val device: VirtualDevice, context: Context) : AbstractAsynchronousPort(context, Meta.EMPTY) {
 
-    private val respondJob = device.receiving().onEach {
-        receive(it)
-    }.catch {
-        it.printStackTrace()
-    }.launchIn(scope)
+    private var respondJob: Job? = null
+
+    override fun onOpen() {
+        respondJob = device.subscribe().onEach {
+            receive(it)
+        }.catch {
+            it.printStackTrace()
+        }.launchIn(scope)
+
+    }
 
 
     override suspend fun write(data: ByteArray) {
         device.send(data)
     }
 
-    override fun close() {
-        respondJob.cancel()
-        super.close()
+    override val lifecycleState: LifecycleState
+        get() = if(respondJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
+
+    override suspend fun stop() {
+        respondJob?.cancel()
+        super.stop()
     }
 }
 
@@ -78,7 +89,7 @@ class PiMotionMasterVirtualDevice(
     scope: CoroutineScope = context,
 ) : VirtualDevice(scope), ContextAware {
 
-    init {
+    override suspend fun start() {
         //add asynchronous send logic here
     }
 
@@ -102,9 +113,11 @@ class PiMotionMasterVirtualDevice(
                         abs(distance) < proposedStep -> {
                             position = targetPosition
                         }
+
                         targetPosition > position -> {
                             position += proposedStep
                         }
+
                         else -> {
                             position -= proposedStep
                         }
@@ -180,8 +193,10 @@ class PiMotionMasterVirtualDevice(
         when (command) {
             "XXX" -> {
             }
+
             "IDN?", "*IDN?" -> respond("(c)2015 Physik Instrumente(PI) Karlsruhe, C-885.M1 TCP-IP Master,0,1.0.0.1")
-            "VER?" -> respond("""
+            "VER?" -> respond(
+                """
                 2: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550039, 00.039 
                 3: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550040, 00.039 
                 4: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550041, 00.039 
@@ -195,8 +210,11 @@ class PiMotionMasterVirtualDevice(
                 12: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550049, 00.039 
                 13: (c)2017 Physik Instrumente (PI) GmbH & Co. KG, C-663.12C885, 018550051, 00.039 
                 FW_ARM: V1.0.0.1
-            """.trimIndent())
-            "HLP?" -> respond("""
+            """.trimIndent()
+            )
+
+            "HLP?" -> respond(
+                """
                 The following commands are valid: 
                 #4 Request Status Register 
                 #5 Request Motion Status 
@@ -235,11 +253,14 @@ class PiMotionMasterVirtualDevice(
                 VEL? [{<AxisID>}] Get Closed-Loop Velocity 
                 VER? Get Versions Of Firmware And Drivers 
                 end of help
-            """.trimIndent())
+            """.trimIndent()
+            )
+
             "ERR?" -> {
                 respond(errorCode.toString())
                 errorCode = 0
             }
+
             "SAI?" -> respond(axisState.keys.joinToString(separator = " \n"))
             "CST?" -> respondForAllAxis(axisIds) { "L-220.20SG" }
             "RON?" -> respondForAllAxis(axisIds) { referenceMode }
@@ -255,15 +276,19 @@ class PiMotionMasterVirtualDevice(
             "SVO" -> doForEachAxis(parts) { key, value ->
                 axisState[key]?.servoMode = value.toInt()
             }
+
             "MOV" -> doForEachAxis(parts) { key, value ->
                 axisState[key]?.targetPosition = value.toDouble()
             }
+
             "VEL" -> doForEachAxis(parts) { key, value ->
                 axisState[key]?.velocity = value.toDouble()
             }
+
             "INI" -> {
                 logger.info { "Axes initialized!" }
             }
+
             else -> {
                 logger.warn { "Unknown command: $command in message ${String(request)}" }
                 errorCode = 2

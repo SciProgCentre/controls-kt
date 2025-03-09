@@ -6,7 +6,7 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.names.asName
 
 /**
  * A plugin for loading JVM nio-based ports
@@ -17,9 +17,9 @@ public class JvmPortsPlugin : AbstractPlugin() {
     override val tag: PluginTag get() = Companion.tag
 
     override fun content(target: String): Map<Name, Any> = when(target){
-        PortFactory.TYPE -> mapOf(
-            TcpPort.type.parseAsName() to TcpPort,
-            UdpPort.type.parseAsName() to UdpPort
+        Ports.ASYNCHRONOUS_PORT_TYPE -> mapOf(
+            "tcp".asName() to TcpPort,
+            "udp".asName() to UdpPort
         )
         else -> emptyMap()
     }

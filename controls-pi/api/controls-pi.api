@@ -1,6 +1,10 @@
 public final class space/kscience/controls/pi/PiPlugin : space/kscience/dataforge/context/AbstractPlugin {
 	public static final field Companion Lspace/kscience/controls/pi/PiPlugin$Companion;
 	public fun <init> ()V
+	public fun content (Ljava/lang/String;)Ljava/util/Map;
+	public fun detach ()V
+	public final fun getDevices ()Lspace/kscience/controls/manager/DeviceManager;
+	public final fun getPiContext ()Lcom/pi4j/context/Context;
 	public final fun getPorts ()Lspace/kscience/controls/ports/Ports;
 	public fun getTag ()Lspace/kscience/dataforge/context/PluginTag;
 }
@@ -8,15 +12,16 @@ public final class space/kscience/controls/pi/PiPlugin : space/kscience/dataforg
 public final class space/kscience/controls/pi/PiPlugin$Companion : space/kscience/dataforge/context/PluginFactory {
 	public synthetic fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Ljava/lang/Object;
 	public fun build (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lspace/kscience/controls/pi/PiPlugin;
+	public final fun createPiContext (Lspace/kscience/dataforge/context/Context;Lspace/kscience/dataforge/meta/Meta;)Lcom/pi4j/context/Context;
 	public fun getTag ()Lspace/kscience/dataforge/context/PluginTag;
 }
 
 public final class space/kscience/controls/pi/PiSerialPort : space/kscience/controls/ports/AbstractPort {
 	public static final field Companion Lspace/kscience/controls/pi/PiSerialPort$Companion;
-	public fun <init> (Lspace/kscience/dataforge/context/Context;Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function0;)V
-	public synthetic fun <init> (Lspace/kscience/dataforge/context/Context;Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lspace/kscience/dataforge/context/Context;Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
-	public final fun getSerialBuilder ()Lkotlin/jvm/functions/Function0;
+	public final fun getSerialBuilder ()Lkotlin/jvm/functions/Function1;
 }
 
 public final class space/kscience/controls/pi/PiSerialPort$Companion : space/kscience/controls/ports/PortFactory {

@@ -1,6 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea/
 .gradle
+.kotlin
 
 *.iws
 *.iml
@@ -8,4 +9,7 @@
 
 out/
 build/
+
 !gradle-wrapper.jar
+
+/demo/device-collective/mapCache/

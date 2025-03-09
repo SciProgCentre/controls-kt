@@ -1,0 +1,27 @@
+public final class space/kscience/controls/demo/constructor/ComposableSingletons$MainKt {
+	public static final field INSTANCE Lspace/kscience/controls/demo/constructor/ComposableSingletons$MainKt;
+	public static field lambda-1 Lkotlin/jvm/functions/Function3;
+	public static field lambda-2 Lkotlin/jvm/functions/Function3;
+	public fun <init> ()V
+	public final fun getLambda-1$constructor ()Lkotlin/jvm/functions/Function3;
+	public final fun getLambda-2$constructor ()Lkotlin/jvm/functions/Function3;
+}
+
+public final class space/kscience/controls/demo/constructor/LinearDrive : space/kscience/controls/constructor/DeviceConstructor {
+	public static final field $stable I
+	public fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/controls/constructor/DoubleRangeState;DLspace/kscience/controls/constructor/PidParameters;Lspace/kscience/dataforge/meta/Meta;)V
+	public synthetic fun <init> (Lspace/kscience/dataforge/context/Context;Lspace/kscience/controls/constructor/DoubleRangeState;DLspace/kscience/controls/constructor/PidParameters;Lspace/kscience/dataforge/meta/Meta;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getDrive ()Lspace/kscience/controls/constructor/Drive;
+	public final fun getEnd ()Lspace/kscience/controls/constructor/LimitSwitch;
+	public final fun getPid ()Lspace/kscience/controls/constructor/PidRegulator;
+	public final fun getPositionState ()Lspace/kscience/controls/constructor/DoubleRangeState;
+	public final fun getStart ()Lspace/kscience/controls/constructor/LimitSwitch;
+	public final fun getTarget ()D
+	public final fun setTarget (D)V
+}
+
+public final class space/kscience/controls/demo/constructor/MainKt {
+	public static final fun main ()V
+	public static synthetic fun main ([Ljava/lang/String;)V
+}
+

@@ -5,12 +5,12 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import space.kscience.controls.api.get
 import space.kscience.controls.api.getOrReadProperty
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.names.get
 import space.kscience.magix.api.*
 
 public const val TANGO_MAGIX_FORMAT: String = "tango"
@@ -88,7 +88,7 @@ public fun DeviceManager.launchTangoMagix(
     return context.launch {
         endpoint.subscribe(tangoMagixFormat).onEach { (request, payload) ->
             try {
-                val device = get(payload.device)
+                val device = devices[payload.device] ?: error("Device ${payload.device} not found")
                 when (payload.action) {
                     TangoAction.read -> {
                         val value = device.getOrReadProperty(payload.name)
@@ -99,6 +99,7 @@ public fun DeviceManager.launchTangoMagix(
                             )
                         }
                     }
+
                     TangoAction.write -> {
                         payload.value?.let { value ->
                             device.writeProperty(payload.name, value)
@@ -112,6 +113,7 @@ public fun DeviceManager.launchTangoMagix(
                             )
                         }
                     }
+
                     TangoAction.exec -> {
                         val result = device.execute(payload.name, payload.argin)
                         respond(request, payload) { requestPayload ->
@@ -121,6 +123,7 @@ public fun DeviceManager.launchTangoMagix(
                             )
                         }
                     }
+
                     TangoAction.pipe -> TODO("Pipe not implemented")
                 }
             } catch (ex: Exception) {

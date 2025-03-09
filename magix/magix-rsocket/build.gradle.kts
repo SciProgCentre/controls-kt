@@ -10,7 +10,6 @@ description = """
 """.trimIndent()
 
 val ktorVersion: String by rootProject.extra
-val rsocketVersion: String by rootProject.extra
 
 kscience {
     jvm()
@@ -21,11 +20,11 @@ kscience {
     }
     dependencies {
         api(projects.magix.magixApi)
-        implementation("io.ktor:ktor-client-core:$ktorVersion")
-        implementation("io.rsocket.kotlin:rsocket-ktor-client:$rsocketVersion")
+        implementation(spclibs.ktor.client.core)
+        implementation(libs.rsocket.ktor.client)
     }
     dependencies(jvmMain) {
-        implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
+        implementation(libs.rsocket.transport.ktor.tcp)
     }
 }
 
@@ -33,7 +32,7 @@ kotlin {
     sourceSets {
         getByName("linuxX64Main") {
             dependencies {
-                implementation("io.rsocket.kotlin:rsocket-transport-ktor-tcp:$rsocketVersion")
+                implementation(libs.rsocket.transport.ktor.tcp)
             }
         }
     }
