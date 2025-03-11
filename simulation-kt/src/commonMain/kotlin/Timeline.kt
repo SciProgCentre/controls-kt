@@ -5,7 +5,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
-
+/**
+ * A handler for observation of a timeline. On close stops collection.
+ */
 public interface TimelineObserver : AutoCloseable {
     /**
      * The subjective time of this observer (last observed time)
@@ -13,11 +15,10 @@ public interface TimelineObserver : AutoCloseable {
     public val time: StateFlow<Instant>
 
     /**
-     * Collect all uncollected events from [time] to [upTo].
+     * Collect all uncollected events from [time] to [upTo]. Suspends until all valid events are collected.
      *
-     * By default, collects all events.
      */
-    public suspend fun collect(upTo: Instant = Instant.DISTANT_FUTURE)
+    public suspend fun collect(upTo: Instant)
 }
 
 /**

@@ -7,16 +7,21 @@ import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
+public interface CollectingTimeline<E: Any>: Timeline<E>, TimelineCollector<E>
+
 /**
  * A manually mutable [Timeline] that could be modified via [emit] method by multiple
+ *
+ * @param bufferSize the size of event buffer. If more than [bufferSize] events are emitted and not consumed via [observe], emitter suspends.
  */
 public class SharedTimeline<E : Any>(
     startTime: Instant,
     timeOf: E.() -> Instant,
+    bufferSize: Int = Channel.UNLIMITED,
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
-) : ProducerTimeline<E>(startTime, timeOf, coroutineContext), TimelineCollector<E> {
+) : ProducerTimeline<E>(startTime, timeOf, coroutineContext), CollectingTimeline<E> {
 
-    private val events = MutableSharedFlow<E>(replay = Channel.UNLIMITED)
+    private val events = MutableSharedFlow<E>(replay = bufferSize)
 
     override fun events(): Flow<E> = events
 
