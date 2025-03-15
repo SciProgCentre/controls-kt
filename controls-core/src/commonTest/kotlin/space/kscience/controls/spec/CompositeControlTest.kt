@@ -3,8 +3,6 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
@@ -20,30 +18,6 @@ import kotlin.test.*
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
-
-/**
- * A simple [AbstractDeviceHubManager] implementation for tests, providing
- * message flows, event bus, and basic logging of events.
- */
-private class TestDeviceHubManager(
-    context: Context,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default
-) : AbstractDeviceHubManager(context, dispatcher) {
-
-    override val messageBus: MutableSharedFlow<DeviceMessage> =
-        MutableSharedFlow(replay = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    override val systemBus: MutableSharedFlow<SystemLogMessage> =
-        MutableSharedFlow(replay = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    override val deviceChanges: MutableSharedFlow<DeviceStateEvent> =
-        MutableSharedFlow(replay = 50, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    override val eventBus: EventBus =
-        DefaultEventBus(replay = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    override val transactionManager: TransactionManager = DefaultTransactionManager(eventBus, context.logger)
-}
 
 class CompositeControlTest {
 
@@ -811,7 +785,7 @@ class CompositeControlTest {
     @Test
     fun `test add and remove device using manager`() = runTest {
         val context = createTestContext()
-        val manager = TestDeviceHubManager(context)
+        val manager = StandardDeviceHubManager(context)
 
         val motor = StepperMotorDevice(context)
         val name = "motorTest".asName()
@@ -827,7 +801,7 @@ class CompositeControlTest {
     @Test
     fun `test batch start and stop`() = runTest {
         val context = createTestContext()
-        val manager = TestDeviceHubManager(context)
+        val manager = StandardDeviceHubManager(context)
         val config = DeviceLifecycleConfig()
 
         val motor1 = StepperMotorDevice(context)
@@ -847,13 +821,14 @@ class CompositeControlTest {
 
         assertEquals(LifecycleState.STARTED, motor1.lifecycleState, "m1 should be STARTED")
         assertEquals(LifecycleState.STARTED, motor2.lifecycleState, "m2 should be STARTED")
+        manager.shutdown()
     }
 
     @Test
     fun `test hot swap device`() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val context = createTestContext()
-        val manager = TestDeviceHubManager(context, testDispatcher)
+        val manager = StandardDeviceHubManager(context, testDispatcher)
 
         val oldDevice = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
         val name = "motorSwap".asName()
@@ -867,6 +842,7 @@ class CompositeControlTest {
             name,
             newDevice,
             DeviceLifecycleConfig(),
+            meta = null,
             reuseMessageBus = true
         )
 
@@ -907,4 +883,118 @@ class CompositeControlTest {
         assertEquals(0.0, analyzer.syringePumpMA25.getVolume(), "MA25 pump volume should be 0.0 at end")
     }
 
+    @Test
+    fun `test error handling with custom error handler`() = runTest {
+        val context = createTestContext()
+        val hubManager = StandardDeviceHubManager(context)
+
+        val errorConfig = DeviceLifecycleConfig(
+            onError = ChildDeviceErrorHandler.CUSTOM
+        )
+
+        val motor = StepperMotorDevice(context)
+        val name = "failingMotor".asName()
+
+        hubManager.attachDevice(name, motor, errorConfig, null, StartMode.SYNC)
+
+        val deviceEvents = mutableListOf<DeviceStateEvent>()
+        val collector = launch {
+            hubManager.deviceChanges.take(1).toList(deviceEvents)
+        }
+
+        hubManager.onChildErrorCaught(RuntimeException("Test error"), name, errorConfig)
+
+        collector.join()
+
+        assertTrue(deviceEvents.any { it is DeviceStateEvent.DeviceFailed && it.deviceName == name },
+            "DeviceFailed event should be emitted")
+
+        hubManager.shutdown()
+    }
+
+    @Test
+    fun `test transaction execution and rollback`() = runTest {
+        val context = createTestContext()
+        val hubManager = StandardDeviceHubManager(context)
+
+        val analyzer = AnalyzerDevice(context)
+        analyzer.initChildren()
+        analyzer.start()
+
+        val txManager = hubManager.transactionManager
+
+        val initialV20State = analyzer.valveV20.getState()
+        val initialV17State = analyzer.valveV17.getState()
+
+        txManager.withTransaction { tx ->
+            analyzer.valveV20.setState(true)
+            analyzer.valveV17.setState(true)
+
+            tx.recordAction(object : UndoableAction {
+                override val id = "valve_v20_reset"
+                override suspend fun undo() {
+                    analyzer.valveV20.setState(initialV20State)
+                }
+            })
+
+            tx.recordAction(object : UndoableAction {
+                override val id = "valve_v17_reset"
+                override suspend fun undo() {
+                    analyzer.valveV17.setState(initialV17State)
+                }
+            })
+
+            true
+        }
+
+        assertTrue(analyzer.valveV20.getState(), "V20 should be open after transaction")
+        assertTrue(analyzer.valveV17.getState(), "V17 should be open after transaction")
+
+        try {
+            txManager.withTransaction { tx ->
+                analyzer.valveV20.setState(false)
+                analyzer.valveV17.setState(false)
+
+                tx.recordAction(object : UndoableAction {
+                    override val id = "valve_v20_reset_2"
+                    override suspend fun undo() {
+                        analyzer.valveV20.setState(true)
+                    }
+                })
+
+                tx.recordAction(object : UndoableAction {
+                    override val id = "valve_v17_reset_2"
+                    override suspend fun undo() {
+                        analyzer.valveV17.setState(true)
+                    }
+                })
+
+                throw RuntimeException("Transaction test exception")
+            }
+        } catch (e: RuntimeException) {
+        }
+
+        assertTrue(analyzer.valveV20.getState(), "V20 should be open after transaction rollback")
+        assertTrue(analyzer.valveV17.getState(), "V17 should be open after transaction rollback")
+    }
+
+    @Test
+    fun `test analyzer recipe execution with lifecycle checks`() = runTest {
+        val context = createTestContext()
+        val analyzer = AnalyzerDevice(context)
+
+        analyzer.initChildren()
+
+        assertEquals(LifecycleState.INITIAL, analyzer.lifecycleState, "Analyzer should be in INITIAL state")
+
+        analyzer.start()
+        assertEquals(LifecycleState.STARTED, analyzer.lifecycleState, "Analyzer should be in STARTED state")
+
+        analyzer.executeRecipe1()
+
+        assertEquals(0.0, analyzer.needleDevice.getPosition(), "Needle should return to position 0")
+
+        analyzer.stop()
+        assertEquals(LifecycleState.STOPPED, analyzer.lifecycleState, "Analyzer should be in STOPPED state")
+    }
 }

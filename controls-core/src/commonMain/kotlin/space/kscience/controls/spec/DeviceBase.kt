@@ -187,14 +187,27 @@ public abstract class DeviceBase<D : Device>(
         return spec.executeWithMeta(self, argument ?: Meta.EMPTY)
     }
 
-    final override var lifecycleState: LifecycleState = LifecycleState.STOPPED
+    final override var lifecycleState: LifecycleState = LifecycleState.INITIAL
         private set
 
 
-    private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
-        this.lifecycleState = lifecycleState
+    private suspend fun setLifecycleState(newState: LifecycleState) {
+        val validTransition = when (lifecycleState) {
+            LifecycleState.INITIAL -> newState in listOf(LifecycleState.STARTING, LifecycleState.STOPPED)
+            LifecycleState.STARTING -> newState in listOf(LifecycleState.STARTED, LifecycleState.STOPPING, LifecycleState.ERROR)
+            LifecycleState.STARTED -> newState in listOf(LifecycleState.STOPPING, LifecycleState.ERROR)
+            LifecycleState.STOPPING -> newState in listOf(LifecycleState.STOPPED, LifecycleState.ERROR, LifecycleState.STARTING)
+            LifecycleState.STOPPED -> newState in listOf(LifecycleState.STARTING)
+            LifecycleState.ERROR -> newState in listOf(LifecycleState.STARTING, LifecycleState.STOPPED)
+        }
+
+        if (!validTransition) {
+            error("Invalid lifecycle state transition from $lifecycleState to $newState")
+        }
+
+        this.lifecycleState = newState
         sharedMessageFlow.emit(
-            DeviceLifeCycleMessage(lifecycleState)
+            DeviceLifeCycleMessage(newState)
         )
     }
 
@@ -203,13 +216,13 @@ public abstract class DeviceBase<D : Device>(
     }
 
     final override suspend fun start() {
-        if (lifecycleState == LifecycleState.STOPPED) {
+        if (lifecycleState == LifecycleState.INITIAL || lifecycleState == LifecycleState.STOPPED) {
             super.start()
             setLifecycleState(LifecycleState.STARTING)
             onStart()
             setLifecycleState(LifecycleState.STARTED)
         } else {
-            logger.debug { "Device $this is already started" }
+            logger.debug { "Device $this is already started or in invalid state: $lifecycleState" }
         }
     }
 
@@ -218,9 +231,17 @@ public abstract class DeviceBase<D : Device>(
     }
 
     final override suspend fun stop() {
-        onStop()
-        setLifecycleState(LifecycleState.STOPPED)
-        super.stop()
+        if (lifecycleState == LifecycleState.STARTED ||
+            lifecycleState == LifecycleState.STARTING ||
+            lifecycleState == LifecycleState.ERROR) {
+            setLifecycleState(LifecycleState.STOPPING)
+            onStop()
+            setLifecycleState(LifecycleState.STOPPED)
+            super.stop()
+        } else {
+            logger.debug { "Device $this is already stopped or in invalid state: $lifecycleState" }
+        }
+
     }
 
 
