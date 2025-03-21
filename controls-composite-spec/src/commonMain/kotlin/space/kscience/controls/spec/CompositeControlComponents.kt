@@ -1246,7 +1246,7 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         return propertyDescriptor(propertyName) {
             this.mutable = mutable
             converter.descriptor?.let { conv -> metaDescriptor { from(conv) } }
-            fromSpec(property)
+//            fromSpec(property)
             descriptorBuilder()
         }
     }
@@ -1261,7 +1261,7 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         return actionDescriptor(actionName) {
             inputConverter.descriptor?.let { convIn -> inputMeta { from(convIn) } }
             outputConverter.descriptor?.let { convOut -> outputMeta { from(convOut) } }
-            fromSpec(property)
+//            fromSpec(property)
             descriptorBuilder()
         }
     }

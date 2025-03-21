@@ -94,3 +94,4 @@ include(
     ":demo:constructor",
     ":demo:device-collective"
 )
+include("controls-composite-spec")

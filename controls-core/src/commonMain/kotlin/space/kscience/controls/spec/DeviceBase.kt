@@ -98,7 +98,7 @@ public abstract class DeviceBase<D : Device>(
     public override val messageFlow: SharedFlow<DeviceMessage> get() = sharedMessageFlow
 
     @Suppress("UNCHECKED_CAST")
-    internal val self: D
+    public val self: D
         get() = this as D
 
     private val stateLock = Mutex()
