@@ -9,6 +9,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * A timeline that could be forked. The events from the fork appear in parent timeline events, but not vise versa.
+ */
 public interface ForkingTimeline<E : Any> : CollectingTimeline<E> {
     public suspend fun fork(): ForkingTimeline<E>
 }
@@ -84,11 +87,12 @@ public class TreeTimeline<E : Any>(
 
             override suspend fun collect(upTo: Instant) = mutex.withLock {
                 require(upTo >= time.value) { "Requested time $upTo is lower than observed ${time.value}" }
-                events().takeWhile {
-                    timeOf(it) <= upTo
-                }.collect {
-                    channel.send(it)
-                }
+                TODO("Not yet implemented")
+//                events().takeWhile {
+//                    timeOf(it) <= upTo
+//                }.collect {
+//                    channel.send(it)
+//                }
             }
 
             override fun close() {

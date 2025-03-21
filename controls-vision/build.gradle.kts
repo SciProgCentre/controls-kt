@@ -9,13 +9,12 @@ description = """
 
 kscience {
     fullStack("js/controls-vision.js")
-    useKtor()
     useSerialization()
     useContextReceivers()
     commonMain {
         api(projects.controlsCore)
         api(projects.controlsConstructor)
-        api(libs.visionforge.plotly)
+        api(libs.plotlykt.core)
         api(libs.visionforge.markdown)
 //        api("space.kscience:tables-kt:0.2.1")
 //        api("space.kscience:visionforge-tables:$visionforgeVersion")

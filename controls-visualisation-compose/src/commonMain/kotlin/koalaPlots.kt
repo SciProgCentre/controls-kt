@@ -10,6 +10,7 @@ import io.github.koalaplot.core.xygraph.DefaultPoint
 import io.github.koalaplot.core.xygraph.XYGraphScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
@@ -19,7 +20,6 @@ import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.controls.time.AsyncClock
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
@@ -41,7 +41,7 @@ internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
-    clock: AsyncClock = Global.clock,
+    clock: Clock = Global.clock,
 ): Flow<List<ValueWithTime<T>>> {
     require(maxPoints > 2)
     require(minPoints > 0)
@@ -222,7 +222,7 @@ public fun XYGraphScope<Instant, Double>.PlotAveragedDeviceProperty(
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
 
     LaunchedEffect(device, propertyName, startValue, maxAge, maxPoints, minPoints, averagingInterval) {
-        val clock: AsyncClock = device.clock
+        val clock: Clock = device.clock
         var lastValue = startValue
         device.propertyMessageFlow(propertyName)
             .chunkedByPeriod(averagingInterval)

@@ -1,6 +1,7 @@
 package space.kscience.simulation
 
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -13,6 +14,8 @@ class TimelineTests {
     @Test
     fun testGeneration() = runTest(timeout = 1.seconds) {
         val startTime = Instant.parse("2020-01-01T00:00:00.000Z")
+
+        StandardTestDispatcher()
 
         val generation = GeneratingTimeline(
             origin = TimelineEvent(startTime, Unit),

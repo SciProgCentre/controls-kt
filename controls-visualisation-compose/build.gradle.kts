@@ -13,7 +13,6 @@ description = """
 
 kscience {
     jvm()
-    useKtor()
     useSerialization()
     useContextReceivers()
     commonMain {

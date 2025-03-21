@@ -19,12 +19,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.plotly.Plot
-import space.kscience.plotly.bar
-import space.kscience.plotly.models.Bar
-import space.kscience.plotly.models.Scatter
-import space.kscience.plotly.models.Trace
-import space.kscience.plotly.models.TraceValues
-import space.kscience.plotly.scatter
+import space.kscience.plotly.models.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds

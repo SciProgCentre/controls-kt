@@ -4,7 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import space.kscience.controls.api.Device
-import space.kscience.controls.time.getCoroutineDispatcher
+import space.kscience.controls.time.coroutineDispatcher
 import kotlin.time.Duration
 
 /**
@@ -16,7 +16,7 @@ public fun <D : Device> D.doRecurring(
     task: suspend D.() -> Unit,
 ): Job {
     val taskName = debugTaskName ?: "task[${task.hashCode().toString(16)}]"
-    val dispatcher = getCoroutineDispatcher()
+    val dispatcher = coroutineDispatcher
     return launch(CoroutineName(taskName) + dispatcher) {
         while (isActive) {
             delay(interval)

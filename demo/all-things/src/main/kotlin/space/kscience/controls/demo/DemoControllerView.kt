@@ -9,7 +9,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.application.port
+import io.ktor.server.engine.EmbeddedServer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -46,8 +47,8 @@ private val json = Json { prettyPrint = true }
 class DemoController : ContextAware {
 
     var device: DemoDevice? = null
-    var magixServer: ApplicationEngine? = null
-    var visualizer: ApplicationEngine? = null
+    var magixServer: EmbeddedServer<*,*>? = null
+    var visualizer: EmbeddedServer<*,*>? = null
     val opcUaServer: OpcUaServer = OpcUaServer {
         setApplicationName(LocalizedText.english("space.kscience.controls.opcua"))
 
@@ -174,7 +175,7 @@ fun DemoControls(controller: DemoController) {
                     onClick = {
                         controller.visualizer?.run {
                             val host = "localhost"//environment.connectors.first().host
-                            val port = environment.connectors.first().port
+                            val port = environment.config.port
                             val uri = URI("http", null, host, port, "/", null, null)
                             Desktop.getDesktop().browse(uri)
                         }

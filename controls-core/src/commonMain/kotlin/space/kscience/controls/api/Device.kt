@@ -5,9 +5,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
-import space.kscience.controls.time.AsyncClock
-import space.kscience.controls.time.AsyncTimeProvider
-import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
@@ -23,7 +20,7 @@ import space.kscience.dataforge.names.parseAsName
  *  When canceled, cancels all running processes.
  */
 @DfType(DEVICE_TARGET)
-public interface Device : ContextAware, WithLifeCycle, CoroutineScope, AsyncTimeProvider {
+public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
 
     /**
      * Initial configuration meta for the device
@@ -70,8 +67,6 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope, AsyncTime
      * Does nothing if the device is started or is starting
      */
     override suspend fun start(): Unit = Unit
-
-    override val clock: AsyncClock get() = context.clock
 
     /**
      * Close and terminate the device. This function does not wait for the device to be closed.

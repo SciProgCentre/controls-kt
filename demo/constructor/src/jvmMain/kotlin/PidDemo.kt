@@ -271,12 +271,12 @@ fun main() = application {
                 second(400.dp) {
                     ChartLayout {
                         XYGraph<Instant, Double>(
-                            xAxisModel = remember { TimeAxisModel.recent(maxAge, clock) },
+                            xAxisModel = remember { TimeAxisModel.recent(maxAge, context.clock) },
                             yAxisModel = rememberDoubleLinearAxisModel((range.start - 1.0)..(range.endInclusive + 1.0)),
                             xAxisTitle = { Text("Time in seconds relative to current") },
                             xAxisLabels = { it: Instant ->
                                 Text(
-                                    (clock.now() - it).toDouble(
+                                    (context.clock.now() - it).toDouble(
                                         DurationUnit.SECONDS
                                     ).toString(2)
                                 )

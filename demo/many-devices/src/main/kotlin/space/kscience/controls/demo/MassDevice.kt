@@ -29,10 +29,10 @@ import space.kscience.plotly.Plotly
 import space.kscience.plotly.PlotlyConfig
 import space.kscience.plotly.layout
 import space.kscience.plotly.models.Bar
+import space.kscience.plotly.models.invoke
 import space.kscience.plotly.plot
-import space.kscience.plotly.server.PlotlyUpdateMode
-import space.kscience.plotly.server.serve
-import space.kscience.plotly.server.show
+import space.kscience.visionforge.plotly.serveSinglePage
+import space.kscience.visionforge.server.openInBrowser
 import space.kscince.magix.zmq.ZmqMagixFlowPlugin
 import space.kscince.magix.zmq.zmq
 import kotlin.random.Random
@@ -117,24 +117,22 @@ suspend fun main() {
         }
     }
 
-    val application = Plotly.serve(port = 9091) {
-        updateMode = PlotlyUpdateMode.PUSH
+    val application = Plotly.serveSinglePage(port = 9091, routeConfiguration = {
         updateInterval = 1000
-
-        page { container ->
-            plot(renderer = container, config = PlotlyConfig { saveAsSvg() }) {
-                layout {
+    }) {
+        plot(config = PlotlyConfig { saveAsSvg() }) {
+            layout {
 //                    title = "Latest event"
 
-                    xaxis.title = "Device number"
-                    yaxis.title = "Maximum latency in ms"
-                }
-                traces(trace)
+                xaxis.title = "Device number"
+                yaxis.title = "Maximum latency in ms"
             }
+            traces(trace)
         }
     }
 
-    application.show()
+
+    application.openInBrowser()
 
     while (readlnOrNull().isNullOrBlank()) {
 

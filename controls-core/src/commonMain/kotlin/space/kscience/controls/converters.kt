@@ -51,7 +51,7 @@ public val MetaConverter.Companion.instant: MetaConverter<Instant> get() = Insta
 
 public fun Instant.toMeta(): Meta = Meta(toString())
 
-public val Meta.instant: Instant? get() = value?.string?.let { Instant.parse(it) }
+public val Meta?.instant: Instant? get() = this?.value?.string?.let { Instant.parse(it) }
 
 /**
  * An [IOFormat] for [Instant]

@@ -9,7 +9,6 @@ plugins {
 
 kscience {
     jvm()
-    useKtor()
     useSerialization()
     useContextReceivers()
     commonMain {

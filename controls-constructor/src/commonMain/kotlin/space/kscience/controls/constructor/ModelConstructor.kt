@@ -3,14 +3,14 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.newCoroutineContext
-import space.kscience.controls.time.AsyncTimeProvider
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import kotlin.coroutines.CoroutineContext
 
 public abstract class ModelConstructor(
     final override val context: Context,
     vararg dependencies: DeviceState<*>,
-) : StateContainer, CoroutineScope, AsyncTimeProvider{
+) : StateContainer, CoroutineScope{
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(SupervisorJob())
@@ -32,3 +32,5 @@ public abstract class ModelConstructor(
         _constructorElements.remove(constructorElement)
     }
 }
+
+public val ModelConstructor.clock get() = context.clock

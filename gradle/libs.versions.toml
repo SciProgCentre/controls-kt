@@ -1,6 +1,6 @@
 [versions]
 
-dataforge = "0.10.0"
+dataforge = "0.10.1"
 rsocket = "0.16.0"
 xodus = "2.0.1"
 
@@ -9,8 +9,6 @@ uuid = "0.8.0"
 fazecast = "2.10.3"
 
 tornadofx = "1.7.20"
-
-plotlykt = "0.7.2"
 
 logback = "1.2.11"
 
@@ -29,7 +27,7 @@ pi4j-ktx = "2.4.0"
 
 plc4j = "0.12.0"
 
-visionforge = "0.4.2"
+visionforge = "0.5.0"
 
 [libraries]
 
@@ -50,7 +48,9 @@ jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "fazecast" }
 
 tornadofx = { module = "no.tornado:tornadofx", version.ref = "tornadofx" }
 
-plotlykt-server = { module = "space.kscience:plotlykt-server", version.ref = "plotlykt" }
+plotlykt-core = { module = "space.kscience:plotly-kt-core", version.ref = "visionforge" }
+
+plotlykt-server = { module = "space.kscience:plotly-kt-server", version.ref = "visionforge" }
 
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
@@ -74,7 +74,6 @@ pi4j-plugin-pigpio = { module = "com.pi4j:pi4j-plugin-pigpio", version.ref = "pi
 plc4j-spi = { module = "org.apache.plc4x:plc4j-spi", version.ref = "plc4j" }
 
 visionforge-jupiter = { module = "space.kscience:visionforge-jupyter", version.ref = "visionforge" }
-visionforge-plotly = { module = "space.kscience:visionforge-plotly", version.ref = "visionforge" }
 visionforge-markdown = { module = "space.kscience:visionforge-markdown", version.ref = "visionforge" }
 visionforge-server = { module = "space.kscience:visionforge-server", version.ref = "visionforge" }
 visionforge-compose-html = { module = "space.kscience:visionforge-compose-html", version.ref = "visionforge" }
