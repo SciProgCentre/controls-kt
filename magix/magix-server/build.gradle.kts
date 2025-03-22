@@ -16,6 +16,8 @@ kscience {
     jvm()
     useSerialization{
         json()
+        cbor()
+        protobuf()
     }
 
     jvmMain{

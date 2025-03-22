@@ -8,13 +8,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.magixFormat
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.*
+import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
@@ -66,7 +67,13 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
 }
 
 suspend fun main() {
-    val context = Context("Mass")
+    val context = Context("Mass"){
+        plugin(ClockManager){
+            "clock.mode" put "jvm"
+        }
+    }
+
+    val clock = context.clock
 
     context.startMagixServer(
         RSocketMagixFlowPlugin(),
@@ -104,9 +111,9 @@ suspend fun main() {
 
             monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
                 if(payload is PropertyChangedMessage) {
-                    val delay = Clock.System.now() - payload.time
+                    val delay = clock.now() - payload.time
                     mutex.withLock {
-                        val deviceName = payload.sourceDevice.toString()
+//                        val deviceName = payload.sourceDevice.toString()
 //                        counters[deviceName] = counters[deviceName]?.inc() ?: 1.0
 //                        println("${deviceName}:${counters[deviceName]!! - payload.value.double!!}")
                         latest[magixMessage.sourceEndpoint] = delay

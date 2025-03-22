@@ -15,15 +15,15 @@ kscience {
     native()
     wasm()
     useCoroutines()
-    useSerialization{
+    useSerialization {
         json()
     }
 
-    commonMain{
+    commonMain {
         implementation(spclibs.atomicfu)
     }
 }
 
-readme{
+readme {
     maturity = Maturity.EXPERIMENTAL
 }
