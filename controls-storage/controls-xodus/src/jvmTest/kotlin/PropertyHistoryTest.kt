@@ -23,21 +23,21 @@ internal class PropertyHistoryTest {
 
         private val propertyChangedMessages = listOf(
             PropertyChangedMessage(
+                time = Instant.fromEpochMilliseconds(1000),
                 "speed",
                 Meta.EMPTY,
-                time = Instant.fromEpochMilliseconds(1000),
                 sourceDevice = Name.of("virtual-car")
             ),
             PropertyChangedMessage(
+                time = Instant.fromEpochMilliseconds(1500),
                 "acceleration",
                 Meta.EMPTY,
-                time = Instant.fromEpochMilliseconds(1500),
                 sourceDevice = Name.of("virtual-car")
             ),
             PropertyChangedMessage(
+                time = Instant.fromEpochMilliseconds(2000),
                 "speed",
                 Meta.EMPTY,
-                time = Instant.fromEpochMilliseconds(2000),
                 sourceDevice = Name.of("magix-virtual-car")
             )
         )

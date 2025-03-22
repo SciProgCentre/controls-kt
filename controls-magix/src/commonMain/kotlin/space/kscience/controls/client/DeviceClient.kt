@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
@@ -67,7 +69,7 @@ public class DeviceClient internal constructor(
 
     override suspend fun readProperty(propertyName: String): Meta {
         send(
-            PropertyGetMessage(propertyName, targetDevice = deviceName)
+            PropertyGetMessage(clock.now(), propertyName, targetDevice = deviceName)
         )
         return messageFlow.filterIsInstance<PropertyChangedMessage>().first {
             it.property == propertyName
@@ -84,14 +86,25 @@ public class DeviceClient internal constructor(
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         send(
-            PropertySetMessage(propertyName, value, targetDevice = deviceName)
+            PropertySetMessage(
+                time = clock.now(),
+                property = propertyName,
+                value = value,
+                targetDevice = deviceName
+            )
         )
     }
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val id = stringUID()
         send(
-            ActionExecuteMessage(actionName, argument, id, targetDevice = deviceName)
+            ActionExecuteMessage(
+                time = clock.now(),
+                action = actionName,
+                argument = argument,
+                requestId = id,
+                targetDevice = deviceName
+            )
         )
         return messageFlow.filterIsInstance<ActionResultMessage>().first {
             it.action == actionName && it.requestId == id
@@ -103,6 +116,8 @@ public class DeviceClient internal constructor(
 
     @DFExperimental
     override val lifecycleState: LifecycleState get() = lifecycleStateFlow.value
+
+    override val clock: Clock = context.clock
 }
 
 /**
@@ -135,7 +150,7 @@ public suspend fun MagixEndpoint.remoteDevice(
 
     send(
         format = DeviceManager.magixFormat,
-        payload = GetDescriptionMessage(targetDevice = deviceName),
+        payload = GetDescriptionMessage(Clock.System.now(), targetDevice = deviceName),
         source = thisEndpoint,
         target = deviceEndpoint,
         id = stringUID()
@@ -196,7 +211,7 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
 
     send(
         format = DeviceManager.magixFormat,
-        payload = GetDescriptionMessage(targetDevice = null),
+        payload = GetDescriptionMessage(Clock.System.now(), targetDevice = null),
         source = thisEndpoint,
         target = deviceEndpoint,
         id = stringUID()
@@ -214,7 +229,7 @@ public suspend fun MagixEndpoint.requestDeviceUpdate(
 ) {
     send(
         format = DeviceManager.magixFormat,
-        payload = GetDescriptionMessage(),
+        payload = GetDescriptionMessage(Clock.System.now()),
         source = thisEndpoint,
         target = deviceEndpoint,
         id = stringUID()
@@ -247,6 +262,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
     value: T,
 ) {
     val message = PropertySetMessage(
+        Clock.System.now(),
         property = propertySpec.name,
         value = propertySpec.converter.convert(value),
         targetDevice = deviceName

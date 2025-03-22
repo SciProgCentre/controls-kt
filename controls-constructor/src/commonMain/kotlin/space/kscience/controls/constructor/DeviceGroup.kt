@@ -2,11 +2,13 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.datetime.Clock
 import space.kscience.controls.api.*
 import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
@@ -16,7 +18,6 @@ import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.get
 import space.kscience.dataforge.names.parseAsName
-import kotlin.collections.set
 import kotlin.coroutines.CoroutineContext
 
 
@@ -66,6 +67,7 @@ public open class DeviceGroup(
                     context.launch {
                         sharedMessageFlow.emit(
                             DeviceErrorMessage(
+                                time = clock.now(),
                                 errorMessage = throwable.message,
                                 errorType = throwable::class.simpleName,
                                 errorStackTrace = throwable.stackTraceToString()
@@ -109,8 +111,9 @@ public open class DeviceGroup(
         state.valueFlow.map(converter::convert).onEach {
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
-                    descriptor.name,
-                    it
+                    time = clock.now(),
+                    property = descriptor.name,
+                    value = it
                 )
             )
         }.launchIn(this)
@@ -172,7 +175,7 @@ public open class DeviceGroup(
     private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
         sharedMessageFlow.emit(
-            DeviceLifeCycleMessage(lifecycleState)
+            DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
 
@@ -193,6 +196,8 @@ public open class DeviceGroup(
         setLifecycleState(STOPPED)
         super.stop()
     }
+
+    override val clock: Clock = context.clock
 
     public companion object {
 

@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
 import space.kscience.controls.api.*
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.error
@@ -80,6 +82,7 @@ public abstract class DeviceBase<D : Device>(
                     launch {
                         sharedMessageFlow.emit(
                             DeviceErrorMessage(
+                                time = clock.now(),
                                 errorMessage = throwable.message,
                                 errorType = throwable::class.simpleName,
                                 errorStackTrace = throwable.stackTraceToString()
@@ -113,7 +116,7 @@ public abstract class DeviceBase<D : Device>(
                 logicalState[propertyName] = value
             }
             if (value != null) {
-                sharedMessageFlow.emit(PropertyChangedMessage(propertyName, value))
+                sharedMessageFlow.emit(PropertyChangedMessage(clock.now(), propertyName, value))
             }
         }
     }
@@ -195,7 +198,7 @@ public abstract class DeviceBase<D : Device>(
     private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
         sharedMessageFlow.emit(
-            DeviceLifeCycleMessage(lifecycleState)
+            DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
 
@@ -224,6 +227,7 @@ public abstract class DeviceBase<D : Device>(
         super.stop()
     }
 
+    override val clock: Clock = context.clock
 
     abstract override fun toString(): String
 

@@ -8,10 +8,7 @@ import space.kscience.controls.api.PropertySetMessage
 import space.kscience.controls.client.DeviceClient
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.write
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.ModelConstructor
-import space.kscience.controls.constructor.MutableDeviceState
-import space.kscience.controls.constructor.onTimer
+import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.manager.respondMessage
@@ -35,7 +32,6 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-
 
 
 private val deviceVelocity = 0.1.kilometers
@@ -156,6 +152,7 @@ internal class DeviceCollectiveModel(
                         json.encodeToString(
                             DeviceMessage.serializer(),
                             PropertySetMessage(
+                                time = clock.now(),
                                 property = CollectiveDevice.velocity.name,
                                 value = gmcVelocityMetaConverter.convert(state.velocity.value),
                                 targetDevice = null

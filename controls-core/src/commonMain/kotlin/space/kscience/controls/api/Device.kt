@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
+import kotlinx.datetime.Clock
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
@@ -67,6 +68,11 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
      * Does nothing if the device is started or is starting
      */
     override suspend fun start(): Unit = Unit
+
+    /**
+     * Clock associated with this device
+     */
+    public val clock: Clock
 
     /**
      * Close and terminate the device. This function does not wait for the device to be closed.

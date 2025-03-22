@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.magixFormat
 import space.kscience.controls.manager.DeviceManager
@@ -22,7 +23,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
-import space.kscience.magix.rsocket.rSocketStreamWithWebSockets
+import space.kscience.magix.rsocket.rSocketStreamWithTcp
 import space.kscience.magix.server.RSocketMagixFlowPlugin
 import space.kscience.magix.server.startMagixServer
 import space.kscience.plotly.Plotly
@@ -30,7 +31,7 @@ import space.kscience.plotly.PlotlyConfig
 import space.kscience.plotly.layout
 import space.kscience.plotly.models.Bar
 import space.kscience.plotly.models.invoke
-import space.kscience.plotly.plot
+import space.kscience.plotly.plotly
 import space.kscience.visionforge.plotly.serveSinglePage
 import space.kscience.visionforge.server.openInBrowser
 import space.kscince.magix.zmq.ZmqMagixFlowPlugin
@@ -45,6 +46,10 @@ class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDe
     private val rng = Random(meta["seed"].int ?: 0)
 
     private val randomValue get() = rng.nextDouble()
+
+    private var counter: Long = 1
+
+    private val incrementValue: Double get() = (counter++).toDouble()
 
     companion object : DeviceSpec<MassDevice>(), Factory<MassDevice> {
 
@@ -79,10 +84,10 @@ suspend fun main() {
 
         val deviceManager = deviceContext.request(DeviceManager)
 
-        deviceManager.install("device$it", MassDevice)
+        deviceManager.install("device$it", MassDevice, Meta { "delay" put 5 })
 
         val endpointId = "device$it"
-        val deviceEndpoint = MagixEndpoint.rSocketStreamWithWebSockets("localhost")
+        val deviceEndpoint = MagixEndpoint.rSocketStreamWithTcp("localhost")
         deviceManager.launchMagixService(deviceEndpoint, endpointId)
     }
 
@@ -95,23 +100,29 @@ suspend fun main() {
             val latest = HashMap<String, Duration>()
             val max = HashMap<String, Duration>()
 
+//            val counters = hashMapOf<String, Double>()
+
             monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
-                mutex.withLock {
+                if(payload is PropertyChangedMessage) {
                     val delay = Clock.System.now() - payload.time
-                    latest[magixMessage.sourceEndpoint] = Clock.System.now() - payload.time
-                    max[magixMessage.sourceEndpoint] =
-                        maxOf(delay, max[magixMessage.sourceEndpoint] ?: ZERO)
+                    mutex.withLock {
+                        val deviceName = payload.sourceDevice.toString()
+//                        counters[deviceName] = counters[deviceName]?.inc() ?: 1.0
+//                        println("${deviceName}:${counters[deviceName]!! - payload.value.double!!}")
+                        latest[magixMessage.sourceEndpoint] = delay
+                        max[magixMessage.sourceEndpoint] = maxOf(delay, max[magixMessage.sourceEndpoint] ?: ZERO)
+                    }
                 }
             }.launchIn(this)
 
             while (isActive) {
-                delay(200)
+                delay(1000)
                 mutex.withLock {
                     val sorted = max.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
                     latest.clear()
                     max.clear()
                     x.numbers = sorted.keys
-                    y.numbers = sorted.values.map { it.inWholeMicroseconds / 1000.0 + 0.0001 }
+                    y.numbers = sorted.values.map { it.inWholeMicroseconds.toDouble() / 1000.0 }
                 }
             }
         }
@@ -120,14 +131,16 @@ suspend fun main() {
     val application = Plotly.serveSinglePage(port = 9091, routeConfiguration = {
         updateInterval = 1000
     }) {
-        plot(config = PlotlyConfig { saveAsSvg() }) {
-            layout {
+        vision {
+            plotly(config = PlotlyConfig { saveAsSvg() }) {
+                layout {
 //                    title = "Latest event"
 
-                xaxis.title = "Device number"
-                yaxis.title = "Maximum latency in ms"
+                    xaxis.title = "Device number"
+                    yaxis.title = "Maximum latency in ms"
+                }
+                traces(trace)
             }
-            traces(trace)
         }
     }
 

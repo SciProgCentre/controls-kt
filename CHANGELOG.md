@@ -18,6 +18,7 @@
 - `DeviceHub` now works with `Name` instead of `NameToken`. Tree-like structure is made using `Path`. Device messages no longer have access to sub-devices.
 - Add some utility methods to ports. Synchronous port response could be now consumed as `Source`.
 - `DeviceLifecycleState` is replaced by `LifecycleState`.
+- Time is now mandatory first field of all device messages
 
 
 ### Deprecated

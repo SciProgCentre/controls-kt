@@ -15,6 +15,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
@@ -47,8 +48,8 @@ private val json = Json { prettyPrint = true }
 class DemoController : ContextAware {
 
     var device: DemoDevice? = null
-    var magixServer: EmbeddedServer<*,*>? = null
-    var visualizer: EmbeddedServer<*,*>? = null
+    var magixServer: EmbeddedServer<*, *>? = null
+    var visualizer: EmbeddedServer<*, *>? = null
     val opcUaServer: OpcUaServer = OpcUaServer {
         setApplicationName(LocalizedText.english("space.kscience.controls.opcua"))
 
@@ -97,7 +98,7 @@ class DemoController : ContextAware {
         // send description request
         listenerEndpoint.send(
             format = DeviceManager.magixFormat,
-            payload = GetDescriptionMessage(),
+            payload = GetDescriptionMessage(Clock.System.now()),
             source = "listener",
 //            target = "demoDevice"
         )

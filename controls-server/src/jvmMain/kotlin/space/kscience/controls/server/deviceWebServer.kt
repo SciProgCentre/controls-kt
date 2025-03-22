@@ -24,7 +24,6 @@ import io.ktor.server.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.html.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.encodeToJsonElement
@@ -66,9 +65,9 @@ public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
     host: String = "localhost",
-): EmbeddedServer<*,*> = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
+): EmbeddedServer<*, *> = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
 
-public fun EmbeddedServer<*,*>.whenStarted(callback: Application.() -> Unit) {
+public fun EmbeddedServer<*, *>.whenStarted(callback: Application.() -> Unit) {
     monitor.subscribe(ApplicationStarted, callback)
 }
 
@@ -174,6 +173,7 @@ public fun Application.deviceManagerModule(
                         val target: String by call.parameters
                         val property: String by call.parameters
                         val request = PropertyGetMessage(
+                            time = kotlinx.datetime.Clock.System.now(),
                             sourceDevice = WEB_SERVER_TARGET,
                             targetDevice = Name.parse(target),
                             property = property,
@@ -193,6 +193,7 @@ public fun Application.deviceManagerModule(
                         val json = Json.parseToJsonElement(body)
 
                         val request = PropertySetMessage(
+                            time = kotlinx.datetime.Clock.System.now(),
                             sourceDevice = WEB_SERVER_TARGET,
                             targetDevice = Name.parse(target),
                             property = property,

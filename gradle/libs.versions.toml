@@ -1,7 +1,7 @@
 [versions]
 
 dataforge = "0.10.1"
-rsocket = "0.16.0"
+rsocket = "0.20.0"
 xodus = "2.0.1"
 
 uuid = "0.8.0"
@@ -40,8 +40,8 @@ xodus-entity-store = { module = "org.jetbrains.xodus:xodus-entity-store", versio
 xodus-environment = { module = "org.jetbrains.xodus:xodus-environment", version.ref = "xodus" }
 xodus-vfs = { module = "org.jetbrains.xodus:xodus-vfs", version.ref = "xodus" }
 
-rsocket-ktor-client = { module = "io.rsocket.kotlin:rsocket-ktor-client", version.ref = "rsocket" }
-rsocket-ktor-server = { module = "io.rsocket.kotlin:rsocket-ktor-server", version.ref = "rsocket" }
+rsocket-ktor-client = { module = "io.rsocket.kotlin:ktor-client-rsocket", version.ref = "rsocket" }
+rsocket-ktor-server = { module = "io.rsocket.kotlin:ktor-server-rsocket", version.ref = "rsocket" }
 rsocket-transport-ktor-tcp = { module = "io.rsocket.kotlin:rsocket-transport-ktor-tcp", version.ref = "rsocket" }
 
 jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "fazecast" }

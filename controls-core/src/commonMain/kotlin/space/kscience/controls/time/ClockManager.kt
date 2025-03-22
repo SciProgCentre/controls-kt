@@ -58,10 +58,13 @@ private class CompressedClock(
     }
 }
 
+internal expect fun resolveClock(meta: Meta): Clock?
+
 public sealed interface ClockMode {
-    public data object System : ClockMode
-    public data class Compressed(val compression: Double) : ClockMode
-    public data class Virtual(val manager: VirtualTimeManager) : ClockMode
+    public object System : ClockMode
+    public class Custom(public val clock: Clock) : ClockMode
+    public class Compressed(public val compression: Double) : ClockMode
+    public class Virtual(public val manager: VirtualTimeManager) : ClockMode
 }
 
 public class ClockManager : AbstractPlugin() {
@@ -70,12 +73,14 @@ public class ClockManager : AbstractPlugin() {
     public val clockMode: ClockMode = when (meta["clock.mode"].string) {
         null, "system" -> ClockMode.System
         "virtual" -> ClockMode.Virtual(VirtualTimeManager(meta["clock.start"]?.instant ?: Clock.System.now()))
-        else -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
+        "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
+        else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
     }
 
     public val clock: Clock = when (clockMode) {
-        is ClockMode.Compressed -> CompressedClock(Clock.System, clockMode.compression)
         ClockMode.System -> Clock.System
+        is ClockMode.Custom -> clockMode.clock
+        is ClockMode.Compressed -> CompressedClock(Clock.System, clockMode.compression)
         is ClockMode.Virtual -> clockMode.manager
     }
 
@@ -83,10 +88,14 @@ public class ClockManager : AbstractPlugin() {
     /**
      * Provide a [CoroutineDispatcher] with compressed time based on context dispatcher
      */
-    public val dispatcher: CoroutineDispatcher = when (clockMode) {
-        ClockMode.System -> context.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
-        is ClockMode.Compressed -> CompressedTimeDispatcher(context.coroutineContext, clockMode.compression)
-        is ClockMode.Virtual -> VirtualTimeDispatcher(context.coroutineContext, clockMode.manager)
+    public val dispatcher: CoroutineDispatcher by lazy {
+        when (clockMode) {
+            is ClockMode.System, is ClockMode.Custom -> context.coroutineContext[CoroutineDispatcher]
+                ?: Dispatchers.Default
+
+            is ClockMode.Compressed -> CompressedTimeDispatcher(context.coroutineContext, clockMode.compression)
+            is ClockMode.Virtual -> VirtualTimeDispatcher(context.coroutineContext, clockMode.manager)
+        }
     }
 
     public fun scheduleWithFixedDelay(tick: Duration, block: suspend () -> Unit): Job = context.launch(dispatcher) {
@@ -104,8 +113,6 @@ public class ClockManager : AbstractPlugin() {
 }
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
-
-public val Device.clock: Clock get() = context.clock
 
 public val Device.coroutineDispatcher: CoroutineDispatcher
     get() = context.plugins[ClockManager]?.dispatcher
