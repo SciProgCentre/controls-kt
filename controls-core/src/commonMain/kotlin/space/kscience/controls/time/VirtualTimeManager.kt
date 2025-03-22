@@ -3,35 +3,97 @@ package space.kscience.controls.time
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 public class VirtualTimeManager(
     startTime: Instant,
 ) : Clock {
     private val _time = MutableStateFlow(startTime)
+
+    private fun advanceTime() {
+        markerTimes.values.minOrNull()?.let {
+            _time.value = it
+        }
+    }
+
     public val time: StateFlow<Instant> get() = _time
 
     override fun now(): Instant = _time.value
 
     private val markerTimes = mutableMapOf<Any, Instant>()
 
+    private val mutex = Mutex()
+
+    /**
+     * Read current time for the given [handle]. Handle time is always lower or equals to global manager time
+     */
+    public suspend fun readTime(handle: Any): Instant = markerTimes[handle] ?: time.value
+
     /**
      * Set target of [handle] timeline to [to] and wait for it to happen
      */
-    public suspend fun advanceTime(handle: Any, to: Instant) {
-        val currentMarkerTime = markerTimes[handle] ?: now()
+    public suspend fun advanceTimeTo(handle: Any, to: Instant) {
+        val currentMarkerTime = readTime(handle)
+        //if it is already the last instant - bypass
+        if (currentMarkerTime == to) return
+        // require that time is in the future
         require(to > currentMarkerTime) { "The advanced time for marker `$handle` $to is less that current marker time $currentMarkerTime" }
-        markerTimes[handle] = to
-        // advance time if necessary
-        _time.emit(markerTimes.values.min())
+
+//        println("$handle locked at $currentMarkerTime")
+
+        mutex.withLock {
+            if(handle is Job && handle !in markerTimes.keys) {
+                //clear job marker on completion
+                handle.invokeOnCompletion {
+                    markerTimes.remove(handle)
+                    advanceTime()
+                }
+            }
+            markerTimes[handle] = to
+            // advance time if necessary
+            advanceTime()
+        }
+
         // wait for time to exceed marker time
-        time.first { it >= to }
+        if (time.value < to) {
+            time.takeWhile {
+                it < to
+            }.collect()
+        }
+//        println("$handle unlocked at $currentMarkerTime")
     }
 
+    /**
+     * Mark given [handle] as idle so its time could advance to the time after all other handles. Then wait for the time to advance.
+     */
+    public suspend fun pass(handle: Any) {
+        advanceTimeTo(handle, markerTimes.values.max())
+        mutex.withLock {
+            markerTimes.remove(handle)
+        }
+    }
+
+    /**
+     * Mark the whole manager as idle and advance time to the maximum of all handles. Don't wait for time to advance
+     */
+    public suspend fun pass(){
+        _time.value = markerTimes.values.max()
+        mutex.withLock {
+            markerTimes.clear()
+        }
+    }
+}
+
+public suspend fun VirtualTimeManager.advanceTimeBy(handle: Any, duration: Duration) {
+    advanceTimeTo(handle, readTime(handle) + duration)
 }
 
 @OptIn(InternalCoroutinesApi::class)
@@ -42,8 +104,7 @@ public class VirtualTimeDispatcher internal constructor(
 
     private val scope = CoroutineScope(coroutineContext)
 
-    public val dispatcher: CoroutineDispatcher =
-        coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
+    private val dispatcher: CoroutineDispatcher = coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
 
     override fun dispatch(context: CoroutineContext, block: Runnable): Unit = dispatcher.dispatch(context, block)
 
@@ -51,7 +112,7 @@ public class VirtualTimeDispatcher internal constructor(
         parallelism: Int,
         name: String?
     ): CoroutineDispatcher = VirtualTimeDispatcher(
-        coroutineContext = coroutineContext + dispatcher.limitedParallelism(parallelism, name),
+        coroutineContext = dispatcher.limitedParallelism(parallelism, name),
         virtualTimeManager = virtualTimeManager
     )
 
@@ -62,9 +123,7 @@ public class VirtualTimeDispatcher internal constructor(
         dispatcher.dispatchYield(context, block)
     }
 
-    override fun toString(): String = dispatcher.toString()
-
-    override fun <E : CoroutineContext.Element> get(key: CoroutineContext.Key<E>): E? = dispatcher[key]
+    override fun toString(): String = "VirtualTimeDispatcher($virtualTimeManager)"
 
     override fun scheduleResumeAfterDelay(
         timeMillis: Long,
@@ -73,7 +132,7 @@ public class VirtualTimeDispatcher internal constructor(
         val handle = continuation.context[Job] ?: error("Can't use VirtualTimeDispatcher without Job")
 
         val scheduledJob = scope.launch {
-            virtualTimeManager.advanceTime(handle, virtualTimeManager.time.value + timeMillis.milliseconds)
+            virtualTimeManager.advanceTimeBy(handle, timeMillis.milliseconds)
             dispatcher.dispatch(
                 continuation.context,
                 Runnable {
