@@ -10,6 +10,7 @@ import io.rsocket.kotlin.ktor.client.RSocketSupport
 import io.rsocket.kotlin.ktor.client.rSocket
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
+
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,12 +70,12 @@ public suspend fun MagixEndpoint.Companion.rSocketWithWebSockets(
     host: String,
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     path: String = "/rsocket",
-    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
+    rSocketConfig: RSocketConnectorBuilder.() -> Unit = {},
 ): RSocketMagixEndpoint {
     val client = HttpClient {
         install(WebSockets)
         install(RSocketSupport) {
-            connector = buildConnector(rSocketConfig)
+            connector(rSocketConfig)
         }
     }
 

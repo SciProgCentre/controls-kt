@@ -73,12 +73,12 @@ public suspend fun MagixEndpoint.Companion.rSocketStreamWithWebSockets(
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     path: String = "/rsocket",
     filter: MagixMessageFilter = MagixMessageFilter.ALL,
-    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
+    rSocketConfig: RSocketConnectorBuilder.() -> Unit = {},
 ): RSocketStreamMagixEndpoint {
     val client = HttpClient {
         install(WebSockets)
         install(RSocketSupport) {
-            connector = buildConnector(rSocketConfig)
+            connector(rSocketConfig)
         }
     }
 
