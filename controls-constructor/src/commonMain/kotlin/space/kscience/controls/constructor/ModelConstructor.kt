@@ -1,19 +1,35 @@
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.newCoroutineContext
+import kotlinx.coroutines.*
 import space.kscience.controls.time.clock
+import space.kscience.controls.time.coroutineDispatcher
 import space.kscience.dataforge.context.Context
 import kotlin.coroutines.CoroutineContext
 
 public abstract class ModelConstructor(
     final override val context: Context,
     vararg dependencies: DeviceState<*>,
-) : StateContainer, CoroutineScope{
+) : StateContainer, CoroutineScope {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    override val coroutineContext: CoroutineContext = context.newCoroutineContext(SupervisorJob())
+    override val coroutineContext: CoroutineContext = context.newCoroutineContext(
+        SupervisorJob(context.coroutineContext[Job]) +
+                CoroutineName("Model ${toString()}") +
+                context.coroutineDispatcher
+//                CoroutineExceptionHandler { _, throwable ->
+//                    launch {
+//                        sharedMessageFlow.emit(
+//                            DeviceErrorMessage(
+//                                time = clock.now(),
+//                                errorMessage = throwable.message,
+//                                errorType = throwable::class.simpleName,
+//                                errorStackTrace = throwable.stackTraceToString()
+//                            )
+//                        )
+//                    }
+//                    logger.error(throwable) { "Exception in device $id" }
+//                }
+    )
 
 
     private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf<ConstructorElement>().apply {

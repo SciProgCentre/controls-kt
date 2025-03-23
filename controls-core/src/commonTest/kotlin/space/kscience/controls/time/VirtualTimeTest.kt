@@ -1,19 +1,24 @@
 package space.kscience.controls.time
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private data class TimedResult(val time: Instant, val marker: String)
 
 class VirtualTimeTest {
     @Test
-    fun manualAdvance(): Unit {
+    fun manualAdvance() = runTest {
         val timeManager = VirtualTimeManager(Instant.fromEpochMilliseconds(0L))
         val collector = mutableListOf<TimedResult>()
-        runBlocking(Dispatchers.Default) {
+        launch(Dispatchers.Default) {
             withTimeout(500) {
                 repeat(3) { series ->
                     launch {
@@ -32,10 +37,10 @@ class VirtualTimeTest {
     }
 
     @Test
-    fun contextAdvance(): Unit {
+    fun contextAdvance() = runTest {
         val timeManager = VirtualTimeManager(Instant.fromEpochMilliseconds(0L))
         val collector = mutableListOf<TimedResult>()
-        runBlocking(Dispatchers.Default.withVirtualTime(timeManager)) {
+        launch (Dispatchers.Default.withVirtualTime(timeManager)) {
             withTimeout(500) {
                 repeat(3) { series ->
                     launch {
@@ -48,9 +53,14 @@ class VirtualTimeTest {
                         //timeManager.pass(this)
                     }
                 }
+                launch {
+                    delay(30.seconds)
+                    collector.add(TimedResult(timeManager.now(),"side"))
+                    println("Complete")
+                }
             }
         }
-        println(collector.joinToString("\n"))
+//        println(collector.joinToString("\n"))
         assertTrue { collector.sortedBy { it.time } == collector }
     }
 }

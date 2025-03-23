@@ -3,7 +3,6 @@ package space.kscience.controls.time
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import space.kscience.controls.api.Device
 import space.kscience.controls.instant
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
@@ -90,11 +89,14 @@ public class ClockManager : AbstractPlugin() {
      */
     public val dispatcher: CoroutineDispatcher by lazy {
         when (clockMode) {
-            is ClockMode.System, is ClockMode.Custom -> context.coroutineContext[CoroutineDispatcher]
-                ?: Dispatchers.Default
+            is ClockMode.System, is ClockMode.Custom ->
+                context.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
 
-            is ClockMode.Compressed -> CompressedTimeDispatcher(context.coroutineContext, clockMode.compression)
-            is ClockMode.Virtual -> VirtualTimeDispatcher(context.coroutineContext, clockMode.manager)
+            is ClockMode.Compressed ->
+                CompressedTimeDispatcher(context.coroutineContext, clockMode.compression)
+
+            is ClockMode.Virtual ->
+                VirtualTimeDispatcher(context.coroutineContext, clockMode.manager)
         }
     }
 
@@ -114,14 +116,23 @@ public class ClockManager : AbstractPlugin() {
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
 
-public val Device.coroutineDispatcher: CoroutineDispatcher
-    get() = context.plugins[ClockManager]?.dispatcher
-        ?: context.coroutineContext[CoroutineDispatcher]
+public val Context.coroutineDispatcher: CoroutineDispatcher
+    get() = plugins[ClockManager]?.dispatcher
+        ?: coroutineContext[CoroutineDispatcher]
         ?: Dispatchers.Default
 
 public fun ContextBuilder.withTimeCompression(compression: Double) {
     require(compression > 0.0) { "Time compression must be greater than zero." }
     plugin(ClockManager) {
-        "timeCompression" put compression
+        "clock" put{
+            "mode" put "compressed"
+            "compression" to compression
+        }
+    }
+}
+
+public fun ContextBuilder.withVirtualTime(start: Instant = Clock.System.now()) {
+    plugin(ClockManager) {
+
     }
 }

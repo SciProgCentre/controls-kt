@@ -16,7 +16,7 @@ public fun <D : Device> D.doRecurring(
     task: suspend D.() -> Unit,
 ): Job {
     val taskName = debugTaskName ?: "task[${task.hashCode().toString(16)}]"
-    val dispatcher = coroutineDispatcher
+    val dispatcher = context.coroutineDispatcher
     return launch(CoroutineName(taskName) + dispatcher) {
         while (isActive) {
             delay(interval)

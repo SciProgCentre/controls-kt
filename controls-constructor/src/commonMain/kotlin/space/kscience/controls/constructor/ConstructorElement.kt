@@ -32,7 +32,7 @@ public class StateConstructorElement<T>(
     public val state: DeviceState<T>,
 ) : ConstructorElement
 
-public class ConnectionConstrucorElement(
+public class ConnectionConstructorElement(
     public val reads: Collection<DeviceState<*>>,
     public val writes: Collection<DeviceState<*>>,
 ) : ConstructorElement
@@ -58,7 +58,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
         reads: Collection<DeviceState<*>> = emptySet(),
         onChange: suspend (T) -> Unit,
     ): Job = valueFlow.onEach(onChange).launchIn(this@StateContainer).also {
-        registerElement(ConnectionConstrucorElement(reads + this, writes))
+        registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 
     public fun <T> DeviceState<T>.onChange(
@@ -72,7 +72,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
             onChange(pair.first, pair.second)
         }
     }.launchIn(this@StateContainer).also {
-        registerElement(ConnectionConstrucorElement(reads + this, writes))
+        registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 }
 
@@ -164,7 +164,7 @@ public fun <T1, T2, R> StateContainer.combineState(
  * On resulting [Job] cancel the binding is unregistered
  */
 public fun <T> StateContainer.bind(sourceState: DeviceState<T>, targetState: MutableDeviceState<T>): Job {
-    val descriptor = ConnectionConstrucorElement(setOf(sourceState), setOf(targetState))
+    val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
     return sourceState.valueFlow.onEach {
         targetState.value = it
@@ -186,7 +186,7 @@ public fun <T, R> StateContainer.transformTo(
     targetState: MutableDeviceState<R>,
     transformation: suspend (T) -> R,
 ): Job {
-    val descriptor = ConnectionConstrucorElement(setOf(sourceState), setOf(targetState))
+    val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
     return sourceState.valueFlow.onEach {
         targetState.value = transformation(it)
@@ -208,7 +208,7 @@ public fun <T1, T2, R> StateContainer.combineTo(
     targetState: MutableDeviceState<R>,
     transformation: suspend (T1, T2) -> R,
 ): Job {
-    val descriptor = ConnectionConstrucorElement(setOf(sourceState1, sourceState2), setOf(targetState))
+    val descriptor = ConnectionConstructorElement(setOf(sourceState1, sourceState2), setOf(targetState))
     registerElement(descriptor)
     return kotlinx.coroutines.flow.combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).onEach {
         targetState.value = it
@@ -229,7 +229,7 @@ public inline fun <reified T, R> StateContainer.combineTo(
     targetState: MutableDeviceState<R>,
     noinline transformation: suspend (Array<T>) -> R,
 ): Job {
-    val descriptor = ConnectionConstrucorElement(sourceStates, setOf(targetState))
+    val descriptor = ConnectionConstructorElement(sourceStates, setOf(targetState))
     registerElement(descriptor)
     return kotlinx.coroutines.flow.combine(sourceStates.map { it.valueFlow }, transformation).onEach {
         targetState.value = it

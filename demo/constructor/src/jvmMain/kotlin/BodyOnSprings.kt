@@ -52,16 +52,16 @@ private class BodyOnSprings(
     val width = xRight - xLeft
     val height = yTop - yBottom
 
-    val position = stateOf(startPosition)
+    val position: MutableDeviceState<XYZ<Meters>> = stateOf(startPosition)
     val velocity: MutableDeviceState<XYZ<MetersPerSecond>> = stateOf(XYZ(0, 0, 0))
 
-    private val leftAnchor = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
+    private val leftAnchor: MutableDeviceState<XYZ<Meters>> = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
 
     val leftSpring = model(
         Spring(context, k, l0, leftAnchor, position)
     )
 
-    private val rightAnchor = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
+    private val rightAnchor: MutableDeviceState<XYZ<Meters>> = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
 
     val rightSpring = model(
         Spring(context, k, l0, rightAnchor, position)

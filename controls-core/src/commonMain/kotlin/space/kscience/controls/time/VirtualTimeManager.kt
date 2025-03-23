@@ -18,6 +18,9 @@ public class VirtualTimeManager(
 ) : Clock {
     private val _time = MutableStateFlow(startTime)
 
+    /**
+     * Advance time taking into account remaining branches
+     */
     private fun advanceTime() {
         markerTimes.values.minOrNull()?.let {
             _time.value = it
@@ -35,22 +38,22 @@ public class VirtualTimeManager(
     /**
      * Read current time for the given [handle]. Handle time is always lower or equals to global manager time
      */
-    public suspend fun readTime(handle: Any): Instant = markerTimes[handle] ?: time.value
+    public suspend fun readTime(handle: Any): Instant = mutex.withLock { markerTimes[handle] ?: time.value }
 
     /**
      * Set target of [handle] timeline to [to] and wait for it to happen
      */
     public suspend fun advanceTimeTo(handle: Any, to: Instant) {
-        val currentMarkerTime = readTime(handle)
-        //if it is already the last instant - bypass
-        if (currentMarkerTime == to) return
-        // require that time is in the future
-        require(to > currentMarkerTime) { "The advanced time for marker `$handle` $to is less that current marker time $currentMarkerTime" }
+        mutex.withLock {
+            val currentMarkerTime = readTime(handle)
+            //if it is already the last instant - bypass
+            if (currentMarkerTime == to) return
+            // require that time is in the future
+            require(to > currentMarkerTime) { "The target time for marker `$handle` $to is less that current marker time $currentMarkerTime" }
 
 //        println("$handle locked at $currentMarkerTime")
 
-        mutex.withLock {
-            if(handle is Job && handle !in markerTimes.keys) {
+            if (handle is Job && handle !in markerTimes.keys) {
                 //clear job marker on completion
                 handle.invokeOnCompletion {
                     markerTimes.remove(handle)
@@ -84,7 +87,7 @@ public class VirtualTimeManager(
     /**
      * Mark the whole manager as idle and advance time to the maximum of all handles. Don't wait for time to advance
      */
-    public suspend fun pass(){
+    public suspend fun pass() {
         _time.value = markerTimes.values.max()
         mutex.withLock {
             markerTimes.clear()
