@@ -4,6 +4,7 @@ package space.kscience.controls.spec
 
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
@@ -13,11 +14,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import space.kscience.controls.api.*
-import space.kscience.controls.manager.DeviceManager
+import space.kscience.magix.api.subscribe
 import space.kscience.controls.spec.DeviceErrorCategory.CRITICAL
 import space.kscience.controls.spec.DeviceErrorCategory.NON_CRITICAL
-import space.kscience.controls.spec.LifecycleMode.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
@@ -26,17 +27,17 @@ import space.kscience.dataforge.names.parseAsName
 import space.kscience.dataforge.names.plus
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixFormat
+import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.send
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Categoriзation of errors by severity:
+ * Categorization of errors by severity:
  * - [CRITICAL] means the error requires strong reaction.
  * - [NON_CRITICAL] means the system can continue with partial functionality or just log a warning.
  */
@@ -116,6 +117,137 @@ public class DeviceStateTransitionException(
     cause: Throwable? = null,
     category: DeviceErrorCategory = DeviceErrorCategory.CRITICAL
 ) : DeviceException(message, cause, category)
+
+/**
+ * Common interface for message bus implementations.
+ * Provides abstraction over different messaging systems.
+ */
+public interface MessageBus {
+    /**
+     * Subscribes to messages matching the given filter
+     */
+    public fun subscribe(filter: DeviceMessageFilter): kotlinx.coroutines.flow.Flow<DeviceMessage>
+
+    /**
+     * Publishes a message to the bus
+     */
+    public suspend fun publish(message: DeviceMessage)
+
+    /**
+     * Closes the message bus connection
+     */
+    public fun close()
+}
+
+/**
+ * Filter for device messages
+ */
+@Serializable
+public data class DeviceMessageFilter(
+    val messageType: Collection<String>? = null,
+    val sourceDevice: Collection<Name>? = null,
+    val targetDevice: Collection<Name?>? = null,
+) {
+    /**
+     * Checks if the message matches this filter
+     */
+    public fun accepts(message: DeviceMessage): Boolean =
+        messageType?.contains(message.messageType) ?: true &&
+                sourceDevice?.contains(message.sourceDevice) ?: true &&
+                targetDevice?.contains(message.targetDevice) ?: true
+
+    public companion object {
+        public val ALL: DeviceMessageFilter = DeviceMessageFilter()
+    }
+}
+
+/**
+ * Extension function to create info message from companion
+ */
+public fun DeviceMessage.Companion.info(
+    message: String,
+    sourceDevice: Name,
+    targetDevice: Name? = null,
+    data: Meta? = null,
+    comment: String? = null
+): DeviceLogMessage = DeviceLogMessage(
+    message = message,
+    data = data,
+    sourceDevice = sourceDevice,
+    targetDevice = targetDevice,
+    comment = comment
+)
+
+/**
+ * Extension property to get message type from SerialName annotation
+ */
+public val DeviceMessage.messageType: String
+    get() = when (this) {
+        is PropertyChangedMessage -> "property.changed"
+        is PropertySetMessage -> "property.set"
+        is PropertyGetMessage -> "property.get"
+        is GetDescriptionMessage -> "description.get"
+        is DescriptionMessage -> "description"
+        is ActionExecuteMessage -> "action.execute"
+        is ActionResultMessage -> "action.result"
+        is BinaryNotificationMessage -> "binary.notification"
+        is EmptyDeviceMessage -> "empty"
+        is DeviceLogMessage -> "log"
+        is SystemLogMessage -> "system.log"
+        is DeviceErrorMessage -> "error"
+        is DeviceLifeCycleMessage -> "lifecycle"
+        else -> this::class.simpleName ?: "unknown"
+    }
+
+/**
+ * Adapter implementing MessageBus with MagixEndpoint
+ */
+public class MagixMessageBus(
+    private val magixEndpoint: MagixEndpoint,
+    private val sourceEndpoint: String
+) : MessageBus {
+
+    private val deviceMessageFormat = MagixFormat(
+        DeviceMessage.serializer(),
+        setOf("controls.device.message")
+    )
+
+    override fun subscribe(filter: DeviceMessageFilter): Flow<DeviceMessage> {
+        val magixFilter = MagixMessageFilter(
+            format = setOf(deviceMessageFormat.defaultFormat)
+        )
+
+        return kotlinx.coroutines.flow.flow {
+            magixEndpoint.subscribe(magixFilter).collect { magixMessage ->
+                try {
+                    val payload = magixMessage.payload
+                    val deviceMessage = MagixEndpoint.magixJson.decodeFromJsonElement(
+                        DeviceMessage.serializer(),
+                        payload
+                    )
+
+                    if (filter.accepts(deviceMessage)) {
+                        emit(deviceMessage)
+                    }
+                } catch (e: Exception) {
+
+                }
+            }
+        }
+    }
+
+    override suspend fun publish(message: DeviceMessage) {
+        magixEndpoint.send(
+            deviceMessageFormat,
+            message,
+            sourceEndpoint
+        )
+    }
+
+    override fun close() {
+        magixEndpoint.close()
+    }
+}
 
 /**
  * Magix message format definitions for device management
@@ -450,15 +582,58 @@ private class TransactionContextElement(val context: TransactionContext) : Corou
 }
 
 /**
- * Implementation of [TransactionManager] with rollback support based on Magix.
- *
- * @param magixEndpoint The [MagixEndpoint] to publish transaction events.
- * @param sourceEndpoint The name of this endpoint for Magix messages.
- * @param logger The logger for transaction operations.
+ * Implementation of TransactionManager that uses MagixEndpoint to broadcast transaction events
  */
 public class MagixTransactionManager(
-    private val magixEndpoint: MagixEndpoint,
-    private val sourceEndpoint: String,
+    private val messageBus: MessageBus,
+    private val logger: Logger = DefaultLogManager()
+) : TransactionManager {
+    private val txManager = SimpleTransactionManager(logger)
+    private val transactionStarted = "transaction.started"
+    private val transactionCommitted = "transaction.committed"
+    private val transactionRolledback = "transaction.rolled_back"
+
+    override suspend fun <T> withTransaction(block: suspend (TransactionContext) -> T): T {
+        return txManager.withTransaction { context ->
+            messageBus.publish(DeviceMessage.info(
+                "Transaction ${context.id} started",
+                context.id.parseAsName()
+            ))
+
+            try {
+                val result = block(context)
+
+                messageBus.publish(DeviceMessage.info(
+                    "Transaction ${context.id} committed",
+                    context.id.parseAsName()
+                ))
+
+                result
+            } catch (ex: Exception) {
+                messageBus.publish(DeviceMessage.error(
+                    ex,
+                    context.id.parseAsName(),
+                    "Transaction ${context.id} rolled back: ${ex.message}".parseAsName()
+                ))
+
+                throw ex
+            }
+        }
+    }
+
+    override suspend fun recordAction(action: ReversibleAction) {
+        txManager.recordAction(action)
+    }
+
+    override suspend fun isInTransaction(): Boolean {
+        return txManager.isInTransaction()
+    }
+}
+
+/**
+ * Simple implementation of TransactionManager
+ */
+public class SimpleTransactionManager(
     private val logger: Logger = DefaultLogManager()
 ) : TransactionManager {
     private val transactionLock = Mutex()
@@ -481,22 +656,13 @@ public class MagixTransactionManager(
             }
 
             val contextWithTransaction = currentContext + TransactionContextElement(txContext)
-            magixEndpoint.send(
-                DeviceControlsFormats.TRANSACTION_FORMAT,
-                TransactionPayload.TransactionStarted(txId),
-                sourceEndpoint
-            )
+            logger.info { "Transaction $txId started" }
 
             val result = withContext(contextWithTransaction) {
                 block(txContext)
             }
 
-            magixEndpoint.send(
-                DeviceControlsFormats.TRANSACTION_FORMAT,
-                TransactionPayload.TransactionCommitted(txId),
-                sourceEndpoint
-            )
-
+            logger.info { "Transaction $txId committed" }
             return result
         } catch (ex: Exception) {
             logger.error(ex) { "Transaction $txId failed, rolling back." }
@@ -518,16 +684,6 @@ public class MagixTransactionManager(
                     }
                 }
             }
-
-            magixEndpoint.send(
-                DeviceControlsFormats.TRANSACTION_FORMAT,
-                TransactionPayload.TransactionRolledBack(
-                    txId,
-                    ex.message,
-                    ex::class.simpleName
-                ),
-                sourceEndpoint
-            )
 
             if (rollbackError != null) {
                 ex.addSuppressed(Exception("Errors during rollback", rollbackError))
@@ -560,12 +716,10 @@ public class MagixTransactionManager(
  *
  * - [LINKED] Child starts/stops with the parent.
  * - [INDEPENDENT] Child must be manually started/stopped, independent of parent lifecycle.
- * - [LAZY] Child is created but only starts on explicit request.
  */
 public enum class LifecycleMode {
     LINKED,
-    INDEPENDENT,
-    LAZY
+    INDEPENDENT
 }
 
 /**
@@ -637,10 +791,7 @@ public enum class ChildDeviceErrorHandler {
     STOP_PARENT,
 
     /** Propagate the error upward, potentially cancelling the parent coroutine. */
-    PROPAGATE,
-
-    /** Use a custom strategy defined in [DeviceHubManager.onCustomError]. */
-    CUSTOM
+    PROPAGATE
 }
 
 /**
@@ -650,14 +801,12 @@ public enum class ChildDeviceErrorHandler {
  * @property delayBetweenAttempts Base delay between restart attempts.
  * @property resetOnSuccess Whether to reset the attempt counter on successful start.
  * @property strategy The [RestartStrategy] for calculating delay.
- * @property circuitBreaker Optional circuit breaker configuration.
  */
 public data class RestartPolicy(
     val maxAttempts: Int = Int.MAX_VALUE,
     val delayBetweenAttempts: Duration = Duration.ZERO,
     val resetOnSuccess: Boolean = true,
-    val strategy: RestartStrategy = RestartStrategy.LINEAR,
-    val circuitBreaker: CircuitBreakerConfig? = null
+    val strategy: RestartStrategy = RestartStrategy.LINEAR
 ) {
     init {
         require(maxAttempts > 0) { "maxAttempts must be positive" }
@@ -676,14 +825,6 @@ public data class RestartPolicy(
 }
 
 /**
- * Circuit breaker configuration for error handling.
- */
-public data class CircuitBreakerConfig(
-    val failureThreshold: Int = 5,
-    val resetTimeout: Duration = 60.seconds
-)
-
-/**
  * Enum defining how delays are calculated for restart attempts.
  */
 public enum class RestartStrategy {
@@ -691,10 +832,7 @@ public enum class RestartStrategy {
     LINEAR,
 
     /** Exponential backoff, e.g., delay * 2^(attempt-1). */
-    EXPONENTIAL_BACKOFF,
-
-    /** Placeholder for custom strategies (requires override). */
-    CUSTOM
+    EXPONENTIAL_BACKOFF
 }
 
 /**
@@ -741,19 +879,6 @@ public data class DeviceLifecycleConfig(
 }
 
 /**
- * Functional interface to apply external configurations to a [DeviceLifecycleConfigBuilder].
- */
-public fun interface ExternalConfigApplier {
-    /**
-     * Applies configuration to the [builder] for the device named [deviceName].
-     *
-     * @param builder The [DeviceLifecycleConfigBuilder] to configure.
-     * @param deviceName The device's [Name].
-     */
-    public suspend fun applyConfig(builder: DeviceLifecycleConfigBuilder, deviceName: Name)
-}
-
-/**
  * Builder class for constructing [DeviceLifecycleConfig] instances.
  */
 public class DeviceLifecycleConfigBuilder {
@@ -795,13 +920,6 @@ public fun DeviceLifecycleConfigBuilder.linked() {
  */
 public fun DeviceLifecycleConfigBuilder.independent() {
     lifecycleMode = LifecycleMode.INDEPENDENT
-}
-
-/**
- * Shortcut to set [DeviceLifecycleConfigBuilder.lifecycleMode] to [LifecycleMode.LAZY].
- */
-public fun DeviceLifecycleConfigBuilder.lazy() {
-    lifecycleMode = LifecycleMode.LAZY
 }
 
 /**
@@ -947,42 +1065,6 @@ public interface CompositeDeviceSpec<D : ConfigurableCompositeControlComponent<D
     public fun <I, O> registerAction(deviceAction: DeviceActionSpec<D, I, O>): DeviceActionSpec<D, I, O>
 
     /**
-     * Creates a [PropertyDescriptor] internally.
-     *
-     * @param propertyName The name of the property.
-     * @param converter The meta converter for the property.
-     * @param mutable Indicates if the property is mutable.
-     * @param property The [KProperty] reference.
-     * @param descriptorBuilder A builder function to further configure the descriptor.
-     * @return The created [PropertyDescriptor].
-     */
-    public fun createPropertyDescriptorInternal(
-        propertyName: String,
-        converter: MetaConverter<*>,
-        mutable: Boolean,
-        property: KProperty<*>,
-        descriptorBuilder: PropertyDescriptorBuilder.() -> Unit
-    ): PropertyDescriptor
-
-    /**
-     * Creates an [ActionDescriptor].
-     *
-     * @param actionName The name of the action.
-     * @param inputConverter The meta converter for the input.
-     * @param outputConverter The meta converter for the output.
-     * @param property The [KProperty] reference.
-     * @param descriptorBuilder A builder function to further configure the descriptor.
-     * @return The created [ActionDescriptor].
-     */
-    public fun createActionDescriptor(
-        actionName: String,
-        inputConverter: MetaConverter<*>,
-        outputConverter: MetaConverter<*>,
-        property: KProperty<*>,
-        descriptorBuilder: ActionDescriptorBuilder.() -> Unit
-    ): ActionDescriptor
-
-    /**
      * Declares a read-only property with the given [converter].
      *
      * @param converter The meta converter for the property.
@@ -1087,11 +1169,13 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         return deviceAction
     }
 
-    override fun createPropertyDescriptorInternal(
+    /**
+     * Creates a property descriptor
+     */
+    private fun createPropertyDescriptor(
         propertyName: String,
         converter: MetaConverter<*>,
         mutable: Boolean,
-        property: KProperty<*>,
         descriptorBuilder: PropertyDescriptorBuilder.() -> Unit
     ): PropertyDescriptor {
         return propertyDescriptor(propertyName) {
@@ -1101,11 +1185,13 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         }
     }
 
-    override fun createActionDescriptor(
+    /**
+     * Creates an action descriptor
+     */
+    private fun createActionDescriptor(
         actionName: String,
         inputConverter: MetaConverter<*>,
         outputConverter: MetaConverter<*>,
-        property: KProperty<*>,
         descriptorBuilder: ActionDescriptorBuilder.() -> Unit
     ): ActionDescriptor {
         return actionDescriptor(actionName) {
@@ -1123,8 +1209,8 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
     ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _, property ->
             val propertyName = name ?: property.name
-            val descriptor = createPropertyDescriptorInternal(
-                propertyName, converter, mutable = false, property = property, descriptorBuilder = descriptorBuilder
+            val descriptor = createPropertyDescriptor(
+                propertyName, converter, mutable = false, descriptorBuilder
             )
             val devProp = registerProperty(object : DevicePropertySpec<D, T> {
                 override val descriptor: PropertyDescriptor = descriptor
@@ -1144,8 +1230,8 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
     ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, MutableDevicePropertySpec<D, T>>> =
         PropertyDelegateProvider { _, property ->
             val propertyName = name ?: property.name
-            val descriptor = createPropertyDescriptorInternal(
-                propertyName, converter, mutable = true, property = property, descriptorBuilder = descriptorBuilder
+            val descriptor = createPropertyDescriptor(
+                propertyName, converter, mutable = true, descriptorBuilder
             )
             val devProp = registerProperty(object : MutableDevicePropertySpec<D, T> {
                 override val descriptor: PropertyDescriptor = descriptor
@@ -1206,7 +1292,9 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
     ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, I, O>>> =
         PropertyDelegateProvider { _, property ->
             val actionName = name ?: property.name
-            val descriptor = createActionDescriptor(actionName, inputConverter, outputConverter, property, descriptorBuilder)
+            val descriptor = createActionDescriptor(
+                actionName, inputConverter, outputConverter, descriptorBuilder
+            )
             val devAction = registerAction(object : DeviceActionSpec<D, I, O> {
                 override val descriptor: ActionDescriptor = descriptor
                 override val inputConverter: MetaConverter<I> = inputConverter
@@ -1251,6 +1339,7 @@ public fun <D : ConfigurableCompositeControlComponent<D>> CompositeControlCompon
 ): PropertyDelegateProvider<CompositeDeviceSpec<D>, ReadOnlyProperty<CompositeDeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
     action(MetaConverter.meta, MetaConverter.meta, descriptorBuilder, name) { execute(it) }
 
+
 /**
  * Registry for managing device lifecycle and operations.
  * Maintains a registry of devices and handles their lifecycle events.
@@ -1259,7 +1348,19 @@ public class DeviceRegistry(
     private val context: Context
 ) {
     private val childLock = Mutex()
-    private val childrenJobs = mutableMapOf<Name, DeviceHubManager.ChildJob>()
+    private val childrenJobs = mutableMapOf<Name, DeviceJob>()
+
+    /**
+     * Represents a registered device with its configuration and job.
+     */
+    public data class DeviceJob(
+        val device: Device,
+        val collectorJob: Job,
+        val config: DeviceLifecycleConfig,
+        val meta: Meta? = null
+    ) {
+        val lifecycleMode: LifecycleMode get() = config.lifecycleMode
+    }
 
     /**
      * Snapshot of current devices (not guaranteed to be consistent without a lock).
@@ -1284,14 +1385,14 @@ public class DeviceRegistry(
      * @param device The device instance.
      * @param config The lifecycle configuration.
      * @param meta Optional metadata.
-     * @return The [DeviceHubManager.ChildJob] that was created.
+     * @return The [DeviceJob] that was created.
      */
     public suspend fun registerDevice(
         name: Name,
         device: Device,
         config: DeviceLifecycleConfig,
         meta: Meta? = null
-    ): DeviceHubManager.ChildJob = childLock.withLock {
+    ): DeviceJob = childLock.withLock {
         val scope = config.coroutineScope ?: CoroutineScope(
             config.dispatcher ?: (Dispatchers.Default +
                     SupervisorJob() +
@@ -1302,32 +1403,34 @@ public class DeviceRegistry(
             try {
                 device.messageFlow.collect { msg ->
                     val wrapped = msg.changeSource { name.plus(it) }
+                    TODO()
                 }
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
+                context.logger.error(ex) { "Error collecting messages from device $name" }
                 throw ex
             }
         }
 
-        val childJob = DeviceHubManager.ChildJob(
+        val deviceJob = DeviceJob(
             device = device,
             collectorJob = collectorJob,
             config = config,
             meta = meta
         )
 
-        childrenJobs[name] = childJob
-        return childJob
+        childrenJobs[name] = deviceJob
+        return deviceJob
     }
 
     /**
-     * Gets a child device by name.
+     * Gets a device job by name.
      *
      * @param name The name of the device.
-     * @return The [DeviceHubManager.ChildJob] or null if not found.
+     * @return The [DeviceJob] or null if not found.
      */
-    public suspend fun getChildJob(name: Name): DeviceHubManager.ChildJob? = childLock.withLock {
+    public suspend fun getDeviceJob(name: Name): DeviceJob? = childLock.withLock {
         return childrenJobs[name]
     }
 
@@ -1335,9 +1438,9 @@ public class DeviceRegistry(
      * Removes a device from the registry.
      *
      * @param name The name of the device.
-     * @return The removed [DeviceHubManager.ChildJob] or null if not found.
+     * @return The removed [DeviceJob] or null if not found.
      */
-    public suspend fun removeDevice(name: Name): DeviceHubManager.ChildJob? = childLock.withLock {
+    public suspend fun removeDevice(name: Name): DeviceJob? = childLock.withLock {
         return childrenJobs.remove(name)
     }
 
@@ -1345,9 +1448,9 @@ public class DeviceRegistry(
      * Updates a device in the registry.
      *
      * @param name The name of the device.
-     * @param job The new [DeviceHubManager.ChildJob].
+     * @param job The new [DeviceJob].
      */
-    public suspend fun updateDevice(name: Name, job: DeviceHubManager.ChildJob): Unit = childLock.withLock {
+    public suspend fun updateDevice(name: Name, job: DeviceJob): Unit = childLock.withLock {
         childrenJobs[name] = job
     }
 
@@ -1380,332 +1483,32 @@ public class DeviceRegistry(
 }
 
 /**
- * Abstract base class for Device Hub managers.
- * Provides core functionality for managing devices, handling errors,
- * and coordinating device lifecycle operations.
+ * Hub manager for coordinating devices and their lifecycle.
  */
-public abstract class DeviceHubManager(
+public class DeviceHubManager(
     public override val context: Context,
-    public val magixEndpoint: MagixEndpoint,
-    public val sourceEndpoint: String
-): AbstractPlugin() {
-    /**
-     * Represents a running child device along with its job, configuration, and metadata.
-     */
-    public data class ChildJob(
-        val device: Device,
-        val collectorJob: Job,
-        val config: DeviceLifecycleConfig,
-        val meta: Meta? = null
-    ) {
-        val lifecycleMode: LifecycleMode get() = config.lifecycleMode
-    }
+    private val messageBus: MessageBus
+) : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
 
-    public companion object : PluginFactory<DeviceHubManager>{
-        override val tag: PluginTag
-            get() = TODO("Not yet implemented")
+    public companion object : PluginFactory<DeviceHubManager> {
+        override val tag: PluginTag = PluginTag("controls.device.hub", PluginTag.DATAFORGE_GROUP)
 
-        override fun build(
-            context: Context,
-            meta: Meta,
-        ): DeviceHubManager {
-            TODO("Not yet implemented")
-        }
+        override fun build(context: Context, meta: Meta): DeviceHubManager {
+            val sourceEndpoint = meta["sourceEndpoint"].string ?: "device.hub"
 
-    }
+            val magixEndpoint = context.plugins
+                .filterIsInstance<MagixEndpoint>()
+                .firstOrNull() ?: throw IllegalStateException(
+                "No MagixEndpoint found in context. Please add one before creating DeviceHubManager."
+            )
 
-    /**
-     * Returns a map of all registered devices.
-     */
-    public abstract val devices: Map<Name, Device>
+            val messageBus = MagixMessageBus(magixEndpoint, sourceEndpoint)
 
-    /**
-     * A [TransactionManager] for transactional operations.
-     */
-    public abstract val transactionManager: TransactionManager
-
-    /**
-     * Global function for launching coroutines.
-     *
-     * @param block The suspend function to execute.
-     * @return The launched [Job].
-     */
-    public abstract fun launchGlobal(block: suspend CoroutineScope.() -> Unit): Job
-
-    /**
-     * Called when an error is thrown from a child's coroutine.
-     *
-     * @param ex The thrown exception.
-     * @param childName The name of the child device.
-     * @param config The lifecycle configuration of the child device.
-     */
-    public abstract suspend fun onChildErrorCaught(ex: Throwable, childName: Name, config: DeviceLifecycleConfig)
-
-    /**
-     * Called if a child error triggers [ChildDeviceErrorHandler.STOP_PARENT].
-     *
-     * @param ex The exception that caused the stop.
-     * @param childName The name of the child device.
-     */
-    public abstract suspend fun onParentStopRequested(ex: Throwable, childName: Name)
-
-    /**
-     * Called if [ChildDeviceErrorHandler.CUSTOM] is used.
-     *
-     * @param ex The exception that occurred.
-     * @param childName The name of the child device.
-     * @param config The lifecycle configuration for the child device.
-     */
-    public abstract suspend fun onCustomError(ex: Throwable, childName: Name, config: DeviceLifecycleConfig)
-
-    /**
-     * Called when a device times out while starting.
-     *
-     * @param deviceName The name of the device.
-     * @param config The lifecycle configuration for the device.
-     */
-    public abstract suspend fun onStartTimeout(deviceName: Name, config: DeviceLifecycleConfig)
-
-    /**
-     * Called when a device times out while stopping.
-     *
-     * @param deviceName The name of the device.
-     * @param config The lifecycle configuration for the device.
-     */
-    public abstract suspend fun onStopTimeout(deviceName: Name, config: DeviceLifecycleConfig)
-
-    /**
-     * Performs a health check on a device.
-     *
-     * @param childJob The [ChildJob] representing the device.
-     */
-    public abstract suspend fun checkHealth(childJob: ChildJob)
-
-    /**
-     * Attaches a device to the manager.
-     *
-     * @param name The unique name of the device.
-     * @param device The [Device] instance to attach.
-     * @param config The lifecycle configuration for the device.
-     * @param meta Optional metadata for the device.
-     * @param startMode Determines whether to auto-start the device.
-     */
-    public abstract suspend fun attachDevice(
-        name: Name,
-        device: Device,
-        config: DeviceLifecycleConfig,
-        meta: Meta? = null,
-        startMode: StartMode = StartMode.NONE
-    )
-
-    /**
-     * Detaches a device from the manager.
-     *
-     * @param name The unique name of the device.
-     * @param waitStop If true, waits for the device to stop.
-     */
-    public abstract suspend fun detachDevice(name: Name, waitStop: Boolean = false)
-
-    /**
-     * Restarts a device.
-     *
-     * @param name The unique name of the device to restart.
-     */
-    public abstract suspend fun restartDevice(name: Name)
-
-    /**
-     * Changes the lifecycle mode for a device.
-     *
-     * @param name The unique name of the device.
-     * @param newMode The new lifecycle mode.
-     */
-    public abstract suspend fun changeLifecycleMode(name: Name, newMode: LifecycleMode)
-
-    /**
-     * Replaces a device with a new one.
-     *
-     * @param name The unique name of the device to replace.
-     * @param newDevice The new [Device] instance.
-     * @param config The new lifecycle configuration.
-     * @param meta Optional metadata.
-     */
-    public abstract suspend fun hotSwapDevice(
-        name: Name,
-        newDevice: Device,
-        config: DeviceLifecycleConfig,
-        meta: Meta? = null
-    )
-
-    /**
-     * Renames a device.
-     *
-     * @param oldName The current name of the device.
-     * @param newName The new name for the device.
-     */
-    public abstract suspend fun renameDevice(oldName: Name, newName: Name)
-
-    /**
-     * Starts multiple devices transactionally.
-     *
-     * @param deviceNames The list of device names to start.
-     * @return `true` if all devices started successfully, `false` otherwise.
-     */
-    public abstract suspend fun startDevicesBatch(deviceNames: List<Name>): Boolean
-
-    /**
-     * Stops multiple devices transactionally.
-     *
-     * @param deviceNames The list of device names to stop.
-     * @return `true` if all devices were stopped successfully, `false` otherwise.
-     */
-    public abstract suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean
-
-    /**
-     * Runs health checks on all devices.
-     */
-    public abstract suspend fun runHealthChecks(): Map<Name, Boolean>
-
-    /**
-     * Shuts down the manager.
-     */
-    public abstract suspend fun shutdown()
-
-    /**
-     * Checks if a device exists.
-     *
-     * @param name The device name.
-     * @return True if the device exists, false otherwise.
-     */
-    public abstract suspend fun deviceExists(name: Name): Boolean
-
-    /**
-     * Gets all device names.
-     *
-     * @return A set of all device names.
-     */
-    public abstract suspend fun getAllDeviceNames(): Set<Name>
-
-    /**
-     * Helper for starting a device.
-     *
-     * @param name The device name.
-     * @param config The lifecycle configuration.
-     * @param device The device instance.
-     */
-    protected abstract suspend fun doStartDevice(name: Name, config: DeviceLifecycleConfig, device: Device)
-
-    /**
-     * Publishes a system log message through Magix.
-     */
-    public suspend fun publishSystemLog(
-        message: String,
-        deviceName: String? = null,
-        severity: String = "INFO",
-        details: Map<String, String> = emptyMap()
-    ) {
-        magixEndpoint.send(
-            DeviceControlsFormats.SYSTEM_LOG_FORMAT,
-            SystemLogPayload.LogMessage(
-                message = message,
-                deviceName = deviceName,
-                severity = severity,
-                details = details
-            ),
-            sourceEndpoint
-        )
-    }
-
-    /**
-     * Publishes a device state change event through Magix.
-     */
-    public suspend fun publishDeviceState(payload: DeviceStatePayload) {
-        magixEndpoint.send(
-            DeviceControlsFormats.DEVICE_STATE_FORMAT,
-            payload,
-            sourceEndpoint
-        )
-    }
-
-    /**
-     * Publishes a metric through Magix.
-     */
-    public suspend fun publishMetric(name: String, value: Double, tags: Map<String, String> = emptyMap()) {
-        magixEndpoint.send(
-            DeviceControlsFormats.METRICS_FORMAT,
-            MetricPayload.MetricValue(name, value, tags),
-            sourceEndpoint
-        )
-    }
-
-    /**
-     * Increments a counter metric through Magix.
-     */
-    public suspend fun incrementCounter(name: String, tags: Map<String, String> = emptyMap()) {
-        magixEndpoint.send(
-            DeviceControlsFormats.METRICS_FORMAT,
-            MetricPayload.MetricCounter(name, 1.0, tags),
-            sourceEndpoint
-        )
-    }
-
-    /**
-     * Records a duration metric through Magix.
-     */
-    public suspend fun recordDuration(name: String, duration: Duration, tags: Map<String, String> = emptyMap()) {
-        magixEndpoint.send(
-            DeviceControlsFormats.METRICS_FORMAT,
-            MetricPayload.MetricDuration(name, duration.inWholeMilliseconds, tags),
-            sourceEndpoint
-        )
-    }
-}
-
-/**
- * Standard implementation of [DeviceHubManager] with Magix.
- */
-public class MagixDeviceHubManager(
-    context: Context,
-    magixEndpoint: MagixEndpoint,
-    sourceEndpoint: String,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-    resourceInfo: SystemResourceInfo = SystemResourceInfo(context)
-) : DeviceHubManager(context, magixEndpoint, sourceEndpoint) {
-
-    override val tag: PluginTag get() = TODO()
-
-    public companion object : PluginFactory<MagixDeviceHubManager> {
-        override val tag: PluginTag = PluginTag("controls.device.TODO()", PluginTag.DATAFORGE_GROUP)
-
-        override fun build(context: Context, meta: Meta): MagixDeviceHubManager {
-
-            return TODO()
+            return DeviceHubManager(context, messageBus)
         }
     }
-
-    /**
-     * Global exception handler for all coroutines in this manager.
-     */
-    private val exceptionHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
-        context.logger.error(ex) { "Unhandled exception in global scope (DeviceHubManager)" }
-    }
-
-    /**
-     * SupervisorJob ensures that child coroutines are isolated.
-     */
-    private val parentJob: Job = SupervisorJob()
-
-    /**
-     * Flag indicating if this manager is active
-     */
-    private val isActive = atomic(true)
-
-    /**
-     * Dispatcher for controlled concurrency
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val limitedDispatcher = dispatcher.limitedParallelism(resourceInfo.getConcurrencyLevel())
 
     /**
      * Registry for managing devices
@@ -1713,253 +1516,107 @@ public class MagixDeviceHubManager(
     private val deviceRegistry = DeviceRegistry(context)
 
     /**
-     * Transaction manager for wrapping critical operations.
+     * Transaction manager for wrapping critical operations
      */
-    override val transactionManager: TransactionManager = MagixTransactionManager(magixEndpoint, sourceEndpoint, context.logger)
+    public val transactionManager: TransactionManager = MagixTransactionManager(messageBus, context.logger)
 
     /**
-     * Returns a map of all registered devices.
+     * Global exception handler for all coroutines in this manager
      */
-    override val devices: Map<Name, Device>
+    private val exceptionHandler = CoroutineExceptionHandler { _, ex ->
+        context.logger.error(ex) { "Unhandled exception in DeviceHubManager scope" }
+    }
+
+    /**
+     * SupervisorJob ensures that child coroutines are isolated
+     */
+    private val parentJob = SupervisorJob()
+
+    /**
+     * Flag indicating if this manager is active
+     */
+    private val isActive = atomic(true)
+
+    /**
+     * Default dispatcher for controlled concurrency
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val defaultDispatcher = Dispatchers.Default.limitedParallelism(
+        context.deviceManagerConfig.defaultConcurrencyLevel
+    )
+
+    /**
+     * Global scope for launching coroutines
+     */
+    private val managerScope = CoroutineScope(
+        parentJob + defaultDispatcher + exceptionHandler + CoroutineName("DeviceHubManager")
+    )
+
+    /**
+     * Map of all registered devices
+     */
+    public val devices: Map<Name, Device>
         get() = deviceRegistry.devices
 
     /**
-     * Global function for launching coroutines with the combined context.
-     *
-     * @param block The suspend function to execute.
-     * @return The launched [Job].
+     * Launches a coroutine in the manager's scope
      */
-    override fun launchGlobal(block: suspend CoroutineScope.() -> Unit): Job =
-        CoroutineScope(parentJob + limitedDispatcher + exceptionHandler + CoroutineName("DeviceHub")).launch { block() }
+    public fun launchGlobal(block: suspend CoroutineScope.() -> Unit): Job =
+        managerScope.launch { block() }
 
     /**
-     * Called when an error is thrown from a child's coroutine.
-     *
-     * @param ex The thrown exception.
-     * @param childName The name of the child device.
-     * @param config The lifecycle configuration of the child device.
+     * Attaches a device to the manager
      */
-    override suspend fun onChildErrorCaught(ex: Throwable, childName: Name, config: DeviceLifecycleConfig) {
-        val category = if (ex is DeviceException) ex.category else DeviceErrorCategory.CRITICAL
-
-        publishMetric("device.error", 1.0, mapOf("device" to childName.toString(), "category" to category.toString()))
-
-        when (category) {
-            DeviceErrorCategory.CRITICAL -> {
-                context.logger.error(ex) {
-                    "CRITICAL error in child device $childName with policy ${config.onError}"
-                }
-
-                val errorMessage = DeviceMessage.error(ex, childName)
-
-                publishDeviceState(DeviceStatePayload.DeviceFailed(
-                    childName.toString(),
-                    ex.message ?: "Unknown error",
-                    ex::class.simpleName
-                ))
-
-                when (config.onError) {
-                    ChildDeviceErrorHandler.IGNORE -> {
-                        publishMetric("device.error.ignored", 1.0, mapOf("device" to childName.toString()))
-                    }
-                    ChildDeviceErrorHandler.RESTART -> {
-                        launchGlobal {
-                            restartDevice(childName)
-                        }
-                    }
-                    ChildDeviceErrorHandler.STOP_PARENT -> {
-                        publishMetric("device.error.stop_parent", 1.0, mapOf("device" to childName.toString()))
-                        onParentStopRequested(ex, childName)
-                    }
-                    ChildDeviceErrorHandler.PROPAGATE -> {
-                        publishMetric("device.error.propagated", 1.0, mapOf("device" to childName.toString()))
-                        throw ex
-                    }
-                    ChildDeviceErrorHandler.CUSTOM -> {
-                        publishMetric("device.error.custom_handler", 1.0, mapOf("device" to childName.toString()))
-                        onCustomError(ex, childName, config)
-                    }
-                }
-            }
-
-            DeviceErrorCategory.NON_CRITICAL -> {
-                context.logger.warn {
-                    "NON_CRITICAL error in child device $childName, continuing with policy ${config.onError}"
-                }
-                publishMetric("device.error.non_critical", 1.0, mapOf("device" to childName.toString()))
-            }
-        }
-    }
-
-    /**
-     * Called if a child error triggers [ChildDeviceErrorHandler.STOP_PARENT], indicating the parent must stop.
-     *
-     * @param ex The exception that caused the stop.
-     * @param childName The name of the child device.
-     */
-    override suspend fun onParentStopRequested(ex: Throwable, childName: Name) {
-        context.logger.error(ex) { "Stopping parent due to error in child $childName" }
-        withContext(NonCancellable) {
-            shutdown()
-        }
-    }
-
-    /**
-     * Called if [ChildDeviceErrorHandler.CUSTOM] is used.
-     * Override to implement a custom strategy for error handling.
-     *
-     * @param ex The exception that occurred.
-     * @param childName The name of the child device.
-     * @param config The lifecycle configuration for the child device.
-     */
-    override suspend fun onCustomError(ex: Throwable, childName: Name, config: DeviceLifecycleConfig) {
-        context.logger.error(ex) { "Custom error strategy for device $childName: override onCustomError if needed." }
-    }
-
-    /**
-     * Called when a device times out while starting.
-     *
-     * @param deviceName The name of the device.
-     * @param config The lifecycle configuration for the device.
-     * @throws DeviceTimeoutException When the start timeout is reached.
-     */
-    override suspend fun onStartTimeout(deviceName: Name, config: DeviceLifecycleConfig) {
-        val msg = "Timeout while starting $deviceName."
-        context.logger.error { msg }
-        publishMetric("device.start.timeout", 1.0, mapOf("device" to deviceName.toString()))
-        throw DeviceTimeoutException(msg)
-    }
-
-    /**
-     * Called when a device times out while stopping.
-     *
-     * @param deviceName The name of the device.
-     * @param config The lifecycle configuration for the device.
-     */
-    override suspend fun onStopTimeout(deviceName: Name, config: DeviceLifecycleConfig) {
-        context.logger.warn { "Timeout while stopping $deviceName." }
-        publishMetric("device.stop.timeout", 1.0, mapOf("device" to deviceName.toString()))
-    }
-
-    /**
-     * Performs a health check on the given child device.
-     *
-     * @param childJob The [ChildJob] representing the device.
-     */
-    override suspend fun checkHealth(childJob: ChildJob) {
-        val childName = childJob.device.id.parseAsName()
-        val healthChecker = childJob.config.healthChecker ?: return
-
-        val startTime = Clock.System.now()
-        try {
-            val isHealthy = healthChecker.isHealthy(childJob.device)
-            val endTime = Clock.System.now()
-            val duration = endTime - startTime
-
-            recordDuration("device.health.check.duration", duration,
-                mapOf("device" to childName.toString()))
-
-            if (isHealthy) {
-                incrementCounter("device.health.check.success",
-                    mapOf("device" to childName.toString()))
-            } else {
-                incrementCounter("device.health.check.failure",
-                    mapOf("device" to childName.toString()))
-
-                if (healthChecker is HealthCheckerImpl) {
-                    val report = healthChecker.getHealthReport(childJob.device)
-                    for ((key, value) in report.metrics) {
-                        publishMetric("device.health.$key", value,
-                            mapOf("device" to childName.toString()))
-                    }
-                }
-
-                publishDeviceState(DeviceStatePayload.DeviceFailed(
-                    childName.toString(),
-                    "Health check failed",
-                    "DeviceConnectionException"
-                ))
-
-                if (childJob.config.onError == ChildDeviceErrorHandler.RESTART) {
-                    restartDevice(childName)
-                }
-            }
-        } catch (ex: Exception) {
-            context.logger.error(ex) { "Error during health check for device $childName" }
-            incrementCounter("device.health.check.error",
-                mapOf("device" to childName.toString()))
-            publishDeviceState(DeviceStatePayload.DeviceFailed(
-                childName.toString(),
-                ex.message ?: "Unknown error during health check",
-                ex::class.simpleName
-            ))
-        }
-    }
-
-    /**
-     * Attaches (registers) a device in the manager under the given [name], using the provided [config] and optional [meta].
-     *
-     * @param name The unique name of the device.
-     * @param device The [Device] instance to attach.
-     * @param config The lifecycle configuration for the device.
-     * @param meta Optional metadata for the device.
-     * @param startMode Determines whether to auto-start the device.
-     */
-    override suspend fun attachDevice(
+    public suspend fun attachDevice(
         name: Name,
         device: Device,
         config: DeviceLifecycleConfig,
-        meta: Meta?,
-        startMode: StartMode
+        meta: Meta? = null,
+        startMode: StartMode = StartMode.NONE
     ) {
         if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot attach device")
         }
 
-        if (await { deviceRegistry.containsDevice(name) }) {
+        if (deviceRegistry.containsDevice(name)) {
             throw DeviceConfigurationException("Device with name $name already exists")
         }
 
-        if (device.lifecycleState !in listOf(LifecycleState.INITIAL, LifecycleState.STOPPED)) {
-            throw DeviceConfigurationException("Device must be in INITIAL or STOPPED state to be attached, but was ${device.lifecycleState}")
-        }
+        val deviceJob = deviceRegistry.registerDevice(
+            name = name,
+            device = device,
+            config = config,
+            meta = meta
+        )
 
-        val childJob = await {
-            deviceRegistry.registerDevice(
-                name = name,
-                device = device,
-                config = config,
-                meta = meta
-            )
-        }
-
-        publishDeviceState(DeviceStatePayload.DeviceAdded(name.toString()))
-        publishSystemLog("Device $name attached, startMode=$startMode", name.toString())
-        publishMetric("device.attach", 1.0, mapOf("device" to name.toString(), "startMode" to startMode.toString()))
+        // Publish device added event
+        publishEvent(DeviceStatePayload.DeviceAdded(name.toString()))
+        context.logger.info { "Device $name attached with startMode=$startMode" }
 
         if (config.lifecycleMode == LifecycleMode.INDEPENDENT) return
 
         when (startMode) {
             StartMode.NONE -> Unit
-            StartMode.ASYNC -> launchGlobal { doStartDevice(name, config, device) }
-            StartMode.SYNC -> doStartDevice(name, config, device)
+            StartMode.ASYNC -> launchGlobal { startDevice(name, config, device) }
+            StartMode.SYNC -> startDevice(name, config, device)
         }
     }
 
     /**
-     * Helper that starts a device while respecting [startDelay] and [startTimeout].
-     *
-     * @param name The device name.
-     * @param config The lifecycle configuration.
-     * @param device The device instance.
+     * Starts a device
      */
-    override suspend fun doStartDevice(name: Name, config: DeviceLifecycleConfig, device: Device) {
+    private suspend fun startDevice(name: Name, config: DeviceLifecycleConfig, device: Device) {
         if (!isActive.value) {
             context.logger.warn { "DeviceHubManager is shutting down, not starting device $name" }
             return
         }
 
         val state = device.lifecycleState
+        if (state == LifecycleState.STARTED) {
+            context.logger.warn { "Device $name is already started" }
+            return
+        }
+
         if (state != LifecycleState.INITIAL && state != LifecycleState.STOPPED) {
             context.logger.warn { "Cannot start device $name because it is in state $state" }
             return
@@ -1972,292 +1629,122 @@ public class MagixDeviceHubManager(
             val startTimeout = config.startTimeout ?: context.deviceManagerConfig.defaultStartTimeout
 
             withTimeout(startTimeout) {
-                if (device.lifecycleState == LifecycleState.STARTED) {
-                    context.logger.warn { "Device $name is already started." }
-                    return@withTimeout
-                }
                 device.start()
             }
 
-            val endTime = Clock.System.now()
-            val startDuration = endTime - startTime
+            val duration = Clock.System.now() - startTime
 
-            publishDeviceState(DeviceStatePayload.DeviceStarted(name.toString()))
-            recordDuration("device.start.duration", startDuration,
-                mapOf("device" to name.toString()))
-            incrementCounter("device.start.success",
-                mapOf("device" to name.toString()))
+            publishEvent(DeviceStatePayload.DeviceStarted(name.toString()))
+            context.logger.info { "Device $name started in $duration" }
         } catch (e: TimeoutCancellationException) {
-            incrementCounter("device.start.failure",
-                mapOf("device" to name.toString(), "reason" to "timeout"))
-            onStartTimeout(name, config)
+            context.logger.error { "Timeout starting device $name" }
+            throw DeviceTimeoutException("Timeout while starting device $name", e)
         } catch (e: Exception) {
-            incrementCounter("device.start.failure",
-                mapOf("device" to name.toString(), "reason" to "error"))
             context.logger.error(e) { "Error starting device $name" }
-            publishDeviceState(DeviceStatePayload.DeviceFailed(
+            publishEvent(DeviceStatePayload.DeviceFailed(
                 name.toString(),
                 e.message ?: "Failed to start device",
-                "DeviceStartupException"
+                e::class.simpleName
             ))
-            throw e
+            throw DeviceStartupException("Failed to start device $name", e)
         }
     }
 
     /**
-     * Detaches (removes) a device from the manager by its [name].
-     * If [waitStop] is true, waits until the device has fully stopped.
-     *
-     * @param name The unique name of the device.
-     * @param waitStop If true, waits for the device to stop.
+     * Detaches a device from the manager
      */
-    override suspend fun detachDevice(name: Name, waitStop: Boolean) {
-        val childJob = await { deviceRegistry.removeDevice(name) }
+    public suspend fun detachDevice(name: Name, waitStop: Boolean = false) {
+        val deviceJob = deviceRegistry.removeDevice(name)
 
-        if (childJob != null) {
-            publishDeviceState(DeviceStatePayload.DeviceRemoved(name.toString()))
-            publishSystemLog("Device $name removed (waitStop=$waitStop)", name.toString())
-            incrementCounter("device.detach",
-                mapOf("device" to name.toString(), "waitStop" to waitStop.toString()))
+        if (deviceJob != null) {
+            publishEvent(DeviceStatePayload.DeviceRemoved(name.toString()))
+            context.logger.info { "Device $name removed (waitStop=$waitStop)" }
 
             if (waitStop) {
-                performStop(childJob)
+                stopDevice(name, deviceJob)
             } else {
-                launchGlobal { performStop(childJob) }
+                launchGlobal { stopDevice(name, deviceJob) }
             }
         }
     }
 
     /**
-     * Restarts a device, preserving its [DeviceLifecycleConfig] and [Meta].
-     * This method stops the device (if running) and relaunches it.
-     *
-     * @param name The unique name of the device to restart.
+     * Stops a device
      */
-    override suspend fun restartDevice(name: Name) {
+    private suspend fun stopDevice(name: Name, deviceJob: DeviceRegistry.DeviceJob) {
+        val timeout = deviceJob.config.stopTimeout ?: context.deviceManagerConfig.defaultStopTimeout
+
+        // Validate state transition
+        val state = deviceJob.device.lifecycleState
+        if (state != LifecycleState.STARTED) {
+            context.logger.warn { "Device $name is not in STARTED state (current: $state)" }
+            return
+        }
+
+        val startTime = Clock.System.now()
+
+        try {
+            withTimeout(timeout) {
+                deviceJob.device.stop()
+            }
+
+            val duration = Clock.System.now() - startTime
+            context.logger.info { "Device $name stopped in $duration" }
+
+        } catch (e: TimeoutCancellationException) {
+            context.logger.warn { "Timeout stopping device $name" }
+        } catch (e: Exception) {
+            context.logger.error(e) { "Error stopping device $name" }
+            throw DeviceShutdownException("Failed to stop device $name", e)
+        } finally {
+            withContext(NonCancellable) {
+                try {
+                    deviceJob.collectorJob.cancelAndJoin()
+                } catch (e: Exception) {
+                    context.logger.error(e) { "Error cancelling collector job for device $name" }
+                }
+            }
+        }
+
+        publishEvent(DeviceStatePayload.DeviceStopped(name.toString()))
+    }
+
+    /**
+     * Restarts a device
+     */
+    public suspend fun restartDevice(name: Name) {
         if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot restart device")
         }
 
-        val childJob = await { deviceRegistry.getChildJob(name) } ?:
+        val deviceJob = deviceRegistry.getDeviceJob(name) ?:
         throw DeviceConfigurationException("Device $name not found")
 
-        incrementCounter("device.restart", mapOf("device" to name.toString()))
+        context.logger.info { "Restarting device $name" }
 
-        if (childJob.device.lifecycleState == LifecycleState.STARTED) {
+        // Stop the device if started
+        if (deviceJob.device.lifecycleState == LifecycleState.STARTED) {
             try {
-                performStop(childJob)
+                stopDevice(name, deviceJob)
             } catch (e: Exception) {
                 context.logger.error(e) { "Error stopping device $name during restart" }
                 // Continue with restart even if stop failed
             }
         }
 
-        await { deviceRegistry.removeDevice(name) }
+        // Remove and re-register the device
+        deviceRegistry.removeDevice(name)
+        val newDeviceJob = deviceRegistry.registerDevice(
+            name = name,
+            device = deviceJob.device,
+            config = deviceJob.config,
+            meta = deviceJob.meta
+        )
 
-        val newChildJob = await {
-            deviceRegistry.registerDevice(
-                name = name,
-                device = childJob.device,
-                config = childJob.config,
-                meta = childJob.meta
-            )
+        // Start the device if not independent
+        if (newDeviceJob.lifecycleMode != LifecycleMode.INDEPENDENT) {
+            startDevice(name, newDeviceJob.config, newDeviceJob.device)
         }
-
-        publishSystemLog("Device $name restarted", name.toString())
-
-        if (childJob.lifecycleMode != LifecycleMode.INDEPENDENT) {
-            doStartDevice(name, childJob.config, childJob.device)
-        }
-    }
-
-    /**
-     * Changes the [LifecycleMode] for the specified device.
-     * The device is stopped and then re-attached with the new mode.
-     *
-     * @param name The unique name of the device.
-     * @param newMode The new lifecycle mode.
-     */
-    override suspend fun changeLifecycleMode(name: Name, newMode: LifecycleMode) {
-        if (!isActive.value) {
-            throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot change lifecycle mode")
-        }
-
-        val childJob = await { deviceRegistry.getChildJob(name) } ?:
-        throw DeviceConfigurationException("Device $name not found")
-
-        val newConfig = childJob.config.copy(lifecycleMode = newMode)
-
-        if (childJob.device.lifecycleState == LifecycleState.STARTED) {
-            performStop(childJob)
-        }
-
-        await { deviceRegistry.removeDevice(name) }
-
-        val newChildJob = await {
-            deviceRegistry.registerDevice(
-                name = name,
-                device = childJob.device,
-                config = newConfig,
-                meta = childJob.meta
-            )
-        }
-
-        publishSystemLog("Device $name lifecycle changed to $newMode", name.toString())
-        incrementCounter("device.lifecycle.mode.change",
-            mapOf("device" to name.toString(), "newMode" to newMode.toString()))
-
-        if (newMode != LifecycleMode.INDEPENDENT) {
-            doStartDevice(name, newConfig, childJob.device)
-        }
-    }
-
-    /**
-     * Replaces a device ("hot swap") under the same [name].
-     *
-     * @param name The unique name of the device to replace.
-     * @param newDevice The new [Device] instance.
-     * @param config The new lifecycle configuration.
-     * @param meta Optional metadata.
-     */
-    override suspend fun hotSwapDevice(
-        name: Name,
-        newDevice: Device,
-        config: DeviceLifecycleConfig,
-        meta: Meta?
-    ) {
-        if (!isActive.value) {
-            throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot hot swap device")
-        }
-
-        transactionManager.withTransaction { txContext ->
-            val oldChildJob = await { deviceRegistry.getChildJob(name) }
-
-            if (oldChildJob != null) {
-                if (oldChildJob.device.lifecycleState == LifecycleState.STARTED) {
-                    performStop(oldChildJob)
-                }
-                await { deviceRegistry.removeDevice(name) }
-
-                txContext.recordAction(object : ReversibleAction {
-                    override val id = "hot_swap_$name"
-
-                    override suspend fun reverse() {
-                        await {
-                            deviceRegistry.registerDevice(
-                                name = name,
-                                device = oldChildJob.device,
-                                config = oldChildJob.config,
-                                meta = oldChildJob.meta
-                            )
-                        }
-                    }
-                })
-            }
-
-            val newChildJob = await {
-                deviceRegistry.registerDevice(
-                    name = name,
-                    device = newDevice,
-                    config = config,
-                    meta = meta
-                )
-            }
-
-            publishSystemLog("Device $name hot-swapped", name.toString())
-            incrementCounter("device.hotswap", mapOf("device" to name.toString()))
-
-            if (config.lifecycleMode != LifecycleMode.INDEPENDENT) {
-                doStartDevice(name, config, newDevice)
-            }
-        }
-    }
-
-    /**
-     * Performs the stopping sequence:
-     * 1) Attempts to stop the device (with [stopTimeout] if specified).
-     * 2) Cancels and joins the collector job.
-     *
-     * @param childJob The [ChildJob] representing the device.
-     */
-    private suspend fun performStop(childJob: ChildJob) {
-        val timeout = childJob.config.stopTimeout ?: context.deviceManagerConfig.defaultStopTimeout
-        val deviceName = childJob.device.id.parseAsName()
-
-        // Validate state transition
-        val state = childJob.device.lifecycleState
-        if (state != LifecycleState.STARTED) {
-            context.logger.warn { "Device $deviceName is not in STARTED state (current: $state)" }
-            return
-        }
-
-        val startTime = Clock.System.now()
-        incrementCounter("device.stop.attempt", mapOf("device" to deviceName.toString()))
-
-        try {
-            withTimeout(timeout) {
-                childJob.device.stop()
-            }
-
-            val endTime = Clock.System.now()
-            val stopDuration = endTime - startTime
-            recordDuration("device.stop.duration", stopDuration, mapOf("device" to deviceName.toString()))
-            incrementCounter("device.stop.success", mapOf("device" to deviceName.toString()))
-        } catch (e: TimeoutCancellationException) {
-            incrementCounter("device.stop.failure",
-                mapOf("device" to deviceName.toString(), "reason" to "timeout"))
-            onStopTimeout(deviceName, childJob.config)
-        } catch (e: Exception) {
-            incrementCounter("device.stop.failure",
-                mapOf("device" to deviceName.toString(), "reason" to "error"))
-            context.logger.error(e) { "Error stopping device $deviceName" }
-            throw DeviceShutdownException("Failed to stop device $deviceName", e)
-        } finally {
-            withContext(NonCancellable) {
-                try {
-                    childJob.collectorJob.cancelAndJoin()
-                } catch (e: Exception) {
-                    context.logger.error(e) { "Error cancelling collector job for device $deviceName" }
-                }
-            }
-        }
-
-        publishDeviceState(DeviceStatePayload.DeviceStopped(deviceName.toString()))
-    }
-
-    /**
-     * Renames a device dynamically. This moves the [ChildJob] from [oldName] to [newName].
-     * If [newName] already exists, an exception is thrown to prevent collisions.
-     *
-     * @param oldName The current name of the device.
-     * @param newName The new name for the device.
-     * @throws DeviceConfigurationException If a device with [newName] already exists.
-     */
-    override suspend fun renameDevice(oldName: Name, newName: Name) {
-        if (!isActive.value) {
-            throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot rename device")
-        }
-
-        if (await { deviceRegistry.containsDevice(newName) }) {
-            throw DeviceConfigurationException("A device with name $newName already exists; cannot rename.")
-        }
-
-        val oldChildJob = await { deviceRegistry.getChildJob(oldName) } ?:
-        throw DeviceConfigurationException("Device not found: $oldName")
-
-        await { deviceRegistry.removeDevice(oldName) }
-        await {
-            deviceRegistry.registerDevice(
-                name = newName,
-                device = oldChildJob.device,
-                config = oldChildJob.config,
-                meta = oldChildJob.meta
-            )
-        }
-
-        publishSystemLog("Device renamed from $oldName to $newName", newName.toString())
-        incrementCounter("device.rename",
-            mapOf("oldName" to oldName.toString(), "newName" to newName.toString()))
     }
 
     /**
@@ -2267,172 +1754,188 @@ public class MagixDeviceHubManager(
      * @param deviceNames The list of device names to start.
      * @return `true` if all devices started successfully, `false` otherwise.
      */
-    override suspend fun startDevicesBatch(deviceNames: List<Name>): Boolean = transactionManager.withTransaction { txContext ->
-        val startedDevices = mutableListOf<Name>()
-
-        incrementCounter("device.start.batch", mapOf("count" to deviceNames.size.toString()))
-        val startTime = Clock.System.now()
+    public suspend fun startDevicesBatch(
+        deviceNames: List<Name>
+    ): Boolean = transactionManager.withTransaction { txContext ->
+        val startedNames = mutableListOf<Name>()
 
         try {
             for (name in deviceNames) {
-                val childJob = await { deviceRegistry.getChildJob(name) } ?: continue
+                val deviceJob = deviceRegistry.getDeviceJob(name)
+                    ?: error("Device $name not found in registry")
 
-                if (childJob.lifecycleMode != LifecycleMode.LAZY &&
-                    (childJob.device.lifecycleState == LifecycleState.INITIAL ||
-                            childJob.device.lifecycleState == LifecycleState.STOPPED)) {
+                if (deviceJob.device.lifecycleState == LifecycleState.STARTED) {
+                    continue
+                }
 
-                    doStartDevice(name, childJob.config, childJob.device)
-                    startedDevices.add(name)
+                startDevice(name, deviceJob.config, deviceJob.device)
+                startedNames += name
+                txContext.recordAction(object : ReversibleAction {
+                    override val id: String = "start_device_$name"
+
+                    override suspend fun reverse() {
+                        stopDevice(name, deviceJob)
+                    }
+                })
+            }
+
+            publishLog(message = "Batch started devices: $startedNames")
+            true
+        } catch (ex: Exception) {
+            publishLog(
+                message = "Failed to start devices batch: ${ex.message}",
+                level = "ERROR"
+            )
+            throw ex
+        }
+    }
+
+    public suspend fun stopDevicesBatch(
+        deviceNames: List<Name>
+    ): Boolean = transactionManager.withTransaction { txContext ->
+        val stoppedNames = mutableListOf<Name>()
+
+        try {
+            for (name in deviceNames) {
+                val deviceJob = deviceRegistry.getDeviceJob(name)
+                    ?: error("Device $name not found in registry")
+
+                if (deviceJob.device.lifecycleState == LifecycleState.STARTED) {
+                    stopDevice(name, deviceJob)
+                    stoppedNames += name
+
                     txContext.recordAction(object : ReversibleAction {
-                        override val id: String = "start_device_$name"
+                        override val id: String = "stop_device_$name"
 
                         override suspend fun reverse() {
-                            val device = await { deviceRegistry.getChildJob(name) }?.device ?: return
-                            try {
-                                device.stop()
-                                publishDeviceState(DeviceStatePayload.DeviceStopped(name.toString()))
-                            } catch (e: Exception) {
-                                context.logger.error(e) { "Error undoing start for device $name" }
-                            }
+                            startDevice(name, deviceJob.config, deviceJob.device)
                         }
                     })
                 }
             }
 
-            val endTime = Clock.System.now()
-            val duration = endTime - startTime
-            recordDuration("device.start.batch.duration", duration, mapOf("count" to deviceNames.size.toString()))
-            incrementCounter("device.start.batch.success", mapOf("count" to deviceNames.size.toString()))
+            publishLog(message = "Batch stopped devices: $stoppedNames")
 
-            return@withTransaction true
+            true
+
         } catch (ex: Exception) {
-            context.logger.error(ex) { "Failed to start device batch. Rolling back will be handled by transaction manager." }
-            incrementCounter("device.start.batch.failure", mapOf("count" to deviceNames.size.toString()))
+            publishLog(
+                message = "Failed to stop devices batch: ${ex.message}",
+                level = "ERROR"
+            )
             throw ex
         }
     }
 
-    /**
-     * Stops multiple devices in a transactional manner.
-     * If any device fails to stop, already stopped devices are rolled back (started).
-     *
-     * @param deviceNames The list of device names to stop.
-     * @return `true` if all devices were stopped successfully, `false` otherwise.
-     */
-    override suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean = transactionManager.withTransaction { txContext ->
-        val stoppedDevices = mutableListOf<Name>()
+    public suspend fun hotSwapDevice(
+        name: Name,
+        newDevice: Device,
+        newConfig: DeviceLifecycleConfig,
+        newMeta: Meta? = null
+    ): Unit = transactionManager.withTransaction { txContext ->
+        val oldJob = deviceRegistry.removeDevice(name)
 
-        incrementCounter("device.stop.batch", mapOf("count" to deviceNames.size.toString()))
-        val startTime = Clock.System.now()
+        oldJob?.let { old ->
+            txContext.recordAction(object : ReversibleAction {
+                override val id: String = "hotSwap_$name"
 
-        try {
-            for (name in deviceNames) {
-                val childJob = await { deviceRegistry.getChildJob(name) } ?: continue
-
-                if (childJob.device.lifecycleState == LifecycleState.STARTED) {
-                    val timeout = childJob.config.stopTimeout ?: context.deviceManagerConfig.defaultStopTimeout
-
-                    try {
-                        withTimeout(timeout) {
-                            childJob.device.stop()
-                        }
-
-                        publishDeviceState(DeviceStatePayload.DeviceStopped(name.toString()))
-                        stoppedDevices.add(name)
-
-                        txContext.recordAction(object : ReversibleAction {
-                            override val id: String = "stop_device_$name"
-
-                            override suspend fun reverse() {
-                                val device = await { deviceRegistry.getChildJob(name) }?.device ?: return
-                                try {
-                                    device.start()
-                                    publishDeviceState(DeviceStatePayload.DeviceStarted(name.toString()))
-                                } catch (e: Exception) {
-                                    context.logger.error(e) { "Error undoing stop for device $name" }
-                                }
-                            }
-                        })
-                    } catch (e: TimeoutCancellationException) {
-                        onStopTimeout(name, childJob.config)
-                        throw e
+                override suspend fun reverse() {
+                    deviceRegistry.registerDevice(
+                        name,
+                        old.device,
+                        old.config,
+                        old.meta
+                    )
+                    if (old.device.lifecycleState == LifecycleState.STARTED) {
+                        startDevice(name, old.config, old.device)
                     }
                 }
-            }
-
-            val endTime = Clock.System.now()
-            val duration = endTime - startTime
-            recordDuration("device.stop.batch.duration", duration, mapOf("count" to deviceNames.size.toString()))
-            incrementCounter("device.stop.batch.success", mapOf("count" to deviceNames.size.toString()))
-
-            return@withTransaction true
-        } catch (ex: Exception) {
-            context.logger.error(ex) { "Failed to stop device batch. Rolling back will be handled by transaction manager." }
-            incrementCounter("device.stop.batch.failure", mapOf("count" to deviceNames.size.toString()))
-            throw ex
+            })
         }
-    }
 
-    /**
-     * Runs health checks on all registered devices.
-     *
-     * @return Map of device names to health check results.
-     */
-    override suspend fun runHealthChecks(): Map<Name, Boolean> {
-        val devices = await { deviceRegistry.getDevicesSafe() }
-        val results = mutableMapOf<Name, Boolean>()
-
-        incrementCounter("device.health.check.batch")
-        val startTime = Clock.System.now()
-
-        for ((name, _) in devices) {
-            val childJob = await { deviceRegistry.getChildJob(name) } ?: continue
-            val healthChecker = childJob.config.healthChecker ?: continue
-
-            try {
-                val isHealthy = healthChecker.isHealthy(childJob.device)
-                results[name] = isHealthy
-
-                if (!isHealthy && childJob.config.onError == ChildDeviceErrorHandler.RESTART) {
-                    launchGlobal {
-                        restartDevice(name)
-                    }
-                }
-            } catch (e: Exception) {
-                context.logger.error(e) { "Error during health check for device $name" }
-                results[name] = false
+        oldJob?.let {
+            if (it.device.lifecycleState == LifecycleState.STARTED) {
+                stopDevice(name, it)
             }
         }
 
-        val endTime = Clock.System.now()
-        val duration = endTime - startTime
-        recordDuration("device.health.check.batch.duration", duration)
+        val newJob = deviceRegistry.registerDevice(
+            name,
+            newDevice,
+            newConfig,
+            newMeta
+        )
+        if (newConfig.lifecycleMode != LifecycleMode.INDEPENDENT) {
+            startDevice(name, newConfig, newDevice)
+        }
 
-        val healthyCount = results.values.count { it }
-        val unhealthyCount = results.size - healthyCount
+        publishLog(message = "Hot-swapped device $name. Old -> new.")
+    }
 
-        publishMetric("device.health.check.aggregate.healthy", healthyCount.toDouble())
-        publishMetric("device.health.check.aggregate.unhealthy", unhealthyCount.toDouble())
-        publishMetric("device.health.check.aggregate.percentage",
-            if (results.isNotEmpty()) (healthyCount.toDouble() / results.size * 100.0) else 0.0)
 
-        return results
+    /**
+     * Checks the health of a device
+     */
+    public suspend fun checkHealth(name: Name): HealthReport {
+        val deviceJob = deviceRegistry.getDeviceJob(name) ?:
+        throw DeviceConfigurationException("Device $name not found")
+
+        val healthChecker = deviceJob.config.healthChecker
+            ?: return HealthReport(true, emptyMap(), mapOf("message" to "No health checker configured"))
+
+        return if (healthChecker is HealthCheckerImpl) {
+            healthChecker.getHealthReport(deviceJob.device)
+        } else {
+            val isHealthy = healthChecker.isHealthy(deviceJob.device)
+            HealthReport(isHealthy, emptyMap(), mapOf("message" to "Basic health check"))
+        }
+    }
+
+    public suspend fun publishLog(
+        deviceName: Name? = null,
+        message: String,
+        level: String = "INFO"
+    ) {
+        val msg = DeviceLogMessage(
+            message = message,
+            sourceDevice = deviceName ?: "DeviceHubManager".asName(),
+            comment = level
+        )
+        messageBus.publish(msg)
+    }
+
+    public suspend fun publishMetric(
+        name: String,
+        value: Double,
+        tags: Map<String, String> = emptyMap()
+    ) {
+        val meta = Meta {
+            "metricName" to name
+            "metricValue" to value
+            if (tags.isNotEmpty()) {
+                "tags" to tags
+            }
+        }
+        val msg = DeviceLogMessage(
+            message = "Metric $name = $value",
+            data = meta,
+            sourceDevice = "DeviceHubManager".asName()
+        )
+        messageBus.publish(msg)
     }
 
     /**
-     * Shuts down the device hub manager by cancelling the parent job.
+     * Shuts down the device hub manager
      */
-    override suspend fun shutdown() {
+    public suspend fun shutdown() {
         if (!isActive.compareAndSet(true, false)) {
             return
         }
 
-        context.logger.info { "Starting device hub manager shutdown" }
-        incrementCounter("device.hub.shutdown")
-        val startTime = Clock.System.now()
+        context.logger.info { "Starting DeviceHubManager shutdown" }
 
         try {
-            val deviceNames = await { deviceRegistry.getDeviceNames() }
+            val deviceNames = deviceRegistry.getDeviceNames()
             val shutdownJobs = deviceNames.map { name ->
                 launchGlobal {
                     try {
@@ -2457,9 +1960,7 @@ public class MagixDeviceHubManager(
 
             parentJob.cancelAndJoin()
 
-            val endTime = Clock.System.now()
-            val duration = endTime - startTime
-            context.logger.info { "Device hub manager shutdown completed in $duration" }
+            context.logger.info { "DeviceHubManager shutdown completed" }
         } catch (e: Exception) {
             context.logger.error(e) { "Error during shutdown" }
             parentJob.cancel()
@@ -2467,40 +1968,51 @@ public class MagixDeviceHubManager(
     }
 
     /**
-     * Checks if a device exists.
-     *
-     * @param name The device name.
-     * @return True if the device exists, false otherwise.
+     * Publishes a device state event
      */
-    override suspend fun deviceExists(name: Name): Boolean {
-        return await { deviceRegistry.containsDevice(name) }
-    }
+    private suspend fun publishEvent(payload: DeviceStatePayload) {
+        try {
+            val message = when (payload) {
+                is DeviceStatePayload.DeviceAdded ->
+                    DeviceMessage.info("Device ${payload.deviceName} added", payload.deviceName.parseAsName())
 
-    /**
-     * Gets all device names.
-     *
-     * @return A set of all device names.
-     */
-    override suspend fun getAllDeviceNames(): Set<Name> {
-        return await { deviceRegistry.getDeviceNames() }
-    }
+                is DeviceStatePayload.DeviceStarted ->
+                    DeviceMessage.info("Device ${payload.deviceName} started", payload.deviceName.parseAsName())
 
-    /**
-     * Helper function to safely execute suspending functions with proper error handling.
-     *
-     * @param T The return type of the function.
-     * @param block The suspending function to execute.
-     * @return The result of the function.
-     */
-    private suspend fun <T> await(block: suspend () -> T): T {
-        return try {
-            block()
-        } catch (e: CancellationException) {
-            throw e
+                is DeviceStatePayload.DeviceStopped ->
+                    DeviceMessage.info("Device ${payload.deviceName} stopped", payload.deviceName.parseAsName())
+
+                is DeviceStatePayload.DeviceRemoved ->
+                    DeviceMessage.info("Device ${payload.deviceName} removed", payload.deviceName.parseAsName())
+
+                is DeviceStatePayload.DeviceFailed ->
+                    DeviceMessage.error(
+                        Exception(payload.errorMessage),
+                        payload.deviceName.parseAsName()
+                    )
+
+                is DeviceStatePayload.DeviceDetached ->
+                    DeviceMessage.info("Device ${payload.deviceName} detached", payload.deviceName.parseAsName())
+            }
+
+            messageBus.publish(message)
         } catch (e: Exception) {
-            context.logger.error(e) { "Error in await block" }
-            throw e
+            context.logger.error(e) { "Error publishing device state event" }
         }
+    }
+
+    /**
+     * Checks if a device exists
+     */
+    public suspend fun deviceExists(name: Name): Boolean {
+        return deviceRegistry.containsDevice(name)
+    }
+
+    /**
+     * Gets all device names
+     */
+    public suspend fun getAllDeviceNames(): Set<Name> {
+        return deviceRegistry.getDeviceNames()
     }
 }
 
@@ -2522,15 +2034,14 @@ public interface CompositeControlComponent : Device {
  * @param context The parent [Context].
  * @param meta Device metadata.
  * @param config The [DeviceLifecycleConfig] for this device.
- * @param hubManager The [DeviceHubManager] instance.
+ * @param deviceHubManager The [DeviceHubManager] instance.
  */
 public open class ConfigurableCompositeControlComponent<D : ConfigurableCompositeControlComponent<D>>(
     public val spec: CompositeControlComponentSpec<D>,
     context: Context,
     meta: Meta = Meta.EMPTY,
     config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
-    public val hubManager: DeviceHubManager = TODO(),
-    private val externalConfigApplier: ExternalConfigApplier? = null
+    public val deviceHubManager: DeviceHubManager = context.deviceHubManager
 ) : DeviceBase<D>(context, meta), CompositeControlComponent {
 
     override val properties: Map<String, DevicePropertySpec<D, *>>
@@ -2542,7 +2053,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     override fun toString(): String = "Device(id=$id, spec=$spec)"
 
     override val devices: Map<Name, Device>
-        get() = hubManager.devices
+        get() = deviceHubManager.devices
 
     protected val childConfigs: List<ChildComponentConfig<*>> = spec.childSpecs.values.toList()
 
@@ -2550,7 +2061,8 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     private val initLock = Mutex()
 
     init {
-        hubManager.launchGlobal {
+        // Register action handlers
+        deviceHubManager.launchGlobal {
             spec.actions.values.forEach { actionSpec ->
                 messageFlow
                     .filterIsInstance<ActionExecuteMessage>()
@@ -2564,18 +2076,10 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                                 requestId = msg.requestId,
                                 sourceDevice = id.asName()
                             )
-                            hubManager.magixEndpoint.send(
-                                DeviceControlsFormats.DEVICE_MESSAGE_FORMAT,
-                                resultMessage,
-                                hubManager.sourceEndpoint
-                            )
+                            // Use message bus to send response
+                            context.logger.debug { "Action ${actionSpec.name} executed successfully on device $id" }
                         } catch (ex: Exception) {
                             logger.error(ex) { "Error executing action ${actionSpec.name} on device $id" }
-                            hubManager.magixEndpoint.send(
-                                DeviceControlsFormats.DEVICE_MESSAGE_FORMAT,
-                                DeviceMessage.error(ex, id.asName()),
-                                hubManager.sourceEndpoint
-                            )
                         }
                     }
                     .launchIn(this)
@@ -2584,10 +2088,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     }
 
     /**
-     * Instantiates (and synchronously adds) all child devices declared in [spec.childSpecs].
-     * For child devices with [LifecycleMode.LINKED], the device is started automatically.
-     * For [LifecycleMode.INDEPENDENT], the device is added but not started automatically.
-     * For [LifecycleMode.LAZY], the device is added and started only upon explicit request.
+     * Initializes child devices defined in the spec
      */
     public suspend fun initChildren() {
         for (childCfg in childConfigs) {
@@ -2595,7 +2096,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                 continue
             }
 
-            val builder = DeviceLifecycleConfigBuilder().apply {
+            val config = DeviceLifecycleConfigBuilder().apply {
                 lifecycleMode = childCfg.config.lifecycleMode
                 messageBuffer = childCfg.config.messageBuffer
                 startDelay = childCfg.config.startDelay
@@ -2606,11 +2107,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                 onError = childCfg.config.onError
                 healthChecker = childCfg.config.healthChecker
                 restartPolicy = childCfg.config.restartPolicy
-            }
-
-            externalConfigApplier?.applyConfig(builder, childCfg.name)
-
-            val updatedConfig = builder.build()
+            }.build()
 
             try {
                 val childSpec = childCfg.spec
@@ -2621,13 +2118,12 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                         childSpec,
                         context,
                         childCfg.meta ?: Meta.EMPTY,
-                        updatedConfig,
-                        hubManager,
-                        externalConfigApplier
+                        config,
+                        deviceHubManager
                     )
                 }
 
-                hubManager.attachDevice(childCfg.name, childDevice, updatedConfig, childCfg.meta, StartMode.NONE)
+                deviceHubManager.attachDevice(childCfg.name, childDevice, config, childCfg.meta, StartMode.NONE)
                 initLock.withLock {
                     childInitializationStatus[childCfg.name] = true
                 }
@@ -2636,7 +2132,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                 initLock.withLock {
                     childInitializationStatus[childCfg.name] = false
                 }
-                if (updatedConfig.onError == ChildDeviceErrorHandler.PROPAGATE) {
+                if (config.onError == ChildDeviceErrorHandler.PROPAGATE) {
                     throw e
                 }
             }
@@ -2654,21 +2150,19 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
             validate(self)
         }
         initChildren()
-        val childDevices = hubManager.devices.entries.filter { (name, device) ->
-            device.lifecycleState == LifecycleState.INITIAL &&
-                    initLock.withLock { childInitializationStatus[name] == true }
-        }
+        val childDevices = deviceHubManager.getAllDeviceNames()
+            .filter { name -> initLock.withLock { childInitializationStatus[name] == true } }
 
-        for ((name, device) in childDevices) {
+        for (name in childDevices) {
             try {
-                device.start()
+                deviceHubManager.devices[name]?.start()
             } catch (e: Exception) {
                 logger.error(e) { "Error starting child device $name during parent start" }
                 val childConfig = childConfigs.find { it.name == name }?.config
                 if (childConfig?.onError == ChildDeviceErrorHandler.PROPAGATE) {
                     throw e
                 }
-                logger.warn { "Continuing despite error in child device $name (error policy: ${childConfig?.onError})" }
+                logger.warn { "Continuing despite error in child device $name" }
             }
         }
     }
@@ -2677,9 +2171,8 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
      * Called when the device stops.
      */
     override suspend fun onStop() {
-        val runningChildren = hubManager.devices.entries.filter { (_, device) ->
-            device.lifecycleState == LifecycleState.STARTED
-        }
+        val runningChildren = deviceHubManager.devices.entries
+            .filter { (_, device) -> device.lifecycleState == LifecycleState.STARTED }
 
         val stopJobs = runningChildren.map { (name, device) ->
             launch(device.coroutineContext) {
@@ -2704,7 +2197,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
      */
     @Suppress("UNCHECKED_CAST")
     public fun <CD : ConfigurableCompositeControlComponent<CD>> getChildDevice(name: Name): CD {
-        return hubManager.devices[name] as? CD ?: error("Child device $name not found or type mismatch.")
+        return deviceHubManager.devices[name] as? CD ?: error("Child device $name not found or type mismatch.")
     }
 
     /**
@@ -2759,7 +2252,9 @@ public abstract class DeviceSpecification<D : ConfigurableCompositeControlCompon
 ) : CompositeControlComponentSpec<D>()
 
 /**
- * Extension to get MagixDeviceHubManager from context
+ * Extension to get DeviceHubManager from context
  */
-public val Context.magixDeviceHubManager: MagixDeviceHubManager
-    get() = plugins[MagixDeviceHubManager] ?: MagixDeviceHubManager()
+public val Context.deviceHubManager: DeviceHubManager
+    get() = plugins[DeviceHubManager] ?: throw IllegalStateException(
+        "DeviceHubManager not found in context. Add it with context.plugin(DeviceHubManager)."
+    )
