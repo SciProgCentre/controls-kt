@@ -4,21 +4,17 @@ package space.kscience.controls.spec
 
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import space.kscience.controls.api.*
-import space.kscience.magix.api.subscribe
 import space.kscience.controls.spec.DeviceErrorCategory.CRITICAL
 import space.kscience.controls.spec.DeviceErrorCategory.NON_CRITICAL
+import space.kscience.controls.spec.LifecycleMode.INDEPENDENT
+import space.kscience.controls.spec.LifecycleMode.LINKED
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
@@ -126,7 +122,7 @@ public interface MessageBus {
     /**
      * Subscribes to messages matching the given filter
      */
-    public fun subscribe(filter: DeviceMessageFilter): kotlinx.coroutines.flow.Flow<DeviceMessage>
+    public fun subscribe(filter: DeviceMessageFilter): Flow<DeviceMessage>
 
     /**
      * Publishes a message to the bus
@@ -217,7 +213,7 @@ public class MagixMessageBus(
             format = setOf(deviceMessageFormat.defaultFormat)
         )
 
-        return kotlinx.coroutines.flow.flow {
+        return flow {
             magixEndpoint.subscribe(magixFilter).collect { magixMessage ->
                 try {
                     val payload = magixMessage.payload
@@ -245,7 +241,7 @@ public class MagixMessageBus(
     }
 
     override fun close() {
-        magixEndpoint.close()
+
     }
 }
 
@@ -582,7 +578,7 @@ private class TransactionContextElement(val context: TransactionContext) : Corou
 }
 
 /**
- * Implementation of TransactionManager that uses MagixEndpoint to broadcast transaction events
+ * Implementation of TransactionManager that uses MessageBus to broadcast transaction events
  */
 public class MagixTransactionManager(
     private val messageBus: MessageBus,
@@ -752,7 +748,7 @@ public fun interface HealthChecker {
      * Checks if the given [device] is healthy.
      *
      * @param device The device to check.
-     * @return `true` if healthy, `false` otherwise.
+     * @return true if healthy, false otherwise.
      */
     public suspend fun isHealthy(device: Device): Boolean
 }
@@ -955,7 +951,7 @@ public interface ComponentRegistry : ContextAware {
      * Retrieves a [CompositeControlComponentSpec] by its [name].
      *
      * @param name The specification's [Name].
-     * @return The [CompositeControlComponentSpec] or `null` if not found or type mismatch occurs.
+     * @return The [CompositeControlComponentSpec] or null if not found or type mismatch occurs.
      */
     public fun <D : ConfigurableCompositeControlComponent<D>> getSpec(name: Name): CompositeControlComponentSpec<D>?
 }
@@ -1391,7 +1387,8 @@ public class DeviceRegistry(
         name: Name,
         device: Device,
         config: DeviceLifecycleConfig,
-        meta: Meta? = null
+        meta: Meta? = null,
+        messageHandler: suspend (DeviceMessage) -> Unit
     ): DeviceJob = childLock.withLock {
         val scope = config.coroutineScope ?: CoroutineScope(
             config.dispatcher ?: (Dispatchers.Default +
@@ -1403,7 +1400,7 @@ public class DeviceRegistry(
             try {
                 device.messageFlow.collect { msg ->
                     val wrapped = msg.changeSource { name.plus(it) }
-                    TODO()
+                    messageHandler(wrapped)
                 }
             } catch (ex: CancellationException) {
                 throw ex
@@ -1485,9 +1482,10 @@ public class DeviceRegistry(
 /**
  * Hub manager for coordinating devices and their lifecycle.
  */
+// TODO("Make DeviceHubManager working without MessageBus and TransactionManager based on MagixEndpoint in base")
 public class DeviceHubManager(
     public override val context: Context,
-    private val messageBus: MessageBus
+    private val messageBus: MessageBus = TODO()
 ) : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
@@ -1587,7 +1585,9 @@ public class DeviceHubManager(
             device = device,
             config = config,
             meta = meta
-        )
+        ) { message ->
+            messageBus.publish(message)
+        }
 
         // Publish device added event
         publishEvent(DeviceStatePayload.DeviceAdded(name.toString()))
@@ -1739,7 +1739,9 @@ public class DeviceHubManager(
             device = deviceJob.device,
             config = deviceJob.config,
             meta = deviceJob.meta
-        )
+        ) { message ->
+            messageBus.publish(message)
+        }
 
         // Start the device if not independent
         if (newDeviceJob.lifecycleMode != LifecycleMode.INDEPENDENT) {
@@ -1752,7 +1754,7 @@ public class DeviceHubManager(
      * If any device fails to start, already started devices are rolled back (stopped).
      *
      * @param deviceNames The list of device names to start.
-     * @return `true` if all devices started successfully, `false` otherwise.
+     * @return true if all devices started successfully, false otherwise.
      */
     public suspend fun startDevicesBatch(
         deviceNames: List<Name>
@@ -1845,7 +1847,9 @@ public class DeviceHubManager(
                         old.device,
                         old.config,
                         old.meta
-                    )
+                    ) { message ->
+                        messageBus.publish(message)
+                    }
                     if (old.device.lifecycleState == LifecycleState.STARTED) {
                         startDevice(name, old.config, old.device)
                     }
@@ -1864,7 +1868,10 @@ public class DeviceHubManager(
             newDevice,
             newConfig,
             newMeta
-        )
+        ) { message ->
+            messageBus.publish(message)
+        }
+
         if (newConfig.lifecycleMode != LifecycleMode.INDEPENDENT) {
             startDevice(name, newConfig, newDevice)
         }
@@ -2014,6 +2021,36 @@ public class DeviceHubManager(
     public suspend fun getAllDeviceNames(): Set<Name> {
         return deviceRegistry.getDeviceNames()
     }
+
+    /**
+     * Runs health checks on all devices in the registry
+     */
+    public suspend fun runHealthChecks(): Map<Name, Boolean> {
+        val devices = deviceRegistry.getDevicesSafe()
+        val results = mutableMapOf<Name, Boolean>()
+
+        for ((name, _) in devices) {
+            try {
+                val report = checkHealth(name)
+                results[name] = report.isHealthy
+
+                if (!report.isHealthy) {
+                    val deviceJob = deviceRegistry.getDeviceJob(name) ?: continue
+
+                    if (deviceJob.config.onError == ChildDeviceErrorHandler.RESTART) {
+                        launchGlobal {
+                            restartDevice(name)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                context.logger.error(e) { "Error during health check for device $name" }
+                results[name] = false
+            }
+        }
+
+        return results
+    }
 }
 
 /**
@@ -2041,7 +2078,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     context: Context,
     meta: Meta = Meta.EMPTY,
     config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
-    public val deviceHubManager: DeviceHubManager = context.deviceHubManager
+    public val deviceHubManager: DeviceHubManager = DeviceHubManager()
 ) : DeviceBase<D>(context, meta), CompositeControlComponent {
 
     override val properties: Map<String, DevicePropertySpec<D, *>>

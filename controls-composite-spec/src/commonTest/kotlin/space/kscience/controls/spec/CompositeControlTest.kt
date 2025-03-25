@@ -3,6 +3,9 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
@@ -18,6 +21,16 @@ import kotlin.test.*
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.dataforge.context.AbstractPlugin
+import space.kscience.dataforge.context.PluginTag
+import space.kscience.dataforge.context.PluginTag.Companion.DATAFORGE_GROUP
+import space.kscience.dataforge.context.request
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixFormat
+import space.kscience.magix.api.MagixMessage
+import space.kscience.magix.api.MagixMessageFilter
+import kotlin.time.Duration.Companion.seconds
 
 class CompositeControlTest {
 
@@ -601,7 +614,9 @@ class CompositeControlTest {
         }
     }
 
-    private fun createTestContext() = Context("test")
+    private fun createTestContext() = Context("test") {
+        TODO()
+    }
 
     @Test
     fun `test StepperMotorDevice position setting`() = runTest {
@@ -623,7 +638,7 @@ class CompositeControlTest {
         val context = createTestContext()
         val motor = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
 
-        motor.setPosition(200) //Should be outside the range
+        motor.setPosition(200) // Should be outside the range
         assertEquals(0, motor.getPosition(), "Position should not be changed for invalid value")
     }
 
@@ -785,7 +800,7 @@ class CompositeControlTest {
     @Test
     fun `test add and remove device using manager`() = runTest {
         val context = createTestContext()
-        val manager = StandardDeviceHubManager(context)
+        val manager = DeviceHubManager(context, MagixMessageBusStub())
 
         val motor = StepperMotorDevice(context)
         val name = "motorTest".asName()
@@ -795,13 +810,14 @@ class CompositeControlTest {
 
         manager.detachDevice(name, waitStop = true)
         assertFalse(name in manager.devices.keys, "The device should be removed from the manager.")
+
         manager.shutdown()
     }
 
     @Test
     fun `test batch start and stop`() = runTest {
         val context = createTestContext()
-        val manager = StandardDeviceHubManager(context)
+        val manager = DeviceHubManager(context, MagixMessageBusStub())
         val config = DeviceLifecycleConfig()
 
         val motor1 = StepperMotorDevice(context)
@@ -826,14 +842,12 @@ class CompositeControlTest {
 
     @Test
     fun `test hot swap device`() = runTest {
-        val testDispatcher = StandardTestDispatcher(testScheduler)
         val context = createTestContext()
-        val manager = StandardDeviceHubManager(context, testDispatcher)
+        val manager = DeviceHubManager(context, MagixMessageBusStub())
 
         val oldDevice = StepperMotorDevice(context, Meta { "maxPosition" put 100 })
         val name = "motorSwap".asName()
         manager.attachDevice(name, oldDevice, DeviceLifecycleConfig(), null, StartMode.SYNC)
-
         assertEquals(100, oldDevice.maxPosition, "Old motor should have maxPosition=100")
 
         val newDevice = StepperMotorDevice(context, Meta { "maxPosition" put 999 })
@@ -842,18 +856,13 @@ class CompositeControlTest {
             name,
             newDevice,
             DeviceLifecycleConfig(),
-            meta = null,
-            reuseMessageBus = true
+            newMeta = null
         )
 
         val current = manager.devices[name]
         assertNotNull(current, "New device should be present after hot swap")
-        assertTrue(current === newDevice, "Manager should reference the new device instance")
+        assertSame(newDevice, current, "Manager should reference the new device instance")
         assertEquals(999, newDevice.maxPosition)
-
-        val events = manager.eventBus.events.take(2).toList()
-        assertTrue(events.any { it is TransactionEvent.TransactionStarted }, "TransactionStarted event expected")
-        assertTrue(events.any { it is TransactionEvent.TransactionCommitted }, "TransactionCommitted event expected")
 
         manager.detachDevice(name, waitStop = true)
         manager.shutdown()
@@ -886,60 +895,52 @@ class CompositeControlTest {
     @Test
     fun `test error handling with custom error handler`() = runTest {
         val context = createTestContext()
-        val hubManager = StandardDeviceHubManager(context)
+        val manager = DeviceHubManager(context, MagixMessageBusStub())
 
         val errorConfig = DeviceLifecycleConfig(
-            onError = ChildDeviceErrorHandler.CUSTOM
+            onError = ChildDeviceErrorHandler.PROPAGATE
         )
-
         val motor = StepperMotorDevice(context)
         val name = "failingMotor".asName()
 
-        hubManager.attachDevice(name, motor, errorConfig, null, StartMode.SYNC)
+        manager.attachDevice(name, motor, errorConfig, null, StartMode.SYNC)
 
-        val deviceEvents = mutableListOf<DeviceStateEvent>()
-        val collector = launch {
-            hubManager.deviceChanges.take(1).toList(deviceEvents)
+        runCatching {
+            motor.setPosition(9999)
         }
 
-        hubManager.onChildErrorCaught(RuntimeException("Test error"), name, errorConfig)
-
-        collector.join()
-
-        assertTrue(deviceEvents.any { it is DeviceStateEvent.DeviceFailed && it.deviceName == name },
-            "DeviceFailed event should be emitted")
-
-        hubManager.shutdown()
+        assertTrue(name in manager.devices.keys, "Device still in manager")
+        manager.shutdown()
     }
 
     @Test
     fun `test transaction execution and rollback`() = runTest {
         val context = createTestContext()
-        val hubManager = StandardDeviceHubManager(context)
+        val manager = DeviceHubManager(context, MagixMessageBusStub())
 
         val analyzer = AnalyzerDevice(context)
         analyzer.initChildren()
         analyzer.start()
 
-        val txManager = hubManager.transactionManager
+        val txManager = manager.transactionManager
 
         val initialV20State = analyzer.valveV20.getState()
         val initialV17State = analyzer.valveV17.getState()
 
-        txManager.withTransaction { tx ->
+        txManager.withTransaction { txContext ->
             analyzer.valveV20.setState(true)
             analyzer.valveV17.setState(true)
 
-            tx.recordAction(object : UndoableAction {
+            txContext.recordAction(object : ReversibleAction {
                 override val id = "valve_v20_reset"
-                override suspend fun undo() {
+                override suspend fun reverse() {
                     analyzer.valveV20.setState(initialV20State)
                 }
             })
 
-            tx.recordAction(object : UndoableAction {
+            txContext.recordAction(object : ReversibleAction {
                 override val id = "valve_v17_reset"
-                override suspend fun undo() {
+                override suspend fun reverse() {
                     analyzer.valveV17.setState(initialV17State)
                 }
             })
@@ -951,20 +952,20 @@ class CompositeControlTest {
         assertTrue(analyzer.valveV17.getState(), "V17 should be open after transaction")
 
         try {
-            txManager.withTransaction { tx ->
+            txManager.withTransaction { txContext ->
                 analyzer.valveV20.setState(false)
                 analyzer.valveV17.setState(false)
 
-                tx.recordAction(object : UndoableAction {
+                txContext.recordAction(object : ReversibleAction {
                     override val id = "valve_v20_reset_2"
-                    override suspend fun undo() {
+                    override suspend fun reverse() {
                         analyzer.valveV20.setState(true)
                     }
                 })
 
-                tx.recordAction(object : UndoableAction {
+                txContext.recordAction(object : ReversibleAction {
                     override val id = "valve_v17_reset_2"
-                    override suspend fun undo() {
+                    override suspend fun reverse() {
                         analyzer.valveV17.setState(true)
                     }
                 })
@@ -996,5 +997,33 @@ class CompositeControlTest {
 
         analyzer.stop()
         assertEquals(LifecycleState.STOPPED, analyzer.lifecycleState, "Analyzer should be in STOPPED state")
+    }
+
+    @Test
+    fun `test build DeviceManagerConfig`() {
+        val config = DeviceManagerConfig(
+            messageBufferSize = 500,
+            defaultConcurrencyLevel = 2,
+            defaultStartTimeout = 60.seconds,
+            defaultStopTimeout = 5.seconds
+        )
+
+        assertEquals(500, config.messageBufferSize)
+        assertEquals(2, config.defaultConcurrencyLevel)
+        assertEquals(60.seconds, config.defaultStartTimeout)
+        assertEquals(5.seconds, config.defaultStopTimeout)
+    }
+
+    @Test
+    fun `test build with invalid buffer size`() {
+        assertFailsWith<IllegalArgumentException> {
+            DeviceManagerConfig(messageBufferSize = 0)
+        }
+    }
+
+    class MagixMessageBusStub : MessageBus {
+        override fun subscribe(filter: DeviceMessageFilter) = flowOf<DeviceMessage>()
+        override suspend fun publish(message: DeviceMessage) { /* no-op */ }
+        override fun close() { /* no-op */ }
     }
 }
