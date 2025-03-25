@@ -16,6 +16,12 @@ kscience{
     useSerialization()
     commonMain {
         api(projects.controlsCore)
+        implementation(projects.magix.magixApi)
+        implementation(projects.magix.magixServer)
+        implementation(projects.magix.magixRsocket)
+        implementation(projects.magix.magixZmq)
+        implementation(projects.controlsMagix)
+        implementation("org.jetbrains.kotlinx:atomicfu:0.27.0")
     }
 
     commonTest{

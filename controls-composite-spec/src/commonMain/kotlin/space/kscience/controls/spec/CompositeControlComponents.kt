@@ -2,69 +2,41 @@
 
 package space.kscience.controls.spec
 
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import space.kscience.controls.api.*
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.spec.DeviceErrorCategory.CRITICAL
+import space.kscience.controls.spec.DeviceErrorCategory.NON_CRITICAL
+import space.kscience.controls.spec.LifecycleMode.*
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.*
-import space.kscience.dataforge.names.*
-import kotlin.concurrent.Volatile
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.names.plus
+import space.kscience.magix.api.MagixEndpoint
+import space.kscience.magix.api.MagixFormat
+import space.kscience.magix.api.send
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
-import kotlin.math.pow
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** Global configuration for controls system. */
-public class ControlsConfiguration(
-    public val messageBufferSize: Int = 1000,
-    public val systemLogBufferSize: Int = 50,
-    public val eventBufferSize: Int = 100,
-    public val defaultConcurrencyLevel: Int = 4,
-    public val defaultStartTimeout: Duration = 30.seconds,
-    public val defaultStopTimeout: Duration = 10.seconds
-) {
-    init {
-        require(messageBufferSize > 0) { "Message buffer size must be positive" }
-        require(systemLogBufferSize > 0) { "System log buffer size must be positive" }
-        require(eventBufferSize > 0) { "Event buffer size must be positive" }
-        require(defaultConcurrencyLevel > 0) { "Concurrency level must be positive" }
-    }
-
-    public companion object {
-        public val DEFAULT: ControlsConfiguration = ControlsConfiguration()
-    }
-}
-
-public class SystemResourceInfo(
-    private val configuration: ControlsConfiguration = ControlsConfiguration.DEFAULT
-) {
-    public fun getConcurrencyLevel(): Int = configuration.defaultConcurrencyLevel
-}
-
 /**
- * Extension function to safely get the completed value of a [Deferred] or return `null`.
- *
- * @param T The type parameter of the deferred result.
- * @return The completed value if available and not cancelled, or `null` otherwise.
- */
-private suspend fun <T> Deferred<T>.awaitCompletedOrNull(): T? =
-    try {
-        if (isCompleted && !isCancelled) await() else null
-    } catch (e: CancellationException) {
-        null
-    }
-
-/**
- * Categorizes errors handling.
+ * Categoriзation of errors by severity:
  * - [CRITICAL] means the error requires strong reaction.
  * - [NON_CRITICAL] means the system can continue with partial functionality or just log a warning.
  */
@@ -146,164 +118,256 @@ public class DeviceStateTransitionException(
 ) : DeviceException(message, cause, category)
 
 /**
- * Base interface for application events
+ * Magix message format definitions for device management
  */
-public interface Event
-
-/**
- * EventBus interface for publishing and subscribing to application-level events.
- */
-public interface EventBus {
-    /** A shared flow that emits events across the application. */
-    public val events: SharedFlow<Event>
-    /**
-     * Publishes an event to the event bus.
-     *
-     * @param event The event to publish.
-     */
-    public suspend fun publish(event: Event)
+public object DeviceControlsFormats {
 
     /**
-     * Publishes an event to the event bus if the bus is still active.
-     * This method is safe to call during shutdown.
-     *
-     * @param event The event to publish.
-     * @return True if the event was published, false otherwise.
+     * Format for device messages
      */
-    public suspend fun publishSafely(event: Event): Boolean
-}
-
-/**
- * Event emitted when a message is sent through the transport
- */
-public data class MessageSentEvent(val message: DeviceMessage) : Event
-
-/**
- * Implementation of [EventBus] using a [MutableSharedFlow] for event broadcasting.
- *
- * @param configuration System configuration with buffer sizes
- * @param onBufferOverflow Strategy for handling buffer overflow.
- */
-public class SimpleEventBus(
-    configuration: ControlsConfiguration = ControlsConfiguration.DEFAULT,
-    onBufferOverflow: BufferOverflow = BufferOverflow.DROP_OLDEST
-) : EventBus {
-    private val _events = MutableSharedFlow<Event>(
-        replay = configuration.eventBufferSize,
-        onBufferOverflow = onBufferOverflow
-    )
-    override val events: SharedFlow<Event> get() = _events
-
-    private val isActive = MutableStateFlow(true)
-    private val mutex = Mutex()
-
-    override suspend fun publish(event: Event) {
-        if (!isActive.value) {
-            throw IllegalStateException("EventBus is not active")
-        }
-        _events.emit(event)
-    }
-
-    override suspend fun publishSafely(event: Event): Boolean {
-        if (!isActive.value) return false
-
-        return try {
-            _events.emit(event)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Marks the event bus as inactive, meaning no new events should be published.
-     * Existing subscriptions will continue to receive events in the replay cache.
-     */
-    public suspend fun shutdown() {
-        mutex.withLock {
-            isActive.value = false
-        }
-    }
-}
-
-/**
- * TransportAdapter interface for distributed communications.
- * This abstraction allows plugging in different transport mechanisms.
- */
-public interface TransportAdapter {
-    /**
-     * Sends a [DeviceMessage] over the transport.
-     *
-     * @param message The device message to send.
-     */
-    public suspend fun send(message: DeviceMessage)
-
-    /**
-     * Subscribes to incoming device messages.
-     *
-     * @return A [Flow] of [DeviceMessage] instances.
-     */
-    public fun subscribe(): Flow<DeviceMessage>
-
-    /**
-     * Closes the transport adapter, freeing any resources.
-     */
-    public suspend fun close()
-
-    /**
-     * Returns whether the transport adapter is currently connected.
-     *
-     * @return True if connected, false otherwise.
-     */
-    public fun isConnected(): Boolean
-}
-
-/**
- * Implementation of [TransportAdapter] for in-process communication.
- *
- * @param eventBus The [EventBus] to publish transport-related events.
- * @param logger The logger for transport operations.
- * @param configuration System configuration with buffer sizes
- */
-public class InMemoryTransportAdapter(
-    private val eventBus: EventBus,
-    private val logger: Logger = DefaultLogManager(),
-    configuration: ControlsConfiguration = ControlsConfiguration.DEFAULT
-) : TransportAdapter {
-    private val _messages = MutableSharedFlow<DeviceMessage>(
-        replay = configuration.messageBufferSize,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    public val DEVICE_MESSAGE_FORMAT: MagixFormat<DeviceMessage> = MagixFormat(
+        DeviceMessage.serializer(),
+        setOf("controls.device.message")
     )
 
-    private val connectionState = MutableStateFlow(true)
-    private val mutex = Mutex()
+    /**
+     * Format for system log messages
+     */
+    public val SYSTEM_LOG_FORMAT: MagixFormat<SystemLogPayload> = MagixFormat(
+        SystemLogPayload.serializer(),
+        setOf("controls.system.log")
+    )
 
-    override suspend fun send(message: DeviceMessage) {
-        if (!connectionState.value) {
-            throw DeviceConnectionException("Transport adapter is not connected")
-        }
+    /**
+     * Format for device state events
+     */
+    public val DEVICE_STATE_FORMAT: MagixFormat<DeviceStatePayload> = MagixFormat(
+        DeviceStatePayload.serializer(),
+        setOf("controls.device.state")
+    )
 
-        _messages.emit(message)
-        logger.info { "TransportAdapter: message sent -> ${message.sourceDevice}" }
-        eventBus.publishSafely(MessageSentEvent(message))
-    }
+    /**
+     * Format for metrics
+     */
+    public val METRICS_FORMAT: MagixFormat<MetricPayload> = MagixFormat(
+        MetricPayload.serializer(),
+        setOf("controls.metrics")
+    )
 
-    override fun subscribe(): Flow<DeviceMessage> = _messages.asSharedFlow()
-
-    override suspend fun close() {
-        mutex.withLock {
-            connectionState.value = false
-        }
-        logger.info { "InMemoryTransportAdapter closed" }
-    }
-
-    override fun isConnected(): Boolean = connectionState.value
+    /**
+     * Format for transaction events
+     */
+    public val TRANSACTION_FORMAT: MagixFormat<TransactionPayload> = MagixFormat(
+        TransactionPayload.serializer(),
+        setOf("controls.transaction")
+    )
 }
 
 /**
- * Represents an undoable action for transaction rollback
+ * Payload for system log messages
  */
-public interface UndoableAction {
+@Serializable
+public sealed class SystemLogPayload {
+    public abstract val message: String
+    public abstract val deviceName: String?
+    public abstract val timestamp: Long
+    public abstract val severity: String
+
+    @Serializable
+    @SerialName("system.log.message")
+    public data class LogMessage(
+        override val message: String,
+        override val deviceName: String? = null,
+        override val timestamp: Long = Clock.System.now().toEpochMilliseconds(),
+        override val severity: String = "INFO",
+        val details: Map<String, String> = emptyMap()
+    ) : SystemLogPayload()
+
+    @Serializable
+    @SerialName("system.log.error")
+    public data class ErrorMessage(
+        override val message: String,
+        val errorType: String? = null,
+        val stackTrace: String? = null,
+        override val deviceName: String? = null,
+        override val timestamp: Long = Clock.System.now().toEpochMilliseconds(),
+        override val severity: String = "ERROR"
+    ) : SystemLogPayload()
+}
+
+/**
+ * Payload for device state events
+ */
+@Serializable
+public sealed class DeviceStatePayload {
+    public abstract val deviceName: String
+
+    @Serializable
+    @SerialName("device.state.added")
+    public data class DeviceAdded(
+        override val deviceName: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : DeviceStatePayload()
+
+    @Serializable
+    @SerialName("device.state.started")
+    public data class DeviceStarted(
+        override val deviceName: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : DeviceStatePayload()
+
+    @Serializable
+    @SerialName("device.state.stopped")
+    public data class DeviceStopped(
+        override val deviceName: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : DeviceStatePayload()
+
+    @Serializable
+    @SerialName("device.state.removed")
+    public data class DeviceRemoved(
+        override val deviceName: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : DeviceStatePayload()
+
+    @Serializable
+    @SerialName("device.state.failed")
+    public data class DeviceFailed(
+        override val deviceName: String,
+        val errorMessage: String,
+        val errorType: String? = null,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : DeviceStatePayload()
+
+    @Serializable
+    @SerialName("device.state.detached")
+    public data class DeviceDetached(
+        override val deviceName: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : DeviceStatePayload()
+}
+
+/**
+ * Payload for metric events
+ */
+@Serializable
+public sealed class MetricPayload {
+    public abstract val name: String
+    public abstract val timestamp: Long
+
+    @Serializable
+    @SerialName("metrics.value")
+    public data class MetricValue(
+        override val name: String,
+        val value: Double,
+        val tags: Map<String, String> = emptyMap(),
+        override val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : MetricPayload()
+
+    @Serializable
+    @SerialName("metrics.counter")
+    public data class MetricCounter(
+        override val name: String,
+        val increment: Double = 1.0,
+        val tags: Map<String, String> = emptyMap(),
+        override val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : MetricPayload()
+
+    @Serializable
+    @SerialName("metrics.duration")
+    public data class MetricDuration(
+        override val name: String,
+        val durationMs: Long,
+        val tags: Map<String, String> = emptyMap(),
+        override val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : MetricPayload()
+}
+
+/**
+ * Payload for transaction events
+ */
+@Serializable
+public sealed class TransactionPayload {
+    public abstract val transactionId: String
+
+    @Serializable
+    @SerialName("transaction.started")
+    public data class TransactionStarted(
+        override val transactionId: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : TransactionPayload()
+
+    @Serializable
+    @SerialName("transaction.committed")
+    public data class TransactionCommitted(
+        override val transactionId: String,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : TransactionPayload()
+
+    @Serializable
+    @SerialName("transaction.rolled_back")
+    public data class TransactionRolledBack(
+        override val transactionId: String,
+        val errorMessage: String? = null,
+        val errorType: String? = null,
+        val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : TransactionPayload()
+}
+
+/**
+ * DeviceManager configuration plugin for the context
+ */
+public class DeviceManagerConfig(
+    public val messageBufferSize: Int = 1000,
+    public val defaultConcurrencyLevel: Int = 4,
+    public val defaultStartTimeout: Duration = 30.seconds,
+    public val defaultStopTimeout: Duration = 10.seconds
+) : AbstractPlugin() {
+    override val tag: PluginTag get() = Companion.tag
+
+    init {
+        require(messageBufferSize > 0) { "Message buffer size must be positive" }
+        require(defaultConcurrencyLevel > 0) { "Concurrency level must be positive" }
+    }
+
+    public companion object : PluginFactory<DeviceManagerConfig> {
+        override val tag: PluginTag = PluginTag("controls.device.config", PluginTag.DATAFORGE_GROUP)
+
+        override fun build(context: Context, meta: Meta): DeviceManagerConfig {
+            val messageBuffer = meta["messageBufferSize"].int ?: 1000
+            val concurrencyLevel = meta["defaultConcurrencyLevel"].int ?: 4
+            val startTimeout = meta["defaultStartTimeout"]?.string?.let { Duration.parse(it) } ?: 30.seconds
+            val stopTimeout = meta["defaultStopTimeout"]?.string?.let { Duration.parse(it) } ?: 10.seconds
+
+            return DeviceManagerConfig(
+                messageBufferSize = messageBuffer,
+                defaultConcurrencyLevel = concurrencyLevel,
+                defaultStartTimeout = startTimeout,
+                defaultStopTimeout = stopTimeout
+            )
+        }
+    }
+}
+
+/**
+ * Extension to get DeviceManagerConfig from context
+ */
+public val Context.deviceManagerConfig: DeviceManagerConfig
+    get() = plugins[DeviceManagerConfig] ?: DeviceManagerConfig()
+
+/**
+ * Provides information about system resources
+ */
+public class SystemResourceInfo(
+    private val context: Context
+) {
+    public fun getConcurrencyLevel(): Int = context.deviceManagerConfig.defaultConcurrencyLevel
+}
+
+/**
+ * Interface for a reversible action that can be undone during a transaction rollback
+ */
+public interface ReversibleAction {
     /**
      * Unique identifier for this action
      */
@@ -312,7 +376,7 @@ public interface UndoableAction {
     /**
      * Undoes the action during transaction rollback
      */
-    public suspend fun undo()
+    public suspend fun reverse()
 }
 
 /**
@@ -321,7 +385,7 @@ public interface UndoableAction {
  */
 public class TransactionContext(
     public val id: String,
-    private val actions: MutableList<UndoableAction> = mutableListOf(),
+    private val actions: MutableList<ReversibleAction> = mutableListOf(),
     public val startTime: Long = Clock.System.now().toEpochMilliseconds()
 ) {
     private val mutex = Mutex()
@@ -331,7 +395,7 @@ public class TransactionContext(
      *
      * @param action The action to record.
      */
-    public suspend fun recordAction(action: UndoableAction) {
+    public suspend fun recordAction(action: ReversibleAction) {
         mutex.withLock {
             actions.add(action)
         }
@@ -340,9 +404,9 @@ public class TransactionContext(
     /**
      * Gets the list of actions that have been recorded in this transaction.
      *
-     * @return A list of [UndoableAction] instances.
+     * @return A list of [ReversibleAction] instances.
      */
-    public suspend fun getActions(): List<UndoableAction> = mutex.withLock {
+    public suspend fun getActions(): List<ReversibleAction> = mutex.withLock {
         actions.toList()
     }
 }
@@ -361,12 +425,12 @@ public interface TransactionManager {
     public suspend fun <T> withTransaction(block: suspend (TransactionContext) -> T): T
 
     /**
-     * Records an undoable action as part of the current transaction.
+     * Records a reversible action as part of the current transaction.
      *
      * @param action The action to record.
      * @throws IllegalStateException if not in a transaction.
      */
-    public suspend fun recordAction(action: UndoableAction)
+    public suspend fun recordAction(action: ReversibleAction)
 
     /**
      * Checks if the calling context is currently in a transaction.
@@ -374,20 +438,6 @@ public interface TransactionManager {
      * @return True if in a transaction, false otherwise.
      */
     public suspend fun isInTransaction(): Boolean
-}
-
-/**
- * Transaction events used by [TransactionManagerImpl].
- */
-public sealed class TransactionEvent : Event {
-    public abstract val transactionId: String
-
-    public data class TransactionStarted(override val transactionId: String) : TransactionEvent()
-    public data class TransactionCommitted(override val transactionId: String) : TransactionEvent()
-    public data class TransactionRolledBack(
-        override val transactionId: String,
-        val error: Throwable? = null
-    ) : TransactionEvent()
 }
 
 /**
@@ -400,13 +450,15 @@ private class TransactionContextElement(val context: TransactionContext) : Corou
 }
 
 /**
- * Implementation of [TransactionManager] with rollback support.
+ * Implementation of [TransactionManager] with rollback support based on Magix.
  *
- * @param eventBus The [EventBus] to publish transaction events.
+ * @param magixEndpoint The [MagixEndpoint] to publish transaction events.
+ * @param sourceEndpoint The name of this endpoint for Magix messages.
  * @param logger The logger for transaction operations.
  */
-public class TransactionManagerImpl(
-    private val eventBus: EventBus,
+public class MagixTransactionManager(
+    private val magixEndpoint: MagixEndpoint,
+    private val sourceEndpoint: String,
     private val logger: Logger = DefaultLogManager()
 ) : TransactionManager {
     private val transactionLock = Mutex()
@@ -429,12 +481,22 @@ public class TransactionManagerImpl(
             }
 
             val contextWithTransaction = currentContext + TransactionContextElement(txContext)
-            eventBus.publish(TransactionEvent.TransactionStarted(txId))
+            magixEndpoint.send(
+                DeviceControlsFormats.TRANSACTION_FORMAT,
+                TransactionPayload.TransactionStarted(txId),
+                sourceEndpoint
+            )
 
             val result = withContext(contextWithTransaction) {
                 block(txContext)
             }
-            eventBus.publish(TransactionEvent.TransactionCommitted(txId))
+
+            magixEndpoint.send(
+                DeviceControlsFormats.TRANSACTION_FORMAT,
+                TransactionPayload.TransactionCommitted(txId),
+                sourceEndpoint
+            )
+
             return result
         } catch (ex: Exception) {
             logger.error(ex) { "Transaction $txId failed, rolling back." }
@@ -444,11 +506,11 @@ public class TransactionManagerImpl(
 
             for (action in actions.reversed()) {
                 try {
-                    action.undo()
+                    action.reverse()
                 } catch (undoEx: Exception) {
-                    logger.error(undoEx) { "Failed to undo action ${action.id} during rollback of transaction $txId" }
+                    logger.error(undoEx) { "Failed to reverse action ${action.id} during rollback of transaction $txId" }
 
-                    val wrappedError = Exception("Failed to undo action ${action.id}", undoEx)
+                    val wrappedError = Exception("Failed to reverse action ${action.id}", undoEx)
                     if (rollbackError == null) {
                         rollbackError = wrappedError
                     } else {
@@ -457,7 +519,15 @@ public class TransactionManagerImpl(
                 }
             }
 
-            eventBus.publish(TransactionEvent.TransactionRolledBack(txId, ex))
+            magixEndpoint.send(
+                DeviceControlsFormats.TRANSACTION_FORMAT,
+                TransactionPayload.TransactionRolledBack(
+                    txId,
+                    ex.message,
+                    ex::class.simpleName
+                ),
+                sourceEndpoint
+            )
 
             if (rollbackError != null) {
                 ex.addSuppressed(Exception("Errors during rollback", rollbackError))
@@ -471,7 +541,7 @@ public class TransactionManagerImpl(
         }
     }
 
-    override suspend fun recordAction(action: UndoableAction) {
+    override suspend fun recordAction(action: ReversibleAction) {
         val contextElement = coroutineContext[TransactionContextElement.Key]
             ?: throw IllegalStateException("No active transaction in current context")
 
@@ -483,141 +553,6 @@ public class TransactionManagerImpl(
     }
 
     private fun generateTransactionId(): String = "tx_${Clock.System.now().toEpochMilliseconds()}"
-}
-
-/**
- * Interface for publishing metrics.
- */
-public interface MetricPublisher {
-    /**
-     * Publishes a metric with the given parameters.
-     *
-     * @param name The name of the metric.
-     * @param value The numeric value of the metric.
-     * @param tags Optional key-value tags for additional context.
-     */
-    public fun publishMetric(name: String, value: Double, tags: Map<String, String> = emptyMap())
-
-    /**
-     * Publishes a metric safely, handling any exceptions.
-     *
-     * @param name The name of the metric.
-     * @param value The numeric value of the metric.
-     * @param tags Optional key-value tags for additional context.
-     * @return True if the metric was published, false if an error occurred.
-     */
-    public fun publishMetricSafely(name: String, value: Double, tags: Map<String, String> = emptyMap()): Boolean
-
-    /**
-     * Records a duration metric.
-     *
-     * @param name The name of the metric.
-     * @param duration The duration to record.
-     * @param tags Optional key-value tags for additional context.
-     */
-    public fun recordDuration(name: String, duration: Duration, tags: Map<String, String> = emptyMap())
-
-    /**
-     * Increments a counter metric by 1.
-     *
-     * @param name The name of the metric.
-     * @param tags Optional key-value tags for additional context.
-     */
-    public fun incrementCounter(name: String, tags: Map<String, String> = emptyMap())
-
-    /**
-     * Records a gauge metric.
-     *
-     * @param name The name of the metric.
-     * @param value The value to record.
-     * @param tags Optional key-value tags for additional context.
-     */
-    public fun recordGauge(name: String, value: Double, tags: Map<String, String> = emptyMap())
-
-    /**
-     * Closes the metric publisher, freeing any resources.
-     */
-    public fun close()
-}
-
-/**
- * Default implementation of [MetricPublisher] that logs metrics.
- *
- * @param logger The logger for metric publishing.
- */
-public class LoggingMetricPublisher(
-    private val logger: Logger = DefaultLogManager()
-) : MetricPublisher {
-    @Volatile
-    private var active: Boolean = true
-    private val mutex = Mutex()
-
-    override fun publishMetric(name: String, value: Double, tags: Map<String, String>) {
-        if (!active) {
-            throw IllegalStateException("MetricPublisher is closed")
-        }
-
-        logger.info { "Metric published: $name = $value, tags: $tags" }
-    }
-
-    override fun publishMetricSafely(name: String, value: Double, tags: Map<String, String>): Boolean {
-        if (!active) return false
-
-        return try {
-            logger.info { "Metric published: $name = $value, tags: $tags" }
-            true
-        } catch (e: Exception) {
-            try {
-                logger.error(e) { "Failed to publish metric: $name" }
-            } catch (_: Exception) {
-                // Ignore if logging fails
-            }
-            false
-        }
-    }
-
-    override fun recordDuration(name: String, duration: Duration, tags: Map<String, String>) {
-        publishMetricSafely("$name.duration", duration.inWholeMilliseconds.toDouble(), tags)
-    }
-
-    override fun incrementCounter(name: String, tags: Map<String, String>) {
-        publishMetricSafely("$name.count", 1.0, tags)
-    }
-
-    override fun recordGauge(name: String, value: Double, tags: Map<String, String>) {
-        publishMetricSafely("$name.gauge", value, tags)
-    }
-
-    override fun close() {
-        active = false
-    }
-}
-
-/**
- * Thread-safe atomic reference implementation.
- */
-public class AtomicReference<T>(initialValue: T) {
-    private val mutex = Mutex()
-    private var value = initialValue
-
-    public suspend fun get(): T = mutex.withLock { value }
-
-    public suspend fun set(newValue: T): Unit = mutex.withLock { value = newValue }
-
-    public fun getSync(): T {
-        return value
-    }
-
-    public suspend fun updateAndGet(function: (T) -> T): T = mutex.withLock {
-        value = function(value)
-        value
-    }
-
-    public suspend fun getAndUpdate(function: (T) -> T): T = mutex.withLock {
-        val oldValue = value
-        value = function(value)
-        oldValue
-    }
 }
 
 /**
@@ -653,32 +588,6 @@ public enum class StartMode {
      * If [DeviceLifecycleConfig.lifecycleMode] = INDEPENDENT, no auto-start is performed.
      */
     SYNC
-}
-
-/**
- * Interface for loading external device configurations.
- */
-public interface ExternalConfigurationProvider {
-    /**
-     * Loads a [Meta] configuration for a device by its [name].
-     *
-     * @param name The [Name] of the device.
-     * @return The [Meta] configuration, or `null` if not found.
-     */
-    public suspend fun loadExternalConfig(name: Name): Meta?
-}
-
-/**
- * Implementation of [ExternalConfigurationProvider] that loads from a predefined source.
- *
- * @param configSource The source of configuration data.
- */
-public class SimpleExternalConfigurationProvider(
-    private val configSource: Map<Name, Meta> = emptyMap()
-) : ExternalConfigurationProvider {
-    override suspend fun loadExternalConfig(name: Name): Meta? {
-        return configSource[name]
-    }
 }
 
 /**
@@ -789,20 +698,6 @@ public enum class RestartStrategy {
 }
 
 /**
- * Sealed class representing device state events.
- */
-public sealed class DeviceStateEvent : Event {
-    public abstract val deviceName: Name
-
-    public data class DeviceAdded(override val deviceName: Name) : DeviceStateEvent()
-    public data class DeviceStarted(override val deviceName: Name) : DeviceStateEvent()
-    public data class DeviceStopped(override val deviceName: Name) : DeviceStateEvent()
-    public data class DeviceRemoved(override val deviceName: Name) : DeviceStateEvent()
-    public data class DeviceFailed(override val deviceName: Name, val error: Throwable) : DeviceStateEvent()
-    public data class DeviceDetached(override val deviceName: Name) : DeviceStateEvent()
-}
-
-/**
  * Configuration for a device's lifecycle, including timeouts and error handling.
  *
  * @param lifecycleMode The [LifecycleMode] of the device.
@@ -818,10 +713,10 @@ public sealed class DeviceStateEvent : Event {
  */
 public data class DeviceLifecycleConfig(
     val lifecycleMode: LifecycleMode = LifecycleMode.LINKED,
-    val messageBuffer: Int = ControlsConfiguration.DEFAULT.messageBufferSize,
+    val messageBuffer: Int = 1000,
     val startDelay: Duration = Duration.ZERO,
-    val startTimeout: Duration? = ControlsConfiguration.DEFAULT.defaultStartTimeout,
-    val stopTimeout: Duration? = ControlsConfiguration.DEFAULT.defaultStopTimeout,
+    val startTimeout: Duration? = 30.seconds,
+    val stopTimeout: Duration? = 10.seconds,
     val coroutineScope: CoroutineScope? = null,
     val dispatcher: CoroutineDispatcher? = null,
     val onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART,
@@ -863,25 +758,15 @@ public fun interface ExternalConfigApplier {
  */
 public class DeviceLifecycleConfigBuilder {
     public var lifecycleMode: LifecycleMode = LifecycleMode.LINKED
-    public var messageBuffer: Int = ControlsConfiguration.DEFAULT.messageBufferSize
+    public var messageBuffer: Int = 1000
     public var startDelay: Duration = Duration.ZERO
-    public var startTimeout: Duration? = ControlsConfiguration.DEFAULT.defaultStartTimeout
-    public var stopTimeout: Duration? = ControlsConfiguration.DEFAULT.defaultStopTimeout
+    public var startTimeout: Duration? = 30.seconds
+    public var stopTimeout: Duration? = 10.seconds
     public var coroutineScope: CoroutineScope? = null
     public var dispatcher: CoroutineDispatcher? = null
     public var onError: ChildDeviceErrorHandler = ChildDeviceErrorHandler.RESTART
     public var healthChecker: HealthChecker? = null
     public var restartPolicy: RestartPolicy = RestartPolicy.DEFAULT
-
-    /**
-     * Applies an external configuration using the provided [externalApplier].
-     *
-     * @param deviceName The device's [Name].
-     * @param externalApplier The [ExternalConfigApplier] to apply.
-     */
-    public suspend fun applyExternalConfig(deviceName: Name, externalApplier: ExternalConfigApplier) {
-        externalApplier.applyConfig(this, deviceName)
-    }
 
     /** Builds and returns the [DeviceLifecycleConfig]. */
     public fun build(): DeviceLifecycleConfig = DeviceLifecycleConfig(
@@ -958,76 +843,6 @@ public interface ComponentRegistry : ContextAware {
 }
 
 /**
- * Plugin-based implementation of [ComponentRegistry].
- */
-public class ComponentRegistryManager : AbstractPlugin(), ComponentRegistry {
-    private val specs = mutableMapOf<Name, CompositeControlComponentSpec<*>>()
-    private val registryLock = Mutex()
-
-    override val tag: PluginTag = Companion.tag
-
-    @Suppress("UNCHECKED_CAST")
-    override fun <D : ConfigurableCompositeControlComponent<D>> getSpec(name: Name): CompositeControlComponentSpec<D>? {
-        val spec = specs[name] ?: return null
-
-        return try {
-            spec as? CompositeControlComponentSpec<D>
-        } catch (e: ClassCastException) {
-            logger.error(e) { "Failed to get spec $name" }
-            null
-        }
-    }
-
-    /**
-     * Registers a [spec] under the given [name].
-     *
-     * @param spec The [CompositeControlComponentSpec] to register.
-     * @param name The [Name] to register it under.
-     */
-    public suspend fun registerSpec(spec: CompositeControlComponentSpec<*>, name: Name) {
-        registryLock.withLock {
-            specs[name] = spec
-        }
-    }
-
-    /**
-     * Checks if a specification with the given [name] exists.
-     *
-     * @param name The [Name] to check.
-     * @return True if a specification exists, false otherwise.
-     */
-    public fun hasSpec(name: Name): Boolean {
-        return specs.containsKey(name)
-    }
-
-    /**
-     * Removes a specification with the given [name].
-     *
-     * @param name The [Name] to remove.
-     * @return The removed specification, or null if not found.
-     */
-    public suspend fun removeSpec(name: Name): CompositeControlComponentSpec<*>? {
-        return registryLock.withLock {
-            specs.remove(name)
-        }
-    }
-
-    public companion object : PluginFactory<ComponentRegistryManager> {
-        override val tag: PluginTag = PluginTag("controls.spechub", group = PluginTag.DATAFORGE_GROUP)
-        override fun build(context: Context, meta: Meta): ComponentRegistryManager = ComponentRegistryManager()
-    }
-}
-
-/** Extension property to access the [ComponentRegistry] from a [Context]. */
-public val Context.componentRegistry: ComponentRegistry?
-    get() = plugins[ComponentRegistryManager]
-
-/** Adds a [ComponentRegistryManager] plugin to a [ContextBuilder]. */
-public fun ContextBuilder.withSpecHub() {
-    plugin(ComponentRegistryManager)
-}
-
-/**
  * Interface representing configuration for a child component.
  *
  * @param CD The type of the child device.
@@ -1041,6 +856,44 @@ public interface ChildComponentConfig<CD : ConfigurableCompositeControlComponent
     public val meta: Meta?
     /** The name of the child component. */
     public val name: Name
+
+    public companion object {
+        /**
+         * Creates a ChildComponentConfig from Meta
+         */
+        public fun <CD : ConfigurableCompositeControlComponent<CD>> fromMeta(
+            meta: Meta,
+            registry: ComponentRegistry,
+            name: Name
+        ): ChildComponentConfig<CD>? {
+            val specName = meta["spec"].string?.asName() ?: return null
+            val spec = registry.getSpec<CD>(specName) ?: return null
+
+            val configBuilder = DeviceLifecycleConfigBuilder()
+            meta["config"]?.let { configMeta ->
+                configBuilder.lifecycleMode = configMeta["lifecycleMode"]?.string?.let {
+                    LifecycleMode.valueOf(it)
+                } ?: LifecycleMode.LINKED
+
+                configBuilder.messageBuffer = configMeta["messageBuffer"]?.int ?: 1000
+                configBuilder.startDelay = configMeta["startDelay"]?.string?.let { Duration.parse(it) } ?: Duration.ZERO
+                configBuilder.startTimeout = configMeta["startTimeout"]?.string?.let { Duration.parse(it) }
+                configBuilder.stopTimeout = configMeta["stopTimeout"]?.string?.let { Duration.parse(it) }
+                configBuilder.onError = configMeta["onError"]?.string?.let {
+                    ChildDeviceErrorHandler.valueOf(it)
+                } ?: ChildDeviceErrorHandler.RESTART
+            }
+
+            val deviceMeta = meta["meta"]
+
+            return object : ChildComponentConfig<CD> {
+                override val spec: CompositeControlComponentSpec<CD> = spec
+                override val config: DeviceLifecycleConfig = configBuilder.build()
+                override val meta: Meta? = deviceMeta
+                override val name: Name = name
+            }
+        }
+    }
 }
 
 /**
@@ -1193,9 +1046,7 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
     public val registry: ComponentRegistry? = null
 ) : CompositeDeviceSpec<D> {
     private val specLock = Mutex()
-    private val propertyMap = hashMapOf<String, DevicePropertySpec<D, *>>(
-        DeviceMetaPropertySpec.name to DeviceMetaPropertySpec
-    )
+    private val propertyMap = hashMapOf<String, DevicePropertySpec<D, *>>()
     private val actionMap = hashMapOf<String, DeviceActionSpec<D, *, *>>()
     private val childSpecMap = mutableMapOf<String, ChildComponentConfig<*>>()
 
@@ -1246,7 +1097,6 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         return propertyDescriptor(propertyName) {
             this.mutable = mutable
             converter.descriptor?.let { conv -> metaDescriptor { from(conv) } }
-//            fromSpec(property)
             descriptorBuilder()
         }
     }
@@ -1261,7 +1111,6 @@ public open class CompositeControlComponentSpec<D : ConfigurableCompositeControl
         return actionDescriptor(actionName) {
             inputConverter.descriptor?.let { convIn -> inputMeta { from(convIn) } }
             outputConverter.descriptor?.let { convOut -> outputMeta { from(convOut) } }
-//            fromSpec(property)
             descriptorBuilder()
         }
     }
@@ -1435,19 +1284,13 @@ public class DeviceRegistry(
      * @param device The device instance.
      * @param config The lifecycle configuration.
      * @param meta Optional metadata.
-     * @param messageBus The message bus for the device.
-     * @param systemBus The system message bus.
-     * @param reuseBus Whether to reuse an existing bus.
      * @return The [DeviceHubManager.ChildJob] that was created.
      */
     public suspend fun registerDevice(
         name: Name,
         device: Device,
         config: DeviceLifecycleConfig,
-        meta: Meta? = null,
-        messageBus: MutableSharedFlow<DeviceMessage>,
-        systemBus: MutableSharedFlow<SystemLogMessage>,
-        reuseBus: Boolean = false
+        meta: Meta? = null
     ): DeviceHubManager.ChildJob = childLock.withLock {
         val scope = config.coroutineScope ?: CoroutineScope(
             config.dispatcher ?: (Dispatchers.Default +
@@ -1459,7 +1302,6 @@ public class DeviceRegistry(
             try {
                 device.messageFlow.collect { msg ->
                     val wrapped = msg.changeSource { name.plus(it) }
-                    messageBus.emit(wrapped)
                 }
             } catch (ex: CancellationException) {
                 throw ex
@@ -1472,10 +1314,7 @@ public class DeviceRegistry(
             device = device,
             collectorJob = collectorJob,
             config = config,
-            messageBus = messageBus,
-            systemBus = systemBus,
-            meta = meta,
-            reuseBus = reuseBus
+            meta = meta
         )
 
         childrenJobs[name] = childJob
@@ -1541,459 +1380,46 @@ public class DeviceRegistry(
 }
 
 /**
- * Manager for health checks across devices.
- */
-public class HealthCheckManager(
-    private val context: Context,
-    private val deviceRegistry: DeviceRegistry,
-    private val deviceStateEventBus: MutableSharedFlow<DeviceStateEvent>,
-    private val metricPublisher: MetricPublisher
-) {
-    /**
-     * Performs a health check on a specific device.
-     *
-     * @param name The name of the device.
-     * @param childJob The [DeviceHubManager.ChildJob] for the device.
-     * @return True if the device is healthy, false otherwise.
-     */
-    public suspend fun checkHealth(name: Name, childJob: DeviceHubManager.ChildJob): Boolean {
-        val healthChecker = childJob.config.healthChecker ?: return true
-
-        val startTime = Clock.System.now()
-        return try {
-            val isHealthy = healthChecker.isHealthy(childJob.device)
-            val endTime = Clock.System.now()
-            val duration = endTime - startTime
-
-            metricPublisher.recordDuration("device.health.check.duration", duration,
-                mapOf("device" to name.toString()))
-
-            if (isHealthy) {
-                metricPublisher.incrementCounter("device.health.check.success",
-                    mapOf("device" to name.toString()))
-            } else {
-                metricPublisher.incrementCounter("device.health.check.failure",
-                    mapOf("device" to name.toString()))
-
-                if (healthChecker is HealthCheckerImpl) {
-                    val report = healthChecker.getHealthReport(childJob.device)
-                    for ((key, value) in report.metrics) {
-                        metricPublisher.recordGauge("device.health.$key", value,
-                            mapOf("device" to name.toString()))
-                    }
-                }
-
-                deviceStateEventBus.emit(DeviceStateEvent.DeviceFailed(
-                    name,
-                    DeviceConnectionException("Health check failed for device $name",
-                        category = DeviceErrorCategory.NON_CRITICAL)
-                ))
-            }
-
-            isHealthy
-        } catch (ex: Exception) {
-            context.logger.error(ex) { "Error during health check for device $name" }
-            metricPublisher.incrementCounter("device.health.check.error",
-                mapOf("device" to name.toString()))
-            deviceStateEventBus.emit(DeviceStateEvent.DeviceFailed(name, ex))
-            false
-        }
-    }
-
-    /**
-     * Runs health checks on all registered devices.
-     *
-     * @return A map of device names to their health status.
-     */
-    public suspend fun runHealthChecks(): Map<Name, Boolean> {
-        val devices = deviceRegistry.getDevicesSafe()
-        val results = mutableMapOf<Name, Boolean>()
-
-        metricPublisher.incrementCounter("device.health.check.batch")
-        val startTime = Clock.System.now()
-
-        for ((name, _) in devices) {
-            val childJob = deviceRegistry.getChildJob(name) ?: continue
-            results[name] = checkHealth(name, childJob)
-        }
-
-        val endTime = Clock.System.now()
-        val duration = endTime - startTime
-        metricPublisher.recordDuration("device.health.check.batch.duration", duration)
-
-        val healthyCount = results.values.count { it }
-        val unhealthyCount = results.size - healthyCount
-
-        metricPublisher.recordGauge("device.health.check.aggregate.healthy", healthyCount.toDouble())
-        metricPublisher.recordGauge("device.health.check.aggregate.unhealthy", unhealthyCount.toDouble())
-        metricPublisher.recordGauge("device.health.check.aggregate.percentage",
-            if (results.isNotEmpty()) (healthyCount.toDouble() / results.size * 100.0) else 0.0)
-
-        return results
-    }
-
-    /**
-     * Runs a health check on a specific device.
-     *
-     * @param name The name of the device.
-     * @return True if the device is healthy, false otherwise, or null if the device doesn't exist.
-     */
-    public suspend fun checkDeviceHealth(name: Name): Boolean? {
-        val childJob = deviceRegistry.getChildJob(name) ?: return null
-        return checkHealth(name, childJob)
-    }
-}
-
-/**
- * Manages error handling for devices.
- */
-public class ErrorHandlingManager(
-    private val context: Context,
-    private val deviceRegistry: DeviceRegistry,
-    private val messageBus: MutableSharedFlow<DeviceMessage>,
-    private val deviceStateEventBus: MutableSharedFlow<DeviceStateEvent>,
-    private val metricPublisher: MetricPublisher
-) {
-    private val restartingDevices = mutableSetOf<Name>()
-    private val restartAttemptsMap = mutableMapOf<Name, Int>()
-    private val restartLock = Mutex()
-
-    private val circuitBreakerStates = mutableMapOf<Name, CircuitBreakerState>()
-
-    private data class CircuitBreakerState(
-        var failureCount: Int = 0,
-        var openSince: Long = 0,
-        var isOpen: Boolean = false,
-        val config: CircuitBreakerConfig
-    )
-
-    /**
-     * Handles an error from a child device according to its error policy.
-     *
-     * @param ex The exception that occurred.
-     * @param childName The name of the child device.
-     * @param config The lifecycle configuration.
-     * @param handler The [DeviceHubManager] for handling specific policies.
-     */
-    public suspend fun handleError(
-        ex: Throwable,
-        childName: Name,
-        config: DeviceLifecycleConfig,
-        handler: DeviceHubManager
-    ) {
-        val category = if (ex is DeviceException) ex.category else DeviceErrorCategory.CRITICAL
-
-        metricPublisher.incrementCounter("device.error",
-            mapOf("device" to childName.toString(), "category" to category.toString()))
-
-        when (category) {
-            DeviceErrorCategory.CRITICAL -> {
-                this.context.logger.error(ex) {
-                    "CRITICAL error in child device $childName with policy ${config.onError}"
-                }
-
-                messageBus.emit(DeviceMessage.error(ex, childName))
-                deviceStateEventBus.emit(DeviceStateEvent.DeviceFailed(childName, ex))
-
-                when (config.onError) {
-                    ChildDeviceErrorHandler.IGNORE -> {
-                        metricPublisher.incrementCounter("device.error.ignored",
-                            mapOf("device" to childName.toString()))
-                    }
-                    ChildDeviceErrorHandler.RESTART -> {
-                        if (shouldAttemptRestart(childName, config.restartPolicy)) {
-                            scheduleRestart(childName, config.restartPolicy, handler)
-                        } else {
-                            this.context.logger.warn {
-                                "Circuit breaker open for $childName, not attempting restart"
-                            }
-                            metricPublisher.incrementCounter("device.error.circuit_breaker_open",
-                                mapOf("device" to childName.toString()))
-                        }
-                    }
-                    ChildDeviceErrorHandler.STOP_PARENT -> {
-                        metricPublisher.incrementCounter("device.error.stop_parent",
-                            mapOf("device" to childName.toString()))
-                        handler.onParentStopRequested(ex, childName)
-                    }
-                    ChildDeviceErrorHandler.PROPAGATE -> {
-                        metricPublisher.incrementCounter("device.error.propagated",
-                            mapOf("device" to childName.toString()))
-                        throw ex
-                    }
-                    ChildDeviceErrorHandler.CUSTOM -> {
-                        metricPublisher.incrementCounter("device.error.custom_handler",
-                            mapOf("device" to childName.toString()))
-                        handler.onCustomError(ex, childName, config)
-                    }
-                }
-            }
-
-            DeviceErrorCategory.NON_CRITICAL -> {
-                this.context.logger.warn {
-                    "NON_CRITICAL error in child device $childName, continuing with policy ${config.onError}"
-                }
-                metricPublisher.incrementCounter("device.error.non_critical",
-                    mapOf("device" to childName.toString()))
-            }
-        }
-    }
-
-    /**
-     * Checks if a restart should be attempted based on circuit breaker policy.
-     */
-    private suspend fun shouldAttemptRestart(deviceName: Name, policy: RestartPolicy): Boolean {
-        val circuitBreakerConfig = policy.circuitBreaker ?: return true
-
-        return restartLock.withLock {
-            val state = circuitBreakerStates.getOrPut(deviceName) {
-                CircuitBreakerState(config = circuitBreakerConfig)
-            }
-
-            if (state.isOpen) {
-                val now = Clock.System.now().toEpochMilliseconds()
-                val timeInOpenState = now - state.openSince
-
-                if (timeInOpenState > circuitBreakerConfig.resetTimeout.inWholeMilliseconds) {
-                    state.isOpen = false
-                    state.failureCount = 0
-                    true
-                } else {
-                    false
-                }
-            } else {
-                true
-            }
-        }
-    }
-
-    /**
-     * Updates circuit breaker state after a failed restart.
-     */
-    private suspend fun recordRestartFailure(deviceName: Name, policy: RestartPolicy) {
-        val circuitBreakerConfig = policy.circuitBreaker ?: return
-
-        restartLock.withLock {
-            val state = circuitBreakerStates.getOrPut(deviceName) {
-                CircuitBreakerState(config = circuitBreakerConfig)
-            }
-
-            state.failureCount++
-
-            if (state.failureCount >= circuitBreakerConfig.failureThreshold) {
-                state.isOpen = true
-                state.openSince = Clock.System.now().toEpochMilliseconds()
-                metricPublisher.incrementCounter("device.circuit_breaker.open",
-                    mapOf("device" to deviceName.toString()))
-            }
-        }
-    }
-
-    /**
-     * Resets circuit breaker state after a successful restart.
-     */
-    private suspend fun recordRestartSuccess(deviceName: Name) {
-        restartLock.withLock {
-            circuitBreakerStates[deviceName]?.let { state ->
-                state.failureCount = 0
-                state.isOpen = false
-                metricPublisher.incrementCounter("device.circuit_breaker.reset",
-                    mapOf("device" to deviceName.toString()))
-            }
-        }
-    }
-
-    /**
-     * Schedules a restart for a device.
-     *
-     * @param childName The name of the device.
-     * @param policy The restart policy.
-     * @param handler The [DeviceHubManager] that will perform the restart.
-     */
-    private suspend fun scheduleRestart(
-        childName: Name,
-        policy: RestartPolicy,
-        handler: DeviceHubManager
-    ) {
-        restartLock.withLock {
-            if (childName in restartingDevices) return
-            restartingDevices.add(childName)
-        }
-
-        try {
-            val attempts = restartLock.withLock {
-                val currentAttempts = restartAttemptsMap[childName] ?: 0
-                val newAttempts = currentAttempts + 1
-                restartAttemptsMap[childName] = newAttempts
-                newAttempts
-            }
-
-            if (attempts > policy.maxAttempts) {
-                context.logger.warn { "Max restart attempts exceeded for $childName." }
-                metricPublisher.incrementCounter("device.restart.max_attempts_exceeded",
-                    mapOf("device" to childName.toString()))
-                return
-            }
-
-            val delayDuration = calculateDelay(policy, attempts)
-            if (delayDuration > Duration.ZERO) {
-                context.logger.info { "Delaying restart of $childName by $delayDuration (attempt $attempts)" }
-                delay(delayDuration)
-            }
-
-            metricPublisher.incrementCounter("device.restart.attempt",
-                mapOf("device" to childName.toString(), "attempt" to attempts.toString()))
-
-            try {
-                handler.restartDevice(childName)
-
-                if (policy.resetOnSuccess) {
-                    restartLock.withLock {
-                        restartAttemptsMap.remove(childName)
-                    }
-                    recordRestartSuccess(childName)
-                }
-
-                metricPublisher.incrementCounter("device.restart.success",
-                    mapOf("device" to childName.toString()))
-            } catch (e: Exception) {
-                context.logger.error(e) { "Failed to restart device $childName (attempt $attempts)" }
-                metricPublisher.incrementCounter("device.restart.failure",
-                    mapOf("device" to childName.toString()))
-                recordRestartFailure(childName, policy)
-
-                if (attempts < policy.maxAttempts) {
-                    scheduleRestart(childName, policy, handler)
-                }
-            }
-        } finally {
-            restartLock.withLock {
-                restartingDevices.remove(childName)
-            }
-        }
-    }
-
-    /**
-     * Calculates the delay based on [RestartPolicy].
-     */
-    private fun calculateDelay(policy: RestartPolicy, attempts: Int): Duration {
-        return when (policy.strategy) {
-            RestartStrategy.LINEAR -> policy.delayBetweenAttempts
-            RestartStrategy.EXPONENTIAL_BACKOFF ->
-                policy.delayBetweenAttempts.times(2.0.pow((attempts - 1).toDouble()))
-            RestartStrategy.CUSTOM -> Duration.ZERO
-        }
-    }
-
-    /**
-     * Resets the restart attempts for a device.
-     *
-     * @param childName The name of the device.
-     */
-    public suspend fun resetRestartAttempts(childName: Name) {
-        restartLock.withLock {
-            restartAttemptsMap.remove(childName)
-            circuitBreakerStates.remove(childName)
-        }
-    }
-
-    /**
-     * Gets the current restart attempts for a device.
-     *
-     * @param childName The name of the device.
-     * @return The number of restart attempts, or 0 if none.
-     */
-    public suspend fun getRestartAttempts(childName: Name): Int {
-        return restartLock.withLock {
-            restartAttemptsMap[childName] ?: 0
-        }
-    }
-
-    /**
-     * Checks if a device is currently being restarted.
-     *
-     * @param childName The name of the device.
-     * @return True if the device is being restarted, false otherwise.
-     */
-    public suspend fun isRestarting(childName: Name): Boolean {
-        return restartLock.withLock {
-            childName in restartingDevices
-        }
-    }
-
-    /**
-     * Gets circuit breaker status for a device.
-     *
-     * @param childName The name of the device.
-     * @return A map with circuit breaker status information or null if no circuit breaker is configured.
-     */
-    public suspend fun getCircuitBreakerStatus(childName: Name): Map<String, Any>? {
-        return restartLock.withLock {
-            circuitBreakerStates[childName]?.let { state ->
-                mapOf(
-                    "isOpen" to state.isOpen,
-                    "failureCount" to state.failureCount,
-                    "openSince" to state.openSince,
-                    "thresholdFailures" to state.config.failureThreshold,
-                    "resetTimeoutMs" to state.config.resetTimeout.inWholeMilliseconds
-                )
-            }
-        }
-    }
-}
-
-/**
  * Abstract base class for Device Hub managers.
  * Provides core functionality for managing devices, handling errors,
  * and coordinating device lifecycle operations.
  */
 public abstract class DeviceHubManager(
-    public val context: Context
-) {
+    public override val context: Context,
+    public val magixEndpoint: MagixEndpoint,
+    public val sourceEndpoint: String
+): AbstractPlugin() {
     /**
-     * Represents a running child device along with its job, configuration, and flows.
+     * Represents a running child device along with its job, configuration, and metadata.
      */
     public data class ChildJob(
         val device: Device,
         val collectorJob: Job,
         val config: DeviceLifecycleConfig,
-        val messageBus: MutableSharedFlow<DeviceMessage>,
-        val systemBus: MutableSharedFlow<SystemLogMessage>,
-        val meta: Meta? = null,
-        val reuseBus: Boolean = false
+        val meta: Meta? = null
     ) {
         val lifecycleMode: LifecycleMode get() = config.lifecycleMode
+    }
+
+    override val tag: PluginTag get() = Companion.tag
+
+    public companion object : PluginFactory<DeviceHubManager>{
+        override val tag: PluginTag
+            get() = TODO("Not yet implemented")
+
+        override fun build(
+            context: Context,
+            meta: Meta,
+        ): DeviceHubManager {
+            TODO("Not yet implemented")
+        }
+
     }
 
     /**
      * Returns a map of all registered devices.
      */
     public abstract val devices: Map<Name, Device>
-
-    /**
-     * A [MutableSharedFlow] for broadcasting device messages.
-     */
-    public abstract val messageBus: MutableSharedFlow<DeviceMessage>
-
-    /**
-     * A [MutableSharedFlow] for system-level messages.
-     */
-    public abstract val systemBus: MutableSharedFlow<SystemLogMessage>
-
-    /**
-     * A [MutableSharedFlow] for device state events.
-     */
-    public abstract val deviceChanges: MutableSharedFlow<DeviceStateEvent>
-
-    /**
-     * An [EventBus] for application-level events.
-     */
-    public abstract val eventBus: EventBus
-
-    /**
-     * A [MetricPublisher] for logging metrics.
-     */
-    public abstract val metricPublisher: MetricPublisher
 
     /**
      * A [TransactionManager] for transactional operations.
@@ -2104,23 +1530,13 @@ public abstract class DeviceHubManager(
      * @param newDevice The new [Device] instance.
      * @param config The new lifecycle configuration.
      * @param meta Optional metadata.
-     * @param reuseMessageBus If true, the existing message bus is reused.
      */
     public abstract suspend fun hotSwapDevice(
         name: Name,
         newDevice: Device,
         config: DeviceLifecycleConfig,
-        meta: Meta? = null,
-        reuseMessageBus: Boolean = false
+        meta: Meta? = null
     )
-
-    /**
-     * Returns the message bus for a child device.
-     *
-     * @param name The unique name of the child device.
-     * @return The [MutableSharedFlow] of [DeviceMessage] or `null` if not found.
-     */
-    public abstract suspend fun getChildMessageBus(name: Name): MutableSharedFlow<DeviceMessage>?
 
     /**
      * Renames a device.
@@ -2145,11 +1561,6 @@ public abstract class DeviceHubManager(
      * @return `true` if all devices were stopped successfully, `false` otherwise.
      */
     public abstract suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean
-
-    /**
-     * Sets up a distributed transport or message broker.
-     */
-    public abstract fun installDistributedTransport()
 
     /**
      * Runs health checks on all devices.
@@ -2184,17 +1595,95 @@ public abstract class DeviceHubManager(
      * @param device The device instance.
      */
     protected abstract suspend fun doStartDevice(name: Name, config: DeviceLifecycleConfig, device: Device)
+
+    /**
+     * Publishes a system log message through Magix.
+     */
+    public suspend fun publishSystemLog(
+        message: String,
+        deviceName: String? = null,
+        severity: String = "INFO",
+        details: Map<String, String> = emptyMap()
+    ) {
+        magixEndpoint.send(
+            DeviceControlsFormats.SYSTEM_LOG_FORMAT,
+            SystemLogPayload.LogMessage(
+                message = message,
+                deviceName = deviceName,
+                severity = severity,
+                details = details
+            ),
+            sourceEndpoint
+        )
+    }
+
+    /**
+     * Publishes a device state change event through Magix.
+     */
+    public suspend fun publishDeviceState(payload: DeviceStatePayload) {
+        magixEndpoint.send(
+            DeviceControlsFormats.DEVICE_STATE_FORMAT,
+            payload,
+            sourceEndpoint
+        )
+    }
+
+    /**
+     * Publishes a metric through Magix.
+     */
+    public suspend fun publishMetric(name: String, value: Double, tags: Map<String, String> = emptyMap()) {
+        magixEndpoint.send(
+            DeviceControlsFormats.METRICS_FORMAT,
+            MetricPayload.MetricValue(name, value, tags),
+            sourceEndpoint
+        )
+    }
+
+    /**
+     * Increments a counter metric through Magix.
+     */
+    public suspend fun incrementCounter(name: String, tags: Map<String, String> = emptyMap()) {
+        magixEndpoint.send(
+            DeviceControlsFormats.METRICS_FORMAT,
+            MetricPayload.MetricCounter(name, 1.0, tags),
+            sourceEndpoint
+        )
+    }
+
+    /**
+     * Records a duration metric through Magix.
+     */
+    public suspend fun recordDuration(name: String, duration: Duration, tags: Map<String, String> = emptyMap()) {
+        magixEndpoint.send(
+            DeviceControlsFormats.METRICS_FORMAT,
+            MetricPayload.MetricDuration(name, duration.inWholeMilliseconds, tags),
+            sourceEndpoint
+        )
+    }
 }
 
 /**
- * Standard implementation of [DeviceHubManager].
+ * Standard implementation of [DeviceHubManager] with Magix.
  */
-public class StandardDeviceHubManager(
+public class MagixDeviceHubManager(
     context: Context,
+    magixEndpoint: MagixEndpoint,
+    sourceEndpoint: String,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
-    resourceInfo: SystemResourceInfo = SystemResourceInfo(),
-    private val configuration: ControlsConfiguration = ControlsConfiguration.DEFAULT
-) : DeviceHubManager(context) {
+    resourceInfo: SystemResourceInfo = SystemResourceInfo(context)
+) : DeviceHubManager(context, magixEndpoint, sourceEndpoint) {
+
+    override val tag: PluginTag get() = TODO()
+
+    public companion object : PluginFactory<MagixDeviceHubManager> {
+        override val tag: PluginTag = PluginTag("controls.device.TODO()", PluginTag.DATAFORGE_GROUP)
+
+        override fun build(context: Context, meta: Meta): MagixDeviceHubManager {
+
+            return TODO()
+        }
+    }
+
     /**
      * Global exception handler for all coroutines in this manager.
      */
@@ -2210,7 +1699,7 @@ public class StandardDeviceHubManager(
     /**
      * Flag indicating if this manager is active
      */
-    private val isActive = AtomicReference(true)
+    private val isActive = atomic(true)
 
     /**
      * Dispatcher for controlled concurrency
@@ -2221,59 +1710,12 @@ public class StandardDeviceHubManager(
     /**
      * Registry for managing devices
      */
-    internal val deviceRegistry = DeviceRegistry(context)
-
-    /**
-     * A [MutableSharedFlow] for broadcasting (or replaying) [DeviceMessage]s from all devices.
-     */
-    override val messageBus: MutableSharedFlow<DeviceMessage> = MutableSharedFlow(
-        replay = configuration.messageBufferSize,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-
-    /**
-     * A [MutableSharedFlow] for system-level or log messages.
-     */
-    override val systemBus: MutableSharedFlow<SystemLogMessage> = MutableSharedFlow(
-        replay = configuration.systemLogBufferSize,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-
-    /**
-     * A [MutableSharedFlow] for [DeviceStateEvent] changes (e.g., device added/removed/failed).
-     */
-    override val deviceChanges: MutableSharedFlow<DeviceStateEvent> = MutableSharedFlow(
-        replay = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-
-    /**
-     * Additional [EventBus] for application-level events.
-     */
-    override val eventBus: EventBus = SimpleEventBus(
-        configuration = configuration,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-
-    /**
-     * Metric publisher for logging and monitoring.
-     */
-    override val metricPublisher: MetricPublisher = LoggingMetricPublisher(context.logger)
+    private val deviceRegistry = DeviceRegistry(context)
 
     /**
      * Transaction manager for wrapping critical operations.
      */
-    override val transactionManager: TransactionManager = TransactionManagerImpl(eventBus, context.logger)
-
-    /**
-     * Health check manager for monitoring device health
-     */
-    private val healthCheckManager = HealthCheckManager(context, deviceRegistry, deviceChanges, metricPublisher)
-
-    /**
-     * Error handling manager for processing device errors
-     */
-    private val errorHandlingManager = ErrorHandlingManager(context, deviceRegistry, messageBus, deviceChanges, metricPublisher)
+    override val transactionManager: TransactionManager = MagixTransactionManager(magixEndpoint, sourceEndpoint, context.logger)
 
     /**
      * Returns a map of all registered devices.
@@ -2298,7 +1740,55 @@ public class StandardDeviceHubManager(
      * @param config The lifecycle configuration of the child device.
      */
     override suspend fun onChildErrorCaught(ex: Throwable, childName: Name, config: DeviceLifecycleConfig) {
-        errorHandlingManager.handleError(ex, childName, config, this)
+        val category = if (ex is DeviceException) ex.category else DeviceErrorCategory.CRITICAL
+
+        publishMetric("device.error", 1.0, mapOf("device" to childName.toString(), "category" to category.toString()))
+
+        when (category) {
+            DeviceErrorCategory.CRITICAL -> {
+                context.logger.error(ex) {
+                    "CRITICAL error in child device $childName with policy ${config.onError}"
+                }
+
+                val errorMessage = DeviceMessage.error(ex, childName)
+
+                publishDeviceState(DeviceStatePayload.DeviceFailed(
+                    childName.toString(),
+                    ex.message ?: "Unknown error",
+                    ex::class.simpleName
+                ))
+
+                when (config.onError) {
+                    ChildDeviceErrorHandler.IGNORE -> {
+                        publishMetric("device.error.ignored", 1.0, mapOf("device" to childName.toString()))
+                    }
+                    ChildDeviceErrorHandler.RESTART -> {
+                        launchGlobal {
+                            restartDevice(childName)
+                        }
+                    }
+                    ChildDeviceErrorHandler.STOP_PARENT -> {
+                        publishMetric("device.error.stop_parent", 1.0, mapOf("device" to childName.toString()))
+                        onParentStopRequested(ex, childName)
+                    }
+                    ChildDeviceErrorHandler.PROPAGATE -> {
+                        publishMetric("device.error.propagated", 1.0, mapOf("device" to childName.toString()))
+                        throw ex
+                    }
+                    ChildDeviceErrorHandler.CUSTOM -> {
+                        publishMetric("device.error.custom_handler", 1.0, mapOf("device" to childName.toString()))
+                        onCustomError(ex, childName, config)
+                    }
+                }
+            }
+
+            DeviceErrorCategory.NON_CRITICAL -> {
+                context.logger.warn {
+                    "NON_CRITICAL error in child device $childName, continuing with policy ${config.onError}"
+                }
+                publishMetric("device.error.non_critical", 1.0, mapOf("device" to childName.toString()))
+            }
+        }
     }
 
     /**
@@ -2336,8 +1826,7 @@ public class StandardDeviceHubManager(
     override suspend fun onStartTimeout(deviceName: Name, config: DeviceLifecycleConfig) {
         val msg = "Timeout while starting $deviceName."
         context.logger.error { msg }
-        metricPublisher.incrementCounter("device.start.timeout",
-            mapOf("device" to deviceName.toString()))
+        publishMetric("device.start.timeout", 1.0, mapOf("device" to deviceName.toString()))
         throw DeviceTimeoutException(msg)
     }
 
@@ -2349,8 +1838,7 @@ public class StandardDeviceHubManager(
      */
     override suspend fun onStopTimeout(deviceName: Name, config: DeviceLifecycleConfig) {
         context.logger.warn { "Timeout while stopping $deviceName." }
-        metricPublisher.incrementCounter("device.stop.timeout",
-            mapOf("device" to deviceName.toString()))
+        publishMetric("device.stop.timeout", 1.0, mapOf("device" to deviceName.toString()))
     }
 
     /**
@@ -2360,10 +1848,51 @@ public class StandardDeviceHubManager(
      */
     override suspend fun checkHealth(childJob: ChildJob) {
         val childName = childJob.device.id.parseAsName()
-        val isHealthy = healthCheckManager.checkHealth(childName, childJob)
+        val healthChecker = childJob.config.healthChecker ?: return
 
-        if (!isHealthy && childJob.config.onError == ChildDeviceErrorHandler.RESTART) {
-            restartDevice(childName)
+        val startTime = Clock.System.now()
+        try {
+            val isHealthy = healthChecker.isHealthy(childJob.device)
+            val endTime = Clock.System.now()
+            val duration = endTime - startTime
+
+            recordDuration("device.health.check.duration", duration,
+                mapOf("device" to childName.toString()))
+
+            if (isHealthy) {
+                incrementCounter("device.health.check.success",
+                    mapOf("device" to childName.toString()))
+            } else {
+                incrementCounter("device.health.check.failure",
+                    mapOf("device" to childName.toString()))
+
+                if (healthChecker is HealthCheckerImpl) {
+                    val report = healthChecker.getHealthReport(childJob.device)
+                    for ((key, value) in report.metrics) {
+                        publishMetric("device.health.$key", value,
+                            mapOf("device" to childName.toString()))
+                    }
+                }
+
+                publishDeviceState(DeviceStatePayload.DeviceFailed(
+                    childName.toString(),
+                    "Health check failed",
+                    "DeviceConnectionException"
+                ))
+
+                if (childJob.config.onError == ChildDeviceErrorHandler.RESTART) {
+                    restartDevice(childName)
+                }
+            }
+        } catch (ex: Exception) {
+            context.logger.error(ex) { "Error during health check for device $childName" }
+            incrementCounter("device.health.check.error",
+                mapOf("device" to childName.toString()))
+            publishDeviceState(DeviceStatePayload.DeviceFailed(
+                childName.toString(),
+                ex.message ?: "Unknown error during health check",
+                ex::class.simpleName
+            ))
         }
     }
 
@@ -2383,7 +1912,7 @@ public class StandardDeviceHubManager(
         meta: Meta?,
         startMode: StartMode
     ) {
-        if (!isActive.getSync()) {
+        if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot attach device")
         }
 
@@ -2395,26 +1924,18 @@ public class StandardDeviceHubManager(
             throw DeviceConfigurationException("Device must be in INITIAL or STOPPED state to be attached, but was ${device.lifecycleState}")
         }
 
-        val deviceMessageBus = MutableSharedFlow<DeviceMessage>(
-            replay = config.messageBuffer,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST
-        )
-
         val childJob = await {
             deviceRegistry.registerDevice(
                 name = name,
                 device = device,
                 config = config,
-                meta = meta,
-                messageBus = messageBus,
-                systemBus = systemBus
+                meta = meta
             )
         }
 
-        deviceChanges.emit(DeviceStateEvent.DeviceAdded(name))
-        systemBus.emit(SystemLogMessage("Device $name attached, startMode=$startMode", sourceDevice = name))
-        metricPublisher.incrementCounter("device.attach",
-            mapOf("device" to name.toString(), "startMode" to startMode.toString()))
+        publishDeviceState(DeviceStatePayload.DeviceAdded(name.toString()))
+        publishSystemLog("Device $name attached, startMode=$startMode", name.toString())
+        publishMetric("device.attach", 1.0, mapOf("device" to name.toString(), "startMode" to startMode.toString()))
 
         if (config.lifecycleMode == LifecycleMode.INDEPENDENT) return
 
@@ -2433,7 +1954,7 @@ public class StandardDeviceHubManager(
      * @param device The device instance.
      */
     override suspend fun doStartDevice(name: Name, config: DeviceLifecycleConfig, device: Device) {
-        if (!isActive.getSync()) {
+        if (!isActive.value) {
             context.logger.warn { "DeviceHubManager is shutting down, not starting device $name" }
             return
         }
@@ -2448,7 +1969,7 @@ public class StandardDeviceHubManager(
 
         val startTime = Clock.System.now()
         try {
-            val startTimeout = config.startTimeout ?: configuration.defaultStartTimeout
+            val startTimeout = config.startTimeout ?: context.deviceManagerConfig.defaultStartTimeout
 
             withTimeout(startTimeout) {
                 if (device.lifecycleState == LifecycleState.STARTED) {
@@ -2461,22 +1982,24 @@ public class StandardDeviceHubManager(
             val endTime = Clock.System.now()
             val startDuration = endTime - startTime
 
-            deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
-            metricPublisher.recordDuration("device.start.duration", startDuration,
+            publishDeviceState(DeviceStatePayload.DeviceStarted(name.toString()))
+            recordDuration("device.start.duration", startDuration,
                 mapOf("device" to name.toString()))
-            metricPublisher.incrementCounter("device.start.success",
+            incrementCounter("device.start.success",
                 mapOf("device" to name.toString()))
-            errorHandlingManager.resetRestartAttempts(name)
         } catch (e: TimeoutCancellationException) {
-            metricPublisher.incrementCounter("device.start.failure",
+            incrementCounter("device.start.failure",
                 mapOf("device" to name.toString(), "reason" to "timeout"))
             onStartTimeout(name, config)
         } catch (e: Exception) {
-            metricPublisher.incrementCounter("device.start.failure",
+            incrementCounter("device.start.failure",
                 mapOf("device" to name.toString(), "reason" to "error"))
             context.logger.error(e) { "Error starting device $name" }
-            deviceChanges.emit(DeviceStateEvent.DeviceFailed(name,
-                DeviceStartupException("Failed to start device $name", e)))
+            publishDeviceState(DeviceStatePayload.DeviceFailed(
+                name.toString(),
+                e.message ?: "Failed to start device",
+                "DeviceStartupException"
+            ))
             throw e
         }
     }
@@ -2492,9 +2015,9 @@ public class StandardDeviceHubManager(
         val childJob = await { deviceRegistry.removeDevice(name) }
 
         if (childJob != null) {
-            deviceChanges.emit(DeviceStateEvent.DeviceRemoved(name))
-            systemBus.emit(SystemLogMessage("Device $name removed (waitStop=$waitStop)", sourceDevice = name))
-            metricPublisher.incrementCounter("device.detach",
+            publishDeviceState(DeviceStatePayload.DeviceRemoved(name.toString()))
+            publishSystemLog("Device $name removed (waitStop=$waitStop)", name.toString())
+            incrementCounter("device.detach",
                 mapOf("device" to name.toString(), "waitStop" to waitStop.toString()))
 
             if (waitStop) {
@@ -2512,15 +2035,14 @@ public class StandardDeviceHubManager(
      * @param name The unique name of the device to restart.
      */
     override suspend fun restartDevice(name: Name) {
-        if (!isActive.getSync()) {
+        if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot restart device")
         }
 
         val childJob = await { deviceRegistry.getChildJob(name) } ?:
         throw DeviceConfigurationException("Device $name not found")
 
-        metricPublisher.incrementCounter("device.restart",
-            mapOf("device" to name.toString()))
+        incrementCounter("device.restart", mapOf("device" to name.toString()))
 
         if (childJob.device.lifecycleState == LifecycleState.STARTED) {
             try {
@@ -2538,14 +2060,11 @@ public class StandardDeviceHubManager(
                 name = name,
                 device = childJob.device,
                 config = childJob.config,
-                meta = childJob.meta,
-                messageBus = messageBus,
-                systemBus = systemBus,
-                reuseBus = childJob.reuseBus
+                meta = childJob.meta
             )
         }
 
-        systemBus.emit(SystemLogMessage("Device $name restarted", sourceDevice = name))
+        publishSystemLog("Device $name restarted", name.toString())
 
         if (childJob.lifecycleMode != LifecycleMode.INDEPENDENT) {
             doStartDevice(name, childJob.config, childJob.device)
@@ -2560,7 +2079,7 @@ public class StandardDeviceHubManager(
      * @param newMode The new lifecycle mode.
      */
     override suspend fun changeLifecycleMode(name: Name, newMode: LifecycleMode) {
-        if (!isActive.getSync()) {
+        if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot change lifecycle mode")
         }
 
@@ -2580,14 +2099,12 @@ public class StandardDeviceHubManager(
                 name = name,
                 device = childJob.device,
                 config = newConfig,
-                meta = childJob.meta,
-                messageBus = messageBus,
-                systemBus = systemBus
+                meta = childJob.meta
             )
         }
 
-        systemBus.emit(SystemLogMessage("Device $name lifecycle changed to $newMode", sourceDevice = name))
-        metricPublisher.incrementCounter("device.lifecycle.mode.change",
+        publishSystemLog("Device $name lifecycle changed to $newMode", name.toString())
+        incrementCounter("device.lifecycle.mode.change",
             mapOf("device" to name.toString(), "newMode" to newMode.toString()))
 
         if (newMode != LifecycleMode.INDEPENDENT) {
@@ -2596,22 +2113,20 @@ public class StandardDeviceHubManager(
     }
 
     /**
-     * Replaces a device ("hot swap") under the same [name], optionally reusing the old message bus.
+     * Replaces a device ("hot swap") under the same [name].
      *
      * @param name The unique name of the device to replace.
      * @param newDevice The new [Device] instance.
      * @param config The new lifecycle configuration.
      * @param meta Optional metadata.
-     * @param reuseMessageBus If true, the existing message bus is reused.
      */
     override suspend fun hotSwapDevice(
         name: Name,
         newDevice: Device,
         config: DeviceLifecycleConfig,
-        meta: Meta?,
-        reuseMessageBus: Boolean
+        meta: Meta?
     ) {
-        if (!isActive.getSync()) {
+        if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot hot swap device")
         }
 
@@ -2624,32 +2139,20 @@ public class StandardDeviceHubManager(
                 }
                 await { deviceRegistry.removeDevice(name) }
 
-                txContext.recordAction(object : UndoableAction {
+                txContext.recordAction(object : ReversibleAction {
                     override val id = "hot_swap_$name"
 
-                    override suspend fun undo() {
+                    override suspend fun reverse() {
                         await {
                             deviceRegistry.registerDevice(
                                 name = name,
                                 device = oldChildJob.device,
                                 config = oldChildJob.config,
-                                meta = oldChildJob.meta,
-                                messageBus = messageBus,
-                                systemBus = systemBus,
-                                reuseBus = true
+                                meta = oldChildJob.meta
                             )
                         }
                     }
                 })
-            }
-
-            val messageBusToUse = if (reuseMessageBus && oldChildJob != null) {
-                oldChildJob.messageBus
-            } else {
-                MutableSharedFlow(
-                    replay = config.messageBuffer,
-                    onBufferOverflow = BufferOverflow.DROP_OLDEST
-                )
             }
 
             val newChildJob = await {
@@ -2657,16 +2160,12 @@ public class StandardDeviceHubManager(
                     name = name,
                     device = newDevice,
                     config = config,
-                    meta = meta,
-                    messageBus = messageBus,
-                    systemBus = systemBus,
-                    reuseBus = reuseMessageBus
+                    meta = meta
                 )
             }
 
-            systemBus.emit(SystemLogMessage("Device $name hot-swapped", sourceDevice = name))
-            metricPublisher.incrementCounter("device.hotswap",
-                mapOf("device" to name.toString()))
+            publishSystemLog("Device $name hot-swapped", name.toString())
+            incrementCounter("device.hotswap", mapOf("device" to name.toString()))
 
             if (config.lifecycleMode != LifecycleMode.INDEPENDENT) {
                 doStartDevice(name, config, newDevice)
@@ -2682,7 +2181,7 @@ public class StandardDeviceHubManager(
      * @param childJob The [ChildJob] representing the device.
      */
     private suspend fun performStop(childJob: ChildJob) {
-        val timeout = childJob.config.stopTimeout ?: configuration.defaultStopTimeout
+        val timeout = childJob.config.stopTimeout ?: context.deviceManagerConfig.defaultStopTimeout
         val deviceName = childJob.device.id.parseAsName()
 
         // Validate state transition
@@ -2693,8 +2192,7 @@ public class StandardDeviceHubManager(
         }
 
         val startTime = Clock.System.now()
-        metricPublisher.incrementCounter("device.stop.attempt",
-            mapOf("device" to deviceName.toString()))
+        incrementCounter("device.stop.attempt", mapOf("device" to deviceName.toString()))
 
         try {
             withTimeout(timeout) {
@@ -2703,16 +2201,14 @@ public class StandardDeviceHubManager(
 
             val endTime = Clock.System.now()
             val stopDuration = endTime - startTime
-            metricPublisher.recordDuration("device.stop.duration", stopDuration,
-                mapOf("device" to deviceName.toString()))
-            metricPublisher.incrementCounter("device.stop.success",
-                mapOf("device" to deviceName.toString()))
+            recordDuration("device.stop.duration", stopDuration, mapOf("device" to deviceName.toString()))
+            incrementCounter("device.stop.success", mapOf("device" to deviceName.toString()))
         } catch (e: TimeoutCancellationException) {
-            metricPublisher.incrementCounter("device.stop.failure",
+            incrementCounter("device.stop.failure",
                 mapOf("device" to deviceName.toString(), "reason" to "timeout"))
             onStopTimeout(deviceName, childJob.config)
         } catch (e: Exception) {
-            metricPublisher.incrementCounter("device.stop.failure",
+            incrementCounter("device.stop.failure",
                 mapOf("device" to deviceName.toString(), "reason" to "error"))
             context.logger.error(e) { "Error stopping device $deviceName" }
             throw DeviceShutdownException("Failed to stop device $deviceName", e)
@@ -2726,18 +2222,7 @@ public class StandardDeviceHubManager(
             }
         }
 
-        deviceChanges.emit(DeviceStateEvent.DeviceStopped(deviceName))
-    }
-
-    /**
-     * Returns the dedicated message bus of the child device with the given [name], if present.
-     *
-     * @param name The unique name of the child device.
-     * @return The [MutableSharedFlow] of [DeviceMessage] or `null` if not found.
-     */
-    override suspend fun getChildMessageBus(name: Name): MutableSharedFlow<DeviceMessage>? {
-        val childJob = await { deviceRegistry.getChildJob(name) } ?: return null
-        return childJob.messageBus
+        publishDeviceState(DeviceStatePayload.DeviceStopped(deviceName.toString()))
     }
 
     /**
@@ -2749,7 +2234,7 @@ public class StandardDeviceHubManager(
      * @throws DeviceConfigurationException If a device with [newName] already exists.
      */
     override suspend fun renameDevice(oldName: Name, newName: Name) {
-        if (!isActive.getSync()) {
+        if (!isActive.value) {
             throw DeviceConfigurationException("DeviceHubManager is shutting down, cannot rename device")
         }
 
@@ -2766,15 +2251,12 @@ public class StandardDeviceHubManager(
                 name = newName,
                 device = oldChildJob.device,
                 config = oldChildJob.config,
-                meta = oldChildJob.meta,
-                messageBus = messageBus,
-                systemBus = systemBus,
-                reuseBus = oldChildJob.reuseBus
+                meta = oldChildJob.meta
             )
         }
 
-        systemBus.emit(SystemLogMessage("Device renamed from $oldName to $newName", sourceDevice = newName))
-        metricPublisher.incrementCounter("device.rename",
+        publishSystemLog("Device renamed from $oldName to $newName", newName.toString())
+        incrementCounter("device.rename",
             mapOf("oldName" to oldName.toString(), "newName" to newName.toString()))
     }
 
@@ -2788,8 +2270,7 @@ public class StandardDeviceHubManager(
     override suspend fun startDevicesBatch(deviceNames: List<Name>): Boolean = transactionManager.withTransaction { txContext ->
         val startedDevices = mutableListOf<Name>()
 
-        metricPublisher.incrementCounter("device.start.batch",
-            mapOf("count" to deviceNames.size.toString()))
+        incrementCounter("device.start.batch", mapOf("count" to deviceNames.size.toString()))
         val startTime = Clock.System.now()
 
         try {
@@ -2802,14 +2283,14 @@ public class StandardDeviceHubManager(
 
                     doStartDevice(name, childJob.config, childJob.device)
                     startedDevices.add(name)
-                    txContext.recordAction(object : UndoableAction {
+                    txContext.recordAction(object : ReversibleAction {
                         override val id: String = "start_device_$name"
 
-                        override suspend fun undo() {
+                        override suspend fun reverse() {
                             val device = await { deviceRegistry.getChildJob(name) }?.device ?: return
                             try {
                                 device.stop()
-                                deviceChanges.emit(DeviceStateEvent.DeviceStopped(name))
+                                publishDeviceState(DeviceStatePayload.DeviceStopped(name.toString()))
                             } catch (e: Exception) {
                                 context.logger.error(e) { "Error undoing start for device $name" }
                             }
@@ -2820,16 +2301,13 @@ public class StandardDeviceHubManager(
 
             val endTime = Clock.System.now()
             val duration = endTime - startTime
-            metricPublisher.recordDuration("device.start.batch.duration", duration,
-                mapOf("count" to deviceNames.size.toString()))
-            metricPublisher.incrementCounter("device.start.batch.success",
-                mapOf("count" to deviceNames.size.toString()))
+            recordDuration("device.start.batch.duration", duration, mapOf("count" to deviceNames.size.toString()))
+            incrementCounter("device.start.batch.success", mapOf("count" to deviceNames.size.toString()))
 
             return@withTransaction true
         } catch (ex: Exception) {
             context.logger.error(ex) { "Failed to start device batch. Rolling back will be handled by transaction manager." }
-            metricPublisher.incrementCounter("device.start.batch.failure",
-                mapOf("count" to deviceNames.size.toString()))
+            incrementCounter("device.start.batch.failure", mapOf("count" to deviceNames.size.toString()))
             throw ex
         }
     }
@@ -2844,8 +2322,7 @@ public class StandardDeviceHubManager(
     override suspend fun stopDevicesBatch(deviceNames: List<Name>): Boolean = transactionManager.withTransaction { txContext ->
         val stoppedDevices = mutableListOf<Name>()
 
-        metricPublisher.incrementCounter("device.stop.batch",
-            mapOf("count" to deviceNames.size.toString()))
+        incrementCounter("device.stop.batch", mapOf("count" to deviceNames.size.toString()))
         val startTime = Clock.System.now()
 
         try {
@@ -2853,24 +2330,24 @@ public class StandardDeviceHubManager(
                 val childJob = await { deviceRegistry.getChildJob(name) } ?: continue
 
                 if (childJob.device.lifecycleState == LifecycleState.STARTED) {
-                    val timeout = childJob.config.stopTimeout ?: configuration.defaultStopTimeout
+                    val timeout = childJob.config.stopTimeout ?: context.deviceManagerConfig.defaultStopTimeout
 
                     try {
                         withTimeout(timeout) {
                             childJob.device.stop()
                         }
 
-                        deviceChanges.emit(DeviceStateEvent.DeviceStopped(name))
+                        publishDeviceState(DeviceStatePayload.DeviceStopped(name.toString()))
                         stoppedDevices.add(name)
 
-                        txContext.recordAction(object : UndoableAction {
+                        txContext.recordAction(object : ReversibleAction {
                             override val id: String = "stop_device_$name"
 
-                            override suspend fun undo() {
+                            override suspend fun reverse() {
                                 val device = await { deviceRegistry.getChildJob(name) }?.device ?: return
                                 try {
                                     device.start()
-                                    deviceChanges.emit(DeviceStateEvent.DeviceStarted(name))
+                                    publishDeviceState(DeviceStatePayload.DeviceStarted(name.toString()))
                                 } catch (e: Exception) {
                                     context.logger.error(e) { "Error undoing stop for device $name" }
                                 }
@@ -2885,49 +2362,73 @@ public class StandardDeviceHubManager(
 
             val endTime = Clock.System.now()
             val duration = endTime - startTime
-            metricPublisher.recordDuration("device.stop.batch.duration", duration,
-                mapOf("count" to deviceNames.size.toString()))
-            metricPublisher.incrementCounter("device.stop.batch.success",
-                mapOf("count" to deviceNames.size.toString()))
+            recordDuration("device.stop.batch.duration", duration, mapOf("count" to deviceNames.size.toString()))
+            incrementCounter("device.stop.batch.success", mapOf("count" to deviceNames.size.toString()))
 
             return@withTransaction true
         } catch (ex: Exception) {
             context.logger.error(ex) { "Failed to stop device batch. Rolling back will be handled by transaction manager." }
-            metricPublisher.incrementCounter("device.stop.batch.failure",
-                mapOf("count" to deviceNames.size.toString()))
+            incrementCounter("device.stop.batch.failure", mapOf("count" to deviceNames.size.toString()))
             throw ex
         }
     }
 
     /**
-     * Optionally sets up a distributed transport or message broker for the managed devices.
-     * The default implementation logs an informational message.
-     */
-    override fun installDistributedTransport() {
-        context.logger.info { "installDistributedTransport: Implement or override for custom broker." }
-    }
-
-    /**
-     * Iterates over all children and calls [checkHealth] on each.
-     * This method may be scheduled or called periodically.
+     * Runs health checks on all registered devices.
      *
      * @return Map of device names to health check results.
      */
     override suspend fun runHealthChecks(): Map<Name, Boolean> {
-        return healthCheckManager.runHealthChecks()
+        val devices = await { deviceRegistry.getDevicesSafe() }
+        val results = mutableMapOf<Name, Boolean>()
+
+        incrementCounter("device.health.check.batch")
+        val startTime = Clock.System.now()
+
+        for ((name, _) in devices) {
+            val childJob = await { deviceRegistry.getChildJob(name) } ?: continue
+            val healthChecker = childJob.config.healthChecker ?: continue
+
+            try {
+                val isHealthy = healthChecker.isHealthy(childJob.device)
+                results[name] = isHealthy
+
+                if (!isHealthy && childJob.config.onError == ChildDeviceErrorHandler.RESTART) {
+                    launchGlobal {
+                        restartDevice(name)
+                    }
+                }
+            } catch (e: Exception) {
+                context.logger.error(e) { "Error during health check for device $name" }
+                results[name] = false
+            }
+        }
+
+        val endTime = Clock.System.now()
+        val duration = endTime - startTime
+        recordDuration("device.health.check.batch.duration", duration)
+
+        val healthyCount = results.values.count { it }
+        val unhealthyCount = results.size - healthyCount
+
+        publishMetric("device.health.check.aggregate.healthy", healthyCount.toDouble())
+        publishMetric("device.health.check.aggregate.unhealthy", unhealthyCount.toDouble())
+        publishMetric("device.health.check.aggregate.percentage",
+            if (results.isNotEmpty()) (healthyCount.toDouble() / results.size * 100.0) else 0.0)
+
+        return results
     }
 
     /**
      * Shuts down the device hub manager by cancelling the parent job.
      */
     override suspend fun shutdown() {
-        if (!isActive.getAndUpdate { false }) {
-            // Already shutting down
+        if (!isActive.compareAndSet(true, false)) {
             return
         }
 
         context.logger.info { "Starting device hub manager shutdown" }
-        metricPublisher.incrementCounter("device.hub.shutdown")
+        incrementCounter("device.hub.shutdown")
         val startTime = Clock.System.now()
 
         try {
@@ -2935,7 +2436,7 @@ public class StandardDeviceHubManager(
             val shutdownJobs = deviceNames.map { name ->
                 launchGlobal {
                     try {
-                        withTimeout(configuration.defaultStopTimeout) {
+                        withTimeout(context.deviceManagerConfig.defaultStopTimeout) {
                             detachDevice(name, true)
                         }
                     } catch (e: TimeoutCancellationException) {
@@ -2947,15 +2448,12 @@ public class StandardDeviceHubManager(
             }
 
             try {
-                withTimeout(configuration.defaultStopTimeout.times(2)) {
+                withTimeout(context.deviceManagerConfig.defaultStopTimeout.times(2)) {
                     shutdownJobs.joinAll()
                 }
             } catch (e: TimeoutCancellationException) {
                 context.logger.warn { "Timed out waiting for all devices to detach during shutdown" }
             }
-
-            (eventBus as? SimpleEventBus)?.shutdown()
-            metricPublisher.close()
 
             parentJob.cancelAndJoin()
 
@@ -3011,11 +2509,6 @@ public class StandardDeviceHubManager(
  */
 public interface CompositeControlComponent : Device {
     /**
-     * The message bus for device-level messages (often aggregated from children).
-     */
-    public val messageBus: SharedFlow<DeviceMessage>
-
-    /**
      * A map of child devices keyed by their [Name].
      */
     public val devices: Map<Name, Device>
@@ -3029,7 +2522,6 @@ public interface CompositeControlComponent : Device {
  * @param context The parent [Context].
  * @param meta Device metadata.
  * @param config The [DeviceLifecycleConfig] for this device.
- * @param registry Optional [ComponentRegistry].
  * @param hubManager The [DeviceHubManager] instance.
  */
 public open class ConfigurableCompositeControlComponent<D : ConfigurableCompositeControlComponent<D>>(
@@ -3037,25 +2529,15 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     context: Context,
     meta: Meta = Meta.EMPTY,
     config: DeviceLifecycleConfig = DeviceLifecycleConfig(),
-    registry: ComponentRegistry? = null,
-    public val hubManager: DeviceHubManager = StandardDeviceHubManager(context, config.dispatcher ?: Dispatchers.Default),
+    public val hubManager: DeviceHubManager = TODO(),
     private val externalConfigApplier: ExternalConfigApplier? = null
 ) : DeviceBase<D>(context, meta), CompositeControlComponent {
-
-    public val effectiveRegistry: ComponentRegistry? = registry ?: context.componentRegistry
 
     override val properties: Map<String, DevicePropertySpec<D, *>>
         get() = spec.properties
 
     override val actions: Map<String, DeviceActionSpec<D, *, *>>
         get() = spec.actions
-
-    /**
-     * A shared flow for messages. By default, this delegates to [hubManager.messageBus].
-     * Override if a separate bus is required.
-     */
-    final override val messageBus: MutableSharedFlow<DeviceMessage>
-        get() = hubManager.messageBus
 
     override fun toString(): String = "Device(id=$id, spec=$spec)"
 
@@ -3076,17 +2558,24 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                     .onEach { msg ->
                         try {
                             val result = execute(actionSpec.name, msg.argument)
-                            messageBus.emit(
-                                ActionResultMessage(
-                                    action = actionSpec.name,
-                                    result = result,
-                                    requestId = msg.requestId,
-                                    sourceDevice = id.asName()
-                                )
+                            val resultMessage = ActionResultMessage(
+                                action = actionSpec.name,
+                                result = result,
+                                requestId = msg.requestId,
+                                sourceDevice = id.asName()
+                            )
+                            hubManager.magixEndpoint.send(
+                                DeviceControlsFormats.DEVICE_MESSAGE_FORMAT,
+                                resultMessage,
+                                hubManager.sourceEndpoint
                             )
                         } catch (ex: Exception) {
                             logger.error(ex) { "Error executing action ${actionSpec.name} on device $id" }
-                            messageBus.emit(DeviceMessage.error(ex, id.asName()))
+                            hubManager.magixEndpoint.send(
+                                DeviceControlsFormats.DEVICE_MESSAGE_FORMAT,
+                                DeviceMessage.error(ex, id.asName()),
+                                hubManager.sourceEndpoint
+                            )
                         }
                     }
                     .launchIn(this)
@@ -3133,8 +2622,8 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
                         context,
                         childCfg.meta ?: Meta.EMPTY,
                         updatedConfig,
-                        effectiveRegistry,
-                        externalConfigApplier = externalConfigApplier
+                        hubManager,
+                        externalConfigApplier
                     )
                 }
 
@@ -3209,14 +2698,6 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     }
 
     /**
-     * Called after a child device stops within the manager's logic.
-     * Default implementation is no-op; override if needed.
-     */
-    internal open fun onChildStop() {
-        // No operation by default.
-    }
-
-    /**
      * Retrieves a child device by its [name].
      *
      * @throws IllegalStateException if the child device is not found or if there is a type mismatch.
@@ -3225,15 +2706,6 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
     public fun <CD : ConfigurableCompositeControlComponent<CD>> getChildDevice(name: Name): CD {
         return hubManager.devices[name] as? CD ?: error("Child device $name not found or type mismatch.")
     }
-
-    /**
-     * Returns the child's message bus for direct access, or `null` if not found.
-     *
-     * @param name The unique name of the child device.
-     * @return A [SharedFlow] of [DeviceMessage] or `null`.
-     */
-    public suspend fun getChildMessageBus(name: Name): SharedFlow<DeviceMessage>? =
-        hubManager.getChildMessageBus(name)
 
     /**
      * Provides a property delegate to retrieve a child device by [name] or by the property name if [name] is null.
@@ -3263,7 +2735,7 @@ public open class ConfigurableCompositeControlComponent<D : ConfigurableComposit
  *
  * @param timeout The maximum time to wait for stopping.
  */
-public suspend fun WithLifeCycle.stopWithTimeout(timeout: Duration = ControlsConfiguration.DEFAULT.defaultStopTimeout) {
+public suspend fun WithLifeCycle.stopWithTimeout(timeout: Duration = 10.seconds) {
     try {
         withTimeout(timeout) {
             stop()
@@ -3285,3 +2757,9 @@ public suspend fun WithLifeCycle.stopWithTimeout(timeout: Duration = ControlsCon
 public abstract class DeviceSpecification<D : ConfigurableCompositeControlComponent<D>>(
     public val deviceFactory: (Context, Meta) -> D
 ) : CompositeControlComponentSpec<D>()
+
+/**
+ * Extension to get MagixDeviceHubManager from context
+ */
+public val Context.magixDeviceHubManager: MagixDeviceHubManager
+    get() = plugins[MagixDeviceHubManager] ?: MagixDeviceHubManager()
