@@ -246,6 +246,26 @@ public class MagixMessageBus(
 }
 
 /**
+ * Adapter implementing MessageBus in Memory
+ */
+public class InMemoryMessageBus(private val extraBufferCapacity: Int = 64) : MessageBus {
+
+    private val sharedFlow = MutableSharedFlow<DeviceMessage>(extraBufferCapacity = extraBufferCapacity)
+
+    override fun subscribe(filter: DeviceMessageFilter): Flow<DeviceMessage> {
+        return sharedFlow.filter { message ->
+            filter.accepts(message)
+        }
+    }
+
+    override suspend fun publish(message: DeviceMessage) {
+        sharedFlow.emit(message)
+    }
+
+    override fun close() {}
+}
+
+/**
  * Magix message format definitions for device management
  */
 public object DeviceControlsFormats {
@@ -580,7 +600,7 @@ private class TransactionContextElement(val context: TransactionContext) : Corou
 /**
  * Implementation of TransactionManager that uses MessageBus to broadcast transaction events
  */
-public class MagixTransactionManager(
+public class MessageBusTransactionManager(
     private val messageBus: MessageBus,
     private val logger: Logger = DefaultLogManager()
 ) : TransactionManager {
@@ -1485,7 +1505,7 @@ public class DeviceRegistry(
 // TODO("Make DeviceHubManager working without MessageBus and TransactionManager based on MagixEndpoint in base")
 public class DeviceHubManager(
     public override val context: Context,
-    private val messageBus: MessageBus = TODO()
+    public val messageBus: MessageBus = InMemoryMessageBus()
 ) : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
@@ -1498,11 +1518,11 @@ public class DeviceHubManager(
 
             val magixEndpoint = context.plugins
                 .filterIsInstance<MagixEndpoint>()
-                .firstOrNull() ?: throw IllegalStateException(
-                "No MagixEndpoint found in context. Please add one before creating DeviceHubManager."
-            )
+                .firstOrNull()
 
-            val messageBus = MagixMessageBus(magixEndpoint, sourceEndpoint)
+            val messageBus = magixEndpoint?.let {
+                MagixMessageBus(magixEndpoint, sourceEndpoint)
+            } ?: InMemoryMessageBus()
 
             return DeviceHubManager(context, messageBus)
         }
@@ -1516,7 +1536,7 @@ public class DeviceHubManager(
     /**
      * Transaction manager for wrapping critical operations
      */
-    public val transactionManager: TransactionManager = MagixTransactionManager(messageBus, context.logger)
+    public val transactionManager: TransactionManager = MessageBusTransactionManager(messageBus, context.logger)
 
     /**
      * Global exception handler for all coroutines in this manager

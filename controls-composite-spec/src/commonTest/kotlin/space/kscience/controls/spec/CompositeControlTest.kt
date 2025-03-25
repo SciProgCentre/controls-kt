@@ -615,7 +615,7 @@ class CompositeControlTest {
     }
 
     private fun createTestContext() = Context("test") {
-        TODO()
+        plugin(DeviceHubManager)
     }
 
     @Test
