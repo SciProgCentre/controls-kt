@@ -16,6 +16,7 @@ kscience{
     useSerialization()
     commonMain {
         api(projects.controlsCore)
+        api(projects.controlsConstructor)
         implementation(projects.magix.magixApi)
         implementation(projects.magix.magixServer)
         implementation(projects.magix.magixRsocket)

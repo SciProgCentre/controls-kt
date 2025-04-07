@@ -3,10 +3,7 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
@@ -18,18 +15,7 @@ import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 import kotlin.test.*
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
-import space.kscience.controls.manager.DeviceManager
-import space.kscience.dataforge.context.AbstractPlugin
-import space.kscience.dataforge.context.PluginTag
-import space.kscience.dataforge.context.PluginTag.Companion.DATAFORGE_GROUP
-import space.kscience.dataforge.context.request
-import space.kscience.magix.api.MagixEndpoint
-import space.kscience.magix.api.MagixFormat
-import space.kscience.magix.api.MagixMessage
-import space.kscience.magix.api.MagixMessageFilter
 import kotlin.time.Duration.Companion.seconds
 
 class CompositeControlTest {
@@ -1022,8 +1008,8 @@ class CompositeControlTest {
     }
 
     class MagixMessageBusStub : MessageBus {
-        override fun subscribe(filter: DeviceMessageFilter) = flowOf<DeviceMessage>()
-        override suspend fun publish(message: DeviceMessage) { /* no-op */ }
+        override fun subscribe(filter: MessageFilter) = flowOf<Message>()
+        override suspend fun publish(message: Message) { /* no-op */ }
         override fun close() { /* no-op */ }
     }
 }

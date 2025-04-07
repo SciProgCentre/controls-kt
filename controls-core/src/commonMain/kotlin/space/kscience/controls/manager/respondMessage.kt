@@ -60,7 +60,6 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         is EmptyDeviceMessage,
         is DeviceLogMessage,
         is DeviceLifeCycleMessage,
-        is SystemLogMessage,
         -> null
     }
 } catch (ex: Exception) {
