@@ -10,10 +10,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
-import org.koin.core.component.KoinComponent
-import org.koin.core.context.startKoin
-import org.koin.core.module.Module
-import org.koin.dsl.module
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
 import space.kscience.controls.spec.DeviceErrorCategory.CRITICAL
@@ -2146,7 +2142,7 @@ public class DeviceRestartManager(
 public class DeviceHubManager(
     public override val context: Context,
     messageBus: MessageBus = MessageBusFactory.create(context)
-) : AbstractPlugin(), KoinComponent {
+) : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
 
@@ -2952,7 +2948,7 @@ public interface CompositeDeviceSpec<D : ConfigurableCompositeControlComponent<D
 @OptIn(InternalDeviceAPI::class)
 public open class CompositeControlComponentSpec<D : ConfigurableCompositeControlComponent<D>>(
     public val registry: ComponentRegistry? = null
-) : CompositeDeviceSpec<D>, KoinComponent {
+) : CompositeDeviceSpec<D> {
     private val propertyMap = hashMapOf<String, DevicePropertySpec<D, *>>()
     private val actionMap = hashMapOf<String, DeviceActionSpec<D, *, *>>()
     private val childSpecMap = mutableMapOf<String, ChildComponentConfig<*>>()
