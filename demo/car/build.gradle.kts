@@ -43,7 +43,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 javafx {
-    version = "14"
+    version = "17"
     modules("javafx.controls")
 }
 

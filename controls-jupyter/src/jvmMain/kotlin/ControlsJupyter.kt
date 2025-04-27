@@ -7,11 +7,10 @@ import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.plotly.Plot
+import space.kscience.plotly.PlotlyPlugin
 import space.kscience.visionforge.jupyter.VisionForge
 import space.kscience.visionforge.jupyter.VisionForgeIntegration
 import space.kscience.visionforge.markup.MarkupPlugin
-import space.kscience.visionforge.plotly.PlotlyPlugin
-import space.kscience.visionforge.plotly.asVision
 import space.kscience.visionforge.visionManager
 
 
@@ -54,7 +53,7 @@ public class ControlsJupyter : VisionForgeIntegration(CONTEXT.visionManager) {
 
         render<Plot> { plot ->
             vf.produceHtml {
-                vision { plot.asVision() }
+                vision { plot }
             }
         }
     }

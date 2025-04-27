@@ -26,7 +26,7 @@ import kotlin.coroutines.CoroutineContext
 private fun stringUID() = uuid4().leastSignificantBits.toString(16)
 
 /**
- * A remote accessible device that relies on connection via Magix
+ * A remote-accessible device that relies on connection via Magix
  */
 public class DeviceClient internal constructor(
     override val context: Context,
@@ -185,7 +185,9 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     deviceEndpoint: String,
 ): DeviceHub {
     val devices = mutableMapOf<Name, DeviceClient>()
-    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint)).map { it.second }
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
+        .map { it.second }
+        .shareIn(context, SharingStarted.Eagerly)
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
         devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(

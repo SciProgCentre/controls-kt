@@ -10,7 +10,6 @@ import io.rsocket.kotlin.ktor.client.RSocketSupport
 import io.rsocket.kotlin.ktor.client.rSocket
 import io.rsocket.kotlin.payload.buildPayload
 import io.rsocket.kotlin.payload.data
-
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,7 +23,9 @@ import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
 
-public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint, Closeable {
+public class RSocketMagixEndpoint(
+    private val rSocket: RSocket
+) : MagixEndpoint, Closeable {
 
     override fun subscribe(
         filter: MagixMessageFilter,
@@ -32,8 +33,7 @@ public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint,
         val payload = buildPayload {
             data(MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), filter))
         }
-        val flow = rSocket.requestStream(payload)
-        return flow.map {
+        return rSocket.requestStream(payload).map {
             MagixEndpoint.magixJson.decodeFromString(
                 MagixMessage.serializer(),
                 it.data.readString()

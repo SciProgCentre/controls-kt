@@ -13,9 +13,7 @@ import io.rsocket.kotlin.payload.data
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.io.readString
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
@@ -46,7 +44,7 @@ public class RSocketStreamMagixEndpoint(
                 )
             },
             output.consumeAsFlow()
-        )
+        ).shareIn(rSocket, SharingStarted.Eagerly)
     }
 
     override fun subscribe(
