@@ -4,7 +4,6 @@ import jetbrains.exodus.entitystore.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson

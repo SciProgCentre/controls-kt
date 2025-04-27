@@ -24,6 +24,7 @@ import java.util.*
  */
 public class MqttMagixEndpoint(
     serverHost: String,
+    serverPort: Int = 1883,
     clientId: String = UUID.randomUUID().toString(),
     private val broadcastTopicBuilder: (MagixMessage) -> String = defaultBroadcastTopicBuilder,
     private val subscribeTopicBuilder: (MagixMessageFilter) -> String = defaultSubscribeTopicBuilder,
@@ -35,6 +36,7 @@ public class MqttMagixEndpoint(
         MqttClient.builder()
             .identifier(clientId)
             .serverHost(serverHost)
+            .serverPort(serverPort)
             .useMqttVersion5()
             .run(clientConfig)
             .buildAsync()

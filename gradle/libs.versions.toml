@@ -29,6 +29,8 @@ plc4j = "0.12.0"
 
 visionforge = "0.5.0"
 
+testcontainers = "1.21.0"
+
 [libraries]
 
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
@@ -81,6 +83,10 @@ visionforge-compose-html = { module = "space.kscience:visionforge-compose-html",
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
 koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.6.1" }
+
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "testcontainers" }
 
 # Buildscript
 

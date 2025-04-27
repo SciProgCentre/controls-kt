@@ -14,6 +14,13 @@ kscience {
         implementation(libs.hivemq.mqtt.client)
         implementation(spclibs.kotlinx.coroutines.jdk8)
     }
+    jvmTest {
+        implementation(spclibs.kotlinx.coroutines.test)
+        implementation(libs.testcontainers)
+        implementation(libs.testcontainers.junit)
+        implementation(libs.testcontainers.hivemq)
+        implementation(spclibs.logback.classic)
+    }
 }
 
 readme {
