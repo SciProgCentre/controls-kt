@@ -36,7 +36,13 @@ public enum class LifecycleState {
     /**
      * The device encountered irrecoverable error
      */
-    ERROR
+    ERROR,
+
+    /**
+     * The lifecycle state is unknown or indeterminate
+     */
+
+    UNKNOWN
 }
 
 
@@ -66,6 +72,7 @@ public fun WithLifeCycle.bindToDeviceLifecycle(device: Device){
             LifecycleState.STOPPING -> stop()
             LifecycleState.STOPPED -> stop()
             LifecycleState.ERROR -> stop()
+            LifecycleState.UNKNOWN -> {/*ignore*/}
         }
     }
 }

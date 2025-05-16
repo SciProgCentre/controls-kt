@@ -199,6 +199,14 @@ public abstract class DeviceBase<D : Device>(
             LifecycleState.STOPPING -> newState in listOf(LifecycleState.STOPPED, LifecycleState.ERROR, LifecycleState.STARTING)
             LifecycleState.STOPPED -> newState in listOf(LifecycleState.STARTING)
             LifecycleState.ERROR -> newState in listOf(LifecycleState.STARTING, LifecycleState.STOPPED)
+            LifecycleState.UNKNOWN -> newState in listOf(
+                LifecycleState.ERROR,
+                LifecycleState.INITIAL,
+                LifecycleState.STARTING,
+                LifecycleState.STARTED,
+                LifecycleState.STOPPING,
+                LifecycleState.STOPPED
+            )
         }
 
         if (!validTransition) {

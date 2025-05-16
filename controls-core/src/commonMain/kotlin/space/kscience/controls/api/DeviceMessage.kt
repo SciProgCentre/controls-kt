@@ -19,19 +19,19 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 
 @Serializable
-public sealed class Message {
-    public abstract val sourceDevice: Name?
-    public abstract val targetDevice: Name?
-    public abstract val time: Instant
+public sealed interface Message {
+    public val sourceDevice: Name?
+    public val targetDevice: Name?
+    public val time: Instant
 
     /**
      * Update the source device name for composition. If the original name is null, the resulting name is also null.
      */
-    public abstract fun changeSource(block: (Name) -> Name): Message
+    public fun changeSource(block: (Name) -> Name): Message
 }
 
 @Serializable
-public sealed class DeviceMessage: Message() {
+public sealed class DeviceMessage: Message {
     public abstract val comment: String?
 
     /**
@@ -54,6 +54,19 @@ public sealed class DeviceMessage: Message() {
 
         public fun fromMeta(meta: Meta): DeviceMessage = Json.decodeFromJsonElement(meta.toJson())
     }
+}
+
+/**
+ * Message with serialized device failure
+ */
+@Serializable
+public data class DeviceFailureMessage(
+    val failure: SerializableDeviceFailure,
+    override val sourceDevice: Name?,
+    override val targetDevice: Name? = null,
+    override val time: Instant = Clock.System.now()
+) : Message {
+    override fun changeSource(block: (Name) -> Name): DeviceFailureMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
 
 /**
@@ -166,6 +179,7 @@ public data class ActionExecuteMessage(
 public data class ActionResultMessage(
     public val action: String,
     public val result: Meta?,
+    val failure: SerializableDeviceFailure? = null,
     public val requestId: String,
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
@@ -274,7 +288,7 @@ public data class SystemLogMessage(
     override val targetDevice: Name? = null,
     val details: Map<String, String> = emptyMap(),
     @EncodeDefault override val time: Instant = Clock.System.now(),
-) : Message() {
+) : Message {
     override fun changeSource(block: (Name) -> Name): Message = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -282,55 +296,70 @@ public data class SystemLogMessage(
  * Transaction messages for coordinating transactional operations
  */
 @Serializable
-public sealed class TransactionMessage : Message() {
-    public abstract val transactionId: String
+public sealed interface TransactionMessage : Message {
+    public val transactionId: String
 
-
+    /**
+     * Message about transaction starting
+     */
     @Serializable
     @SerialName("transaction.started")
-    public data class Started(
+    public data class TransactionStartedMessage(
         override val transactionId: String,
-        override val sourceDevice: Name = "transaction.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : TransactionMessage() {
-        override fun changeSource(block: (Name) -> Name): TransactionMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : TransactionMessage {
+        override fun changeSource(block: (Name) -> Name): TransactionMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about transaction commit
+     */
     @Serializable
     @SerialName("transaction.committed")
-    public data class Committed(
+    public data class TransactionCommittedMessage(
         override val transactionId: String,
-        override val sourceDevice: Name = "transaction.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : TransactionMessage() {
-        override fun changeSource(block: (Name) -> Name): TransactionMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : TransactionMessage {
+        override fun changeSource(block: (Name) -> Name): TransactionMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about transaction rollback
+     */
     @Serializable
     @SerialName("transaction.rolled_back")
-    public data class RolledBack(
+    public data class TransactionRolledBackMessage(
         override val transactionId: String,
-        val errorMessage: String? = null,
-        val errorType: String? = null,
-        override val sourceDevice: Name = "transaction.manager".asName(),
+        val reason: String?,
+        val errorType: String?,
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : TransactionMessage() {
-        override fun changeSource(block: (Name) -> Name): TransactionMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : TransactionMessage {
+        override fun changeSource(block: (Name) -> Name): TransactionMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about creating a savepoint in a transaction
+     */
     @Serializable
     @SerialName("transaction.savepoint")
-    public data class Savepoint(
+    public data class TransactionSavepointMessage(
         override val transactionId: String,
-        val savepointId: String,
-        override val sourceDevice: Name = "transaction.manager".asName(),
+        val savepointName: String,
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : TransactionMessage() {
-        override fun changeSource(block: (Name) -> Name): TransactionMessage = copy(sourceDevice = block(sourceDevice))
+        @EncodeDefault override val time: Instant = Clock.System.now()
+    ) : TransactionMessage {
+        override fun changeSource(block: (Name) -> Name): TransactionMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 }
 
@@ -338,149 +367,181 @@ public sealed class TransactionMessage : Message() {
  * Device state messages for device lifecycle events
  */
 @Serializable
-public sealed class DeviceStateMessage : Message() {
-    public abstract val deviceName: String
+public sealed interface DeviceStateMessage : Message {
+    public val deviceName: String
 
+    /**
+     * Message about device addition
+     */
     @Serializable
-    @SerialName("device.state.added")
-    public data class Added(
+    public data class DeviceStateAddedMessage(
         override val deviceName: String,
-        override val sourceDevice: Name = "device.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : DeviceStateMessage() {
-        override fun changeSource(block: (Name) -> Name): DeviceStateMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : DeviceStateMessage {
+        override fun changeSource(block: (Name) -> Name): DeviceStateMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about device startup
+     */
     @Serializable
-    @SerialName("device.state.started")
-    public data class Started(
+    public data class DeviceStateStartedMessage(
         override val deviceName: String,
-        override val sourceDevice: Name = "device.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : DeviceStateMessage() {
-        override fun changeSource(block: (Name) -> Name): DeviceStateMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : DeviceStateMessage {
+        override fun changeSource(block: (Name) -> Name): DeviceStateMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about device stopping
+     */
     @Serializable
-    @SerialName("device.state.stopped")
-    public data class Stopped(
+    public data class DeviceStateStoppedMessage(
         override val deviceName: String,
-        override val sourceDevice: Name = "device.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : DeviceStateMessage() {
-        override fun changeSource(block: (Name) -> Name): DeviceStateMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : DeviceStateMessage {
+        override fun changeSource(block: (Name) -> Name): DeviceStateMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about device removal
+     */
     @Serializable
-    @SerialName("device.state.removed")
-    public data class Removed(
+    public data class DeviceStateRemovedMessage(
         override val deviceName: String,
-        override val sourceDevice: Name = "device.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : DeviceStateMessage() {
-        override fun changeSource(block: (Name) -> Name): DeviceStateMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : DeviceStateMessage {
+        override fun changeSource(block: (Name) -> Name): Message = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about device failure
+     */
     @Serializable
-    @SerialName("device.state.failed")
-    public data class Failed(
+    public data class DeviceStateFailedMessage(
         override val deviceName: String,
-        val errorMessage: String,
-        val errorType: String? = null,
-        override val sourceDevice: Name = "device.manager".asName(),
+        val failure: SerializableDeviceFailure,
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : DeviceStateMessage() {
-        override fun changeSource(block: (Name) -> Name): DeviceStateMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : DeviceStateMessage {
+        override fun changeSource(block: (Name) -> Name): DeviceStateMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 
+    /**
+     * Message about device detachment
+     */
     @Serializable
-    @SerialName("device.state.detached")
-    public data class Detached(
+    public data class DeviceStateDetachedMessage(
         override val deviceName: String,
-        override val sourceDevice: Name = "device.manager".asName(),
+        override val sourceDevice: Name? = null,
         override val targetDevice: Name? = null,
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : DeviceStateMessage() {
-        override fun changeSource(block: (Name) -> Name): DeviceStateMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : DeviceStateMessage {
+        override fun changeSource(block: (Name) -> Name): DeviceStateMessage
+                = copy(sourceDevice = sourceDevice?.let(block))
     }
 }
 
 /**
- * Metric messages for monitoring and observability
+ * Interface for metrics
  */
 @Serializable
-public sealed class MetricMessage : Message() {
-    public abstract val name: String
+public sealed interface MetricMessage : Message {
+    public val metricName: String
+    public val tags: Map<String, String>
 
+    /**
+     * Metric value message
+     */
     @Serializable
-    @SerialName("metrics.value")
-    public data class Value(
-        override val name: String,
+    public data class MetricValueMessage(
+        override val metricName: String,
         val value: Double,
-        override val sourceDevice: Name = "metrics".asName(),
+        override val sourceDevice: Name,
+        override val tags: Map<String, String> = emptyMap(),
         override val targetDevice: Name? = null,
-        val tags: Map<String, String> = emptyMap(),
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : MetricMessage() {
-        override fun changeSource(block: (Name) -> Name): MetricMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : MetricMessage {
+        override fun changeSource(block: (Name) -> Name): MetricMessage
+                = copy(sourceDevice = block(sourceDevice))
     }
 
+    /**
+     * Metric counter message
+     */
     @Serializable
-    @SerialName("metrics.counter")
-    public data class Counter(
-        override val name: String,
+    public data class MetricCounterMessage(
+        override val metricName: String,
         val increment: Double = 1.0,
-        override val sourceDevice: Name = "metrics".asName(),
+        override val tags: Map<String, String> = emptyMap(),
+        override val sourceDevice: Name,
         override val targetDevice: Name? = null,
-        val tags: Map<String, String> = emptyMap(),
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : MetricMessage() {
-        override fun changeSource(block: (Name) -> Name): MetricMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : MetricMessage {
+        override fun changeSource(block: (Name) -> Name): MetricMessage
+                = copy(sourceDevice = block(sourceDevice))
     }
 
+    /**
+     * Operation duration metric message
+     */
     @Serializable
-    @SerialName("metrics.duration")
-    public data class Duration(
-        override val name: String,
+    public data class MetricDurationMessage(
+        override val metricName: String,
         val durationMs: Long,
-        override val sourceDevice: Name = "metrics".asName(),
+        override val tags: Map<String, String> = emptyMap(),
+        override val sourceDevice: Name,
         override val targetDevice: Name? = null,
-        val tags: Map<String, String> = emptyMap(),
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : MetricMessage() {
-        override fun changeSource(block: (Name) -> Name): MetricMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : MetricMessage {
+        override fun changeSource(block: (Name) -> Name): Message = copy(sourceDevice = block(sourceDevice))
     }
 
+    /**
+     * Metric distribution message
+     */
     @Serializable
-    @SerialName("metrics.distribution")
-    public data class Distribution(
-        override val name: String,
+    public data class MetricDistributionMessage(
+        override val metricName: String,
         val value: Double,
-        override val sourceDevice: Name = "metrics".asName(),
+        override val tags: Map<String, String> = emptyMap(),
+        override val sourceDevice: Name,
         override val targetDevice: Name? = null,
-        val tags: Map<String, String> = emptyMap(),
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : MetricMessage() {
-        override fun changeSource(block: (Name) -> Name): MetricMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : MetricMessage {
+        override fun changeSource(block: (Name) -> Name): MetricMessage
+                = copy(sourceDevice = block(sourceDevice))
     }
 
+    /**
+     * Metric gauge message
+     */
     @Serializable
-    @SerialName("metrics.gauge")
-    public data class Gauge(
-        override val name: String,
+    public data class MetricGaugeMessage(
+        override val metricName: String,
         val value: Double,
-        override val sourceDevice: Name = "metrics".asName(),
+        override val tags: Map<String, String> = emptyMap(),
+        override val sourceDevice: Name,
         override val targetDevice: Name? = null,
-        val tags: Map<String, String> = emptyMap(),
-        @EncodeDefault override val time: Instant = Clock.System.now(),
-    ) : MetricMessage() {
-        override fun changeSource(block: (Name) -> Name): MetricMessage = copy(sourceDevice = block(sourceDevice))
+        override val time: Instant = Clock.System.now()
+    ) : MetricMessage {
+        override fun changeSource(block: (Name) -> Name): MetricMessage
+                = copy(sourceDevice = block(sourceDevice))
     }
+
 }
 
 

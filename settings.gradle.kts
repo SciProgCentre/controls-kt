@@ -92,6 +92,6 @@ include(
     ":demo:echo",
     ":demo:mks-pdr900",
     ":demo:constructor",
-    ":demo:device-collective"
+    ":demo:device-collective",
+    ":controls-composite-spec"
 )
-include("controls-composite-spec")
