@@ -50,4 +50,4 @@ public abstract class ModelConstructor(
     }
 }
 
-public val ModelConstructor.clock: Clock get() = context.clock
+public val StateContainer.clock: Clock get() = context.clock

@@ -2,10 +2,7 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.reflect.KProperty
@@ -27,10 +24,10 @@ public interface DeviceState<out T> {
 public operator fun <T> DeviceState<T>.getValue(thisRef: Any?, property: KProperty<*>): T = value
 
 /**
- * Collect values in a given [scope]
+ * Use each value (including initial one) in a given [scope]
  */
-public fun <T> DeviceState<T>.collectValuesIn(scope: CoroutineScope, block: suspend (T) -> Unit): Job =
-    valueFlow.onEach(block).launchIn(scope)
+public fun <T> DeviceState<T>.useValue(scope: CoroutineScope, block: suspend (T) -> Unit): Job =
+    merge(flowOf(value), valueFlow).onEach(block).launchIn(scope)
 
 /**
  * A mutable state of a device
@@ -100,4 +97,27 @@ public fun <T1, T2, R> DeviceState.Companion.combine(
     override val valueFlow: Flow<R> = kotlinx.coroutines.flow.combine(state1.valueFlow, state2.valueFlow, mapper)
 
     override fun toString(): String = "DeviceState.combine(state1=$state1, state2=$state2)"
+}
+
+/**
+ * Combines multiple [DeviceState] instances into a single [DeviceStateWithDependencies].
+ * The combined state value is derived by applying the provided [mapper] function to the collection of individual state values.
+ *
+ * @param T the type of the individual state values.
+ * @param R the type of the combined state value.
+ * @param states a collection of [DeviceState] instances whose values are to be combined.
+ * @param mapper a function that takes a collection of state values and maps it to a combined value.
+ * @return a [DeviceStateWithDependencies] representing the combined state, which has dependencies on the input [states].
+ */
+public inline fun <reified T, R> DeviceState.Companion.combine(
+    states: Collection<DeviceState<T>>,
+    crossinline mapper: (Array<T>) -> R,
+): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+    override val dependencies = states
+
+    override val value: R get() = mapper(states.map { it.value }.toTypedArray())
+
+    override val valueFlow: Flow<R> = kotlinx.coroutines.flow.combine<T, R>(states.map { it.valueFlow }, mapper)
+
+    override fun toString(): String = "DeviceState.combine(states=${states.joinToString()})"
 }

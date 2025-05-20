@@ -137,7 +137,9 @@ public fun <T, R> StateContainer.mapState(
     transformation: (T) -> R,
 ): DeviceStateWithDependencies<R> = registerState(DeviceState.map(origin, transformation))
 
-
+/**
+ * Perform a complex transformation on state change
+ */
 public fun <T, R> StateContainer.flowState(
     origin: DeviceState<T>,
     initialValue: R,

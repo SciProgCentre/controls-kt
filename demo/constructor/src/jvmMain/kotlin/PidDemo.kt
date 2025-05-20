@@ -260,9 +260,9 @@ fun main() = application {
                             )
                         }
                         Row {
-                            Button({
+                            Button(onClick = {
                                 pidParameters = startPid
-                            }) {
+                            }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Reset")
                             }
                         }
