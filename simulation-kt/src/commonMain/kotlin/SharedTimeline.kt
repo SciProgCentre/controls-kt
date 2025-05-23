@@ -30,10 +30,10 @@ public class SharedTimeline<E : Any>(
     /**
      * Emit new event to the timeline
      */
-    override suspend fun emit(event: E) {
-        if (timeOf(event) < (events.replayCache.lastOrNull()?.let(::timeOf) ?: time.value)) {
-            error("Can't emit event $event because timeline monotony is broken")
+    override suspend fun emit(value: E) {
+        if (timeOf(value) < (events.replayCache.lastOrNull()?.let(::timeOf) ?: time.value)) {
+            error("Can't emit event $value because timeline monotony is broken")
         }
-        events.emit(event)
+        events.emit(value)
     }
 }

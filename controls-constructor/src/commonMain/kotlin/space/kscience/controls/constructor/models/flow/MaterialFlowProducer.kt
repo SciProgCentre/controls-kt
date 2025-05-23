@@ -24,8 +24,8 @@ import space.kscience.dataforge.context.Context
  */
 public class MaterialFlowProducer<U : UnitsOfMeasurement>(
     context: Context,
-    private val capacity: DeviceState<NumericalValue<U>>,
-    private val consumerRequest: MutableDeviceState<NumericalValue<U>>,
+    public val capacity: DeviceState<NumericalValue<U>>,
+    public val consumerRequest: DeviceState<NumericalValue<U>>,
 ) : ModelConstructor(context) {
 
     init {
@@ -48,4 +48,14 @@ public class MaterialFlowProducer<U : UnitsOfMeasurement>(
     }
 
     public companion object
+}
+
+public fun <U: UnitsOfMeasurement> MaterialFlowProducer(
+    consumer: MaterialFlowConsumer<U>,
+    capacity: DeviceState<NumericalValue<U>>,
+): MaterialFlowProducer<U> {
+    val minCapacity = DeviceState.combine(capacity, consumer.consumation) { capacity, consumation ->
+        NumericalValue<U>(minOf(capacity.value, consumation.value))
+    }
+    return MaterialFlowProducer(consumer.context, minCapacity, consumer.consumation)
 }

@@ -1,6 +1,9 @@
 package space.kscience.controls.constructor.models.flow
 
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.DeviceState
+import space.kscience.controls.constructor.ModelConstructor
+import space.kscience.controls.constructor.combineState
+import space.kscience.controls.constructor.registerState
 import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.dataforge.context.Context
@@ -21,8 +24,8 @@ import space.kscience.dataforge.context.Context
  */
 public class MaterialFlowConsumer<U : UnitsOfMeasurement>(
     context: Context,
-    private val capacity: DeviceState<NumericalValue<U>>,
-    private val supplyRequest: MutableDeviceState<NumericalValue<U>>,
+    public val capacity: DeviceState<NumericalValue<U>>,
+    public val supplyRequest: DeviceState<NumericalValue<U>>,
 ) : ModelConstructor(context) {
 
     init {

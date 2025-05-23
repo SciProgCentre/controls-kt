@@ -212,7 +212,7 @@ public fun <T1, T2, R> StateContainer.combineTo(
 ): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState1, sourceState2), setOf(targetState))
     registerElement(descriptor)
-    return kotlinx.coroutines.flow.combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).onEach {
+    return combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).onEach {
         targetState.value = it
     }.launchIn(this).apply {
         invokeOnCompletion {
@@ -233,7 +233,7 @@ public inline fun <reified T, R> StateContainer.combineTo(
 ): Job {
     val descriptor = ConnectionConstructorElement(sourceStates, setOf(targetState))
     registerElement(descriptor)
-    return kotlinx.coroutines.flow.combine(sourceStates.map { it.valueFlow }, transformation).onEach {
+    return combine(sourceStates.map { it.valueFlow }, transformation).onEach {
         targetState.value = it
     }.launchIn(this).apply {
         invokeOnCompletion {

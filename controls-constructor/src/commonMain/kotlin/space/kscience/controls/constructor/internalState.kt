@@ -13,6 +13,11 @@ private class VirtualDeviceState<T>(
     initialValue: T,
     private val callback: (T) -> Unit = {}
 ) : MutableDeviceState<T> {
+
+    init {
+        callback(initialValue)
+    }
+
     private val flow = MutableStateFlow(initialValue)
     override val valueFlow: Flow<T> get() = flow
 

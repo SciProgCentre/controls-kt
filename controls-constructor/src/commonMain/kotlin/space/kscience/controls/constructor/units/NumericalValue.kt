@@ -12,8 +12,9 @@ import kotlin.jvm.JvmInline
 @JvmInline
 public value class NumericalValue<U : UnitsOfMeasurement>(public val value: Double) : Comparable<NumericalValue<U>> {
     override fun compareTo(other: NumericalValue<U>): Int = value.compareTo(other.value)
-
 }
+
+public typealias NV<U> = NumericalValue<U>
 
 public fun <U : UnitsOfMeasurement> NumericalValue(
     number: Number,
