@@ -51,7 +51,8 @@ class MagixLoopTest {
         assertEquals(0, remoteHub.devices.size)
         clientEndpoint.requestDeviceUpdate("client", "device")
 
-        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device")).map { it.second }
+        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+            .map { it.second }
             .filterIsInstance<DescriptionMessage>().take(10).collect {
                 println(it)
             }
