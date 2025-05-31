@@ -33,15 +33,19 @@ class ThermoHubController(
 fun ThermoHubController(sensorHub: ThermoSensorHub): ThermoHubController {
 
     val context = sensorHub.context
+    val deviceManager = context.request(DeviceManager)
 
     val opcUaServer: OpcUaServer = OpcUaServer {
         setApplicationName(LocalizedText.english("center.sciprog.controls.thermo"))
 
         endpoint {
-            setBindPort(4840)
-            //use default endpoint
+            setBindPort(9091)
         }
     }
 
-    return ThermoHubController(context.request(DeviceManager), opcUaServer, sensorHub)
+    opcUaServer.serveDevices(deviceManager)
+//    opcUaServer.startup()
+
+
+    return ThermoHubController(deviceManager, opcUaServer, sensorHub)
 }

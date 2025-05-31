@@ -21,6 +21,7 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.client.opcToMeta
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.names.Name
@@ -37,8 +38,9 @@ https://github.com/eclipse/milo/blob/master/milo-examples/server-examples/src/ma
  */
 
 public class DeviceNameSpace(
+    private val context: Context,
     server: OpcUaServer,
-    public val deviceManager: DeviceManager,
+    public val deviceHub: DeviceHub
 ) : ManagedNamespaceWithLifecycle(server, NAMESPACE_URI) {
 
     private val subscription = SubscriptionModel(server, this)
@@ -103,7 +105,7 @@ public class DeviceNameSpace(
                 node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any? ->
                     if (attributeId == AttributeId.Value) {
                         val meta: Meta = opcToMeta(value)
-                        deviceManager.context.launch {
+                        context.launch {
                             device.writeProperty(propertyName, meta)
                         }
                     }
@@ -157,7 +159,7 @@ public class DeviceNameSpace(
         lifecycleManager.addLifecycle(subscription)
 
         lifecycleManager.addStartupTask {
-            nodeContext.registerHub(deviceManager, Name.EMPTY)
+            nodeContext.registerHub(deviceHub, Name.EMPTY)
         }
 
         lifecycleManager.addLifecycle(object : Lifecycle {
@@ -192,8 +194,12 @@ public class DeviceNameSpace(
     }
 }
 
+
+public fun OpcUaServer.serveDevices(context: Context, deviceHub: DeviceHub): DeviceNameSpace =
+    DeviceNameSpace(context, this, deviceHub).apply { startup() }
+
 /**
  *  Serve devices from [deviceManager] as OPC-UA
  */
 public fun OpcUaServer.serveDevices(deviceManager: DeviceManager): DeviceNameSpace =
-    DeviceNameSpace(this, deviceManager).apply { startup() }
+    serveDevices(deviceManager.context, deviceManager)

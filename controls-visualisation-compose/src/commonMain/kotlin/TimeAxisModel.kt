@@ -34,7 +34,11 @@ public class TimeAxisModel(
     }
 
     public companion object {
-        public fun recent(duration: Duration, clock: Clock = Clock.System): TimeAxisModel = TimeAxisModel {
+        public fun recent(
+            duration: Duration,
+            clock: Clock = Clock.System,
+            minimumMajorTickSpacing: Dp = 50.dp
+        ): TimeAxisModel = TimeAxisModel(minimumMajorTickSpacing) {
             val now = clock.now()
             (now - duration)..now
         }
