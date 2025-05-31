@@ -9,7 +9,7 @@ plugins {
 //    mainClass.set("ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt")
 //}
 
-kotlin{
+kotlin {
     explicitApi = null
 }
 

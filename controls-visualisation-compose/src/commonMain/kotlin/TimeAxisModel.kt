@@ -11,7 +11,7 @@ import kotlin.time.Duration
 import kotlin.time.times
 
 public class TimeAxisModel(
-    override val minimumMajorTickSpacing: Dp = 50.dp,
+    private val minimumMajorTickSpacing: Dp = 50.dp,
     private val rangeProvider: () -> ClosedRange<Instant>,
 ) : AxisModel<Instant> {
 

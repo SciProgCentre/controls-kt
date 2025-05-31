@@ -82,7 +82,7 @@ visionforge-compose-html = { module = "space.kscience:visionforge-compose-html",
 
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
-koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.6.1" }
+koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.8.0" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
