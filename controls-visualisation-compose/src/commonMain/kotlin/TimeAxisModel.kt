@@ -11,7 +11,7 @@ import kotlin.time.Duration
 import kotlin.time.times
 
 public class TimeAxisModel(
-    override val minimumMajorTickSpacing: Dp = 50.dp,
+    private val minimumMajorTickSpacing: Dp = 50.dp,
     private val rangeProvider: () -> ClosedRange<Instant>,
 ) : AxisModel<Instant> {
 
@@ -34,7 +34,11 @@ public class TimeAxisModel(
     }
 
     public companion object {
-        public fun recent(duration: Duration, clock: Clock = Clock.System): TimeAxisModel = TimeAxisModel {
+        public fun recent(
+            duration: Duration,
+            clock: Clock = Clock.System,
+            minimumMajorTickSpacing: Dp = 50.dp
+        ): TimeAxisModel = TimeAxisModel(minimumMajorTickSpacing) {
             val now = clock.now()
             (now - duration)..now
         }

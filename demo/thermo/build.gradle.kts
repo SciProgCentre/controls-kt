@@ -8,15 +8,18 @@ kotlin {
     explicitApi = null
 }
 
-val ktorVersion: String by rootProject.extra
-val dataforgeVersion: String by extra
-
 kscience {
     jvm()
-
+    useSerialization {
+        json()
+    }
     jvmMain {
+        implementation(projects.controlsCore)
+        implementation(projects.controlsConstructor)
+        implementation(projects.controlsVisualisationCompose)
         implementation(projects.controlsModbus)
         implementation(projects.controlsOpcua)
+
         implementation(compose.runtime)
         implementation(compose.desktop.currentOs)
         implementation(compose.material3)

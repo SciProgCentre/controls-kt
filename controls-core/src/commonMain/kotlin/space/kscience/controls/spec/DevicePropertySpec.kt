@@ -5,6 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
 
 
@@ -139,6 +140,36 @@ public fun <D : Device, T> D.useProperty(
             val newValue = spec.converter.readOrNull(change.value)
             if (newValue != null) {
                 callback(newValue)
+            }
+        }
+}
+
+/**
+ * Subscribes to changes of a specified device property and invokes the given callback
+ * each time the property updates. The callback receives the value of the property
+ * along with the timestamp when the value was obtained.
+ *
+ * @param spec The specification of the device property to observe.
+ * @param scope The CoroutineScope in which the monitoring and callback execution will occur.
+ *              Defaults to the scope of the device.
+ * @param callback A suspend function invoked whenever the property value changes,
+ *                 receiving the updated property value along with its timestamp.
+ * @return A Job representing the coroutine monitoring the property changes. The job can
+ *         be canceled to stop listening for updates.
+ */
+public fun <D : Device, T> D.usePropertyWithTime(
+    spec: DevicePropertySpec<D, T>,
+    scope: CoroutineScope = this,
+    callback: suspend (ValueWithTime<T>) -> Unit,
+): Job = scope.launch {
+    callback(ValueWithTime(read(spec), clock.now()))
+    messageFlow
+        .filterIsInstance<PropertyChangedMessage>()
+        .filter { it.property == spec.name }
+        .collect { change ->
+            val newValue = spec.converter.readOrNull(change.value)
+            if (newValue != null) {
+                callback(ValueWithTime(newValue, change.time))
             }
         }
 }
