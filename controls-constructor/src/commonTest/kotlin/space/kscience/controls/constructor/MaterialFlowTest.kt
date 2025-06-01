@@ -2,6 +2,7 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.models.flow.MaterialFlowConsumer
+import space.kscience.controls.constructor.models.flow.MaterialFlowJoin
 import space.kscience.controls.constructor.models.flow.MaterialFlowProducer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NV
@@ -36,4 +37,15 @@ class MaterialFlowTest {
 
     }
 
+    @Test
+    fun join() = runTest {
+        val productionCapacities = mapOf(
+            "a" to MutableDeviceState(NV<Kilograms>(1.0)),
+            "b" to MutableDeviceState(NV<Kilograms>(2.0)),
+            "c" to MutableDeviceState(NV<Kilograms>(3.0))
+        )
+        val consumationCapacity = MutableDeviceState(NV<Kilograms>(5.0))
+
+        val join = MaterialFlowJoin(Global, consumationCapacity, productionCapacities)
+    }
 }

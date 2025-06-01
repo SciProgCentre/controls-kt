@@ -4,6 +4,11 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.ContextAware
+
+public interface FlowProducerModel<U : UnitsOfMeasurement> : ContextAware {
+    public val production: DeviceState<NumericalValue<U>>
+}
 
 /**
  * Represents a model for a material flow producer capable of producing material flow up to a defined capacity.
@@ -26,14 +31,14 @@ public class MaterialFlowProducer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: DeviceState<NumericalValue<U>>,
     public val consumerRequest: DeviceState<NumericalValue<U>>,
-) : ModelConstructor(context) {
+) : ModelConstructor(context), FlowProducerModel<U> {
 
     init {
         registerState(capacity)
         registerState(consumerRequest)
     }
 
-    public val production: DeviceState<NumericalValue<U>> = combineState(
+    override val production: DeviceState<NumericalValue<U>> = combineState(
         first = consumerRequest,
         second = capacity
     ) { request, capacity ->
@@ -50,7 +55,18 @@ public class MaterialFlowProducer<U : UnitsOfMeasurement>(
     public companion object
 }
 
-public fun <U: UnitsOfMeasurement> MaterialFlowProducer(
+/**
+ * Creates an instance of `MaterialFlowProducer` by combining the given consumer's consumption
+ * state with the producer's capacity, ensuring the resulting producer respects both
+ * the consumer's needs and the producer's constraints.
+ *
+ * @param consumer The `MaterialFlowConsumer` whose consumption requests are used to calculate
+ * the producer's actual material flow production.
+ * @param capacity The capacity `DeviceState` defining the maximum flow that this producer can handle.
+ * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
+ * on the minimum of the provided capacity and the consumer's consumption requests.
+ */
+public fun <U : UnitsOfMeasurement> MaterialFlowProducer(
     consumer: MaterialFlowConsumer<U>,
     capacity: DeviceState<NumericalValue<U>>,
 ): MaterialFlowProducer<U> {

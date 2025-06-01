@@ -27,21 +27,15 @@ public enum class JoinManagementStrategy {
  * @property consumation A state representing the consumption calculation, resulting in a distribution map
  * of available material flow across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
- * @property producer A producer instance responsible for handling material flow production based on internal
- * calculations and state dependencies.
- * @property consumers A map of consumer instances, each keyed by its identifier, representing individual
- * suppliers participating in the material flow system.
  */
 public class MaterialFlowJoin<U : UnitsOfMeasurement>(
     context: Context,
-    public val outputCapacity: DeviceState<NumericalValue<U>>,
     public val consumerRequest: DeviceState<NumericalValue<U>>,
     public val supplyRequest: Map<String, DeviceState<NumericalValue<U>>>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : ModelConstructor(context) {
+) : ModelConstructor(context), FlowProducerModel<U> {
 
     init {
-        registerState(outputCapacity)
         registerState(consumerRequest)
         supplyRequest.values.forEach(::registerState)
     }
@@ -49,11 +43,11 @@ public class MaterialFlowJoin<U : UnitsOfMeasurement>(
     private val supplyRequestState = DeviceState.combine(supplyRequest) { it }
 
     public val consumation: DeviceState<Map<String, NumericalValue<U>>> = DeviceState.combine(
-        outputCapacity, consumerRequest, supplyRequestState
-    ) { outputCapacity, consumerRequest, supplyRequest: Map<String, NumericalValue<U>> ->
+         consumerRequest, supplyRequestState
+    ) { consumerRequest, supplyRequest: Map<String, NumericalValue<U>> ->
 
         val totalInput = supplyRequest.values.sumOf { it.value }
-        val totalOutput = minOf(consumerRequest.value, outputCapacity.value)
+        val totalOutput = consumerRequest.value
 
         when (joinManagementStrategy) {
             JoinManagementStrategy.PROPORTIONAL -> {
@@ -83,14 +77,47 @@ public class MaterialFlowJoin<U : UnitsOfMeasurement>(
 
     }
 
-    public val production: DeviceState<NumericalValue<U>> = consumation.map { consume ->
+    override val production: DeviceState<NumericalValue<U>> = consumation.map { consume ->
         NumericalValue(consume.values.sumOf { it.value })
     }
+}
 
-    public val producer: MaterialFlowProducer<U> = model(MaterialFlowProducer(context, production, consumerRequest))
+/**
+ * Converts a [MaterialFlowJoin] instance into a [MaterialFlowProducer] instance.
+ *
+ * This transformation allows the material flow managed by the `MaterialFlowJoin` to be
+ * represented as a producer model, enabling compatibility with systems or components
+ * that consume material flow from producer models. The producer's production state will
+ * reflect the output capacity of the join based on consumer requests.
+ *
+ * @return A [MaterialFlowProducer] representing the material flow output of the [MaterialFlowJoin].
+ */
+public fun <U : UnitsOfMeasurement> MaterialFlowJoin<U>.asProducer(): MaterialFlowProducer<U> =
+    MaterialFlowProducer(context, production, consumerRequest)
+
+/**
+ * Converts a material flow join instance into a material flow consumer using a specified supplier key.
+ *
+ * @param key The identifier of the supplier whose supply request will be used to create the consumer.
+ * @return A [MaterialFlowConsumer] instance configured with the supply request specified by the given key.
+ * @throws IllegalStateException If no supplier with the given key is found in the supply requests.
+ */
+public fun <U : UnitsOfMeasurement> MaterialFlowJoin<U>.asConsumers(
+    key: String
+): MaterialFlowConsumer<U> = supplyRequest[key]?.let { input ->
+    MaterialFlowConsumer(context, production, input)
+} ?: error("No supplier with key $key found")
 
 
-    public val consumers: Map<String, MaterialFlowConsumer<U>> = supplyRequest.mapValues { (name, input) ->
-        MaterialFlowConsumer(context, outputCapacity, input)
-    }
+public fun <U : UnitsOfMeasurement> MaterialFlowJoin(
+    producers: Map<String, FlowProducerModel<U>>,
+    consumerRequest: DeviceState<NumericalValue<U>>,
+    context: Context = producers.values.first().context,
+): MaterialFlowJoin<U> {
+
+    return MaterialFlowJoin(
+        context = context,
+        consumerRequest = consumerRequest,
+        supplyRequest = producers.mapValues { it.value.production }
+    )
 }

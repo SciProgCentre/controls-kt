@@ -1,9 +1,6 @@
 package space.kscience.controls.constructor.models.flow
 
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.ModelConstructor
-import space.kscience.controls.constructor.combineState
-import space.kscience.controls.constructor.registerState
+import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.dataforge.context.Context
@@ -46,4 +43,22 @@ public class MaterialFlowConsumer<U : UnitsOfMeasurement>(
     ) { consumation, capacity ->
         consumation.value / capacity.value
     }
+}
+
+/**
+ * Creates a new instance of [MaterialFlowConsumer] based on the specified production model and capacity.
+ * Adjusts the consumer's capacity to reflect the minimum value between the provided capacity and the producer's production state.
+ *
+ * @param producer The production model that provides the production state for material flow.
+ * @param capacity The state representing the maximum capacity for material flow consumption.
+ * @return A [MaterialFlowConsumer] instance configured with the adjusted capacity and production states.
+ */
+public fun <U: UnitsOfMeasurement> MaterialFlowConsumer(
+    producer: FlowProducerModel<U>,
+    capacity: DeviceState<NumericalValue<U>>,
+): MaterialFlowConsumer<U> {
+    val minCapacity = DeviceState.combine(capacity, producer.production) { capacity, production ->
+        NumericalValue<U>(minOf(capacity.value, production.value))
+    }
+    return MaterialFlowConsumer(producer.context, minCapacity, producer.production)
 }
