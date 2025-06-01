@@ -5,9 +5,12 @@ import io.ktor.network.sockets.Datagram
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.SocketOptions
 import io.ktor.network.sockets.aSocket
-import io.ktor.utils.io.core.ByteReadPacket
 import kotlinx.coroutines.*
+import kotlinx.io.Buffer
+import kotlinx.io.Source
+import kotlinx.io.UnsafeIoApi
 import kotlinx.io.readByteArray
+import kotlinx.io.unsafe.UnsafeBufferOperations
 import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -16,6 +19,9 @@ import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.number
 import space.kscience.dataforge.meta.string
 import kotlin.coroutines.CoroutineContext
+
+@OptIn(UnsafeIoApi::class)
+private fun ByteArray.asSource(): Source = Buffer().apply { UnsafeBufferOperations.moveToTail(this, this@asSource) }
 
 public class KtorUdpPort internal constructor(
     context: Context,
@@ -55,7 +61,7 @@ public class KtorUdpPort internal constructor(
 
     override suspend fun write(data: ByteArray) {
         val socket = futureSocket.await()
-        socket.send(Datagram(ByteReadPacket(data), socket.remoteAddress))
+        socket.send(Datagram(data.asSource(), socket.remoteAddress))
     }
 
     override val lifecycleState: LifecycleState

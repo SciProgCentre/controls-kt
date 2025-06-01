@@ -11,6 +11,8 @@ description = """
 
 kscience {
     jvm()
+    useCoroutines()
+
     jvmMain {
         api(projects.controlsCore)
         api(spclibs.ktor.network)
