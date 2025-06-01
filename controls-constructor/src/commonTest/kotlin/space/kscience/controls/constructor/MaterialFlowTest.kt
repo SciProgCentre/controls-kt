@@ -35,4 +35,5 @@ class MaterialFlowTest {
         assertEquals(4.0, consumer.consumation.value.value)
 
     }
+
 }

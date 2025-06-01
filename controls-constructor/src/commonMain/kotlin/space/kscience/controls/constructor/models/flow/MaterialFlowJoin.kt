@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.models.flow
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.constructor.units.times
 import space.kscience.dataforge.context.Context
 
 
@@ -12,8 +13,24 @@ public enum class JoinManagementStrategy {
 }
 
 /**
- * @param outputCapacity production capacity
+ * A class responsible for managing material flow by combining supply and consumer requests with specific
+ * strategies. The resulting flows are calculated based on the defined management strategy.
  *
+ * @param U The unit of measurement applied to the numerical values handled by this class.
+ * @param context The context in which the material flow is managed.
+ * @param outputCapacity The state representing the maximum output capacity.
+ * @param consumerRequest The state representing the total amount requested by consumers.
+ * @param supplyRequest The map of supplier identifiers to their respective supply states.
+ * @param joinManagementStrategy The strategy used to manage the distribution of available supply to the consumer.
+ * Defaults to the proportional strategy.
+ *
+ * @property consumation A state representing the consumption calculation, resulting in a distribution map
+ * of available material flow across suppliers.
+ * @property production A state representing the total production as a numerical value derived from the consumation map.
+ * @property producer A producer instance responsible for handling material flow production based on internal
+ * calculations and state dependencies.
+ * @property consumers A map of consumer instances, each keyed by its identifier, representing individual
+ * suppliers participating in the material flow system.
  */
 public class MaterialFlowJoin<U : UnitsOfMeasurement>(
     context: Context,
@@ -29,23 +46,39 @@ public class MaterialFlowJoin<U : UnitsOfMeasurement>(
         supplyRequest.values.forEach(::registerState)
     }
 
+    private val supplyRequestState = DeviceState.combine(supplyRequest) { it }
+
     public val consumation: DeviceState<Map<String, NumericalValue<U>>> = DeviceState.combine(
-        listOf(outputCapacity, consumerRequest, *supplyRequest.values.toTypedArray())
-    ) { args ->
-        val capacityValue = args[0]
-        val consumerRequestValue = args[1]
-        val supplyRequestValues = args.drop(2)
+        outputCapacity, consumerRequest, supplyRequestState
+    ) { outputCapacity, consumerRequest, supplyRequest: Map<String, NumericalValue<U>> ->
+
+        val totalInput = supplyRequest.values.sumOf { it.value }
+        val totalOutput = minOf(consumerRequest.value, outputCapacity.value)
+
         when (joinManagementStrategy) {
             JoinManagementStrategy.PROPORTIONAL -> {
-                val totalInput = supplyRequestValues.sumOf { it.value }
-                val totalRequest = consumerRequestValue.value
-                val totalCapacity = capacityValue.value
-                supplyRequestValues.associate {
-                    it.name to NumericalValue(it.value * totalRequest / totalCapacity)
+                if (totalInput <= totalOutput) {
+                    // Insufficient input. Give all that you have.
+                    supplyRequest.mapValues { it.value }
+                } else {
+                    // Sufficient input. Proportionally distributed.
+                    val ratio = totalOutput / totalInput
+                    supplyRequest.mapValues { it.value * ratio }
                 }
             }
 
-            JoinManagementStrategy.ORDERED -> TODO()
+            JoinManagementStrategy.ORDERED -> buildMap {
+                var cumSum = 0.0
+                for ((key, value) in supplyRequest) {
+                    if (cumSum + value.value > totalOutput) {
+                        put(key, NumericalValue(totalOutput - cumSum))
+                        break
+                    } else {
+                        put(key, value)
+                        cumSum += value.value
+                    }
+                }
+            }
         }
 
     }

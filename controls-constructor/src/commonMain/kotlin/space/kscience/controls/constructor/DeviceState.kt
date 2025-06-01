@@ -94,9 +94,33 @@ public fun <T1, T2, R> DeviceState.Companion.combine(
 
     override val value: R get() = mapper(state1.value, state2.value)
 
-    override val valueFlow: Flow<R> = kotlinx.coroutines.flow.combine(state1.valueFlow, state2.valueFlow, mapper)
+    override val valueFlow: Flow<R> = combine(state1.valueFlow, state2.valueFlow, mapper)
 
     override fun toString(): String = "DeviceState.combine(state1=$state1, state2=$state2)"
+}
+
+/**
+ * Combines three device states into a single device state by applying a mapping function.
+ *
+ * @param state1 The first device state to combine.
+ * @param state2 The second device state to combine.
+ * @param state3 The third device state to combine.
+ * @param mapper The mapping function that combines the values of the three states into a resulting value.
+ * @return A new device state whose value depends on the combined values of the provided states.
+ */
+public fun <T1, T2, T3, R> DeviceState.Companion.combine(
+    state1: DeviceState<T1>,
+    state2: DeviceState<T2>,
+    state3: DeviceState<T3>,
+    mapper: (T1, T2, T3) -> R,
+): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+    override val dependencies = listOf(state1, state2, state3)
+
+    override val value: R get() = mapper(state1.value, state2.value, state3.value)
+
+    override val valueFlow: Flow<R> = combine(state1.valueFlow, state2.valueFlow, state3.valueFlow, mapper)
+
+    override fun toString(): String = "DeviceState.combine(state1=$state1, state2=$state2, state3=$state3)"
 }
 
 /**
@@ -117,7 +141,38 @@ public inline fun <reified T, R> DeviceState.Companion.combine(
 
     override val value: R get() = mapper(states.map { it.value }.toTypedArray())
 
-    override val valueFlow: Flow<R> = kotlinx.coroutines.flow.combine<T, R>(states.map { it.valueFlow }, mapper)
+    override val valueFlow: Flow<R> = combine<T, R>(states.map { it.valueFlow }, mapper)
 
     override fun toString(): String = "DeviceState.combine(states=${states.joinToString()})"
+}
+
+/**
+ * Combines multiple `DeviceState` instances into a single `DeviceStateWithDependencies`.
+ * The combined state is derived by applying the provided `mapper` function to the values of the input states.
+ *
+ * @param T the type of individual states' values.
+ * @param K the type of the keys in the input state map.
+ * @param R the type of the resulting combined state value.
+ * @param states a map of keys to `DeviceState` instances representing the individual states to be combined.
+ * @param mapper a function that takes a map of key-value pairs (where keys are from `states` and values are the current
+ *        values of the corresponding `DeviceState` instances) and produces the value for the combined state.
+ * @return a `DeviceStateWithDependencies` instance representing the combined state, with its value computed
+ *         dynamically based on the input states and the `mapper` function.
+ */
+public inline fun <reified T, K, R> DeviceState.Companion.combine(
+    states: Map<K, DeviceState<T>>,
+    crossinline mapper: (Map<K, T>) -> R,
+): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+    override val dependencies = states.values
+
+    override val value: R get() = mapper(states.mapValues { it.value.value })
+
+    private val entries = states.entries.toList()
+
+    override val valueFlow: Flow<R> = combine<T, R>(entries.map { it.value.valueFlow }) { array: Array<T> ->
+        // restore mapping
+        mapper(entries.indices.associate { entries[it].key to array[it] })
+    }
+
+    override fun toString(): String = "DeviceState.associate(states=${states})"
 }
