@@ -165,7 +165,7 @@ public fun <T1, T2, R> StateContainer.combineState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T> StateContainer.bind(sourceState: DeviceState<T>, targetState: MutableDeviceState<T>): Job {
+public fun <T> StateContainer.bindState(sourceState: DeviceState<T>, targetState: MutableDeviceState<T>): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
     return sourceState.valueFlow.onEach {
@@ -183,7 +183,7 @@ public fun <T> StateContainer.bind(sourceState: DeviceState<T>, targetState: Mut
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T, R> StateContainer.transformTo(
+public fun <T, R> StateContainer.bindTransformedState(
     sourceState: DeviceState<T>,
     targetState: MutableDeviceState<R>,
     transformation: suspend (T) -> R,
@@ -204,7 +204,7 @@ public fun <T, R> StateContainer.transformTo(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T1, T2, R> StateContainer.combineTo(
+public fun <T1, T2, R> StateContainer.bindCombinedState(
     sourceState1: DeviceState<T1>,
     sourceState2: DeviceState<T2>,
     targetState: MutableDeviceState<R>,
@@ -226,7 +226,7 @@ public fun <T1, T2, R> StateContainer.combineTo(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public inline fun <reified T, R> StateContainer.combineTo(
+public inline fun <reified T, R> StateContainer.bindCombinedState(
     sourceStates: Collection<DeviceState<T>>,
     targetState: MutableDeviceState<R>,
     noinline transformation: suspend (Array<T>) -> R,

@@ -52,26 +52,28 @@ public class MaterialFlowProducer<U : UnitsOfMeasurement>(
         production.value / capacity.value
     }
 
-    public companion object
-}
+    public companion object{
 
-/**
- * Creates an instance of `MaterialFlowProducer` by combining the given consumer's consumption
- * state with the producer's capacity, ensuring the resulting producer respects both
- * the consumer's needs and the producer's constraints.
- *
- * @param consumer The `MaterialFlowConsumer` whose consumption requests are used to calculate
- * the producer's actual material flow production.
- * @param capacity The capacity `DeviceState` defining the maximum flow that this producer can handle.
- * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
- * on the minimum of the provided capacity and the consumer's consumption requests.
- */
-public fun <U : UnitsOfMeasurement> MaterialFlowProducer(
-    consumer: MaterialFlowConsumer<U>,
-    capacity: DeviceState<NumericalValue<U>>,
-): MaterialFlowProducer<U> {
-    val minCapacity = DeviceState.combine(capacity, consumer.consumation) { capacity, consumation ->
-        NumericalValue<U>(minOf(capacity.value, consumation.value))
+        /**
+         * Creates an instance of `MaterialFlowProducer` by combining the given consumer's consumption
+         * state with the producer's capacity, ensuring the resulting producer respects both
+         * the consumer's needs and the producer's constraints.
+         *
+         * @param consumer The `MaterialFlowConsumer` whose consumption requests are used to calculate
+         * the producer's actual material flow production.
+         * @param capacity The capacity `DeviceState` defining the maximum flow that this producer can handle.
+         * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
+         * on the minimum of the provided capacity and the consumer's consumption requests.
+         */
+        public fun  <U : UnitsOfMeasurement> fromConsumer(
+            consumer: MaterialFlowConsumer<U>,
+            capacity: DeviceState<NumericalValue<U>>,
+        ): MaterialFlowProducer<U> {
+            val minCapacity = DeviceState.combine(capacity, consumer.consumation) { capacity, consumation ->
+                NumericalValue<U>(minOf(capacity.value, consumation.value))
+            }
+            return MaterialFlowProducer(consumer.context, minCapacity, consumer.consumation)
+        }
+
     }
-    return MaterialFlowProducer(consumer.context, minCapacity, consumer.consumation)
 }

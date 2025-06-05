@@ -1,5 +1,6 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.models.flow.MaterialFlowConsumer
 import space.kscience.controls.constructor.models.flow.MaterialFlowJoin
@@ -19,7 +20,7 @@ class MaterialFlowTest {
 
         val consumer = MaterialFlowConsumer(Global, consumationCapacity, productionCapacity)
 
-        val producer = MaterialFlowProducer(consumer, productionCapacity)
+        val producer = MaterialFlowProducer.fromConsumer(consumer, productionCapacity)
 
 
         assertEquals(1.0, producer.production.value.value)
@@ -37,15 +38,34 @@ class MaterialFlowTest {
 
     }
 
+    fun <T : Comparable<T>> StateContainer.combineStateToMin(
+        sourceState1: DeviceState<T>,
+        sourceState2: DeviceState<T>,
+        targetState: MutableDeviceState<T>,
+    ): Job = bindCombinedState(sourceState1, sourceState2, targetState) { a, b -> minOf(a, b) }
+
     @Test
     fun join() = runTest {
-        val productionCapacities = mapOf(
-            "a" to MutableDeviceState(NV<Kilograms>(1.0)),
-            "b" to MutableDeviceState(NV<Kilograms>(2.0)),
-            "c" to MutableDeviceState(NV<Kilograms>(3.0))
-        )
-        val consumationCapacity = MutableDeviceState(NV<Kilograms>(5.0))
 
-        val join = MaterialFlowJoin(Global, consumationCapacity, productionCapacities)
+        val a = MutableDeviceState(NV<Kilograms>(1.0))
+        val b = MutableDeviceState(NV<Kilograms>(2.0))
+        val c = MutableDeviceState(NV<Kilograms>(3.0))
+        val ab = MutableDeviceState(NV<Kilograms>(100.0))
+        val abc = MutableDeviceState(NV<Kilograms>(100.0))
+
+
+        val joinAB = MaterialFlowJoin(
+            context = Global,
+            consumerRequest = ab,
+            supplyRequest = mapOf("a" to a, "b" to b),
+        )
+
+        val joinABC = MaterialFlowJoin(
+            context = Global,
+            consumerRequest = abc,
+            supplyRequest = mapOf("ab" to ab, "c" to c),
+        )
+
+
     }
 }

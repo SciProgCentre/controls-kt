@@ -18,7 +18,7 @@ public class Reducer(
     init {
         registerState(input)
         registerState(output)
-        transformTo(input, output) {
+        bindTransformedState(input, output) {
             it * ratio
         }
     }
