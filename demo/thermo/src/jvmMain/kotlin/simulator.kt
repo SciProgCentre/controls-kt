@@ -57,9 +57,12 @@ internal fun CoroutineScope.launchModbusSimulator(configuration: Map<String, The
     }
 }
 
-internal fun generateTestConfig(): Map<String, ThermoSensorConfig> = buildMap {
-    repeat(10) { unit ->
-        repeat(10) { address ->
+internal fun generateTestConfig(
+    numberOfUnits: Int = 10,
+    sensorsPerUnit: Int = 10
+): Map<String, ThermoSensorConfig> = buildMap {
+    repeat(numberOfUnits) { unit ->
+        repeat(sensorsPerUnit) { address ->
             put("$unit-$address", ThermoSensorConfig(unit, 1000 + address))
 
         }

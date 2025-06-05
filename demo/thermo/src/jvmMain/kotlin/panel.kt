@@ -68,7 +68,7 @@ private val timeFormat = LocalDateTime.Format {
 
 @OptIn(ExperimentalSplitPaneApi::class, ExperimentalKoalaPlotApi::class)
 @Composable
-private fun MainScreen(controller: ThermoHubController) {
+private fun MainScreen(hub: ThermoSensorHub) {
 
     val plotEnabled = remember {
         SnapshotStateList<String>()
@@ -99,7 +99,7 @@ private fun MainScreen(controller: ThermoHubController) {
                     .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
             ) {
-                controller.sensorHub.sensors.forEach { (sensorName, sensor) ->
+                hub.sensors.forEach { (sensorName, sensor) ->
 
                     val temperature by sensor.temperature.asComposeState()
                     val state by sensor.status.asComposeState()
@@ -164,16 +164,16 @@ private fun MainScreen(controller: ThermoHubController) {
                 legendLocation = LegendLocation.BOTTOM
             ) {
                 XYGraph<Instant, Double>(
-                    xAxisModel = remember { TimeAxisModel.recent(maxAge, controller.context.clock, 100.dp) },
+                    xAxisModel = remember { TimeAxisModel.recent(maxAge, hub.context.clock, 100.dp) },
                     yAxisModel = rememberDoubleLinearAxisModel(-10.0..110.0, minimumMajorTickIncrement = 10.0),
                     xAxisTitle = "Time",
                     xAxisLabels = { time -> time.toLocalDateTime(TimeZone.currentSystemDefault()).format(timeFormat) },
                     yAxisLabels = { value -> String.format("%.2f", value)}
                 ) {
                     plotEnabled.forEachIndexed { index, sensorName ->
-                        controller.sensorHub.sensors[sensorName]?.let { sensor ->
+                        hub.sensors[sensorName]?.let { sensor ->
                             PlotNumberState(
-                                context = controller.context,
+                                context = hub.context,
                                 state = sensor.temperature,
                                 maxAge = maxAge,
                                 lineStyle = LineStyle(SolidColor(palette[index]))
@@ -193,7 +193,9 @@ fun main() = application {
         plugin(ClockManager)
     }
 
-    val configuration: Map<String, ThermoSensorConfig> = generateTestConfig()
+    val configuration: Map<String, ThermoSensorConfig> = generateTestConfig(
+        numberOfUnits = 1
+    )
     context.launchModbusSimulator(configuration)
     Thread.sleep(200)
 
@@ -202,8 +204,8 @@ fun main() = application {
 
     val thermoHub = ModbusThermoSensorHub(context.request(DeviceManager), modbusMaster, configuration)
 
-    val controller = ThermoHubController(thermoHub)
-    controller.start()
+    thermoHub.serveOpc(context)
+
 
     Window(title = "ThermoSensor dashboard", onCloseRequest = {
         modbusMaster.disconnect()
@@ -212,7 +214,7 @@ fun main() = application {
     }) {
         window.minimumSize = Dimension(800, 400)
         MaterialTheme {
-            MainScreen(controller)
+            MainScreen(thermoHub)
         }
     }
 }

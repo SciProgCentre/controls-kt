@@ -1,5 +1,6 @@
 package space.kscience.controls.opcua.server
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaInstant
 import org.eclipse.milo.opcua.sdk.core.AccessLevel
@@ -21,11 +22,8 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.client.opcToMeta
-import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.plus
 
 
 public operator fun CachingDevice.get(propertyDescriptor: PropertyDescriptor): Meta? =
@@ -38,21 +36,24 @@ https://github.com/eclipse/milo/blob/master/milo-examples/server-examples/src/ma
  */
 
 public class DeviceNameSpace(
-    private val context: Context,
+    private val scope: CoroutineScope,
     server: OpcUaServer,
     public val deviceHub: DeviceHub
 ) : ManagedNamespaceWithLifecycle(server, NAMESPACE_URI) {
 
     private val subscription = SubscriptionModel(server, this)
 
-    private fun UaFolderNode.registerDeviceNodes(deviceName: Name, device: Device) {
+    /**
+     * Register device node within existing folder
+     */
+    private fun UaFolderNode.registerDeviceNodes(deviceName: String, device: Device) {
         val nodes = device.propertyDescriptors.associate { descriptor ->
             val propertyName = descriptor.name
 
 
             val node: UaVariableNode = UaVariableNode.UaVariableNodeBuilder(nodeContext).apply {
                 //for now, use DF paths as ids
-                nodeId = newNodeId("${deviceName.tokens.joinToString("/")}/$propertyName")
+                nodeId = newNodeId("$deviceName/$propertyName")
                 when {
                     descriptor.readable && descriptor.mutable -> {
                         setAccessLevel(AccessLevel.READ_WRITE)
@@ -90,7 +91,7 @@ public class DeviceNameSpace(
                 setTypeDefinition(Identifiers.BaseDataVariableType)
             }.build()
 
-            // Update initial value, but only if it is cached
+            // Update the initial value, but only if it is cached
             if (device is CachingDevice) {
                 device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
                     node.value = it
@@ -105,7 +106,7 @@ public class DeviceNameSpace(
                 node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any? ->
                     if (attributeId == AttributeId.Value) {
                         val meta: Meta = opcToMeta(value)
-                        context.launch {
+                        scope.launch {
                             device.writeProperty(propertyName, meta)
                         }
                     }
@@ -127,39 +128,70 @@ public class DeviceNameSpace(
                 }
             }
         }
+
         //recursively add sub-devices
         if (device is DeviceHub) {
-            nodeContext.registerHub(device, deviceName)
+            device.devices.forEach { (childDeviceName, device) ->
+
+                val deviceFolder = UaFolderNode(
+                    nodeContext,
+                    newNodeId("$deviceName/$childDeviceName"),
+                    newQualifiedName("$deviceName/$childDeviceName"),
+                    LocalizedText.english(childDeviceName.toString())
+                )
+
+                deviceFolder.registerDeviceNodes("$deviceName/$childDeviceName", device)
+
+                nodeManager.addNode(deviceFolder)
+                addOrganizes(deviceFolder)
+            }
         }
     }
 
-    private fun UaNodeContext.registerHub(hub: DeviceHub, namePrefix: Name) {
+    private fun UaNodeContext.registerTopLevelHub(hub: DeviceHub) {
+        val rootNode = UaFolderNode(
+            nodeContext,
+            newNodeId("Controls"),
+            newQualifiedName("Controls"),
+            LocalizedText.english("Controls")
+        )
+
         hub.devices.forEach { (deviceName, device) ->
-            val tokenAsString = deviceName.toString()
+            val nameAsString = "$deviceName"
+
             val deviceFolder = UaFolderNode(
-                this,
-                newNodeId(tokenAsString),
-                newQualifiedName(tokenAsString),
-                LocalizedText.english(tokenAsString)
+                nodeContext,
+                newNodeId(nameAsString),
+                newQualifiedName(nameAsString),
+                LocalizedText.english(nameAsString)
             )
-            deviceFolder.addReference(
-                Reference(
-                    deviceFolder.nodeId,
-                    Identifiers.Organizes,
-                    Identifiers.ObjectsFolder.expanded(),
-                    false
-                )
-            )
-            deviceFolder.registerDeviceNodes(namePrefix + deviceName, device)
-            this.nodeManager.addNode(deviceFolder)
+
+            deviceFolder.registerDeviceNodes(deviceName.toString(), device)
+
+            nodeManager.addNode(deviceFolder)
+
+            rootNode.addOrganizes(deviceFolder)
         }
+
+        nodeManager.addNode(rootNode)
+
+        rootNode.addReference(
+            Reference(
+                rootNode.nodeId,
+                Identifiers.Organizes,
+                Identifiers.ObjectsFolder.expanded(),
+                false
+            )
+        )
+
+
     }
 
     init {
         lifecycleManager.addLifecycle(subscription)
 
         lifecycleManager.addStartupTask {
-            nodeContext.registerHub(deviceHub, Name.EMPTY)
+            nodeContext.registerTopLevelHub(deviceHub)
         }
 
         lifecycleManager.addLifecycle(object : Lifecycle {
@@ -195,8 +227,8 @@ public class DeviceNameSpace(
 }
 
 
-public fun OpcUaServer.serveDevices(context: Context, deviceHub: DeviceHub): DeviceNameSpace =
-    DeviceNameSpace(context, this, deviceHub).apply { startup() }
+public fun OpcUaServer.serveDevices(scope: CoroutineScope, deviceHub: DeviceHub): DeviceNameSpace =
+    DeviceNameSpace(scope, this, deviceHub).apply { startup() }
 
 /**
  *  Serve devices from [deviceManager] as OPC-UA
