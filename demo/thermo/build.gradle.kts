@@ -9,7 +9,13 @@ kotlin {
 }
 
 kscience {
-    jvm()
+    jvm {
+        binaries {
+            executable {
+                mainClass = "center.sciprog.controls.demo.thermo.PanelKt"
+            }
+        }
+    }
     useSerialization {
         json()
     }
@@ -27,10 +33,18 @@ kscience {
     }
 }
 
-//compose{
-//    desktop{
-//        application{
-//            mainClass = "ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt"
-//        }
-//    }
-//}
+compose {
+    desktop {
+        application {
+            mainClass = "center.sciprog.controls.demo.thermo.PanelKt"
+
+            nativeDistributions {
+                packageName = "ControlsThermoSensor"
+                packageVersion = "1.0.0"
+                windows {
+                    includeAllModules = true
+                }
+            }
+        }
+    }
+}

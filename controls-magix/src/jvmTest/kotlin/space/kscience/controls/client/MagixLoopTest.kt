@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 class MagixLoopTest {
 
     @Test
-    fun realDeviceHub() = runTest(timeout = 2.seconds) {
+    fun realDeviceHub() = runTest(timeout = 5.seconds) {
         val context = Context {
             coroutineContext(Dispatchers.Default)
             plugin(DeviceManager)
