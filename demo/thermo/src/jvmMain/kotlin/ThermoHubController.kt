@@ -1,4 +1,4 @@
-package space.kscience.controls.demo.thermo
+package center.sciprog.controls.demo.thermo
 
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText

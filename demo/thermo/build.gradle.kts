@@ -27,10 +27,10 @@ kscience {
     }
 }
 
-//compose{
-//    desktop{
-//        application{
-//            mainClass = "ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt"
-//        }
-//    }
-//}
+compose{
+    desktop{
+        application{
+            mainClass = "center.sciprog.controls.demo.thermo.PanelKt"
+        }
+    }
+}

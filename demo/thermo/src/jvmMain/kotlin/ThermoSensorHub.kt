@@ -1,4 +1,4 @@
-package space.kscience.controls.demo.thermo
+package center.sciprog.controls.demo.thermo
 
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import kotlinx.serialization.Serializable

@@ -1,4 +1,4 @@
-package space.kscience.controls.demo.thermo
+package center.sciprog.controls.demo.thermo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
