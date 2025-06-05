@@ -17,8 +17,7 @@ The module consists of several key components:
 
 1. **ThermoSensor** - Interface for temperature sensors with Modbus implementation
 2. **ThermoSensorHub** - Manages multiple sensors and provides access to their data
-3. **ThermoHubController** - Controls the sensor hub and exposes data via OPC UA
-4. **Dashboard UI** - Compose-based UI for visualizing sensor data
+3. **Dashboard UI** - Compose-based UI for visualizing sensor data
 
 ## Running the Demo
 

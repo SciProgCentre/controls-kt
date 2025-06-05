@@ -37,10 +37,7 @@ public class RSocketStreamMagixEndpoint(
         rSocket.requestChannel(
             buildPayload {
                 data(
-                    MagixEndpoint.magixJson.encodeToString(
-                        MagixMessageFilter.serializer(),
-                        streamFilter
-                    )
+                    MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), streamFilter)
                 )
             },
             output.consumeAsFlow()

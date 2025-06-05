@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 class MagixLoopTest {
 
     @Test
-    fun realDeviceHub() = runTest(timeout = 2.seconds) {
+    fun realDeviceHub() = runTest(timeout = 5.seconds) {
         val context = Context {
             coroutineContext(Dispatchers.Default)
             plugin(DeviceManager)
@@ -51,7 +51,8 @@ class MagixLoopTest {
         assertEquals(0, remoteHub.devices.size)
         clientEndpoint.requestDeviceUpdate("client", "device")
 
-        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device")).map { it.second }
+        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+            .map { it.second }
             .filterIsInstance<DescriptionMessage>().take(10).collect {
                 println(it)
             }

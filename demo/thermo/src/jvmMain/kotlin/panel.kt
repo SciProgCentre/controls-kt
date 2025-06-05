@@ -30,15 +30,23 @@ import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
 import io.github.koalaplot.core.util.generateHueColorPalette
 import io.github.koalaplot.core.xygraph.XYGraph
 import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.datetime.*
 import kotlinx.datetime.format.Padding
 import kotlinx.datetime.format.char
+import org.eclipse.milo.opcua.sdk.server.OpcUaServer
+import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
+import space.kscience.controls.api.DeviceHub
 import space.kscience.controls.compose.PlotNumberState
 import space.kscience.controls.compose.TimeAxisModel
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.opcua.server.OpcUaServer
+import space.kscience.controls.opcua.server.endpoint
+import space.kscience.controls.opcua.server.serveDevices
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
@@ -184,6 +192,30 @@ private fun MainScreen(hub: ThermoSensorHub) {
             }
         }
     }
+}
+
+fun DeviceHub.serveOpc(
+    scope: CoroutineScope,
+    port: Int = 9091,
+): OpcUaServer {
+
+    val opcUaServer: OpcUaServer = OpcUaServer {
+        setApplicationName(LocalizedText.english("center.sciprog.controls.thermo"))
+
+        endpoint {
+            setBindPort(port)
+        }
+    }
+
+    opcUaServer.serveDevices(scope, this)
+    opcUaServer.startup()
+
+
+    scope.coroutineContext[Job]?.invokeOnCompletion {
+        opcUaServer.shutdown()
+    }
+
+    return opcUaServer
 }
 
 
