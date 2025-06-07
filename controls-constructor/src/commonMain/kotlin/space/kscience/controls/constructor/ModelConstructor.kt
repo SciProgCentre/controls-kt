@@ -15,7 +15,6 @@ public abstract class ModelConstructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
-                CoroutineName("Model ${toString()}") +
                 context.coroutineDispatcher
 //                CoroutineExceptionHandler { _, throwable ->
 //                    launch {

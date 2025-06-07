@@ -3,6 +3,7 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.time.ClockManager
@@ -112,7 +113,7 @@ public fun StateContainer.onTimer(
     block: suspend (prev: Instant, next: Instant) -> Unit,
 ): Job = timer(tick).onChange(writes = writes, reads = reads, onChange = block)
 
-public enum class DefaultTimer(public val duration: Duration){
+public enum class DefaultTimer(public val duration: Duration) {
     REALTIME(5.milliseconds),
     VERY_FAST(10.milliseconds),
     FAST(20.milliseconds),
@@ -168,9 +169,13 @@ public fun <T1, T2, R> StateContainer.combineState(
 public fun <T> StateContainer.bindState(sourceState: DeviceState<T>, targetState: MutableDeviceState<T>): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
-    return sourceState.valueFlow.onEach {
-        targetState.value = it
-    }.launchIn(this).apply {
+
+    return launch {
+        targetState.value = sourceState.value
+        sourceState.valueFlow.collect {
+            targetState.value = it
+        }
+    }.apply {
         invokeOnCompletion {
             unregisterElement(descriptor)
         }
@@ -190,9 +195,13 @@ public fun <T, R> StateContainer.bindTransformedState(
 ): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
-    return sourceState.valueFlow.onEach {
-        targetState.value = transformation(it)
-    }.launchIn(this).apply {
+
+    return launch {
+        targetState.value = transformation(sourceState.value)
+        sourceState.valueFlow.collect {
+            targetState.value = transformation(it)
+        }
+    }.apply {
         invokeOnCompletion {
             unregisterElement(descriptor)
         }
@@ -212,9 +221,13 @@ public fun <T1, T2, R> StateContainer.bindCombinedState(
 ): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState1, sourceState2), setOf(targetState))
     registerElement(descriptor)
-    return combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).onEach {
-        targetState.value = it
-    }.launchIn(this).apply {
+
+    return launch {
+        targetState.value = transformation(sourceState1.value, sourceState2.value)
+        combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).collect {
+            targetState.value = it
+        }
+    }.apply {
         invokeOnCompletion {
             unregisterElement(descriptor)
         }
@@ -233,9 +246,13 @@ public inline fun <reified T, R> StateContainer.bindCombinedState(
 ): Job {
     val descriptor = ConnectionConstructorElement(sourceStates, setOf(targetState))
     registerElement(descriptor)
-    return combine(sourceStates.map { it.valueFlow }, transformation).onEach {
-        targetState.value = it
-    }.launchIn(this).apply {
+
+    return launch {
+        targetState.value = transformation(sourceStates.map { it.value }.toTypedArray())
+        combine(sourceStates.map { it.valueFlow }, transformation).collect {
+            targetState.value = it
+        }
+    }.apply {
         invokeOnCompletion {
             unregisterElement(descriptor)
         }

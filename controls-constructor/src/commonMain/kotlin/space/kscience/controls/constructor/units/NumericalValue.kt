@@ -6,19 +6,27 @@ import space.kscience.dataforge.meta.double
 import kotlin.jvm.JvmInline
 
 
+public interface Amount<U : UnitsOfMeasurement> : Comparable<NumericalValue<U>>{
+    public val value: Double
+
+    override fun compareTo(other: NumericalValue<U>): Int = value.compareTo(other.value)
+}
+
 /**
  * A value without identity coupled to units of measurements.
  */
 @JvmInline
-public value class NumericalValue<U : UnitsOfMeasurement>(public val value: Double) : Comparable<NumericalValue<U>> {
-    override fun compareTo(other: NumericalValue<U>): Int = value.compareTo(other.value)
-}
+public value class NumericalValue<U : UnitsOfMeasurement>(override val value: Double) : Amount<U>
 
 public typealias NV<U> = NumericalValue<U>
 
 public fun <U : UnitsOfMeasurement> NumericalValue(
     number: Number,
 ): NumericalValue<U> = NumericalValue(number.toDouble())
+
+public fun <U : UnitsOfMeasurement> Amount(
+    number: Number,
+): Amount<U> = NumericalValue(number.toDouble())
 
 public operator fun <U : UnitsOfMeasurement> NumericalValue<U>.plus(
     other: NumericalValue<U>,

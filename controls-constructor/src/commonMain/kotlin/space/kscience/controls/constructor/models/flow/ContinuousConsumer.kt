@@ -19,7 +19,7 @@ import space.kscience.dataforge.context.Context
  * @property efficiency A device state representing the efficiency of the consumer, calculated
  * as the ratio of the actual consumption to the capacity.
  */
-public class MaterialFlowConsumer<U : UnitsOfMeasurement>(
+public class ContinuousConsumer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: DeviceState<NumericalValue<U>>,
     public val supplyRequest: DeviceState<NumericalValue<U>>,
@@ -47,21 +47,21 @@ public class MaterialFlowConsumer<U : UnitsOfMeasurement>(
     public companion object {
 
         /**
-         * Creates a new instance of [MaterialFlowConsumer] based on the specified production model and capacity.
+         * Creates a new instance of [ContinuousConsumer] based on the specified production model and capacity.
          * Adjusts the consumer's capacity to reflect the minimum value between the provided capacity and the producer's production state.
          *
          * @param producer The production model that provides the production state for material flow.
          * @param capacity The state representing the maximum capacity for material flow consumption.
-         * @return A [MaterialFlowConsumer] instance configured with the adjusted capacity and production states.
+         * @return A [ContinuousConsumer] instance configured with the adjusted capacity and production states.
          */
         public fun <U : UnitsOfMeasurement> fromConsumer(
-            producer: FlowProducerModel<U>,
+            producer: ContinuousProducerModel<U>,
             capacity: DeviceState<NumericalValue<U>>,
-        ): MaterialFlowConsumer<U> {
+        ): ContinuousConsumer<U> {
             val minCapacity = DeviceState.combine(capacity, producer.production) { capacity, production ->
                 NumericalValue<U>(minOf(capacity.value, production.value))
             }
-            return MaterialFlowConsumer(producer.context, minCapacity, producer.production)
+            return ContinuousConsumer(producer.context, minCapacity, producer.production)
         }
     }
 }

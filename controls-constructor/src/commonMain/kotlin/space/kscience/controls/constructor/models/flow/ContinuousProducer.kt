@@ -6,7 +6,7 @@ import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 
-public interface FlowProducerModel<U : UnitsOfMeasurement> : ContextAware {
+public interface ContinuousProducerModel<U : UnitsOfMeasurement> : ContextAware {
     public val production: DeviceState<NumericalValue<U>>
 }
 
@@ -27,11 +27,11 @@ public interface FlowProducerModel<U : UnitsOfMeasurement> : ContextAware {
  * @property efficiency A device state representing the efficiency of the producer, calculated
  * as the ratio of the actual production to the capacity.
  */
-public class MaterialFlowProducer<U : UnitsOfMeasurement>(
+public class ContinuousProducer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: DeviceState<NumericalValue<U>>,
     public val consumerRequest: DeviceState<NumericalValue<U>>,
-) : ModelConstructor(context), FlowProducerModel<U> {
+) : ModelConstructor(context), ContinuousProducerModel<U> {
 
     init {
         registerState(capacity)
@@ -66,13 +66,13 @@ public class MaterialFlowProducer<U : UnitsOfMeasurement>(
          * on the minimum of the provided capacity and the consumer's consumption requests.
          */
         public fun  <U : UnitsOfMeasurement> fromConsumer(
-            consumer: MaterialFlowConsumer<U>,
+            consumer: ContinuousConsumer<U>,
             capacity: DeviceState<NumericalValue<U>>,
-        ): MaterialFlowProducer<U> {
+        ): ContinuousProducer<U> {
             val minCapacity = DeviceState.combine(capacity, consumer.consumation) { capacity, consumation ->
                 NumericalValue<U>(minOf(capacity.value, consumation.value))
             }
-            return MaterialFlowProducer(consumer.context, minCapacity, consumer.consumation)
+            return ContinuousProducer(consumer.context, minCapacity, consumer.consumation)
         }
 
     }
