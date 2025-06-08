@@ -1,6 +1,9 @@
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.newCoroutineContext
 import kotlinx.datetime.Clock
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.coroutineDispatcher
@@ -10,7 +13,7 @@ import kotlin.coroutines.CoroutineContext
 public abstract class ModelConstructor(
     final override val context: Context,
     vararg dependencies: DeviceState<*>,
-) : StateContainer, CoroutineScope {
+) : Model {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(

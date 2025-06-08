@@ -93,6 +93,8 @@ public class VirtualTimeManager(
             markerTimes.clear()
         }
     }
+
+    override fun toString(): String = "VirtualTimeManager(time=${time.value}, markerTimes=$markerTimes)"
 }
 
 public suspend fun VirtualTimeManager.advanceTimeBy(handle: Any, duration: Duration) {

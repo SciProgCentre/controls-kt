@@ -60,13 +60,13 @@ private class CompressedClock(
 internal expect fun resolveClock(meta: Meta): Clock?
 
 public sealed interface ClockMode {
-    public object System : ClockMode
-    public class Custom(public val clock: Clock) : ClockMode
-    public class Compressed(public val compression: Double) : ClockMode
-    public class Virtual(public val manager: VirtualTimeManager) : ClockMode
+    public data object System : ClockMode
+    public data class Custom(public val clock: Clock) : ClockMode
+    public data class Compressed(public val compression: Double) : ClockMode
+    public data class Virtual(public val manager: VirtualTimeManager) : ClockMode
 }
 
-public class ClockManager : AbstractPlugin() {
+public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     override val tag: PluginTag get() = Companion.tag
 
     public val clockMode: ClockMode = when (meta["clock.mode"].string) {
@@ -110,7 +110,7 @@ public class ClockManager : AbstractPlugin() {
     public companion object : PluginFactory<ClockManager> {
         override val tag: PluginTag = PluginTag("clock", group = PluginTag.DATAFORGE_GROUP)
 
-        override fun build(context: Context, meta: Meta): ClockManager = ClockManager()
+        override fun build(context: Context, meta: Meta): ClockManager = ClockManager(meta)
     }
 }
 
@@ -124,7 +124,7 @@ public val Context.coroutineDispatcher: CoroutineDispatcher
 public fun ContextBuilder.withTimeCompression(compression: Double) {
     require(compression > 0.0) { "Time compression must be greater than zero." }
     plugin(ClockManager) {
-        "clock" put{
+        "clock" put {
             "mode" put "compressed"
             "compression" to compression
         }
@@ -133,6 +133,9 @@ public fun ContextBuilder.withTimeCompression(compression: Double) {
 
 public fun ContextBuilder.withVirtualTime(start: Instant = Clock.System.now()) {
     plugin(ClockManager) {
-
+        "clock" put {
+            "mode" put "virtual"
+            "start" put start.toString()
+        }
     }
 }

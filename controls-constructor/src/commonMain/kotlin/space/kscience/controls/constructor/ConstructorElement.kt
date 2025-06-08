@@ -77,6 +77,10 @@ public interface StateContainer : ContextAware, CoroutineScope {
     }
 }
 
+public interface Model: StateContainer
+
+public val StateContainer.states get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
+
 /**
  * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
  */

@@ -13,7 +13,7 @@ import space.kscience.dataforge.context.Global
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class MaterialFlowTest {
+class ContinuousFlowTest {
     @Test
     fun producerConsumer() = runTest {
 
