@@ -1,6 +1,5 @@
 package center.sciprog.controls.demo.thermo
 
-import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceHub
@@ -8,9 +7,6 @@ import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.property
 import space.kscience.controls.constructor.propertyAsState
-import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
-import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -71,29 +67,4 @@ interface ThermoSensorHub : DeviceHub, ContextAware {
     val sensors: Map<String, ThermoSensorAnalyzer>
 
     override val devices: Map<Name, Device> get() = sensors.mapKeys { it.key.parseAsName() }
-}
-
-
-class ModbusThermoSensorHub(
-    val deviceManager: DeviceManager,
-    val master: AbstractModbusMaster,
-    val configuration: Map<String, ThermoSensorConfig>
-) : ThermoSensorHub {
-
-    override val context: Context get() = deviceManager.context
-
-    override val sensors: Map<String, ThermoSensorAnalyzer> = configuration.mapValues { (name, sensorConfig) ->
-        ThermoSensorAnalyzer(
-            sensor = ModbusThermoSensor(
-                context = context,
-                master = master,
-                unitId = sensorConfig.unitId,
-                address = sensorConfig.address,
-                meta = sensorConfig.meta
-            ),
-            description = sensorConfig
-        ).also { sensor ->
-            deviceManager.install(name, sensor)
-        }
-    }
 }

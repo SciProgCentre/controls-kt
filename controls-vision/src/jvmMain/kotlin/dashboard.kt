@@ -31,7 +31,8 @@ public suspend fun Context.showDashboard(
 
     return visualisationContext.embeddedServer(CIO, port = port) {
         routing {
-            staticResources("", null, null)
+            staticResources("js", "js", null)
+            staticResources("css", "css", null)
             routes()
         }
 
