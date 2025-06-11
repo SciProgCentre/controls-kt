@@ -72,7 +72,11 @@ public class ContinuousProducer<U : UnitsOfMeasurement>(
             val minCapacity = DeviceState.combine(capacity, consumer.consumation) { capacity, consumation ->
                 NumericalValue<U>(minOf(capacity.value, consumation.value))
             }
-            return ContinuousProducer(consumer.context, minCapacity, consumer.consumation)
+            return ContinuousProducer(
+                context = consumer.context,
+                capacity = minCapacity,
+                consumerRequest = consumer.consumation
+            )
         }
 
     }

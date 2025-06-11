@@ -25,6 +25,7 @@ class DiscreteFlowTest {
         val model = object : ModelConstructor(context), DiscreteFlowModel {
             val production = MutableDeviceState(NV<Kilograms>(4.0))
             val consumation = MutableDeviceState(NV<Kilograms>(1.0))
+
             val consumer = DiscreteConsumer(this, consumation)
             val producer = DiscreateProducer(this, production, consumer)
         }
@@ -32,8 +33,8 @@ class DiscreteFlowTest {
         withContext(context.coroutineDispatcher) {
             delay(2.seconds)
 
-            assertEquals(1.0, model.producer.production.value.value, 1e-1)
-            assertEquals(1.0, model.consumer.consumation.value.value, 1e-1)
+            assertEquals(1.0, model.producer.production.value.value, 1e-2)
+            assertEquals(1.0, model.consumer.consumation.value.value, 1e-2)
         }
     }
 

@@ -18,7 +18,6 @@ public enum class JoinManagementStrategy {
  *
  * @param U The unit of measurement applied to the numerical values handled by this class.
  * @param context The context in which the material flow is managed.
- * @param outputCapacity The state representing the maximum output capacity.
  * @param consumerRequest The state representing the total amount requested by consumers.
  * @param supplyRequest The map of supplier identifiers to their respective supply states.
  * @param joinManagementStrategy The strategy used to manage the distribution of available supply to the consumer.
