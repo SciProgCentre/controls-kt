@@ -10,10 +10,11 @@ kotlin {
 
 kscience {
     fullStack(
+        bundleName = "js/thermo-vision.js",
         jvmConfig = {
             binaries {
                 executable {
-                    mainClass = "center.sciprog.controls.demo.thermo.PanelKt"
+                    mainClass = "center.sciprog.controls.demo.thermo.VisionPanelKt"
                 }
             }
         }
@@ -44,6 +45,7 @@ kscience {
         implementation(compose.material3)
 
         implementation(libs.visionforge.server)
+        api(spclibs.ktor.server.cio)
 
         implementation(spclibs.logback.classic)
     }

@@ -1,6 +1,5 @@
 package center.sciprog.controls.demo.thermo
 
-import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
@@ -37,24 +36,13 @@ fun DeviceHub.serveOpc(
     return opcUaServer
 }
 
-internal fun Context.setup(): ThermoSensorHub{
+internal fun Context.ThermoSensorHub(
+    configuration: ThermoSensorHubConfig
+): ThermoSensorHub {
 
-    val configuration: Map<String, ThermoSensorConfig> = generateTestConfig(
-        numberOfUnits = 1
-    )
-    launchModbusSimulator(configuration)
-    Thread.sleep(200)
-
-    val modbusMaster = ModbusTCPMaster("127.0.0.1", 9090)
-    modbusMaster.connect()
-
-    val thermoHub = ModbusThermoSensorHub(request(DeviceManager), modbusMaster, configuration)
+    val thermoHub = ModbusThermoSensorHub(request(DeviceManager), configuration)
 
     thermoHub.serveOpc(this)
-
-    coroutineContext[Job]?.invokeOnCompletion {
-        modbusMaster.disconnect()
-    }
 
     return thermoHub
 }

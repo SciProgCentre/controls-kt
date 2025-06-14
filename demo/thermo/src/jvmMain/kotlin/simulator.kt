@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.invoke
 
 internal fun randomWalk(
     initialValue: Double,
@@ -26,18 +29,28 @@ internal fun randomWalk(
 }
 
 
-internal fun CoroutineScope.launchModbusSimulator(configuration: Map<String, ThermoSensorConfig>): Job {
-    val slave = ModbusSlaveFactory.createTCPSlave(9090, 10)
+internal fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHubConfig): Job {
+    val slave = ModbusSlaveFactory.createTCPSlave(configuration.modbusDefault.port ?: 9090, 10)
 
+    val random = java.util.Random()
 
     return launch {
-        val images = configuration.values.groupBy { it.unitId }.mapValues { (unitId, configs) ->
+        val images = configuration.sensors.values.groupBy {
+            it.modbus.unitId ?: configuration.modbusDefault.unitId ?: 0
+        }.mapValues { (unitId, configs) ->
             SimpleProcessImage(unitId).apply {
 
-                configs.forEach { config ->
+                configs.forEach { sensorConfig: ThermoSensorConfig ->
                     val register = SimpleInputRegister(0)
-                    addInputRegister(config.address, register)
-                    randomWalk(config.warningThreshold - 2, 0.1).onEach {
+                    addInputRegister(sensorConfig.modbus.address ?: 0, register)
+
+                    val mu = sensorConfig.meta["simulator.mu"].double
+                        ?: configuration.meta["simulator.mu"].double ?: 50.0
+
+                    val sigma = sensorConfig.meta["simulator.sigma"].double
+                        ?: configuration.meta["simulator.sigma"].double ?: 10.0
+
+                    randomWalk(random.nextGaussian(mu,sigma), 0.1).onEach {
                         register.setValue((it * 10).toInt())
                     }.launchIn(this@launch)
                 }
@@ -60,12 +73,29 @@ internal fun CoroutineScope.launchModbusSimulator(configuration: Map<String, The
 internal fun generateTestConfig(
     numberOfUnits: Int = 10,
     sensorsPerUnit: Int = 10
-): Map<String, ThermoSensorConfig> = buildMap {
-    repeat(numberOfUnits) { unit ->
-        repeat(sensorsPerUnit) { address ->
-            put("$unit-$address", ThermoSensorConfig(unit, 1000 + address))
-
+): ThermoSensorHubConfig = ThermoSensorHubConfig {
+    sensors = buildMap {
+        repeat(numberOfUnits) { unit ->
+            repeat(sensorsPerUnit) { address ->
+                put("$unit-$address", ThermoSensorConfig {
+                    modbus {
+                        unitId = unit
+                        this.address = address
+                    }
+                })
+            }
         }
     }
+
+    modbusDefault {
+        port = 9090
+    }
+
+    analyzerDefault {
+        warningThreshold = 40.0
+        alarmThreshold = 60.0
+    }
+
+    opcPort = 9091
 }
 

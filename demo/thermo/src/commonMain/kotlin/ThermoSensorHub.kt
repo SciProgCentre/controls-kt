@@ -8,7 +8,6 @@ import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.property
 import space.kscience.controls.constructor.propertyAsState
 import space.kscience.dataforge.context.ContextAware
-import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
@@ -25,22 +24,9 @@ enum class ThermoSensorStatus {
 }
 
 
-@Serializable
-data class ThermoSensorConfig(
-    val unitId: Int,
-    val address: Int,
-    val warningThreshold: Double = 40.0,
-    val alarmThreshold: Double = 60.0,
-    val meta: Meta = Meta.EMPTY,
-) {
-    init {
-        require(alarmThreshold > warningThreshold) { "Alarm threshold must be greater than warning threshold" }
-    }
-}
-
 class ThermoSensorAnalyzer(
     val sensor: ThermoSensor,
-    val description: ThermoSensorConfig
+    val analyzerConfig: ThermoSensorAnalyzerConfig
 ) : DeviceConstructor(sensor.context) {
     init {
         install("sensor".asName(), sensor)
@@ -53,9 +39,9 @@ class ThermoSensorAnalyzer(
         state = temperature.map {
             //TODO add analysis for history data
             when {
-                it < 0.0 -> ThermoSensorStatus.NotConnected
-                it > description.warningThreshold -> ThermoSensorStatus.Warning
-                it > description.alarmThreshold -> ThermoSensorStatus.Alarm
+                it < -100.0 -> ThermoSensorStatus.NotConnected
+                it > analyzerConfig.warningThreshold -> ThermoSensorStatus.Warning
+                it > analyzerConfig.alarmThreshold -> ThermoSensorStatus.Alarm
                 else -> ThermoSensorStatus.Normal
             }
         }

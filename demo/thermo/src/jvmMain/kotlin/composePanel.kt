@@ -186,10 +186,16 @@ private fun MainScreen(hub: ThermoSensorHub) {
 
 fun main() = application {
 
-    val thermoHub = Context {
+    val context = Context {
         plugin(DeviceManager)
         plugin(ClockManager)
-    }.setup()
+    }
+
+    val config = generateTestConfig(1, 10)
+
+    context.launchModbusSimulator(config)
+
+    val thermoHub = context.ThermoSensorHub(config)
 
     Window(title = "ThermoSensor dashboard", onCloseRequest = {
         thermoHub.context.close()
