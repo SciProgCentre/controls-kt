@@ -30,8 +30,6 @@ private open class BoundDeviceState<T>(
     override val value: T get() = valueFlow.value
     override fun toString(): String =
         "BoundDeviceState(converter=$converter, device=${device.id}, propertyName='$propertyName')"
-
-
 }
 
 public fun <T> Device.propertyAsState(

@@ -1,61 +1,66 @@
 package center.sciprog.controls.demo.thermo
 
+import androidx.compose.runtime.*
+import app.softwork.bootstrapcompose.Alert
 import app.softwork.bootstrapcompose.Color
-import app.softwork.bootstrapcompose.Column
 import app.softwork.bootstrapcompose.Row
 import kotlinx.serialization.modules.SerializersModule
+import org.jetbrains.compose.web.css.backgroundColor
+import org.jetbrains.compose.web.css.pt
 import org.jetbrains.compose.web.dom.Text
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.startsWith
 import space.kscience.plotly.PlotlyJsPlugin
 import space.kscience.visionforge.VisionPlugin
 import space.kscience.visionforge.html.ComposeHtmlVisionRenderer
 import space.kscience.visionforge.html.ElementVisionRenderer
-import kotlin.math.floor
+import space.kscience.visionforge.html.paddingAll
+import space.kscience.visionforge.onPropertyChange
 
 
-private fun Double.format2f(): String = (floor(this * 100) / 100).toString()
+@OptIn(DFExperimental::class)
+private val converter = MetaConverter.serializable<Map<String, ThermoSensorVisionData>>()
 
 val thermoSensorHubRenderer =
     ComposeHtmlVisionRenderer<VisionOfThermoSensorHub> { name, vision: VisionOfThermoSensorHub, meta ->
 
-        Row {
-            Column(size = 3) {
-                vision.sensorData.forEach { (sensorName, state) ->
-                    Row(
-                        styling = {
-                            Background.color = when (state.status) {
-                                ThermoSensorStatus.NotConnected -> Color.Dark
-                                ThermoSensorStatus.Normal -> Color.Light
-                                ThermoSensorStatus.Warning -> Color.Warning
-                                ThermoSensorStatus.Alarm -> Color.Danger
-                            }
-                        }
-                    ) {
-                        Text(sensorName)
-                        Text(state.temperature.format2f())
+        var sensorData: Map<String, ThermoSensorVisionData> by remember { mutableStateOf(mutableMapOf()) }
 
-//                        Checkbox(
-//                            checked = state.plotEnabled,
-//                            label = "",
-//                        ) {
-//                            vision.asyncControlEvent()
-////                            if (it) {
-////                                plotEnabled.add(sensorName)
-////                            } else {
-////                                plotEnabled.remove(sensorName)
-////                            }
-//                        }
-                    }
+        LaunchedEffect(vision) {
+            //TODO Fix upsream VisionForge listener
+            vision.onPropertyChange { name, meta: Meta? ->
+                if (name.startsWith("sensorData")) {
+                    sensorData = vision.sensorData
                 }
             }
+        }
 
-            Column(size = 9) {
-                Plot(plot = vision.plot)
+        sensorData.entries.sortedBy { it.key }.forEach { (sensorName, state) ->
+            Row(
+                attrs = {
+                    style {
+                        backgroundColor(org.jetbrains.compose.web.css.Color.lightgray)
+                        paddingAll(2.pt)
+                    }
+                }
+            ) {
+                Alert(
+                    when (state.status) {
+                        ThermoSensorStatus.NotConnected -> Color.Dark
+                        ThermoSensorStatus.Normal -> Color.Light
+                        ThermoSensorStatus.Warning -> Color.Warning
+                        ThermoSensorStatus.Alarm -> Color.Danger
+                    }
+                ) {
+                    Text("$sensorName: ${state.temperature}")
+                }
             }
         }
     }

@@ -22,7 +22,7 @@ kscience {
 
     jsMain{
         //FIXME remove after VisionForge 0.5
-        api("org.jetbrains.kotlin-wrappers:kotlin-extensions:1.0.1-pre.823")
+//        api("org.jetbrains.kotlin-wrappers:kotlin-extensions:1.0.1-pre.823")
     }
 
     jvmMain{

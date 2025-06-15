@@ -17,7 +17,17 @@ kscience {
                     mainClass = "center.sciprog.controls.demo.thermo.VisionPanelKt"
                 }
             }
+        },
+        browserConfig = {
+            commonWebpackConfig {
+                cssSupport { enabled.set(true) }
+                scssSupport { enabled.set(true) }
+            }
+        },
+        jsConfig = {
+            useCommonJs()
         }
+//        development = true
     )
 
     useSerialization {
@@ -27,6 +37,7 @@ kscience {
     commonMain {
         implementation(projects.controlsCore)
         implementation(projects.controlsConstructor)
+        implementation(projects.controlsVision)
 
         //web UI dependencies
         implementation(libs.plotlykt.core)
@@ -45,12 +56,13 @@ kscience {
         implementation(compose.material3)
 
         implementation(libs.visionforge.server)
-        api(spclibs.ktor.server.cio)
+        implementation("org.jetbrains.kotlin-wrappers:kotlin-css")
+        implementation(spclibs.ktor.server.cio)
 
         implementation(spclibs.logback.classic)
     }
 
-    jsMain{
+    jsMain {
         implementation(libs.visionforge.compose.html)
     }
 }

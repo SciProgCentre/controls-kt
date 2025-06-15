@@ -66,10 +66,16 @@ private val timeFormat = LocalDateTime.Format {
 
 @OptIn(ExperimentalSplitPaneApi::class, ExperimentalKoalaPlotApi::class)
 @Composable
-private fun MainScreen(hub: ThermoSensorHub) {
+private fun MainScreen(hub: ThermoSensorHub, config: ThermoSensorHubConfig) {
 
     val plotEnabled = remember {
-        SnapshotStateList<String>()
+        SnapshotStateList<String>().also { list ->
+            config.sensors.forEach {
+                if (it.value.showPlot) {
+                    list.add(it.key)
+                }
+            }
+        }
     }
 
 
@@ -191,7 +197,7 @@ fun main() = application {
         plugin(ClockManager)
     }
 
-    val config = generateTestConfig(1, 10)
+    val config = generateTestConfig(4, 4)
 
     context.launchModbusSimulator(config)
 
@@ -203,7 +209,7 @@ fun main() = application {
     }) {
         window.minimumSize = Dimension(800, 400)
         MaterialTheme {
-            MainScreen(thermoHub)
+            MainScreen(thermoHub, config)
         }
     }
 }

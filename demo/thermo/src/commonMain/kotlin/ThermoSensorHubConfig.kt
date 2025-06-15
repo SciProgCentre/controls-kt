@@ -32,6 +32,12 @@ class ThermoSensorConfig : Scheme() {
     companion object : SchemeSpec<ThermoSensorConfig>(::ThermoSensorConfig)
 }
 
+class ThermoSensorHubPlotConfig : Scheme() {
+    var period by int(600)//period in seconds
+
+    companion object : SchemeSpec<ThermoSensorHubPlotConfig>(::ThermoSensorHubPlotConfig)
+}
+
 class ThermoSensorHubConfig : Scheme() {
     var modbusDefault by scheme(ThermoSensorModbusConfig)
 
@@ -40,6 +46,8 @@ class ThermoSensorHubConfig : Scheme() {
     var sensors by meta.mapOfConvertable(ThermoSensorConfig)
 
     var opcPort by int(9091)
+
+    var plot by scheme(ThermoSensorHubPlotConfig)
 
     companion object : SchemeSpec<ThermoSensorHubConfig>(::ThermoSensorHubConfig)
 }

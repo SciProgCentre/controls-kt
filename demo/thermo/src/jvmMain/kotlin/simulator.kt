@@ -30,7 +30,7 @@ internal fun randomWalk(
 
 
 internal fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHubConfig): Job {
-    val slave = ModbusSlaveFactory.createTCPSlave(configuration.modbusDefault.port ?: 9090, 10)
+    val slave = ModbusSlaveFactory.createTCPSlave(configuration.modbusDefault.port ?: 9090, configuration.sensors.size)
 
     val random = java.util.Random()
 
@@ -50,7 +50,7 @@ internal fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHub
                     val sigma = sensorConfig.meta["simulator.sigma"].double
                         ?: configuration.meta["simulator.sigma"].double ?: 10.0
 
-                    randomWalk(random.nextGaussian(mu,sigma), 0.1).onEach {
+                    randomWalk(random.nextGaussian(mu, sigma), 0.1).onEach {
                         register.setValue((it * 10).toInt())
                     }.launchIn(this@launch)
                 }
@@ -76,12 +76,13 @@ internal fun generateTestConfig(
 ): ThermoSensorHubConfig = ThermoSensorHubConfig {
     sensors = buildMap {
         repeat(numberOfUnits) { unit ->
-            repeat(sensorsPerUnit) { address ->
-                put("$unit-$address", ThermoSensorConfig {
+            repeat(sensorsPerUnit) { modbusAddress ->
+                put("$unit-$modbusAddress", ThermoSensorConfig {
                     modbus {
                         unitId = unit
-                        this.address = address
+                        address = modbusAddress
                     }
+                    showPlot = modbusAddress == 0
                 })
             }
         }

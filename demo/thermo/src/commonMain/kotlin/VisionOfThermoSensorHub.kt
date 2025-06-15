@@ -11,9 +11,7 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.plus
-import space.kscience.plotly.Plot
-import space.kscience.visionforge.AbstractControlVision
-import space.kscience.visionforge.VisionGroup
+import space.kscience.visionforge.AbstractVision
 import kotlin.reflect.KProperty
 
 public fun <T> MutableMeta.mapOfConvertable(
@@ -44,7 +42,7 @@ data class ThermoSensorVisionData(
 
 @Serializable
 @SerialName("controls.thermo")
-class VisionOfThermoSensorHub : AbstractControlVision(), VisionGroup<Plot> {
+class VisionOfThermoSensorHub : AbstractVision() {
 
 
     @OptIn(DFExperimental::class)
@@ -52,8 +50,4 @@ class VisionOfThermoSensorHub : AbstractControlVision(), VisionGroup<Plot> {
         //TODO replace by manual converter
         converter = MetaConverter.serializable<ThermoSensorVisionData>()
     )
-
-    val plot = Plot()
-
-    override val visions: Map<NameToken, Plot> = mapOf(NameToken("plot") to plot)
 }

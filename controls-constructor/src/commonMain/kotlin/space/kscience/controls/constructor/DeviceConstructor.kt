@@ -15,7 +15,7 @@ import kotlin.reflect.KProperty
 import kotlin.time.Duration
 
 /**
- * A base for strongly typed device constructor block. Has additional delegates for type-safe devices
+ * A base for a strongly typed device constructor block. Has additional delegates for type-safe devices
  */
 public abstract class DeviceConstructor(
     context: Context,

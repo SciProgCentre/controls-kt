@@ -107,7 +107,7 @@ public fun Plot.plotDeviceProperty(
 
 public fun Plot.plotDeviceProperty(
     device: Device,
-    property: DevicePropertySpec<*, Number>,
+    property: DevicePropertySpec<*, out Number>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
