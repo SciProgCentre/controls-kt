@@ -158,6 +158,20 @@ public fun <T1, T2, R> StateContainer.combineState(
 ): DeviceState<R> = registerState(DeviceState.combine(first, second, transformation))
 
 /**
+ * Combines multiple device states into a single state by applying a transformation function.
+ *
+ * @param T the type of the individual state values.
+ * @param R the type of the combined state value.
+ * @param states a collection of [DeviceState] instances to be combined.
+ * @param transformation a function that takes an array of individual state values and maps it to a combined value.
+ * @return a new [DeviceState] representing the combined state, with the value computed by the transformation function.
+ */
+public inline fun <reified T, R> StateContainer.combineState(
+    states: Collection<DeviceState<T>>,
+    crossinline transformation: (Array<T>) -> R,
+): DeviceState<R> = registerState(DeviceState.combine(states, transformation))
+
+/**
  * Create and start binding between [sourceState] and [targetState]. Changes made to [sourceState] are automatically
  * transferred onto [targetState], but not vise versa.
  *
@@ -210,7 +224,7 @@ public fun <T1, T2, R> StateContainer.combineTo(
 ): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState1, sourceState2), setOf(targetState))
     registerElement(descriptor)
-    return kotlinx.coroutines.flow.combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).onEach {
+    return combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).onEach {
         targetState.value = it
     }.launchIn(this).apply {
         invokeOnCompletion {
@@ -231,7 +245,7 @@ public inline fun <reified T, R> StateContainer.combineTo(
 ): Job {
     val descriptor = ConnectionConstructorElement(sourceStates, setOf(targetState))
     registerElement(descriptor)
-    return kotlinx.coroutines.flow.combine(sourceStates.map { it.valueFlow }, transformation).onEach {
+    return combine(sourceStates.map { it.valueFlow }, transformation).onEach {
         targetState.value = it
     }.launchIn(this).apply {
         invokeOnCompletion {

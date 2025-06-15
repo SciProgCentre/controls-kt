@@ -93,5 +93,6 @@ include(
     ":demo:mks-pdr900",
     ":demo:constructor",
     ":demo:device-collective",
-    ":demo:thermo"
+    ":demo:thermo",
+    ":demo:thermo:thermo-desktop"
 )

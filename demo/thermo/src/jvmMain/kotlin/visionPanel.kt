@@ -16,11 +16,13 @@ import kotlinx.css.CssBuilder
 import kotlinx.css.height
 import kotlinx.css.pct
 import kotlinx.html.div
+import kotlinx.serialization.json.Json
 import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.MetaSerializer
 import space.kscience.dataforge.names.asName
 import space.kscience.plotly.Plotly
 import space.kscience.plotly.PlotlyConfig
@@ -102,6 +104,15 @@ suspend fun main(): Unit = coroutineScope {
                             height = 100.pct
                         }
                     }
+                }
+            }
+
+            get("config.json") {
+                call.respondText(contentType = ContentType.Application.Json) {
+                    @Suppress("JSON_FORMAT_REDUNDANT")
+                    Json {
+                        prettyPrint = true
+                    }.encodeToString(MetaSerializer, config.meta)
                 }
             }
         }

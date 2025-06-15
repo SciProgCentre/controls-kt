@@ -32,6 +32,13 @@ class ThermoSensorConfig : Scheme() {
     companion object : SchemeSpec<ThermoSensorConfig>(::ThermoSensorConfig)
 }
 
+class ThermoSensorGroupConfig : Scheme() {
+    var sensors by stringList()
+    var discrepancyThreshold by double(5.0)
+
+    companion object : SchemeSpec<ThermoSensorGroupConfig>(::ThermoSensorGroupConfig) {}
+}
+
 class ThermoSensorHubPlotConfig : Scheme() {
     var period by int(600)//period in seconds
 
@@ -45,9 +52,13 @@ class ThermoSensorHubConfig : Scheme() {
 
     var sensors by meta.mapOfConvertable(ThermoSensorConfig)
 
+    var groups by meta.mapOfConvertable(ThermoSensorGroupConfig)
+
     var opcPort by int(9091)
 
     var plot by scheme(ThermoSensorHubPlotConfig)
 
     companion object : SchemeSpec<ThermoSensorHubConfig>(::ThermoSensorHubConfig)
 }
+
+fun <T : Scheme> SchemeSpec<T>.combine(primary: T, default: T): T = read(Laminate(primary.meta, default.meta))

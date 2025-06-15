@@ -25,6 +25,7 @@ kscience {
             }
         },
         jsConfig = {
+            //otherwise compose-bootstrap does not work
             useCommonJs()
         }
 //        development = true
@@ -38,8 +39,8 @@ kscience {
         implementation(projects.controlsCore)
         implementation(projects.controlsConstructor)
         implementation(projects.controlsVision)
+        implementation(compose.runtime)
 
-        //web UI dependencies
         implementation(libs.plotlykt.core)
     }
 
@@ -48,12 +49,6 @@ kscience {
 
         implementation(projects.controlsModbus)
         implementation(projects.controlsOpcua)
-
-        //compose desktop dependencies
-        implementation(projects.controlsVisualisationCompose)
-        implementation(compose.runtime)
-        implementation(compose.desktop.currentOs)
-        implementation(compose.material3)
 
         implementation(libs.visionforge.server)
         implementation("org.jetbrains.kotlin-wrappers:kotlin-css")
@@ -64,21 +59,5 @@ kscience {
 
     jsMain {
         implementation(libs.visionforge.compose.html)
-    }
-}
-
-compose {
-    desktop {
-        application {
-            mainClass = "center.sciprog.controls.demo.thermo.ComposePanelKt"
-
-            nativeDistributions {
-                packageName = "ControlsThermoSensor"
-                packageVersion = "1.0.0"
-                windows {
-                    includeAllModules = true
-                }
-            }
-        }
     }
 }

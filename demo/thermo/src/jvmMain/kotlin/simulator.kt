@@ -29,7 +29,7 @@ internal fun randomWalk(
 }
 
 
-internal fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHubConfig): Job {
+fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHubConfig): Job {
     val slave = ModbusSlaveFactory.createTCPSlave(configuration.modbusDefault.port ?: 9090, configuration.sensors.size)
 
     val random = java.util.Random()
@@ -40,17 +40,19 @@ internal fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHub
         }.mapValues { (unitId, configs) ->
             SimpleProcessImage(unitId).apply {
 
+                val mu = configuration.meta["simulator.mu"].double
+                    ?: configuration.meta["simulator.mu"].double ?: 40.0
+
+                val sigma = configuration.meta["simulator.sigma"].double
+                    ?: configuration.meta["simulator.sigma"].double ?: 10.0
+
+                val startValue = random.nextGaussian(mu, sigma)
+
                 configs.forEach { sensorConfig: ThermoSensorConfig ->
                     val register = SimpleInputRegister(0)
                     addInputRegister(sensorConfig.modbus.address ?: 0, register)
 
-                    val mu = sensorConfig.meta["simulator.mu"].double
-                        ?: configuration.meta["simulator.mu"].double ?: 50.0
-
-                    val sigma = sensorConfig.meta["simulator.sigma"].double
-                        ?: configuration.meta["simulator.sigma"].double ?: 10.0
-
-                    randomWalk(random.nextGaussian(mu, sigma), 0.1).onEach {
+                    randomWalk(startValue + random.nextDouble(), 0.1).onEach {
                         register.setValue((it * 10).toInt())
                     }.launchIn(this@launch)
                 }
@@ -70,7 +72,7 @@ internal fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHub
     }
 }
 
-internal fun generateTestConfig(
+fun generateTestConfig(
     numberOfUnits: Int = 10,
     sensorsPerUnit: Int = 10
 ): ThermoSensorHubConfig = ThermoSensorHubConfig {
@@ -88,6 +90,18 @@ internal fun generateTestConfig(
         }
     }
 
+    groups = buildMap {
+        sensors.entries
+            .groupBy { it.key.substringBefore('-') }
+            .forEach { (unit, sensorConfigs) ->
+                put(unit, ThermoSensorGroupConfig {
+                    sensors = sensorConfigs.map { it.key }
+
+                    discrepancyThreshold = 5.0
+                })
+            }
+    }
+
     modbusDefault {
         port = 9090
     }
@@ -98,5 +112,6 @@ internal fun generateTestConfig(
     }
 
     opcPort = 9091
+
 }
 

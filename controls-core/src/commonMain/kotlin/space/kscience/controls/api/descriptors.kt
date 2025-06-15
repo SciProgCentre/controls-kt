@@ -1,6 +1,7 @@
 package space.kscience.controls.api
 
 import kotlinx.serialization.Serializable
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.MetaDescriptorBuilder
 
@@ -22,6 +23,18 @@ public fun PropertyDescriptor.metaDescriptor(block: MetaDescriptorBuilder.() -> 
     metaDescriptor = MetaDescriptor {
         from(metaDescriptor)
         block()
+    }
+}
+
+/**
+ * Sets the value type and additional types for a property descriptor.
+ *
+ * @param valueType The main value type to be assigned to the property descriptor.
+ * @param otherTypes Additional value types to be assigned to the property descriptor.
+ */
+public fun PropertyDescriptor.valueType(valueType: ValueType, vararg otherTypes: ValueType) {
+    metaDescriptor {
+        valueType(valueType, *otherTypes)
     }
 }
 

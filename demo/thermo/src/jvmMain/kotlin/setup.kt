@@ -36,7 +36,7 @@ fun DeviceHub.serveOpc(
     return opcUaServer
 }
 
-internal fun Context.ThermoSensorHub(
+fun Context.ThermoSensorHub(
     configuration: ThermoSensorHubConfig
 ): ThermoSensorHub {
 
