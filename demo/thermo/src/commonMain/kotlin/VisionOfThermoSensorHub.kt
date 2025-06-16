@@ -40,13 +40,15 @@ data class ThermoSensorVisionData(
     val status: ThermoSensorStatus,
 )
 
+@OptIn(DFExperimental::class)
 @Serializable
 @SerialName("controls.thermo")
 class VisionOfThermoSensorHub : AbstractVision() {
 
+    var sensorConfig: Map<String, ThermoSensorAnalyzerConfig> by properties.mapOfConvertable(ThermoSensorAnalyzerConfig)
 
-    @OptIn(DFExperimental::class)
-    var sensorData by properties.mapOfConvertable(
+
+    var sensorData: Map<String, ThermoSensorVisionData> by properties.mapOfConvertable(
         //TODO replace by manual converter
         converter = MetaConverter.serializable<ThermoSensorVisionData>()
     )

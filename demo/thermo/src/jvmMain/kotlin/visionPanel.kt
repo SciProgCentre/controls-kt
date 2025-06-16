@@ -23,17 +23,18 @@ import space.kscience.controls.time.ClockManager
 import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.asName
 import space.kscience.plotly.Plotly
 import space.kscience.plotly.PlotlyConfig
 import space.kscience.plotly.PlotlyPlugin
 import space.kscience.plotly.layout
-import space.kscience.plotly.models.LegendOrientation
 import space.kscience.visionforge.VisionManager
 import space.kscience.visionforge.html.VisionPage
 import space.kscience.visionforge.server.visionPage
 import space.kscience.visionforge.setAsRoot
 import space.kscience.visionforge.visionManager
+import kotlin.math.floor
 import kotlin.time.Duration.Companion.seconds
 
 private suspend inline fun ApplicationCall.respondCss(builder: CssBuilder.() -> Unit) {
@@ -62,13 +63,21 @@ suspend fun main(): Unit = coroutineScope {
 
         val mutex = Mutex()
 
+        sensorConfig = config.sensors.mapValues {
+            ThermoSensorAnalyzerConfig.combine(it.value.analyzer, config.analyzerDefault)
+        }
+
         thermoHub.sensors.forEach { (name, sensor) ->
             sensor.onPropertyChange {
                 mutex.withLock {
-                    sensorData += name to ThermoSensorVisionData(sensor.temperature.value, sensor.status.value)
+                    sensorData += name to ThermoSensorVisionData(
+                        floor(sensor.averageTemperature.value * 10.0) / 10.0,
+                        sensor.status.value
+                    )
                 }
             }
         }
+
     }
 
 
@@ -86,7 +95,12 @@ suspend fun main(): Unit = coroutineScope {
         }
 
         layout {
-            legend.orientation = LegendOrientation.horizontal
+            yaxis {
+                title = "Temperature"
+            }
+            legend {
+                meta["orientation"] = "h"
+            }
         }
     }
 

@@ -1,12 +1,13 @@
 package center.sciprog.controls.demo.thermo
 
 import androidx.compose.runtime.*
-import app.softwork.bootstrapcompose.Alert
+import app.softwork.bootstrapcompose.Badge
+import app.softwork.bootstrapcompose.Card
 import app.softwork.bootstrapcompose.Color
-import app.softwork.bootstrapcompose.Row
 import kotlinx.serialization.modules.SerializersModule
-import org.jetbrains.compose.web.css.backgroundColor
 import org.jetbrains.compose.web.css.pt
+import org.jetbrains.compose.web.css.width
+import org.jetbrains.compose.web.dom.H3
 import org.jetbrains.compose.web.dom.Text
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.PluginFactory
@@ -21,7 +22,7 @@ import space.kscience.plotly.PlotlyJsPlugin
 import space.kscience.visionforge.VisionPlugin
 import space.kscience.visionforge.html.ComposeHtmlVisionRenderer
 import space.kscience.visionforge.html.ElementVisionRenderer
-import space.kscience.visionforge.html.paddingAll
+import space.kscience.visionforge.html.FlexRow
 import space.kscience.visionforge.onPropertyChange
 
 
@@ -43,23 +44,38 @@ val thermoSensorHubRenderer =
         }
 
         sensorData.entries.sortedBy { it.key }.forEach { (sensorName, state) ->
-            Row(
-                attrs = {
-                    style {
-                        backgroundColor(org.jetbrains.compose.web.css.Color.lightgray)
-                        paddingAll(2.pt)
-                    }
-                }
-            ) {
-                Alert(
-                    when (state.status) {
-                        ThermoSensorStatus.NotConnected -> Color.Dark
-                        ThermoSensorStatus.Normal -> Color.Light
-                        ThermoSensorStatus.Warning -> Color.Warning
-                        ThermoSensorStatus.Alarm -> Color.Danger
-                    }
+            Card {
+                FlexRow(
+                    attrs = { classes("align-items-center") },
                 ) {
-                    Text("$sensorName: ${state.temperature}")
+                    H3 {
+                        val addStr = when (state.status) {
+                            ThermoSensorStatus.NotConnected -> " (Not connected)"
+                            ThermoSensorStatus.Warning -> " (Warning over ${vision.sensorConfig[sensorName]?.warningThreshold})"
+                            ThermoSensorStatus.Alarm -> " (Alarm over ${vision.sensorConfig[sensorName]?.alarmThreshold})"
+                            else -> ""
+                        }
+                        Text(sensorName + addStr)
+                    }
+                    Badge(
+                        backgroundColor = when (state.status) {
+                            ThermoSensorStatus.NotConnected -> Color.Dark
+                            ThermoSensorStatus.Normal -> Color.Secondary
+                            ThermoSensorStatus.Warning -> Color.Warning
+                            ThermoSensorStatus.Alarm -> Color.Danger
+                        },
+                        attrs = {
+                            classes("ms-auto")
+                            style {
+                                width(50.pt)
+                            }
+                        },
+                    ) {
+                        H3 {
+                            Text(state.temperature.toString())
+                        }
+
+                    }
                 }
             }
         }

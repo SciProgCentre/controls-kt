@@ -61,3 +61,12 @@ kscience {
         implementation(libs.visionforge.compose.html)
     }
 }
+
+compose {
+    desktop {
+        application {
+            from(kotlin.targets.getByName("jvm"))
+            mainClass = "center.sciprog.controls.demo.thermo.VisionPanelKt"
+        }
+    }
+}
