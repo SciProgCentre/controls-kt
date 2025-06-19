@@ -34,7 +34,6 @@ import space.kscience.visionforge.html.VisionPage
 import space.kscience.visionforge.server.visionPage
 import space.kscience.visionforge.setAsRoot
 import space.kscience.visionforge.visionManager
-import kotlin.math.floor
 import kotlin.time.Duration.Companion.seconds
 
 private suspend inline fun ApplicationCall.respondCss(builder: CssBuilder.() -> Unit) {
@@ -71,8 +70,8 @@ suspend fun main(): Unit = coroutineScope {
             sensor.onPropertyChange {
                 mutex.withLock {
                     sensorData += name to ThermoSensorVisionData(
-                        floor(sensor.averageTemperature.value * 10.0) / 10.0,
-                        sensor.status.value
+                        normalize(sensor.averageTemperature.value),
+                        sensor.status.value,
                     )
                 }
             }

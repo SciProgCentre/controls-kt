@@ -109,6 +109,11 @@ fun generateTestConfig(
     analyzerDefault {
         warningThreshold = 40.0
         alarmThreshold = 60.0
+
+        correction{
+            daily = mapOf(0 to -2.0, 4 to -1.0, 8 to 0.0, 12 to 1.0, 16 to 0.0, 20 to -1.0)
+            yearly = mapOf(0 to -2.0, 60 to -1.0, 120 to 0.0, 180 to 1.0, 260 to 0.0, 320 to -1.0)
+        }
     }
 
     opcPort = 9091

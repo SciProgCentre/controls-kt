@@ -4,11 +4,12 @@ import androidx.compose.runtime.*
 import app.softwork.bootstrapcompose.Badge
 import app.softwork.bootstrapcompose.Card
 import app.softwork.bootstrapcompose.Color
+import app.softwork.bootstrapcompose.Column
 import kotlinx.serialization.modules.SerializersModule
 import org.jetbrains.compose.web.css.pt
 import org.jetbrains.compose.web.css.width
-import org.jetbrains.compose.web.dom.H3
-import org.jetbrains.compose.web.dom.Text
+import org.jetbrains.compose.web.dom.*
+import org.w3c.dom.HTMLDivElement
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
@@ -24,10 +25,27 @@ import space.kscience.visionforge.html.ComposeHtmlVisionRenderer
 import space.kscience.visionforge.html.ElementVisionRenderer
 import space.kscience.visionforge.html.FlexRow
 import space.kscience.visionforge.onPropertyChange
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @OptIn(DFExperimental::class)
 private val converter = MetaConverter.serializable<Map<String, ThermoSensorVisionData>>()
+
+@Composable
+fun Div(
+    firstClass: String,
+    vararg otherClasses: String,
+    attrs: AttrBuilderContext<HTMLDivElement>? = null,
+    content: ContentBuilder<HTMLDivElement>? = null
+) {
+    Div(
+        attrs = {
+            classes(firstClass, *otherClasses)
+            attrs?.invoke(this)
+        },
+        content = content
+    )
+}
 
 val thermoSensorHubRenderer =
     ComposeHtmlVisionRenderer<VisionOfThermoSensorHub> { name, vision: VisionOfThermoSensorHub, meta ->
@@ -43,41 +61,58 @@ val thermoSensorHubRenderer =
             }
         }
 
+        var selectedSensor by remember { mutableStateOf<String?>(null) }
+
         sensorData.entries.sortedBy { it.key }.forEach { (sensorName, state) ->
+
             Card {
-                FlexRow(
-                    attrs = { classes("align-items-center") },
-                ) {
-                    H3 {
-                        val addStr = when (state.status) {
-                            ThermoSensorStatus.NotConnected -> " (Not connected)"
-                            ThermoSensorStatus.Warning -> " (Warning over ${vision.sensorConfig[sensorName]?.warningThreshold})"
-                            ThermoSensorStatus.Alarm -> " (Alarm over ${vision.sensorConfig[sensorName]?.alarmThreshold})"
-                            else -> ""
-                        }
-                        Text(sensorName + addStr)
-                    }
-                    Badge(
-                        backgroundColor = when (state.status) {
-                            ThermoSensorStatus.NotConnected -> Color.Dark
-                            ThermoSensorStatus.Normal -> Color.Secondary
-                            ThermoSensorStatus.Warning -> Color.Warning
-                            ThermoSensorStatus.Alarm -> Color.Danger
-                        },
-                        attrs = {
-                            classes("ms-auto")
-                            style {
-                                width(50.pt)
-                            }
-                        },
+                Column {
+                    FlexRow(
+                        attrs = { classes("align-items-center") },
                     ) {
                         H3 {
-                            Text(state.temperature.toString())
+                            Text(sensorName)
                         }
+                        Badge(
+                            backgroundColor = when (state.status) {
+                                ThermoSensorStatus.NotConnected -> Color.Dark
+                                ThermoSensorStatus.Normal -> Color.Secondary
+                                ThermoSensorStatus.Warning -> Color.Warning
+                                ThermoSensorStatus.Alarm -> Color.Danger
+                            },
+                            attrs = {
+                                classes("ms-auto")
+                                style {
+                                    width(50.pt)
+                                }
+                                onClick {
+                                    if (selectedSensor == sensorName) {
+                                        selectedSensor = null
+                                    } else {
+                                        selectedSensor = sensorName
+                                    }
+                                }
+                            },
+                        ) {
+                            H3 {
+                                Text(state.temperature.toString())
+                            }
 
+                        }
+                    }
+                    if (selectedSensor == sensorName) {
+                        val sensorConfig = vision.sensorConfig[sensorName]
+
+                        //FIXME could be different times on server and client
+                        Div("accordion-body") {
+                            P { Text("Warning threshold : ${sensorConfig?.computeWarningThreshold()}") }
+                            P { Text("Alarm threshold : ${sensorConfig?.computeAlarmThreshold()}") }
+                            P { Text("Averaging window : ${vision.sensorConfig[sensorName]?.averagingWindow?.milliseconds}") }
+                        }
                     }
                 }
             }
+
         }
     }
 

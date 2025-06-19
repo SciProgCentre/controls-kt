@@ -76,8 +76,8 @@ class ThermoSensorAnalyzer(
             averagedTemperatureState.value = average
 
             val newStatus = when {
-                average > analyzerConfig.alarmThreshold -> ThermoSensorStatus.Alarm
-                average > analyzerConfig.warningThreshold -> ThermoSensorStatus.Warning
+                average > analyzerConfig.computeAlarmThreshold() -> ThermoSensorStatus.Alarm
+                average > analyzerConfig.computeWarningThreshold() -> ThermoSensorStatus.Warning
                 else -> ThermoSensorStatus.Normal
             }
 
