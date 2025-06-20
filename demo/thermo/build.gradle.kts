@@ -9,42 +9,64 @@ kotlin {
 }
 
 kscience {
-    jvm {
-        binaries {
-            executable {
-                mainClass = "center.sciprog.controls.demo.thermo.PanelKt"
+    fullStack(
+        bundleName = "js/thermo-vision.js",
+        jvmConfig = {
+            binaries {
+                executable {
+                    mainClass = "center.sciprog.controls.demo.thermo.VisionPanelKt"
+                }
             }
+        },
+        browserConfig = {
+            commonWebpackConfig {
+                cssSupport { enabled.set(true) }
+                scssSupport { enabled.set(true) }
+            }
+        },
+        jsConfig = {
+            //otherwise compose-bootstrap does not work
+            useCommonJs()
         }
-    }
+//        development = true
+    )
+
     useSerialization {
         json()
     }
-    jvmMain {
+
+    commonMain {
         implementation(projects.controlsCore)
         implementation(projects.controlsConstructor)
-        implementation(projects.controlsVisualisationCompose)
+        implementation(projects.controlsVision)
+        implementation(compose.runtime)
+
+        implementation(libs.plotlykt.core)
+    }
+
+
+    jvmMain {
+
         implementation(projects.controlsModbus)
         implementation(projects.controlsOpcua)
 
-        implementation(compose.runtime)
-        implementation(compose.desktop.currentOs)
-        implementation(compose.material3)
+        implementation(libs.visionforge.server)
+        implementation("org.jetbrains.kotlin-wrappers:kotlin-css")
+        implementation(spclibs.ktor.server.cio)
+
         implementation(spclibs.logback.classic)
+    }
+
+    jsMain {
+        implementation(libs.visionforge.compose.html)
     }
 }
 
 compose {
     desktop {
         application {
-            mainClass = "center.sciprog.controls.demo.thermo.PanelKt"
-
-            nativeDistributions {
-                packageName = "ControlsThermoSensor"
-                packageVersion = "1.0.0"
-                windows {
-                    includeAllModules = true
-                }
-            }
+            from(kotlin.targets.getByName("jvm"))
+            mainClass = "center.sciprog.controls.demo.thermo.VisionPanelKt"
         }
     }
 }

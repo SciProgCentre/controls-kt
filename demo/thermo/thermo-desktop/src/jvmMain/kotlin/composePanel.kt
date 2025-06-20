@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
 import io.github.koalaplot.core.ChartLayout
 import io.github.koalaplot.core.Symbol
 import io.github.koalaplot.core.legend.FlowLegend
@@ -30,27 +29,18 @@ import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
 import io.github.koalaplot.core.util.generateHueColorPalette
 import io.github.koalaplot.core.xygraph.XYGraph
 import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.datetime.*
 import kotlinx.datetime.format.Padding
 import kotlinx.datetime.format.char
-import org.eclipse.milo.opcua.sdk.server.OpcUaServer
-import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
-import space.kscience.controls.api.DeviceHub
 import space.kscience.controls.compose.PlotNumberState
 import space.kscience.controls.compose.TimeAxisModel
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.opcua.server.OpcUaServer
-import space.kscience.controls.opcua.server.endpoint
-import space.kscience.controls.opcua.server.serveDevices
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
 import java.awt.Dimension
 import kotlin.time.Duration.Companion.minutes
 
@@ -76,10 +66,16 @@ private val timeFormat = LocalDateTime.Format {
 
 @OptIn(ExperimentalSplitPaneApi::class, ExperimentalKoalaPlotApi::class)
 @Composable
-private fun MainScreen(hub: ThermoSensorHub) {
+private fun MainScreen(hub: ThermoSensorHub, config: ThermoSensorHubConfig) {
 
     val plotEnabled = remember {
-        SnapshotStateList<String>()
+        SnapshotStateList<String>().also { list ->
+            config.sensors.forEach {
+                if (it.value.showPlot) {
+                    list.add(it.key)
+                }
+            }
+        }
     }
 
 
@@ -176,7 +172,7 @@ private fun MainScreen(hub: ThermoSensorHub) {
                     yAxisModel = rememberDoubleLinearAxisModel(-10.0..110.0, minimumMajorTickIncrement = 10.0),
                     xAxisTitle = "Time",
                     xAxisLabels = { time -> time.toLocalDateTime(TimeZone.currentSystemDefault()).format(timeFormat) },
-                    yAxisLabels = { value -> String.format("%.2f", value)}
+                    yAxisLabels = { value -> String.format("%.2f", value) }
                 ) {
                     plotEnabled.forEachIndexed { index, sensorName ->
                         hub.sensors[sensorName]?.let { sensor ->
@@ -194,59 +190,26 @@ private fun MainScreen(hub: ThermoSensorHub) {
     }
 }
 
-fun DeviceHub.serveOpc(
-    scope: CoroutineScope,
-    port: Int = 9091,
-): OpcUaServer {
-
-    val opcUaServer: OpcUaServer = OpcUaServer {
-        setApplicationName(LocalizedText.english("center.sciprog.controls.thermo"))
-
-        endpoint {
-            setBindPort(port)
-        }
-    }
-
-    opcUaServer.serveDevices(scope, this)
-    opcUaServer.startup()
-
-
-    scope.coroutineContext[Job]?.invokeOnCompletion {
-        opcUaServer.shutdown()
-    }
-
-    return opcUaServer
-}
-
-
 fun main() = application {
+
     val context = Context {
         plugin(DeviceManager)
         plugin(ClockManager)
     }
 
-    val configuration: Map<String, ThermoSensorConfig> = generateTestConfig(
-        numberOfUnits = 1
-    )
-    context.launchModbusSimulator(configuration)
-    Thread.sleep(200)
+    val config = generateTestConfig(4, 4)
 
-    val modbusMaster = ModbusTCPMaster("127.0.0.1", 9090)
-    modbusMaster.connect()
+    context.launchModbusSimulator(config)
 
-    val thermoHub = ModbusThermoSensorHub(context.request(DeviceManager), modbusMaster, configuration)
-
-    thermoHub.serveOpc(context)
-
+    val thermoHub = context.ThermoSensorHub(config)
 
     Window(title = "ThermoSensor dashboard", onCloseRequest = {
-        modbusMaster.disconnect()
-        context.close()
+        thermoHub.context.close()
         exitApplication()
     }) {
         window.minimumSize = Dimension(800, 400)
         MaterialTheme {
-            MainScreen(thermoHub)
+            MainScreen(thermoHub, config)
         }
     }
 }
