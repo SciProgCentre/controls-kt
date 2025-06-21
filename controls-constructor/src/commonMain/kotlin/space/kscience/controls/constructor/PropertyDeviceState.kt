@@ -14,7 +14,7 @@ import space.kscience.dataforge.meta.MetaConverter
 /**
  * A copy-free [DeviceState] bound to a device property
  */
-private open class BoundDeviceState<T>(
+private open class PropertyDeviceState<T>(
     val converter: MetaConverter<T>,
     val device: Device,
     val propertyName: String,
@@ -36,7 +36,7 @@ public fun <T> Device.propertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
     initialValue: T,
-): DeviceState<T> = BoundDeviceState(metaConverter, this, propertyName, initialValue)
+): DeviceState<T> = PropertyDeviceState(metaConverter, this, propertyName, initialValue)
 
 /**
  * Bind a read-only [DeviceState] to a [Device] property
@@ -60,12 +60,12 @@ public fun <D : Device, T> D.propertyAsState(
 ): DeviceState<T> = propertyAsState(propertySpec.name, propertySpec.converter, initialValue)
 
 
-private class MutableBoundDeviceState<T>(
+private class MutablePropertyDeviceState<T>(
     converter: MetaConverter<T>,
     device: Device,
     propertyName: String,
     initialValue: T,
-) : BoundDeviceState<T>(converter, device, propertyName, initialValue), MutableDeviceState<T> {
+) : PropertyDeviceState<T>(converter, device, propertyName, initialValue), MutableDeviceState<T> {
 
     override var value: T
         get() = valueFlow.value
@@ -80,7 +80,7 @@ public fun <T> Device.mutablePropertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
     initialValue: T,
-): MutableDeviceState<T> = MutableBoundDeviceState(metaConverter, this, propertyName, initialValue)
+): MutableDeviceState<T> = MutablePropertyDeviceState(metaConverter, this, propertyName, initialValue)
 
 public suspend fun <T> Device.mutablePropertyAsState(
     propertyName: String,

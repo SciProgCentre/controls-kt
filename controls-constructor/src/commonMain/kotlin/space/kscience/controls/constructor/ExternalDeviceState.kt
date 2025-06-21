@@ -7,7 +7,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration
 
 
-private open class ExternalState<T>(
+private open class ExternalDeviceState<T>(
     val scope: CoroutineScope,
     val readInterval: Duration,
     initialValue: T,
@@ -35,15 +35,15 @@ public fun <T> DeviceState.Companion.external(
     readInterval: Duration,
     initialValue: T,
     reader: suspend () -> T,
-): DeviceState<T> = ExternalState(scope,  readInterval, initialValue, reader)
+): DeviceState<T> = ExternalDeviceState(scope,  readInterval, initialValue, reader)
 
-private class MutableExternalState<T>(
+private class MutableExternalDeviceState<T>(
     scope: CoroutineScope,
     readInterval: Duration,
     initialValue: T,
     reader: suspend () -> T,
     val writer: suspend (T) -> Unit,
-) : ExternalState<T>(scope, readInterval, initialValue, reader), MutableDeviceState<T> {
+) : ExternalDeviceState<T>(scope, readInterval, initialValue, reader), MutableDeviceState<T> {
     override var value: T
         get() = super.value
         set(value) {
@@ -62,4 +62,4 @@ public fun <T> DeviceState.Companion.external(
     initialValue: T,
     reader: suspend () -> T,
     writer: suspend (T) -> Unit,
-): MutableDeviceState<T> = MutableExternalState(scope, readInterval, initialValue, reader, writer)
+): MutableDeviceState<T> = MutableExternalDeviceState(scope, readInterval, initialValue, reader, writer)

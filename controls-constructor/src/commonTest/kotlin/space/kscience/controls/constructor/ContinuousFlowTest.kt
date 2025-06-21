@@ -1,12 +1,11 @@
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.constructor.models.flow.ContinuousConsumer
-import space.kscience.controls.constructor.models.flow.ContinuousFlowJoin
-import space.kscience.controls.constructor.models.flow.ContinuousProducer
+import space.kscience.controls.constructor.models.flow.*
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NV
 import space.kscience.dataforge.context.Global
@@ -20,7 +19,7 @@ class ContinuousFlowTest {
         val productionCapacity = MutableDeviceState(NV<Kilograms>(4.0))
         val consumationCapacity = MutableDeviceState(NV<Kilograms>(1.0))
 
-        val consumer = ContinuousConsumer(Global, consumationCapacity, productionCapacity)
+        val consumer = ContinuousConsumer(Global, consumationCapacity)
 
         val producer = ContinuousProducer.fromConsumer(consumer, productionCapacity)
 
@@ -71,68 +70,50 @@ class ContinuousFlowTest {
      */
     @Test
     fun join() = runTest {
+        val aProduction = MutableDeviceState(NV<Kilograms>(1.0))
+        val bProduction = MutableDeviceState(NV<Kilograms>(2.0))
+        val cProduction = MutableDeviceState(NV<Kilograms>(3.0))
+        val abcConsumation = MutableDeviceState(NV<Kilograms>(8.0))
 
-        launch {
-            val a = MutableDeviceState(NV<Kilograms>(1.0))
-            val b = MutableDeviceState(NV<Kilograms>(2.0))
-            val c = MutableDeviceState(NV<Kilograms>(3.0))
-            val ab = MutableDeviceState(NV<Kilograms>(Double.POSITIVE_INFINITY)).apply { printEach(this@launch, "ab") }
-            val abc = MutableDeviceState(NV<Kilograms>(8.0)).apply { printEach(this@launch, "abc") }
+        val joinAB = ContinuousJoin<Kilograms>(context = Global, listOf("a", "b"))
 
+        joinAB.connectProducer("a", aProduction)
+        joinAB.connectProducer("b", bProduction)
 
-            val joinAB = ContinuousFlowJoin(
-                context = Global,
-                consumerRequest = ab,
-                supplyRequest = mapOf("a" to a, "b" to b),
-            )
+        joinAB.production.printEach(this, "joinAB.production")
 
-            joinAB.production.printEach(this, "joinAB.production")
+        val joinABC = ContinuousJoin<Kilograms>(context = Global, listOf("ab", "c"))
 
-            val joinABC = ContinuousFlowJoin(
-                context = Global,
-                consumerRequest = abc,
-                supplyRequest = mapOf("ab" to joinAB.maximumProduction, "c" to c),
-            )
+        joinABC.connectProducer("ab", joinAB.asProducer())
+        joinABC.connectProducer("c", cProduction)
+        joinABC.connectConsumer(abcConsumation)
 
-            joinABC.production.printEach(this, "joinABC.production")
+        joinABC.production.printEach(this, "joinABC.production")
+        joinABC.consumation.printEach(this, "joinABC.consumation")
 
-            joinABC.consumation.printEach(this, "joinABC.consumation")
+        assertEquals(NV(6.0), joinABC.production.value)
 
-            joinABC.bindState(joinABC.partialConsumation["ab"]!!, ab)
+        assertEquals(1.0, joinAB.partialConsumation["a"]?.value?.value)
 
-            delay(10)
+        abcConsumation.value = NV(3.0)
 
-            assertEquals(NV(3.0), ab.value)
+        assertEquals(NV(1.5), joinAB.production.value)
 
-            assertEquals(NV(6.0), joinABC.production.value)
+        assertEquals(0.5, joinAB.partialConsumation["a"]?.value?.value)
 
-            assertEquals(1.0, joinAB.partialConsumation["a"]?.value?.value)
+        abcConsumation.value = NV(4.0)
+        aProduction.value = NV(7.0)
 
-            abc.value = NV(3.0)
+        assertEquals(3.0, joinAB.production.value.value, 1e-5)
+        assertEquals(2.33333, joinAB.partialConsumation["a"]!!.value.value, 1e-3)
 
-            delay(10)
+        abcConsumation.value = NV(15.0)
 
-            assertEquals(NV(1.5), joinAB.production.value)
+        assertEquals(9.0, joinAB.production.value.value, 1e-5)
+        assertEquals(7.0, joinAB.partialConsumation["a"]?.value?.value)
 
-            assertEquals(0.5, joinAB.partialConsumation["a"]?.value?.value)
-
-
-            abc.value = NV(4.0)
-            a.value = NV(7.0)
-
-            delay(10)
-
-            assertEquals(3.0, joinAB.production.value.value, 1e-5)
-            assertEquals(2.33333, joinAB.partialConsumation["a"]!!.value.value, 1e-3)
-
-            abc.value = NV(15.0)
-
-            delay(10)
-
-            assertEquals(9.0, joinAB.production.value.value, 1e-5)
-            assertEquals(7.0, joinAB.partialConsumation["a"]?.value?.value)
-
-            cancel()
-        }
+        // cancel all children to avoid infinite running
+        coroutineContext[Job]?.children?.forEach { it.cancel() }
     }
+
 }

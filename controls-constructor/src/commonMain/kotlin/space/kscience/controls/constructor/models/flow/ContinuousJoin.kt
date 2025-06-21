@@ -27,12 +27,17 @@ public enum class JoinManagementStrategy {
  * of available material flow across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
  */
-public class ContinuousFlowJoin<U : UnitsOfMeasurement>(
+public class ContinuousJoin<U : UnitsOfMeasurement>(
     context: Context,
-    public val consumerRequest: DeviceState<NumericalValue<U>>,
-    public val supplyRequest: Map<String, DeviceState<NumericalValue<U>>>,
+    public val outputNames: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
 ) : ModelConstructor(context), ContinuousProducerModel<U> {
+
+    public val consumerRequest: LateBindDeviceState<NumericalValue<U>> = LateBindDeviceState(NumericalValue(0.0))
+    public val supplyRequest: Map<String, LateBindDeviceState<NumericalValue<U>>> = outputNames.associateWith {
+        LateBindDeviceState(NumericalValue(0.0))
+    }
+
 
     init {
         registerState(consumerRequest)
@@ -94,43 +99,73 @@ public class ContinuousFlowJoin<U : UnitsOfMeasurement>(
     override fun toString(): String =
         "MaterialFlowJoin(strategy=$joinManagementStrategy, consumation=${consumation.value}, production=${production.value})"
 }
-//
-///**
-// * Converts a [MaterialFlowJoin] instance into a [MaterialFlowProducer] instance.
-// *
-// * This transformation allows the material flow managed by the `MaterialFlowJoin` to be
-// * represented as a producer model, enabling compatibility with systems or components
-// * that consume material flow from producer models. The producer's production state will
-// * reflect the output capacity of the join based on consumer requests.
-// *
-// * @return A [MaterialFlowProducer] representing the material flow output of the [MaterialFlowJoin].
-// */
-//public fun <U : UnitsOfMeasurement> MaterialFlowJoin<U>.asProducer(): MaterialFlowProducer<U> =
-//    MaterialFlowProducer(context, production, consumerRequest)
-//
-///**
-// * Converts a material flow join instance into a material flow consumer using a specified supplier key.
-// *
-// * @param key The identifier of the supplier whose supply request will be used to create the consumer.
-// * @return A [MaterialFlowConsumer] instance configured with the supply request specified by the given key.
-// * @throws IllegalStateException If no supplier with the given key is found in the supply requests.
-// */
-//public fun <U : UnitsOfMeasurement> MaterialFlowJoin<U>.asConsumer(
-//    key: String
-//): MaterialFlowConsumer<U> = supplyRequest[key]?.let { input ->
-//    MaterialFlowConsumer(context, partialConsumation[key]!!, input)
-//} ?: error("No supplier with key $key found")
+
+/**
+ * Converts a [ContinuousJoin] instance into a [ContinuousProducer] instance.
+ *
+ * This transformation allows the material flow managed by the `MaterialFlowJoin` to be
+ * represented as a producer model, enabling compatibility with systems or components
+ * that consume material flow from producer models. The producer's production state will
+ * reflect the output capacity of the join based on consumer requests.
+ *
+ * @return A [ContinuousProducer] representing the material flow output of the [ContinuousJoin].
+ */
+public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.asProducer(): ContinuousProducer<U> =
+    ContinuousProducer(context, maximumProduction, consumerRequest)
+
+/**
+ * Converts a material flow join instance into a material flow consumer using a specified supplier key.
+ *
+ * @param key The identifier of the supplier whose supply request will be used to create the consumer.
+ * @return A [ContinuousConsumer] instance configured with the supply request specified by the given key.
+ * @throws IllegalStateException If no supplier with the given key is found in the supply requests.
+ */
+public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.asConsumer(
+    key: String
+): ContinuousConsumer<U> = supplyRequest[key]?.let { input ->
+    ContinuousConsumer(context, partialConsumation[key]!!, input)
+} ?: error("No supplier with key $key found")
 
 
-public fun <U : UnitsOfMeasurement> MaterialFlowJoin(
-    producers: Map<String, ContinuousProducerModel<U>>,
-    consumerRequest: DeviceState<NumericalValue<U>>,
+/**
+ * Connect a consumer to this [ContinuousJoin]
+ */
+public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectConsumer(
+    consumer: ContinuousConsumer<U>
+) {
+    Connections.connect(this.asProducer(), consumer)
+}
+
+public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectConsumer(
+    consumerCapacity: DeviceState<NumericalValue<U>>
+){
+    consumerRequest.bind(consumerCapacity)
+}
+
+public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectProducer(
+    key: String,
+    producer: ContinuousProducer<U>
+) {
+    Connections.connect(producer, this.asConsumer(key))
+}
+
+public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectProducer(
+    key: String,
+    producerCapacity: DeviceState<NumericalValue<U>>
+) {
+    supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
+}
+
+public fun <U : UnitsOfMeasurement> ContinuousJoin(
+    producers: Map<String, ContinuousProducer<U>>,
+    consumer: ContinuousConsumer<U>,
     context: Context = producers.values.first().context,
-): ContinuousFlowJoin<U> {
-
-    return ContinuousFlowJoin(
-        context = context,
-        consumerRequest = consumerRequest,
-        supplyRequest = producers.mapValues { it.value.production }
-    )
+): ContinuousJoin<U> = ContinuousJoin<U>(
+    context = context,
+    outputNames = producers.keys
+).also { join ->
+    join.connectConsumer(consumer)
+    producers.forEach { (key, producer) ->
+        join.connectProducer(key, producer)
+    }
 }

@@ -22,7 +22,7 @@ import space.kscience.dataforge.context.Context
 public class ContinuousConsumer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: DeviceState<NumericalValue<U>>,
-    public val supplyRequest: DeviceState<NumericalValue<U>>,
+    public val supplyRequest: LateBindDeviceState<NumericalValue<U>> = LateBindDeviceState(NumericalValue(0.0))
 ) : ModelConstructor(context) {
 
     init {
@@ -44,24 +44,33 @@ public class ContinuousConsumer<U : UnitsOfMeasurement>(
         consumation.value / capacity.value
     }
 
+    public fun connectProducer(
+        producerCapacity: DeviceState<NumericalValue<U>>,
+    ) {
+        this.supplyRequest.bind(producerCapacity)
+    }
+
     public companion object {
 
-        /**
-         * Creates a new instance of [ContinuousConsumer] based on the specified production model and capacity.
-         * Adjusts the consumer's capacity to reflect the minimum value between the provided capacity and the producer's production state.
-         *
-         * @param producer The production model that provides the production state for material flow.
-         * @param capacity The state representing the maximum capacity for material flow consumption.
-         * @return A [ContinuousConsumer] instance configured with the adjusted capacity and production states.
-         */
-        public fun <U : UnitsOfMeasurement> fromConsumer(
-            producer: ContinuousProducerModel<U>,
-            capacity: DeviceState<NumericalValue<U>>,
-        ): ContinuousConsumer<U> {
-            val minCapacity = DeviceState.combine(capacity, producer.production) { capacity, production ->
-                NumericalValue<U>(minOf(capacity.value, production.value))
-            }
-            return ContinuousConsumer(producer.context, minCapacity, producer.production)
-        }
+//        /**
+//         * Creates a new instance of [ContinuousConsumer] based on the specified production model and capacity.
+//         * Adjusts the consumer's capacity to reflect the minimum value between the provided capacity and the producer's production state.
+//         *
+//         * @param producer The production model that provides the production state for material flow.
+//         * @param capacity The state representing the maximum capacity for material flow consumption.
+//         * @return A [ContinuousConsumer] instance configured with the adjusted capacity and production states.
+//         */
+//        public fun <U : UnitsOfMeasurement> ofConsumer(
+//            producer: ContinuousProducer<U>,
+//            capacity: DeviceState<NumericalValue<U>>,
+//        ): ContinuousConsumer<U> {
+////            val minCapacity = DeviceState.combine(capacity, producer.production) { capacity, production ->
+////                NumericalValue<U>(minOf(capacity.value, production.value))
+////            }
+//            return ContinuousConsumer(producer.context, capacity).also { consumer ->
+//                producer.connectConsumer(consumer.consumation)
+//                consumer.connectProducer(producer.production)
+//            }
+//        }
     }
 }
