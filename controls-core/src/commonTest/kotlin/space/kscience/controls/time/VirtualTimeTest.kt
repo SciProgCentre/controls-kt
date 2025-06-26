@@ -22,10 +22,10 @@ class VirtualTimeTest {
             withTimeout(500) {
                 repeat(3) { series ->
                     launch {
-                        timeManager.advanceTimeBy(series, 100.milliseconds * (series + 1))
+                        timeManager.advanceTimeBy( 100.milliseconds * (series + 1))
                         repeat(10) { number ->
                             collector.add(TimedResult(timeManager.now(),"$series.$number"))
-                            timeManager.advanceTimeBy(series, 2000.milliseconds)
+                            timeManager.advanceTimeBy( 2000.milliseconds)
                         }
                         timeManager.pass(series)
                     }

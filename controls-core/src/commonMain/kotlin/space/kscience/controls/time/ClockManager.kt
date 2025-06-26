@@ -5,10 +5,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import space.kscience.controls.instant
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.meta.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.roundToLong
 import kotlin.time.Duration
@@ -69,18 +66,22 @@ public sealed interface ClockMode {
 public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     override val tag: PluginTag get() = Companion.tag
 
-    public val clockMode: ClockMode = when (meta["clock.mode"].string) {
-        null, "system" -> ClockMode.System
-        "virtual" -> ClockMode.Virtual(VirtualTimeManager(meta["clock.start"]?.instant ?: Clock.System.now()))
-        "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
-        else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
+    public val clockMode: ClockMode by lazy {
+        when (meta["clock.mode"].string) {
+            null, "system" -> ClockMode.System
+            "virtual" -> ClockMode.Virtual(VirtualTimeManager(meta["clock.start"]?.instant ?: Clock.System.now()))
+            "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
+            else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
+        }
     }
 
-    public val clock: Clock = when (clockMode) {
-        ClockMode.System -> Clock.System
-        is ClockMode.Custom -> clockMode.clock
-        is ClockMode.Compressed -> CompressedClock(Clock.System, clockMode.compression)
-        is ClockMode.Virtual -> clockMode.manager
+    public val clock: Clock by lazy {
+        when (val mode = clockMode) {
+            ClockMode.System -> Clock.System
+            is ClockMode.Custom -> mode.clock
+            is ClockMode.Compressed -> CompressedClock(Clock.System, mode.compression)
+            is ClockMode.Virtual -> mode.manager
+        }
     }
 
 
@@ -88,15 +89,15 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
      * Provide a [CoroutineDispatcher] with compressed time based on context dispatcher
      */
     public val dispatcher: CoroutineDispatcher by lazy {
-        when (clockMode) {
+        when (val mode = clockMode) {
             is ClockMode.System, is ClockMode.Custom ->
                 context.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
 
             is ClockMode.Compressed ->
-                CompressedTimeDispatcher(context.coroutineContext, clockMode.compression)
+                CompressedTimeDispatcher(context.coroutineContext, mode.compression)
 
             is ClockMode.Virtual ->
-                VirtualTimeDispatcher(context.coroutineContext, clockMode.manager)
+                VirtualTimeDispatcher(context.coroutineContext, mode.manager)
         }
     }
 
@@ -110,11 +111,24 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     public companion object : PluginFactory<ClockManager> {
         override val tag: PluginTag = PluginTag("clock", group = PluginTag.DATAFORGE_GROUP)
 
-        override fun build(context: Context, meta: Meta): ClockManager = ClockManager(meta)
+        override fun build(
+            context: Context,
+            meta: Meta
+        ): ClockManager = ClockManager(Laminate(meta, context.properties))
     }
 }
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
+
+public suspend fun ClockManager.advanceTimeBy(duration: Duration) {
+    when (val mode = clockMode) {
+        is ClockMode.Virtual -> mode.manager.advanceTimeBy(duration)
+        is ClockMode.System -> delay(duration)
+        else -> withContext(dispatcher) {
+            delay(duration)
+        }
+    }
+}
 
 public val Context.coroutineDispatcher: CoroutineDispatcher
     get() = plugins[ClockManager]?.dispatcher
@@ -132,7 +146,7 @@ public fun ContextBuilder.withTimeCompression(compression: Double) {
 }
 
 public fun ContextBuilder.withVirtualTime(start: Instant = Clock.System.now()) {
-    plugin(ClockManager) {
+    plugin(ClockManager){
         "clock" put {
             "mode" put "virtual"
             "start" put start.toString()
