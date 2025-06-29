@@ -60,7 +60,7 @@ public sealed interface ClockMode {
     public data object System : ClockMode
     public data class Custom(public val clock: Clock) : ClockMode
     public data class Compressed(public val compression: Double) : ClockMode
-    public data class Virtual(public val scheduler: VirtualTimeScheduler) : ClockMode
+    public data class Virtual(public val scheduler: VirtualTimeDispatcher) : ClockMode
 }
 
 public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
@@ -69,7 +69,7 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     public val clockMode: ClockMode by lazy {
         when (meta["clock.mode"].string) {
             null, "system" -> ClockMode.System
-            "virtual" -> ClockMode.Virtual(VirtualTimeScheduler())
+            "virtual" -> ClockMode.Virtual(VirtualTimeDispatcher())
             "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
             else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
         }
@@ -100,7 +100,7 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
                 compression = mode.compression
             )
 
-            is ClockMode.Virtual -> mode.scheduler.asDispatcher().also {
+            is ClockMode.Virtual -> mode.scheduler.also {
                 virtualTimeJob = mode.scheduler.launchSimulationJob(context)
             }
         }

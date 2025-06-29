@@ -14,47 +14,12 @@ import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.selects.SelectClause1
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.AbstractLongTimeSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.TimeSource
-
-
-internal class VirtualTimeDispatcher(
-    public val scheduler: VirtualTimeScheduler,
-    private val name: String? = null
-) : CoroutineDispatcher(), Delay{
-
-    /** Notifies the dispatcher that it should process a single event marked with [marker] happening at time [time]. */
-    internal fun processEvent(marker: Any) {
-        check(marker is Runnable)
-        marker.run()
-    }
-
-    override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
-        val timedRunnable = CancellableContinuationRunnable(continuation, this)
-        val handle = scheduler.registerEvent(
-            this,
-            timeMillis,
-            timedRunnable,
-            continuation.context,
-        )
-        continuation.disposeOnCancellation(handle)
-    }
-
-    override fun invokeOnTimeout(timeMillis: Long, block: Runnable, context: CoroutineContext): DisposableHandle =
-        scheduler.registerEvent(this, timeMillis, block, context)
-
-
-    override fun dispatch(context: CoroutineContext, block: Runnable) {
-        scheduler.registerEvent(this, 0, block, context)
-    }
-
-    override fun toString(): String = "${name ?: "StandardTestDispatcher"}[scheduler=$scheduler]"
-}
 
 /**
  * This class exists to allow cleanup code to avoid throwing for cancelled continuations scheduled
@@ -69,6 +34,9 @@ private class CancellableContinuationRunnable(
 
 
 /**
+ * Virtual time manager based on [kotlinx-coroutines-test](https://github.com/Kotlin/kotlinx.coroutines/tree/master/kotlinx-coroutines-test/common/src)
+ * virtual time manager.
+ *
  * This is a scheduler for coroutines used in tests, providing the delay-skipping behavior.
  *
  * [Test dispatchers][VirtualTimeDispatcher] are parameterized with a scheduler. Several dispatchers can share the
@@ -80,9 +48,7 @@ private class CancellableContinuationRunnable(
  * virtual time as needed (via [advanceUntilIdle]), or run the tasks that are scheduled to run as soon as possible but
  * haven't yet been dispatched (via [runCurrent]).
  */
-public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeScheduler), CoroutineContext.Element {
-
-    public companion object Key : CoroutineContext.Key<VirtualTimeScheduler>
+public class VirtualTimeDispatcher : CoroutineDispatcher(), Delay {
 
     /** This heap stores the knowledge about which dispatchers are interested in which moments of virtual time. */
     // TODO: replace by ArrayDeque
@@ -95,7 +61,7 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
     private val count = atomic(0L)
 
     /** The current virtual time in milliseconds. */
-    internal var currentTime: Long = 0
+    public var currentTime: Long = 0
         get() = synchronized(lock) { field }
         private set
 
@@ -111,19 +77,18 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
      *
      * Returns the handler which can be used to cancel the registration.
      */
-    internal fun <T : Any> registerEvent(
-        dispatcher: VirtualTimeDispatcher,
+    private fun <T : Any> registerEvent(
         timeDeltaMillis: Long,
         marker: T,
         context: CoroutineContext,
     ): DisposableHandle {
         require(timeDeltaMillis >= 0) { "Attempted scheduling an event earlier in time (with the time delta $timeDeltaMillis)" }
-        checkSchedulerInContext(this, context)
+//        checkSchedulerInContext(this, context)
         val count = count.getAndIncrement()
         val isForeground = context[BackgroundWork] === null
         return synchronized(lock) {
             val time = addClamping(currentTime, timeDeltaMillis)
-            val event = VirtualTimeDispatchEvent(dispatcher, count, time, marker as Any, isForeground)
+            val event = VirtualTimeDispatchEvent(count, time, marker as Any, isForeground)
             events.addLast(event)
             /** can't be moved above: otherwise, [onDispatchEventForeground] or [onDispatchEvent] could consume the
              * token sent here before there's actually anything in the event queue. */
@@ -140,7 +105,7 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
      * Runs the next enqueued task, advancing the virtual time to the time of its scheduled awakening,
      * unless [condition] holds.
      */
-    internal fun tryRunNextTaskUnless(condition: () -> Boolean): Boolean {
+    private fun tryRunNextTaskUnless(condition: () -> Boolean): Boolean {
         val event = synchronized(lock) {
             if (condition()) return false
             val event = events.removeFirstOrNull() ?: return false
@@ -149,7 +114,7 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
             currentTime = event.time
             event
         }
-        event.dispatcher.processEvent(event.marker)
+        processEvent(event.marker)
         return true
     }
 
@@ -166,7 +131,7 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
     /**
      * [condition]: guaranteed to be invoked under the lock.
      */
-    internal fun advanceUntilIdleOr(condition: () -> Boolean) {
+    private fun advanceUntilIdleOr(condition: () -> Boolean) {
         while (true) {
             if (!tryRunNextTaskUnless(condition))
                 return
@@ -182,28 +147,9 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
             val event = synchronized(lock) {
                 events.removeFirstIf { it.time <= timeMark } ?: return
             }
-            event.dispatcher.processEvent(event.marker)
+            processEvent(event.marker)
         }
     }
-
-    /**
-     * Moves the virtual clock of this dispatcher forward by [the specified amount][delayTimeMillis], running the
-     * scheduled tasks in the meantime.
-     *
-     * Breaking changes from [TestCoroutineDispatcher.advanceTimeBy]:
-     * - Intentionally doesn't return a `Long` value, as its use cases are unclear. We may restore it in the future;
-     *   please describe your use cases at [the issue tracker](https://github.com/Kotlin/kotlinx.coroutines/issues/).
-     *   For now, it's possible to query [currentTime] before and after execution of this method, to the same effect.
-     * - It doesn't run the tasks that are scheduled at exactly [currentTime] + [delayTimeMillis]. For example,
-     *   advancing the time by one millisecond used to run the tasks at the current millisecond *and* the next
-     *   millisecond, but now will stop just before executing any task starting at the next millisecond.
-     * - Overflowing the target time used to lead to nothing being done, but will now run the tasks scheduled at up to
-     *   (but not including) [Long.MAX_VALUE].
-     *
-     * @throws IllegalArgumentException if passed a negative [delay][delayTimeMillis].
-     */
-    @ExperimentalCoroutinesApi
-    public fun advanceTimeBy(delayTimeMillis: Long): Unit = advanceTimeBy(delayTimeMillis.milliseconds)
 
     /**
      * Moves the virtual clock of this dispatcher forward by [the specified amount][delayTime], running the
@@ -232,7 +178,7 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
                     }
                 }
             }
-            event.dispatcher.processEvent(event.marker)
+            processEvent(event.marker)
         }
     }
 
@@ -241,7 +187,7 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
      *
      * [context] is the context in which the task will be dispatched.
      */
-    internal fun sendDispatchEvent(context: CoroutineContext) {
+    private fun sendDispatchEvent(context: CoroutineContext) {
         dispatchEvents.trySend(Unit)
         if (context[BackgroundWork] !== BackgroundWork)
             dispatchEventsForeground.trySend(Unit)
@@ -250,17 +196,17 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
     /**
      * Waits for a notification about a dispatch event.
      */
-    internal suspend fun receiveDispatchEvent() = dispatchEvents.receive()
+    private suspend fun receiveDispatchEvent() = dispatchEvents.receive()
 
     /**
      * Consumes the knowledge that a dispatch event happened recently.
      */
-    internal val onDispatchEvent: SelectClause1<Unit> get() = dispatchEvents.onReceive
+    private val onDispatchEvent: SelectClause1<Unit> get() = dispatchEvents.onReceive
 
     /**
      * Consumes the knowledge that a foreground work dispatch event happened recently.
      */
-    internal val onDispatchEventForeground: SelectClause1<Unit> get() = dispatchEventsForeground.onReceive
+    private val onDispatchEventForeground: SelectClause1<Unit> get() = dispatchEventsForeground.onReceive
 
     /**
      * Returns the [TimeSource] representation of the virtual time of this scheduler.
@@ -268,6 +214,31 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
     public val timeSource: TimeSource.WithComparableMarks = object : AbstractLongTimeSource(DurationUnit.MILLISECONDS) {
         override fun read(): Long = currentTime
     }
+
+    /** Notifies the dispatcher that it should process a single event marked with [marker] happening at time [time]. */
+    private fun processEvent(marker: Any) {
+        check(marker is Runnable)
+        marker.run()
+    }
+
+    override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
+        val timedRunnable = CancellableContinuationRunnable(continuation, this)
+        val handle = registerEvent(
+                        timeMillis,
+            timedRunnable,
+            continuation.context,
+        )
+        continuation.disposeOnCancellation(handle)
+    }
+
+    override fun invokeOnTimeout(timeMillis: Long, block: Runnable, context: CoroutineContext): DisposableHandle =
+        registerEvent( timeMillis, block, context)
+
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        registerEvent( 0, block, context)
+    }
+
 
     public fun launchSimulationJob(
         scope: CoroutineScope
@@ -286,11 +257,11 @@ public class VirtualTimeScheduler : AbstractCoroutineContextElement(VirtualTimeS
     }
 }
 
-public suspend fun VirtualTimeScheduler.runSimulation(
-    block: suspend VirtualTimeScheduler.() -> Unit
+public suspend fun VirtualTimeDispatcher.runSimulation(
+    block: suspend CoroutineScope.() -> Unit
 ) = coroutineScope {
     val job = launchSimulationJob(this)
-    withContext(asDispatcher()) {
+    withContext (this@runSimulation) {
         block()
     }
     job.cancel()
@@ -299,12 +270,9 @@ public suspend fun VirtualTimeScheduler.runSimulation(
 /**
  * Create a [Clock] based on this scheduler with given time offset for simulation start
  */
-public fun VirtualTimeScheduler.asClock(startTime: Instant = Clock.System.now()) = object : Clock {
+public fun VirtualTimeDispatcher.asClock(startTime: Instant = Clock.System.now()) = object : Clock {
     override fun now(): Instant = startTime + currentTime.milliseconds
 }
-
-public fun VirtualTimeScheduler.asDispatcher(name: String? = null): CoroutineDispatcher =
-    VirtualTimeDispatcher(this, name)
 
 // Some error-throwing functions for pretty stack traces
 private fun currentTimeAheadOfEvents(): Nothing = invalidSchedulerState()
@@ -314,7 +282,6 @@ private fun invalidSchedulerState(): Nothing =
 
 /** [ThreadSafeHeap] node representing a scheduled task, ordered by the planned execution time. */
 private class VirtualTimeDispatchEvent<T>(
-    val dispatcher: VirtualTimeDispatcher,
     private val count: Long,
     val time: Long,
     val marker: T,
@@ -326,26 +293,12 @@ private class VirtualTimeDispatchEvent<T>(
     override fun compareTo(other: VirtualTimeDispatchEvent<*>) =
         compareValuesBy(this, other, VirtualTimeDispatchEvent<*>::time, VirtualTimeDispatchEvent<*>::count)
 
-    override fun toString() =
-        "TestDispatchEvent(time=$time, dispatcher=$dispatcher${if (isForeground) "" else ", background"})"
+    override fun toString() = "VirtualTimeDispatchEvent(time=$time)"
 }
 
 // works with positive `a`, `b`
 private fun addClamping(a: Long, b: Long): Long = (a + b).let { if (it >= 0) it else Long.MAX_VALUE }
 
-internal fun checkSchedulerInContext(scheduler: VirtualTimeScheduler, context: CoroutineContext) {
-    context[VirtualTimeScheduler]?.let {
-        check(it === scheduler) {
-            "Detected use of different schedulers. If you need to use several test coroutine dispatchers, " +
-                    "create one `TestCoroutineScheduler` and pass it to each of them."
-        }
-    }
-}
-
-/**
- * A coroutine context key denoting that the work is to be executed in the background.
- * @see [TestScope.backgroundScope]
- */
 internal object BackgroundWork : CoroutineContext.Key<BackgroundWork>, CoroutineContext.Element {
     override val key: CoroutineContext.Key<*>
         get() = this
