@@ -103,6 +103,7 @@ fun generateTestConfig(
     }
 
     modbusDefault {
+        host = "localhost"
         port = 9090
     }
 

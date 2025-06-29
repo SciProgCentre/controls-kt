@@ -1,41 +1,63 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import space.kscience.controls.constructor.models.flow.DiscreateProducer
-import space.kscience.controls.constructor.models.flow.DiscreteConsumer
+import kotlinx.datetime.Instant
 import space.kscience.controls.constructor.models.flow.DiscreteFlowModel
+import space.kscience.controls.constructor.models.flow.registerConsumer
+import space.kscience.controls.constructor.models.flow.registerProducer
+import space.kscience.controls.constructor.models.flow.runSimulation
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NV
 import space.kscience.controls.time.coroutineDispatcher
+import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class DiscreteFlowTest {
 
+    val epoch = Instant.fromEpochMilliseconds(0L)
+
     val context = Context("test") {
-//        withVirtualTime()
+        withVirtualTime(epoch)
     }
 
     @Test
-    fun pipe() = runTest {
-        val model = object : ModelConstructor(context), DiscreteFlowModel {
+    fun pipe() = runTest(timeout = 200.milliseconds) {
+
+        object : ModelConstructor(context), DiscreteFlowModel {
+            override val name: Name = "test".asName()
+
             val production = MutableDeviceState(NV<Kilograms>(4.0))
             val consumation = MutableDeviceState(NV<Kilograms>(1.0))
 
-            val consumer = DiscreteConsumer(this, consumation)
-            val producer = DiscreateProducer(this, production, consumer)
-        }
+            val consumer = registerConsumer(consumation)
+            val producer = registerProducer(production, consumer, 0.05.seconds)
+        }.runSimulation {
 
-        withContext(context.coroutineDispatcher) {
+            producer.production.valueFlow.onEach {
+                println("production: $it (${clock.now() - epoch})")
+            }.launchIn(backgroundScope)
+
+            consumer.consumation.valueFlow.onEach {
+                println("consumation: $it (${clock.now() - epoch})")
+            }.launchIn(backgroundScope)
+
+
             delay(2.seconds)
 
-            assertEquals(1.0, model.producer.production.value.value, 1e-2)
-            assertEquals(1.0, model.consumer.consumation.value.value, 1e-2)
+            assertEquals(1.0, producer.production.value.value, 5e-2)
+            assertEquals(1.0, consumer.consumation.value.value, 5e-2)
         }
+
     }
 
 
@@ -49,11 +71,11 @@ class DiscreteFlowTest {
         val abc = MutableDeviceState(NV<Kilograms>(8.0))
 
         val model = object : ModelConstructor(context), DiscreteFlowModel {
-            val joinABC = DiscreteConsumer<Kilograms>(this, abc)
-            val c = DiscreateProducer(this, c, joinABC)
-            val joinAB = DiscreteConsumer<Kilograms>(this, ab, joinABC)
-            val b = DiscreateProducer(this, b, joinAB)
-            val a = DiscreateProducer(this, a, joinAB)
+            val joinABC = registerConsumer(abc)
+            val c = registerProducer(c, joinABC)
+            val joinAB = registerConsumer(ab, joinABC)
+            val b = registerProducer(b, joinAB)
+            val a = registerProducer(a, joinAB)
         }
 
         withContext(context.coroutineDispatcher) {

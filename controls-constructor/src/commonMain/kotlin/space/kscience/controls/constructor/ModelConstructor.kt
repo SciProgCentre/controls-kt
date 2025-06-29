@@ -1,38 +1,35 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.newCoroutineContext
 import kotlinx.datetime.Clock
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.coroutineDispatcher
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.misc.Named
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.NameToken
+import space.kscience.dataforge.names.asName
 import kotlin.coroutines.CoroutineContext
 
 public abstract class ModelConstructor(
     final override val context: Context,
     vararg dependencies: DeviceState<*>,
-) : Model {
+) : Model, Named {
+
+    override val name: Name
+        get() = NameToken("model", hashCode().toHexString()).asName()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override val coroutineContext: CoroutineContext = context.newCoroutineContext(
-        SupervisorJob(context.coroutineContext[Job]) +
-                context.coroutineDispatcher
-//                CoroutineExceptionHandler { _, throwable ->
-//                    launch {
-//                        sharedMessageFlow.emit(
-//                            DeviceErrorMessage(
-//                                time = clock.now(),
-//                                errorMessage = throwable.message,
-//                                errorType = throwable::class.simpleName,
-//                                errorStackTrace = throwable.stackTraceToString()
-//                            )
-//                        )
-//                    }
-//                    logger.error(throwable) { "Exception in device $id" }
-//                }
-    )
+    override val coroutineContext: CoroutineContext by lazy {
+        context.newCoroutineContext(
+            Job(context.coroutineContext[Job]) +
+                    context.coroutineDispatcher +
+                    CoroutineName(name.toString())
+        )
+    }
 
 
     private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf<ConstructorElement>().apply {

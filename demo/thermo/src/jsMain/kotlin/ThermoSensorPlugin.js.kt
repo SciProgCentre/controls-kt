@@ -86,10 +86,10 @@ val thermoSensorHubRenderer =
                                     width(50.pt)
                                 }
                                 onClick {
-                                    if (selectedSensor == sensorName) {
-                                        selectedSensor = null
+                                    selectedSensor = if (selectedSensor == sensorName) {
+                                        null
                                     } else {
-                                        selectedSensor = sensorName
+                                        sensorName
                                     }
                                 }
                             },

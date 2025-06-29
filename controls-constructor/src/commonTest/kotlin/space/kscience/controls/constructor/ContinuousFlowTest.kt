@@ -1,9 +1,8 @@
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.models.flow.*
 import space.kscience.controls.constructor.units.Kilograms
@@ -39,7 +38,7 @@ class ContinuousFlowTest {
 
     }
 
-    fun DeviceState<*>.printEach(scope: CoroutineScope, stateName: String) {
+    fun DeviceState<*>.printEach(scope: TestScope, stateName: String) {
         fun printOne(value: Any?) {
             println("$stateName: $value")
         }
@@ -48,17 +47,7 @@ class ContinuousFlowTest {
 
         valueFlow.onEach {
             printOne(it)
-        }.launchIn(scope)
-    }
-
-
-    fun <T : Comparable<T>> StateContainer.bindToMin(
-        sourceState1: DeviceState<T>,
-        sourceState2: DeviceState<T>,
-        targetState: MutableDeviceState<T>,
-    ): Job = bindCombinedState(sourceState1, sourceState2, targetState) { a, b ->
-//        println("Min of $a and $b is ${minOf(a, b)}")
-        minOf(a, b)
+        }.launchIn(scope.backgroundScope)
     }
 
     /**
@@ -111,9 +100,6 @@ class ContinuousFlowTest {
 
         assertEquals(9.0, joinAB.production.value.value, 1e-5)
         assertEquals(7.0, joinAB.partialConsumation["a"]?.value?.value)
-
-        // cancel all children to avoid infinite running
-        coroutineContext[Job]?.children?.forEach { it.cancel() }
     }
 
 }

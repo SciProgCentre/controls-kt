@@ -60,7 +60,7 @@ public sealed interface ClockMode {
     public data object System : ClockMode
     public data class Custom(public val clock: Clock) : ClockMode
     public data class Compressed(public val compression: Double) : ClockMode
-    public data class Virtual(public val manager: VirtualTimeManager) : ClockMode
+    public data class Virtual(public val scheduler: VirtualTimeScheduler) : ClockMode
 }
 
 public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
@@ -69,7 +69,7 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     public val clockMode: ClockMode by lazy {
         when (meta["clock.mode"].string) {
             null, "system" -> ClockMode.System
-            "virtual" -> ClockMode.Virtual(VirtualTimeManager(meta["clock.start"]?.instant ?: Clock.System.now()))
+            "virtual" -> ClockMode.Virtual(VirtualTimeScheduler())
             "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
             else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
         }
@@ -80,10 +80,12 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
             ClockMode.System -> Clock.System
             is ClockMode.Custom -> mode.clock
             is ClockMode.Compressed -> CompressedClock(Clock.System, mode.compression)
-            is ClockMode.Virtual -> mode.manager
+            is ClockMode.Virtual -> mode.scheduler.asClock(meta["clock.start"]?.instant ?: Clock.System.now())
         }
     }
 
+
+    private var virtualTimeJob: Job? = null
 
     /**
      * Provide a [CoroutineDispatcher] with compressed time based on context dispatcher
@@ -93,11 +95,14 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
             is ClockMode.System, is ClockMode.Custom ->
                 context.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
 
-            is ClockMode.Compressed ->
-                CompressedTimeDispatcher(context.coroutineContext, mode.compression)
+            is ClockMode.Compressed -> CompressedTimeDispatcher(
+                coroutineContext = context.coroutineContext,
+                compression = mode.compression
+            )
 
-            is ClockMode.Virtual ->
-                VirtualTimeDispatcher(context.coroutineContext, mode.manager)
+            is ClockMode.Virtual -> mode.scheduler.asDispatcher().also {
+                virtualTimeJob = mode.scheduler.launchSimulationJob(context)
+            }
         }
     }
 
@@ -106,6 +111,11 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
             delay(tick)
             block()
         }
+    }
+
+    override fun detach() {
+        super.detach()
+        virtualTimeJob?.cancel()
     }
 
     public companion object : PluginFactory<ClockManager> {
@@ -120,15 +130,15 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
 
-public suspend fun ClockManager.advanceTimeBy(duration: Duration) {
-    when (val mode = clockMode) {
-        is ClockMode.Virtual -> mode.manager.advanceTimeBy(duration)
-        is ClockMode.System -> delay(duration)
-        else -> withContext(dispatcher) {
-            delay(duration)
-        }
-    }
-}
+//public suspend fun ClockManager.advanceTimeBy(duration: Duration) {
+//    when (val mode = clockMode) {
+//        is ClockMode.Virtual -> mode.scheduler.advanceTimeBy(duration)
+//        is ClockMode.System -> delay(duration)
+//        else -> withContext(dispatcher) {
+//            delay(duration)
+//        }
+//    }
+//}
 
 public val Context.coroutineDispatcher: CoroutineDispatcher
     get() = plugins[ClockManager]?.dispatcher
@@ -146,7 +156,7 @@ public fun ContextBuilder.withTimeCompression(compression: Double) {
 }
 
 public fun ContextBuilder.withVirtualTime(start: Instant = Clock.System.now()) {
-    plugin(ClockManager){
+    plugin(ClockManager) {
         "clock" put {
             "mode" put "virtual"
             "start" put start.toString()
