@@ -6,7 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.newCoroutineContext
 import kotlinx.datetime.Clock
 import space.kscience.controls.time.clock
-import space.kscience.controls.time.coroutineDispatcher
+import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.misc.Named
 import space.kscience.dataforge.names.Name
@@ -26,7 +26,7 @@ public abstract class ModelConstructor(
     override val coroutineContext: CoroutineContext by lazy {
         context.newCoroutineContext(
             Job(context.coroutineContext[Job]) +
-                    context.coroutineDispatcher +
+                    context.simulationDispatcher +
                     CoroutineName(name.toString())
         )
     }

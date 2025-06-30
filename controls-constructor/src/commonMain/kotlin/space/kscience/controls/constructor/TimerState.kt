@@ -25,7 +25,7 @@ public class TimerState(
 
     private val clock = MutableStateFlow(initialValue)
 
-    private val updateJob = clockManager.context.launch(clockManager.dispatcher) {
+    private val updateJob = clockManager.context.launch(clockManager.simulationDispatcher) {
         while (isActive) {
             clock.value = clockManager.clock.now()
             delay(tick)

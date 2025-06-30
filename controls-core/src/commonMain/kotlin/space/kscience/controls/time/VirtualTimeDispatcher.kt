@@ -48,7 +48,9 @@ private class CancellableContinuationRunnable(
  * virtual time as needed (via [advanceUntilIdle]), or run the tasks that are scheduled to run as soon as possible but
  * haven't yet been dispatched (via [runCurrent]).
  */
-public class VirtualTimeDispatcher : CoroutineDispatcher(), Delay {
+public class VirtualTimeDispatcher(
+    parentScope: CoroutineScope
+) : CoroutineDispatcher(), Delay, AutoCloseable {
 
     /** This heap stores the knowledge about which dispatchers are interested in which moments of virtual time. */
     // TODO: replace by ArrayDeque
@@ -224,7 +226,7 @@ public class VirtualTimeDispatcher : CoroutineDispatcher(), Delay {
     override fun scheduleResumeAfterDelay(timeMillis: Long, continuation: CancellableContinuation<Unit>) {
         val timedRunnable = CancellableContinuationRunnable(continuation, this)
         val handle = registerEvent(
-                        timeMillis,
+            timeMillis,
             timedRunnable,
             continuation.context,
         )
@@ -232,17 +234,15 @@ public class VirtualTimeDispatcher : CoroutineDispatcher(), Delay {
     }
 
     override fun invokeOnTimeout(timeMillis: Long, block: Runnable, context: CoroutineContext): DisposableHandle =
-        registerEvent( timeMillis, block, context)
+        registerEvent(timeMillis, block, context)
 
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
-        registerEvent( 0, block, context)
+        registerEvent(0, block, context)
     }
 
-
-    public fun launchSimulationJob(
-        scope: CoroutineScope
-    ): Job = scope.launch(CoroutineName("Controls virtual time runner")) {
+    //TODO add pause to eventLoop
+    private val eventLoopJob: Job = parentScope.launch(CoroutineName("Controls virtual time runner")) {
         while (true) {
             val executedSomething = tryRunNextTaskUnless { !isActive }
             if (executedSomething) {
@@ -255,16 +255,10 @@ public class VirtualTimeDispatcher : CoroutineDispatcher(), Delay {
             }
         }
     }
-}
 
-public suspend fun VirtualTimeDispatcher.runSimulation(
-    block: suspend CoroutineScope.() -> Unit
-) = coroutineScope {
-    val job = launchSimulationJob(this)
-    withContext (this@runSimulation) {
-        block()
+    override fun close() {
+        eventLoopJob.cancel()
     }
-    job.cancel()
 }
 
 /**
@@ -272,6 +266,45 @@ public suspend fun VirtualTimeDispatcher.runSimulation(
  */
 public fun VirtualTimeDispatcher.asClock(startTime: Instant = Clock.System.now()) = object : Clock {
     override fun now(): Instant = startTime + currentTime.milliseconds
+}
+
+public class VirtualTimeScope internal constructor(
+    override val coroutineContext: CoroutineContext,
+    private val dispatcher: VirtualTimeDispatcher,
+    timeOffset: Instant = Clock.System.now(),
+) : CoroutineScope {
+
+    public val clock: Clock = dispatcher.asClock(timeOffset)
+
+}
+
+/**
+ * Executes a suspending block of code within a virtual time scope. This allows you to control and manipulate
+ * the passage of time for simulation purposes using a virtual time dispatcher.
+ *
+ * @param timeOffset The initial time offset to start the virtual time clock from. Defaults to the current system time.
+ * @param block The suspending block of code to be executed within the virtual time scope.
+ * @return Nothing. The function completes normally after executing the given block within the virtual time scope.
+ */
+public suspend fun virtualTimeScope(
+    timeOffset: Instant = Clock.System.now(),
+    block: suspend VirtualTimeScope.() -> Unit
+): Unit = coroutineScope {
+    val currentDispatcher = coroutineContext[CoroutineDispatcher] as? VirtualTimeDispatcher
+    //if already on virtual time, just launch the block
+    if (currentDispatcher != null) {
+        val scope = VirtualTimeScope(coroutineContext, currentDispatcher, timeOffset = timeOffset)
+        scope.block()
+    } else {
+        //if it is not, create a dispatcher and close it after use
+        val dispatcher: VirtualTimeDispatcher = VirtualTimeDispatcher(this)
+        dispatcher.use {
+            withContext(dispatcher) {
+                val scope = VirtualTimeScope(coroutineContext, dispatcher, timeOffset = timeOffset)
+                scope.block()
+            }
+        }
+    }
 }
 
 // Some error-throwing functions for pretty stack traces

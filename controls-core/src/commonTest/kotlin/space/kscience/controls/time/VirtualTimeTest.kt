@@ -21,10 +21,8 @@ private data class TimedResult(val time: Instant, val marker: String)
 class VirtualTimeTest {
     @Test
     fun dispatcherAdvance() = runTest(timeout = 500.milliseconds) {
-        val scheduler = VirtualTimeDispatcher()//VirtualTimeManager(Instant.fromEpochMilliseconds(0L))
-        val clock = scheduler.asClock(Instant.fromEpochMilliseconds(0L))
         val collector = mutableListOf<TimedResult>()
-        scheduler.runSimulation {
+        virtualTimeScope {
             repeat(3) { series ->
                 launch {
                     delay(100.milliseconds * (series + 1))
@@ -41,7 +39,7 @@ class VirtualTimeTest {
     }
 
     @Test
-    fun testAdvance() = runTest(timeout = 200.milliseconds) {
+    fun testTestAdvance() = runTest(timeout = 200.milliseconds) {
 
         delay(1000)
         assertEquals(currentTime, 1000)
@@ -66,7 +64,7 @@ class VirtualTimeTest {
         val clockManager = context.plugins[ClockManager]!!
         val clock = clockManager.clock
 
-        withContext(clockManager.dispatcher) {
+        withContext(clockManager.simulationDispatcher) {
             val collector = mutableListOf<TimedResult>()
             launch {
                 repeat(3) { series ->

@@ -69,7 +69,7 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     public val clockMode: ClockMode by lazy {
         when (meta["clock.mode"].string) {
             null, "system" -> ClockMode.System
-            "virtual" -> ClockMode.Virtual(VirtualTimeDispatcher())
+            "virtual" -> ClockMode.Virtual(VirtualTimeDispatcher(context))
             "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
             else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
         }
@@ -84,13 +84,10 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
         }
     }
 
-
-    private var virtualTimeJob: Job? = null
-
     /**
      * Provide a [CoroutineDispatcher] with compressed time based on context dispatcher
      */
-    public val dispatcher: CoroutineDispatcher by lazy {
+    public val simulationDispatcher: CoroutineDispatcher by lazy {
         when (val mode = clockMode) {
             is ClockMode.System, is ClockMode.Custom ->
                 context.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
@@ -100,13 +97,11 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
                 compression = mode.compression
             )
 
-            is ClockMode.Virtual -> mode.scheduler.also {
-                virtualTimeJob = mode.scheduler.launchSimulationJob(context)
-            }
+            is ClockMode.Virtual -> mode.scheduler
         }
     }
 
-    public fun scheduleWithFixedDelay(tick: Duration, block: suspend () -> Unit): Job = context.launch(dispatcher) {
+    public fun scheduleWithFixedDelay(tick: Duration, block: suspend () -> Unit): Job = context.launch(simulationDispatcher) {
         while (isActive) {
             delay(tick)
             block()
@@ -114,8 +109,8 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     }
 
     override fun detach() {
+        (clockMode as? ClockMode.Virtual)?.scheduler?.close()
         super.detach()
-        virtualTimeJob?.cancel()
     }
 
     public companion object : PluginFactory<ClockManager> {
@@ -130,18 +125,8 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
 
-//public suspend fun ClockManager.advanceTimeBy(duration: Duration) {
-//    when (val mode = clockMode) {
-//        is ClockMode.Virtual -> mode.scheduler.advanceTimeBy(duration)
-//        is ClockMode.System -> delay(duration)
-//        else -> withContext(dispatcher) {
-//            delay(duration)
-//        }
-//    }
-//}
-
-public val Context.coroutineDispatcher: CoroutineDispatcher
-    get() = plugins[ClockManager]?.dispatcher
+public val Context.simulationDispatcher: CoroutineDispatcher
+    get() = plugins[ClockManager]?.simulationDispatcher
         ?: coroutineContext[CoroutineDispatcher]
         ?: Dispatchers.Default
 

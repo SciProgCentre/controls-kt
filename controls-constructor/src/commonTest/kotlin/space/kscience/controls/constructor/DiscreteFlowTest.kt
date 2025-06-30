@@ -12,7 +12,7 @@ import space.kscience.controls.constructor.models.flow.registerProducer
 import space.kscience.controls.constructor.models.flow.runSimulation
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NV
-import space.kscience.controls.time.coroutineDispatcher
+import space.kscience.controls.time.simulationDispatcher
 import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
@@ -78,7 +78,7 @@ class DiscreteFlowTest {
             val a = registerProducer(a, joinAB)
         }
 
-        withContext(context.coroutineDispatcher) {
+        withContext(context.simulationDispatcher) {
 
             delay(2.seconds)
 

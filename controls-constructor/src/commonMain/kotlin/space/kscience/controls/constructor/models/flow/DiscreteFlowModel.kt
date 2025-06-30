@@ -12,6 +12,7 @@ import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.controls.constructor.units.times
 import space.kscience.controls.time.clock
+import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
@@ -31,7 +32,7 @@ public interface DiscreteFlowModel : Model
 public suspend fun <M : DiscreteFlowModel> M.runSimulation(
     block: suspend M.() -> Unit
 ) {
-    withContext(coroutineContext) {
+    withContext(context.simulationDispatcher) {
         block()
     }
 }
