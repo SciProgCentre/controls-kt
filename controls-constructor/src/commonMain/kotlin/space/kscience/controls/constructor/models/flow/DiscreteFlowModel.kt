@@ -3,7 +3,6 @@ package space.kscience.controls.constructor.models.flow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import space.kscience.controls.constructor.*
@@ -11,8 +10,8 @@ import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.NumericalValue
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.controls.constructor.units.times
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
-import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
@@ -22,25 +21,19 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 
 
-public data class DiscreteFlowPackage<U : UnitsOfMeasurement>(
+public data class DiscreteFlowPacket<U : UnitsOfMeasurement>(
+    val source: Name,
     val amount: Amount<U>,
     val creationTime: Instant
 )
 
 public interface DiscreteFlowModel : Model
 
-public suspend fun <M : DiscreteFlowModel> M.runSimulation(
-    block: suspend M.() -> Unit
-) {
-    withContext(context.simulationDispatcher) {
-        block()
-    }
-}
 
 /**
  * Actor suspends [emit] when it can't consume package
  */
-public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteFlowPackage<U>> {
+public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteFlowPacket<U>> {
 
     /**
      * The rate in which actual consumation (not suggestion) is done averaged over model default discretization period.
@@ -51,48 +44,56 @@ public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteF
 /**
  * Non-invasive measurement of flow rate. Writes values to [target]
  */
-internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPackage<U>>.measureFlow(
+internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
     clock: Clock,
     target: MutableDeviceState<Amount<U>>,
-): Flow<DiscreteFlowPackage<U>> {
+    numberOfPackages: Int = 6
+): Flow<DiscreteFlowPacket<U>> {
+    require(numberOfPackages > 2) { "Number of packages must be more than 2 to calculate average" }
 
-    var time: Instant? = null
+    val buffer = ArrayDeque<ValueWithTime<DiscreteFlowPacket<U>>>(numberOfPackages)
 
-    return onEach { pack ->
-        val now = clock.now()
-        time?.let { from ->
-            val delta = now - from
-            target.value = NumericalValue(
-                pack.amount.value / delta.toDouble(DurationUnit.SECONDS)
-            )
+    fun push(packet: DiscreteFlowPacket<U>) {
+        buffer.addLast(ValueWithTime(packet, clock.now()))
+        if (buffer.size > numberOfPackages - 1) {
+            buffer.removeFirst()
         }
-        time = now
+    }
+
+    return onEach { packet ->
+        push(packet)
+        if (buffer.size > 2) {
+            val timeDelta = buffer.last().time - buffer.first().time
+            val amount = buffer.drop(1).sumOf { it.value.amount.value }
+            val rate = amount / timeDelta.toDouble(DurationUnit.SECONDS)
+            target.value = NumericalValue(rate)
+        }
     }
 }
 
 /**
  * Limits input of the incoming flow to [limit] per second
  */
-internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPackage<U>>.limitFlow(
+internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
     clock: Clock,
     limit: suspend () -> NumericalValue<U>
-): Flow<DiscreteFlowPackage<U>> = flow {
+): Flow<DiscreteFlowPacket<U>> = flow {
     // last package time
     var time = clock.now()
 
-    collect { pack ->
+    collect { packet ->
         val now = clock.now()
         val interval = now - time
 
-        val deltaT = (pack.amount.value / limit().value).seconds - interval
+        val deltaT = (packet.amount.value / limit().value).seconds - interval
 
         if (deltaT.isPositive()) {
             delay(deltaT)
         }
 
-        time = now
+        time = clock.now()
 
-        emit(pack)
+        emit(packet)
     }
 
 }
@@ -104,14 +105,14 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPackage<U>>.limitFlow(
 public class DiscreteConsumer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: DeviceState<NumericalValue<U>>,
-    public var target: FlowCollector<DiscreteFlowPackage<U>>? = null
+    public var target: FlowCollector<DiscreteFlowPacket<U>>? = null
 ) : ModelConstructor(context, capacity), DiscreteActor<U> {
 
     override val name: Name = NameToken("consumer", hashCode().toHexString()).asName()
 
-    private val channel = Channel<DiscreteFlowPackage<U>>()
+    private val channel = Channel<DiscreteFlowPacket<U>>()
 
-    override suspend fun emit(value: DiscreteFlowPackage<U>) {
+    override suspend fun emit(value: DiscreteFlowPacket<U>) {
         channel.send(value)
     }
 
@@ -139,7 +140,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
 
 public fun <U : UnitsOfMeasurement> DiscreteFlowModel.registerConsumer(
     capacity: DeviceState<NumericalValue<U>>,
-    target: FlowCollector<DiscreteFlowPackage<U>>? = null
+    target: FlowCollector<DiscreteFlowPacket<U>>? = null
 ): DiscreteConsumer<U> = model(DiscreteConsumer(context, capacity, target))
 
 public class DiscreateProducer<U : UnitsOfMeasurement>(
@@ -162,9 +163,9 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
 
     private val productionJob = flow {
         while (true) {
-            val amountPerPackage = capacity.value * (packageInterval / 1.seconds)
-            emit(DiscreteFlowPackage(amountPerPackage, clock.now()))
             delay(packageInterval)
+            val amountPerPackage = capacity.value * (packageInterval / 1.seconds)
+            emit(DiscreteFlowPacket(name, amountPerPackage, clock.now()))
         }
     }.onEach {
         target.emit(it)

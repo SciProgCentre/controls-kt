@@ -11,7 +11,7 @@ kscience{
     jvm()
     js()
     native()
-    wasm()
+//    wasm()
     useCoroutines()
     useSerialization()
 

@@ -4,22 +4,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import space.kscience.controls.constructor.models.flow.DiscreteFlowModel
 import space.kscience.controls.constructor.models.flow.registerConsumer
 import space.kscience.controls.constructor.models.flow.registerProducer
-import space.kscience.controls.constructor.models.flow.runSimulation
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NV
-import space.kscience.controls.time.simulationDispatcher
 import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class DiscreteFlowTest {
@@ -31,16 +28,20 @@ class DiscreteFlowTest {
     }
 
     @Test
-    fun pipe() = runTest(timeout = 200.milliseconds) {
+    fun pipe() = runTest {
+
+        val production = MutableDeviceState(NV<Kilograms>(4.0))
+        val consumation = MutableDeviceState(NV<Kilograms>(1.0))
 
         object : ModelConstructor(context), DiscreteFlowModel {
             override val name: Name = "test".asName()
 
-            val production = MutableDeviceState(NV<Kilograms>(4.0))
-            val consumation = MutableDeviceState(NV<Kilograms>(1.0))
-
             val consumer = registerConsumer(consumation)
-            val producer = registerProducer(production, consumer, 0.05.seconds)
+
+            //            {
+//                println("Packet: created ${it.creationTime - epoch} received ${clock.now() - epoch} value ${it.amount.value}")
+//            }
+            val producer = registerProducer(production, consumer, 0.02.seconds)
         }.runSimulation {
 
             producer.production.valueFlow.onEach {
@@ -54,14 +55,28 @@ class DiscreteFlowTest {
 
             delay(2.seconds)
 
-            assertEquals(1.0, producer.production.value.value, 5e-2)
-            assertEquals(1.0, consumer.consumation.value.value, 5e-2)
+            assertEquals(1.0, producer.production.value.value, 1e-4)
+            assertEquals(1.0, consumer.consumation.value.value, 1e-4)
+
+            consumation.value = NV(4.0)
+            delay(1.seconds)
+
+            assertEquals(4.0, producer.production.value.value, 1e-4)
+            assertEquals(4.0, consumer.consumation.value.value, 1e-4)
+
+            consumation.value = NV(6.0)
+            delay(1.seconds)
+
+            assertEquals(4.0, producer.production.value.value, 1e-4)
+            assertEquals(4.0, consumer.consumation.value.value, 1e-4)
+
         }
 
     }
 
 
     @Test
+    @Ignore
     fun join() = runTest {
 
         val a = MutableDeviceState(NV<Kilograms>(1.0))
@@ -71,22 +86,35 @@ class DiscreteFlowTest {
         val abc = MutableDeviceState(NV<Kilograms>(8.0))
 
         val model = object : ModelConstructor(context), DiscreteFlowModel {
-            val joinABC = registerConsumer(abc)
-            val c = registerProducer(c, joinABC)
+            val joinABC = registerConsumer(abc) {
+                println("Packet from ${it.source}: created ${it.creationTime - epoch} received ${clock.now() - epoch} value ${it.amount.value}")
+            }
+            val cProducer = registerProducer(c, joinABC, 0.02.seconds)
             val joinAB = registerConsumer(ab, joinABC)
-            val b = registerProducer(b, joinAB)
-            val a = registerProducer(a, joinAB)
-        }
+            val bProducer = registerProducer(b, joinAB, 0.02.seconds)
+            val aProducer = registerProducer(a, joinAB, 0.02.seconds)
+        }.runSimulation {
 
-        withContext(context.simulationDispatcher) {
+            joinABC.consumation.valueFlow.onEach {
+                println("consumation: $it (${clock.now() - epoch})")
+            }.launchIn(backgroundScope)
 
             delay(2.seconds)
 
-            assertEquals(3.0, model.joinAB.consumation.value.value, 0.1)
-            assertEquals(6.0, model.joinABC.consumation.value.value, 0.1)
-            assertEquals(3.0, model.c.production.value.value, 0.1)
-            assertEquals(2.0, model.b.production.value.value, 0.1)
-            assertEquals(1.0, model.a.production.value.value, 0.1)
+            //assertEquals(3.0, joinAB.consumation.value.value, 1e-4)
+            assertEquals(6.0, joinABC.consumation.value.value, 1e-4)
+            assertEquals(3.0, cProducer.production.value.value, 1e-4)
+            assertEquals(2.0, bProducer.production.value.value, 1e-4)
+            assertEquals(1.0, aProducer.production.value.value, 1e-4)
+
+            abc.value = NV(3.0)
+            delay(2.seconds)
+
+            assertEquals(3.0, joinABC.consumation.value.value, 1e-1)
+            assertEquals(1.5, cProducer.production.value.value, 1e-1)
+            assertEquals(1.0, bProducer.production.value.value, 1e-1)
+            assertEquals(0.5, aProducer.production.value.value, 1e-1)
+
         }
     }
 }

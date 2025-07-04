@@ -4,9 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import kotlin.time.Duration
@@ -18,7 +20,7 @@ import kotlin.time.Duration.Companion.milliseconds
 public sealed interface ConstructorElement
 
 /**
- * A binding that exposes device property as read-only state
+ * A binding that exposes device property as a read-only state
  */
 public class PropertyConstructorElement<T>(
     public val device: Device,
@@ -42,7 +44,11 @@ public class ModelConstructorElement(
     public val model: ModelConstructor,
 ) : ConstructorElement
 
-
+/**
+ * Interface representing a container for managing state-based elements and interactions within a device context.
+ * It extends [ContextAware] and [CoroutineScope], allowing it to work within a coroutine-based environment
+ * while maintaining context awareness.
+ */
 public interface StateContainer : ContextAware, CoroutineScope {
     public val constructorElements: Set<ConstructorElement>
     public fun registerElement(constructorElement: ConstructorElement)
@@ -78,6 +84,17 @@ public interface StateContainer : ContextAware, CoroutineScope {
 }
 
 public interface Model: StateContainer
+
+/**
+ * Run simulation using context simulation dispatcher
+ */
+public suspend fun <M : Model> M.runSimulation(
+    block: suspend M.() -> Unit
+) {
+    withContext(context.simulationDispatcher) {
+        block()
+    }
+}
 
 public val StateContainer.states get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
 

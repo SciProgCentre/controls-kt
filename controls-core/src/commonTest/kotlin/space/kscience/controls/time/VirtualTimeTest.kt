@@ -61,6 +61,7 @@ class VirtualTimeTest {
         val context = Context {
             withVirtualTime(Instant.fromEpochMilliseconds(0L))
         }
+        
         val clockManager = context.plugins[ClockManager]!!
         val clock = clockManager.clock
 

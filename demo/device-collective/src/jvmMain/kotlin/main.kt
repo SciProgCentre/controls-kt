@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalFoundationApi::class, ExperimentalSplitPaneApi::class)
+@file:OptIn(ExperimentalFoundationApi::class, ExperimentalSplitPaneApi::class, DFExperimental::class)
 
 package space.kscience.controls.demo.collective
 
@@ -37,6 +37,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextBuilder
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.parseAsName
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.subscribe
