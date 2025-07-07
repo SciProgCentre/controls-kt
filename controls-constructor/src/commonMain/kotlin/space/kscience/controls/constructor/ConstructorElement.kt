@@ -190,9 +190,9 @@ public fun <T1, T2, R> StateContainer.combineState(
  * @param transformation a function that takes an array of individual state values and maps it to a combined value.
  * @return a new [DeviceState] representing the combined state, with the value computed by the transformation function.
  */
-public inline fun <reified T, R> StateContainer.combineState(
+public fun <T, R> StateContainer.combineState(
     states: Collection<DeviceState<T>>,
-    crossinline transformation: (Array<T>) -> R,
+    transformation: (List<T>) -> R,
 ): DeviceState<R> = registerState(DeviceState.combine(states, transformation))
 
 /**

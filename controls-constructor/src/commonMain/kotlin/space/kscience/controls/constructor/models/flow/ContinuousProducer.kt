@@ -1,13 +1,11 @@
 package space.kscience.controls.constructor.models.flow
 
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.units.NumericalValue
-import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.ContextAware
 
-public interface ContinuousProducerModel<U : UnitsOfMeasurement> : ContextAware {
-    public val production: DeviceState<NumericalValue<U>>
+public interface ContinuousProducerModel<T : Amount<*>> {
+    public val production: DeviceState<T>
 }
 
 /**
@@ -23,22 +21,25 @@ public interface ContinuousProducerModel<U : UnitsOfMeasurement> : ContextAware 
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.
  */
-public class ContinuousProducer<U : UnitsOfMeasurement>(
+public class ContinuousProducer<T : Amount<*>>(
     context: Context,
-    public val capacity: DeviceState<NumericalValue<U>>,
-    public val consumerRequest: LateBindDeviceState<NumericalValue<U>> = LateBindDeviceState(NumericalValue(0.0)),
-) : ModelConstructor(context), ContinuousProducerModel<U> {
+    public val algebra: AmountAlgebra<T>,
+    public val capacity: DeviceState<T>,
+    public val consumerRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
+) : ModelConstructor(context), ContinuousProducerModel<T> {
 
     init {
         registerState(capacity)
         registerState(consumerRequest)
     }
 
-    override val production: DeviceState<NumericalValue<U>> = combineState(
+    override val production: DeviceState<T> = combineState(
         first = consumerRequest,
         second = capacity
     ) { request, capacity ->
-        NumericalValue(minOf(request.value, capacity.value))
+        with(algebra) {
+            minOf(request, capacity)
+        }
     }
 
     public val efficiency: DeviceState<Double> = combineState(
@@ -49,7 +50,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement>(
     }
 
     public fun connectConsumer(
-        consumerCapacity: DeviceState<NumericalValue<U>>,
+        consumerCapacity: DeviceState<T>,
     ) {
         this.consumerRequest.bind(consumerCapacity)
     }
@@ -67,21 +68,35 @@ public class ContinuousProducer<U : UnitsOfMeasurement>(
          * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
          * on the minimum of the provided capacity and the consumer's consumption requests.
          */
-        public fun <U : UnitsOfMeasurement> fromConsumer(
-            consumer: ContinuousConsumer<U>,
-            capacity: DeviceState<NumericalValue<U>>,
-        ): ContinuousProducer<U> {
-//            val minCapacity = DeviceState.combine(capacity, consumer.consumation) { capacity, consumation ->
-//                NumericalValue<U>(minOf(capacity.value, consumation.value))
-//            }
+        public fun <T : Amount<*>> fromConsumer(
+            consumer: ContinuousConsumer<T>,
+            capacity: DeviceState<T>,
+        ): ContinuousProducer<T> {
             return ContinuousProducer(
                 context = consumer.context,
+                algebra = consumer.algebra,
                 capacity = capacity,
             ).also { producer ->
                 //provide bi-directional connection
-                Connections.connect(producer,consumer)
+                Connections.connect(producer, consumer)
             }
         }
 
     }
 }
+
+/**
+ * Creates a [ContinuousProducer] instance utilizing numeric amounts with specified units,
+ * constrained by capacity and responding to supply requests.
+ *
+ * @param context The context for managing state and performing operations for the producer.
+ * @param capacity The device state representing the capacity of the producer, defining the maximum output.
+ * @param supplyRequest The deferred-binding state representing the material flow supply requests.
+ * Defaults to a state with an initial value of zero.
+ * @return A new instance of `ContinuousProducer` configured with the provided capacity and supply requests.
+ */
+public fun <U : UnitsOfMeasurement> ContinuousProducer(
+    context: Context,
+    capacity: DeviceState<Numeric<U>>,
+    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
+): ContinuousProducer<Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)

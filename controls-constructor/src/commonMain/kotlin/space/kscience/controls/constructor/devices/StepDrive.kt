@@ -2,7 +2,7 @@ package space.kscience.controls.constructor.devices
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Degrees
-import space.kscience.controls.constructor.units.NumericalValue
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.units.plus
 import space.kscience.controls.constructor.units.times
 import space.kscience.dataforge.context.Context
@@ -57,9 +57,9 @@ public class StepDrive(
  * Compute a state using given tick-to-angle transformation
  */
 public fun StepDrive.angle(
-    step: NumericalValue<Degrees>,
-    zero: NumericalValue<Degrees> = NumericalValue(0),
-): DeviceState<NumericalValue<Degrees>> = position.map {
+    step: Numeric<Degrees>,
+    zero: Numeric<Degrees> = Numeric(0),
+): DeviceState<Numeric<Degrees>> = position.map {
     zero + it * step
 }
 

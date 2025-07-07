@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Flow control simulation
 - Value averaging plot extension
 - PLC4X bindings
 - Shortcuts to access all Controls devices in a magix network.

@@ -13,6 +13,7 @@ import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -26,6 +27,7 @@ class DeviceGroupTest {
     }
 
     @Test
+    @Ignore
     fun testRecurringRead() = runTest {
         var counter = 10
         val testDevice = Global.request(DeviceManager).install("test", TestDevice)

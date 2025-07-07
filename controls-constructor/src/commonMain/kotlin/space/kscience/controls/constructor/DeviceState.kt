@@ -3,7 +3,8 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
-import space.kscience.controls.constructor.units.NumericalValue
+import kotlinx.coroutines.launch
+import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.reflect.KProperty
 
@@ -55,6 +56,8 @@ public fun <T> DeviceState<T>.withDependencies(
 
 /**
  * Create a new read-only [DeviceState] that mirrors receiver state by mapping the value with [mapper].
+ *
+ * This implementation is thread safe and "cold" meaning that it computes values and flows on-demand.
  */
 public fun <T, R> DeviceState.Companion.map(
     state: DeviceState<T>,
@@ -66,21 +69,46 @@ public fun <T, R> DeviceState.Companion.map(
 
     override val valueFlow: Flow<R> = state.valueFlow.map(mapper)
 
-    override fun toString(): String = "DeviceState.map(state=${state})"
+    override fun toString(): String = "DeviceState.map(state=${state}, mapper=$mapper)"
 }
 
 public fun <T, R> DeviceState<T>.map(mapper: (T) -> R): DeviceStateWithDependencies<R> = DeviceState.map(this, mapper)
 
-public fun DeviceState<NumericalValue<out UnitsOfMeasurement>>.values(): DeviceState<Double> =
-    object : DeviceState<Double> {
-        override val value: Double
-            get() = this@values.value.value
 
-        override val valueFlow: Flow<Double>
-            get() = this@values.valueFlow.map { it.value }
+/**
+ * A hot variant of [DeviceState.map]. It allows suspended transformations
+ */
+public fun <T, R> DeviceState.Companion.transform(
+    state: DeviceState<T>,
+    scope: CoroutineScope,
+    initialValue: R,
+    transform: suspend (T) -> R
+): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+    override val dependencies: Collection<DeviceState<*>> = listOf(state)
 
-        override fun toString(): String = this@values.toString()
+    override val valueFlow = MutableStateFlow<R>(initialValue)
+
+    val transformJob = scope.launch {
+        valueFlow.emit(transform(state.value))
+        state.valueFlow.collect {
+            valueFlow.emit(transform(it))
+        }
     }
+
+    override val value: R get() = valueFlow.value
+
+    override fun toString(): String = "DeviceState.transform(state=${state}, transform=$transform)"
+}
+
+public suspend fun <T, R> DeviceState<T>.transform(
+    scope: CoroutineScope,
+    transform: suspend (T) -> R
+): DeviceStateWithDependencies<R> = DeviceState.transform(
+    state = this,
+    scope = scope,
+    initialValue = transform(value),
+    transform = transform
+)
 
 /**
  * Combine two device states into one read-only [DeviceState]. Only the latest value of each state is used.
@@ -133,15 +161,18 @@ public fun <T1, T2, T3, R> DeviceState.Companion.combine(
  * @param mapper a function that takes a collection of state values and maps it to a combined value.
  * @return a [DeviceStateWithDependencies] representing the combined state, which has dependencies on the input [states].
  */
-public inline fun <reified T, R> DeviceState.Companion.combine(
+public fun <T, R> DeviceState.Companion.combine(
     states: Collection<DeviceState<T>>,
-    crossinline mapper: (Array<T>) -> R,
+    mapper: (List<T>) -> R,
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = states
 
-    override val value: R get() = mapper(states.map { it.value }.toTypedArray())
+    override val value: R get() = mapper(states.map { it.value })
 
-    override val valueFlow: Flow<R> = combine<T, R>(states.map { it.valueFlow }, mapper)
+    @Suppress("UNCHECKED_CAST")
+    override val valueFlow: Flow<R> = combine(states.map { it.valueFlow } ){ array: Array<Any?>->
+        mapper(array.asList() as List<T>)
+    }
 
     override fun toString(): String = "DeviceState.combine(states=${states.joinToString()})"
 }
@@ -159,9 +190,9 @@ public inline fun <reified T, R> DeviceState.Companion.combine(
  * @return a `DeviceStateWithDependencies` instance representing the combined state, with its value computed
  *         dynamically based on the input states and the `mapper` function.
  */
-public inline fun <reified T, K, R> DeviceState.Companion.combine(
+public fun <T, K, R> DeviceState.Companion.combine(
     states: Map<K, DeviceState<T>>,
-    crossinline mapper: (Map<K, T>) -> R,
+    mapper: (Map<K, T>) -> R,
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = states.values
 
@@ -169,10 +200,28 @@ public inline fun <reified T, K, R> DeviceState.Companion.combine(
 
     private val entries = states.entries.toList()
 
-    override val valueFlow: Flow<R> = combine<T, R>(entries.map { it.value.valueFlow }) { array: Array<T> ->
+    @Suppress("UNCHECKED_CAST")
+    override val valueFlow: Flow<R> = combine(entries.map { it.value.valueFlow }) { array: Array<Any?> ->
         // restore mapping
-        mapper(entries.indices.associate { entries[it].key to array[it] })
+        mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
     }
 
     override fun toString(): String = "DeviceState.associate(states=${states})"
 }
+
+/**
+ * Transforms a [DeviceState] containing a [Amount] with specific [UnitsOfMeasurement]
+ * into a [DeviceState] containing a [Double] representing the underlying numerical value.
+ *
+ * @return A new [DeviceState] object that provides the numerical value as a [Double].
+ */
+public fun DeviceState<Amount<out UnitsOfMeasurement>>.values(): DeviceState<Double> =
+    object : DeviceState<Double> {
+        override val value: Double
+            get() = this@values.value.value
+
+        override val valueFlow: Flow<Double>
+            get() = this@values.valueFlow.map { it.value }
+
+        override fun toString(): String = this@values.toString()
+    }

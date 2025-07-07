@@ -6,7 +6,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.models.flow.*
 import space.kscience.controls.constructor.units.Kilograms
-import space.kscience.controls.constructor.units.NV
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.dataforge.context.Global
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,8 +15,8 @@ class ContinuousFlowTest {
     @Test
     fun producerConsumer() = runTest {
 
-        val productionCapacity = MutableDeviceState(NV<Kilograms>(4.0))
-        val consumationCapacity = MutableDeviceState(NV<Kilograms>(1.0))
+        val productionCapacity = MutableDeviceState(Numeric<Kilograms>(4.0))
+        val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
 
         val consumer = ContinuousConsumer(Global, consumationCapacity)
 
@@ -26,12 +26,12 @@ class ContinuousFlowTest {
         assertEquals(1.0, producer.production.value.value)
         assertEquals(1.0, consumer.consumation.value.value)
 
-        consumationCapacity.value = NV(2.0)
+        consumationCapacity.value = Numeric(2.0)
 
         assertEquals(2.0, producer.production.value.value)
         assertEquals(2.0, consumer.consumation.value.value)
 
-        consumationCapacity.value = NV(5.0)
+        consumationCapacity.value = Numeric(5.0)
 
         assertEquals(4.0, producer.production.value.value)
         assertEquals(4.0, consumer.consumation.value.value)
@@ -59,10 +59,10 @@ class ContinuousFlowTest {
      */
     @Test
     fun join() = runTest {
-        val aProduction = MutableDeviceState(NV<Kilograms>(1.0))
-        val bProduction = MutableDeviceState(NV<Kilograms>(2.0))
-        val cProduction = MutableDeviceState(NV<Kilograms>(3.0))
-        val abcConsumation = MutableDeviceState(NV<Kilograms>(8.0))
+        val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
+        val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
+        val cProduction = MutableDeviceState(Numeric<Kilograms>(3.0))
+        val abcConsumation = MutableDeviceState(Numeric<Kilograms>(8.0))
 
         val joinAB = ContinuousJoin<Kilograms>(context = Global, listOf("a", "b"))
 
@@ -80,23 +80,23 @@ class ContinuousFlowTest {
         joinABC.production.printEach(this, "joinABC.production")
         joinABC.consumation.printEach(this, "joinABC.consumation")
 
-        assertEquals(NV(6.0), joinABC.production.value)
+        assertEquals(Numeric(6.0), joinABC.production.value)
 
         assertEquals(1.0, joinAB.partialConsumation["a"]?.value?.value)
 
-        abcConsumation.value = NV(3.0)
+        abcConsumation.value = Numeric(3.0)
 
-        assertEquals(NV(1.5), joinAB.production.value)
+        assertEquals(Numeric(1.5), joinAB.production.value)
 
         assertEquals(0.5, joinAB.partialConsumation["a"]?.value?.value)
 
-        abcConsumation.value = NV(4.0)
-        aProduction.value = NV(7.0)
+        abcConsumation.value = Numeric(4.0)
+        aProduction.value = Numeric(7.0)
 
         assertEquals(3.0, joinAB.production.value.value, 1e-5)
         assertEquals(2.33333, joinAB.partialConsumation["a"]!!.value.value, 1e-3)
 
-        abcConsumation.value = NV(15.0)
+        abcConsumation.value = Numeric(15.0)
 
         assertEquals(9.0, joinAB.production.value.value, 1e-5)
         assertEquals(7.0, joinAB.partialConsumation["a"]?.value?.value)

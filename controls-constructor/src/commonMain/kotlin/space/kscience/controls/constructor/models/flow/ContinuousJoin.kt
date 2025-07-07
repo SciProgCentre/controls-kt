@@ -1,9 +1,7 @@
 package space.kscience.controls.constructor.models.flow
 
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.units.NumericalValue
-import space.kscience.controls.constructor.units.UnitsOfMeasurement
-import space.kscience.controls.constructor.units.times
+import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
 
@@ -12,11 +10,11 @@ public enum class JoinManagementStrategy {
     ORDERED
 }
 
+
 /**
  * A class responsible for managing material flow by combining supply and consumer requests with specific
  * strategies. The resulting flows are calculated based on the defined management strategy.
  *
- * @param U The unit of measurement applied to the numerical values handled by this class.
  * @param context The context in which the material flow is managed.
  * @param consumerRequest The state representing the total amount requested by consumers.
  * @param supplyRequest The map of supplier identifiers to their respective supply states.
@@ -27,15 +25,16 @@ public enum class JoinManagementStrategy {
  * of available material flow across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
  */
-public class ContinuousJoin<U : UnitsOfMeasurement>(
+public class ContinuousJoin<T : Amount<*>>(
     context: Context,
+    public val algebra: AmountAlgebra<T>,
     public val outputNames: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : ModelConstructor(context), ContinuousProducerModel<U> {
+) : ModelConstructor(context), ContinuousProducerModel<T> {
 
-    public val consumerRequest: LateBindDeviceState<NumericalValue<U>> = LateBindDeviceState(NumericalValue(0.0))
-    public val supplyRequest: Map<String, LateBindDeviceState<NumericalValue<U>>> = outputNames.associateWith {
-        LateBindDeviceState(NumericalValue(0.0))
+    public val consumerRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero)
+    public val supplyRequest: Map<String, LateBindDeviceState<T>> = outputNames.associateWith {
+        LateBindDeviceState(algebra.zero)
     }
 
 
@@ -44,61 +43,83 @@ public class ContinuousJoin<U : UnitsOfMeasurement>(
         supplyRequest.values.forEach(::registerState)
     }
 
-    private val jointSupplyRequest: DeviceState<Map<String, NumericalValue<U>>> =
+    // trick with casts is needed for reification to work
+    @Suppress("UNCHECKED_CAST")
+    private val jointSupplyRequest: DeviceState<Map<String, T>> =
         DeviceState.combine(supplyRequest) { it }
 
 
-    public val consumation: DeviceState<Map<String, NumericalValue<U>>> = DeviceState.combine(
+    public val consumation: DeviceState<Map<String, T>> = DeviceState.combine(
         consumerRequest, jointSupplyRequest
-    ) { consumerRequest, supplyRequest: Map<String, NumericalValue<U>> ->
+    ) { consumerRequest, supplyRequest: Map<String, T> ->
 
-        val totalInput = supplyRequest.values.sumOf { it.value }
-        val totalOutput = consumerRequest.value
+        with(algebra) {
+            val totalInput: T = sum(supplyRequest.values)
+            val totalOutput: T = consumerRequest
 
-        when (joinManagementStrategy) {
-            JoinManagementStrategy.PROPORTIONAL -> {
-                if (totalInput <= totalOutput) {
-                    // Insufficient input. Give all that you have.
-                    supplyRequest.mapValues { it.value }
-                } else {
-                    // Sufficient input. Proportionally distributed.
-                    val ratio = totalOutput / totalInput
-                    supplyRequest.mapValues { it.value * ratio }
-                }
-            }
-
-            JoinManagementStrategy.ORDERED -> buildMap {
-                var cumSum = 0.0
-                for ((key, value) in supplyRequest) {
-                    if (cumSum + value.value > totalOutput) {
-                        put(key, NumericalValue(totalOutput - cumSum))
-                        break
+            when (joinManagementStrategy) {
+                JoinManagementStrategy.PROPORTIONAL -> {
+                    if (totalInput <= totalOutput) {
+                        // Insufficient input. Give all that you have.
+                        supplyRequest.mapValues { it.value }
                     } else {
-                        put(key, value)
-                        cumSum += value.value
+                        // Sufficient input. Proportionally distributed.
+                        val ratio: Double = totalOutput.value / totalInput.value
+                        supplyRequest.mapValues { it.value * ratio }
+                    }
+                }
+
+                JoinManagementStrategy.ORDERED -> buildMap {
+                    var cumSum = zero
+                    for ((key, value) in supplyRequest) {
+                        if (cumSum + value > totalOutput) {
+                            put(key, totalOutput - cumSum)
+                            break
+                        } else {
+                            put(key, value)
+                            cumSum += value
+                        }
                     }
                 }
             }
+
         }
     }
 
-    public val partialConsumation: Map<String, DeviceState<NumericalValue<U>>> =
+    public val partialConsumation: Map<String, DeviceState<T>> =
         supplyRequest.keys.associateWith { key ->
             consumation.map { it[key]!! }
         }
 
-    public val maximumProduction: DeviceState<NumericalValue<U>> = DeviceState.combine(supplyRequest.values) { array ->
-        NumericalValue(array.sumOf { it.value })
+    public val maximumProduction: DeviceState<T> = DeviceState.combine(supplyRequest.values) { array ->
+        algebra.sum(array)
+
     }
 
-    override val production: DeviceState<NumericalValue<U>> = consumation.map { consume ->
-        NumericalValue(consume.values.sumOf { it.value })
+    override val production: DeviceState<T> = consumation.map { consume ->
+        algebra.sum(consume.values)
     }
 
 
     override fun toString(): String =
-        "MaterialFlowJoin(strategy=$joinManagementStrategy, consumation=${consumation.value}, production=${production.value})"
+        "ContinuousJoin(strategy=$joinManagementStrategy, consumation=${consumation.value}, production=${production.value})"
 }
+
+/**
+ * Creates a continuous join model instance that is responsible for managing material flow by combining supply
+ * and consumer requests with a specific join management strategy.
+ *
+ * @param context The context in which the material flow is managed.
+ * @param outputNames A collection of output state identifiers representing the suppliers.
+ * @param joinManagementStrategy The strategy used to distribute available supply to consumers. Defaults to
+ * JoinManagementStrategy.PROPORTIONAL.
+ * @return A ContinuousJoin instance configured with numeric values coupled to units of measurement.
+ */
+public fun <U : UnitsOfMeasurement> ContinuousJoin(
+    context: Context,
+    outputNames: Collection<String>,
+    joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL
+): ContinuousJoin<Numeric<U>> = ContinuousJoin(context, NumericAmountAlgebra<U>(), outputNames, joinManagementStrategy)
 
 /**
  * Converts a [ContinuousJoin] instance into a [ContinuousProducer] instance.
@@ -110,8 +131,12 @@ public class ContinuousJoin<U : UnitsOfMeasurement>(
  *
  * @return A [ContinuousProducer] representing the material flow output of the [ContinuousJoin].
  */
-public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.asProducer(): ContinuousProducer<U> =
-    ContinuousProducer(context, maximumProduction, consumerRequest)
+public fun <T : Amount<*>> ContinuousJoin<T>.asProducer(): ContinuousProducer<T> = ContinuousProducer(
+    context = context,
+    algebra = algebra,
+    capacity = maximumProduction,
+    consumerRequest = consumerRequest
+)
 
 /**
  * Converts a material flow join instance into a material flow consumer using a specified supplier key.
@@ -120,48 +145,55 @@ public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.asProducer(): ContinuousPr
  * @return A [ContinuousConsumer] instance configured with the supply request specified by the given key.
  * @throws IllegalStateException If no supplier with the given key is found in the supply requests.
  */
-public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.asConsumer(
+public fun <T : Amount<*>> ContinuousJoin<T>.asConsumer(
     key: String
-): ContinuousConsumer<U> = supplyRequest[key]?.let { input ->
-    ContinuousConsumer(context, partialConsumation[key]!!, input)
+): ContinuousConsumer<T> = supplyRequest[key]?.let { input ->
+    ContinuousConsumer(
+        context = context,
+        algebra = algebra,
+        capacity = partialConsumation[key]!!,
+        supplyRequest = input
+    )
 } ?: error("No supplier with key $key found")
 
 
 /**
  * Connect a consumer to this [ContinuousJoin]
  */
-public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectConsumer(
-    consumer: ContinuousConsumer<U>
+public fun <T : Amount<*>> ContinuousJoin<T>.connectConsumer(
+    consumer: ContinuousConsumer<T>
 ) {
     Connections.connect(this.asProducer(), consumer)
 }
 
-public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectConsumer(
-    consumerCapacity: DeviceState<NumericalValue<U>>
-){
+public fun <T : Amount<*>> ContinuousJoin<T>.connectConsumer(
+    consumerCapacity: DeviceState<T>
+) {
     consumerRequest.bind(consumerCapacity)
 }
 
-public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectProducer(
+public fun <T : Amount<*>> ContinuousJoin<T>.connectProducer(
     key: String,
-    producer: ContinuousProducer<U>
+    producer: ContinuousProducer<T>
 ) {
     Connections.connect(producer, this.asConsumer(key))
 }
 
-public fun <U : UnitsOfMeasurement> ContinuousJoin<U>.connectProducer(
+public fun <T : Amount<*>> ContinuousJoin<T>.connectProducer(
     key: String,
-    producerCapacity: DeviceState<NumericalValue<U>>
+    producerCapacity: DeviceState<T>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
 
-public fun <U : UnitsOfMeasurement> ContinuousJoin(
-    producers: Map<String, ContinuousProducer<U>>,
-    consumer: ContinuousConsumer<U>,
+public fun <T : Amount<*>> ContinuousJoin(
+    producers: Map<String, ContinuousProducer<T>>,
+    consumer: ContinuousConsumer<T>,
+    algebra: AmountAlgebra<T> = consumer.algebra,
     context: Context = producers.values.first().context,
-): ContinuousJoin<U> = ContinuousJoin<U>(
+): ContinuousJoin<T> = ContinuousJoin<T>(
     context = context,
+    algebra = algebra,
     outputNames = producers.keys
 ).also { join ->
     join.connectConsumer(consumer)

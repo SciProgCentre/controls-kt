@@ -5,9 +5,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import space.kscience.controls.api.ExperimentalControlsApi
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.NumericalValue
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.controls.constructor.units.times
 import space.kscience.controls.time.ValueWithTime
@@ -21,18 +22,21 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 
 
+@ExperimentalControlsApi
 public data class DiscreteFlowPacket<U : UnitsOfMeasurement>(
     val source: Name,
     val amount: Amount<U>,
     val creationTime: Instant
 )
 
+@ExperimentalControlsApi
 public interface DiscreteFlowModel : Model
 
 
 /**
  * Actor suspends [emit] when it can't consume package
  */
+@ExperimentalControlsApi
 public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteFlowPacket<U>> {
 
     /**
@@ -44,10 +48,11 @@ public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteF
 /**
  * Non-invasive measurement of flow rate. Writes values to [target]
  */
+@ExperimentalControlsApi
 internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
     clock: Clock,
     target: MutableDeviceState<Amount<U>>,
-    numberOfPackages: Int = 6
+    numberOfPackages: Int = 10
 ): Flow<DiscreteFlowPacket<U>> {
     require(numberOfPackages > 2) { "Number of packages must be more than 2 to calculate average" }
 
@@ -66,7 +71,7 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
             val timeDelta = buffer.last().time - buffer.first().time
             val amount = buffer.drop(1).sumOf { it.value.amount.value }
             val rate = amount / timeDelta.toDouble(DurationUnit.SECONDS)
-            target.value = NumericalValue(rate)
+            target.value = Numeric(rate)
         }
     }
 }
@@ -74,9 +79,10 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
 /**
  * Limits input of the incoming flow to [limit] per second
  */
+@ExperimentalControlsApi
 internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
     clock: Clock,
-    limit: suspend () -> NumericalValue<U>
+    limit: suspend () -> Numeric<U>
 ): Flow<DiscreteFlowPacket<U>> = flow {
     // last package time
     var time = clock.now()
@@ -102,9 +108,10 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
 /**
  * A consumer for discrete material flow
  */
+@ExperimentalControlsApi
 public class DiscreteConsumer<U : UnitsOfMeasurement>(
     context: Context,
-    public val capacity: DeviceState<NumericalValue<U>>,
+    public val capacity: DeviceState<Numeric<U>>,
     public var target: FlowCollector<DiscreteFlowPacket<U>>? = null
 ) : ModelConstructor(context, capacity), DiscreteActor<U> {
 
@@ -116,7 +123,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         channel.send(value)
     }
 
-    private val _consumation = MutableDeviceState<Amount<U>>(NumericalValue(0.0))
+    private val _consumation = MutableDeviceState<Amount<U>>(Numeric(0.0))
 
     override val consumation: DeviceState<Amount<U>> get() = _consumation
 
@@ -138,20 +145,22 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
 
 }
 
+@ExperimentalControlsApi
 public fun <U : UnitsOfMeasurement> DiscreteFlowModel.registerConsumer(
-    capacity: DeviceState<NumericalValue<U>>,
+    capacity: DeviceState<Numeric<U>>,
     target: FlowCollector<DiscreteFlowPacket<U>>? = null
 ): DiscreteConsumer<U> = model(DiscreteConsumer(context, capacity, target))
 
+@ExperimentalControlsApi
 public class DiscreateProducer<U : UnitsOfMeasurement>(
     context: Context,
-    public val capacity: DeviceState<NumericalValue<U>>,
+    public val capacity: DeviceState<Numeric<U>>,
     public var target: DiscreteActor<U>,
     private val packageInterval: Duration = 0.1.seconds,
 ) : ModelConstructor(context, capacity) {
     override val name: Name = NameToken("producer", hashCode().toHexString()).asName()
 
-    private val _production = MutableDeviceState<Amount<U>>(NumericalValue(0.0))
+    private val _production = MutableDeviceState<Amount<U>>(Numeric(0.0))
 
     public val production: DeviceState<Amount<U>> get() = _production
 
@@ -175,8 +184,9 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
     ).launchIn(this)
 }
 
+@ExperimentalControlsApi
 public fun <U : UnitsOfMeasurement> DiscreteFlowModel.registerProducer(
-    capacity: DeviceState<NumericalValue<U>>,
+    capacity: DeviceState<Numeric<U>>,
     target: DiscreteActor<U>,
     packageInterval: Duration = 0.1.seconds
 ): DiscreateProducer<U> = model(DiscreateProducer(context, capacity, target, packageInterval))

@@ -4,8 +4,8 @@ import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.property
 import space.kscience.controls.constructor.units.Degrees
-import space.kscience.controls.constructor.units.NumericalValue
-import space.kscience.controls.constructor.units.numerical
+import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.numericalValue
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 
@@ -14,7 +14,7 @@ import space.kscience.dataforge.meta.MetaConverter
  */
 public class EncoderDevice(
     context: Context,
-    position: DeviceState<NumericalValue<Degrees>>
+    position: DeviceState<Numeric<Degrees>>
 ) : DeviceConstructor(context) {
-    public val position: DeviceState<NumericalValue<Degrees>> by property(MetaConverter.numerical<Degrees>(), position)
+    public val position: DeviceState<Numeric<Degrees>> by property(MetaConverter.numericalValue<Degrees>(), position)
 }

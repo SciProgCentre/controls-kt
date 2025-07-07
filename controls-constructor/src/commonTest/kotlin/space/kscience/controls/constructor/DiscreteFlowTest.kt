@@ -5,20 +5,21 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
+import space.kscience.controls.api.ExperimentalControlsApi
 import space.kscience.controls.constructor.models.flow.DiscreteFlowModel
 import space.kscience.controls.constructor.models.flow.registerConsumer
 import space.kscience.controls.constructor.models.flow.registerProducer
 import space.kscience.controls.constructor.units.Kilograms
-import space.kscience.controls.constructor.units.NV
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
+@OptIn(ExperimentalControlsApi::class)
 class DiscreteFlowTest {
 
     val epoch = Instant.fromEpochMilliseconds(0L)
@@ -30,8 +31,8 @@ class DiscreteFlowTest {
     @Test
     fun pipe() = runTest {
 
-        val production = MutableDeviceState(NV<Kilograms>(4.0))
-        val consumation = MutableDeviceState(NV<Kilograms>(1.0))
+        val production = MutableDeviceState(Numeric<Kilograms>(4.0))
+        val consumation = MutableDeviceState(Numeric<Kilograms>(1.0))
 
         object : ModelConstructor(context), DiscreteFlowModel {
             override val name: Name = "test".asName()
@@ -58,13 +59,13 @@ class DiscreteFlowTest {
             assertEquals(1.0, producer.production.value.value, 1e-4)
             assertEquals(1.0, consumer.consumation.value.value, 1e-4)
 
-            consumation.value = NV(4.0)
+            consumation.value = Numeric(4.0)
             delay(1.seconds)
 
             assertEquals(4.0, producer.production.value.value, 1e-4)
             assertEquals(4.0, consumer.consumation.value.value, 1e-4)
 
-            consumation.value = NV(6.0)
+            consumation.value = Numeric(6.0)
             delay(1.seconds)
 
             assertEquals(4.0, producer.production.value.value, 1e-4)
@@ -76,14 +77,13 @@ class DiscreteFlowTest {
 
 
     @Test
-    @Ignore
     fun join() = runTest {
 
-        val a = MutableDeviceState(NV<Kilograms>(1.0))
-        val b = MutableDeviceState(NV<Kilograms>(2.0))
-        val c = MutableDeviceState(NV<Kilograms>(3.0))
-        val ab = MutableDeviceState(NV<Kilograms>(Double.POSITIVE_INFINITY))
-        val abc = MutableDeviceState(NV<Kilograms>(8.0))
+        val a = MutableDeviceState(Numeric<Kilograms>(1.0))
+        val b = MutableDeviceState(Numeric<Kilograms>(2.0))
+        val c = MutableDeviceState(Numeric<Kilograms>(3.0))
+        val ab = MutableDeviceState(Numeric<Kilograms>(Double.POSITIVE_INFINITY))
+        val abc = MutableDeviceState(Numeric<Kilograms>(8.0))
 
         val model = object : ModelConstructor(context), DiscreteFlowModel {
             val joinABC = registerConsumer(abc) {
@@ -107,7 +107,7 @@ class DiscreteFlowTest {
             assertEquals(2.0, bProducer.production.value.value, 1e-4)
             assertEquals(1.0, aProducer.production.value.value, 1e-4)
 
-            abc.value = NV(3.0)
+            abc.value = Numeric(3.0)
             delay(2.seconds)
 
             assertEquals(3.0, joinABC.consumation.value.value, 1e-1)
