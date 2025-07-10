@@ -87,6 +87,7 @@ class VirtualTimeTest {
 //        println(collector.joinToString("\n"))
             assertTrue { collector.distinctBy { it.time }.size > 4 }
             assertTrue { collector.sortedBy { it.time } == collector }
+            context.close()
         }
     }
 }

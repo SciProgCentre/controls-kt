@@ -138,7 +138,7 @@ public suspend fun MagixEndpoint.remoteDevice(
         .map { it.second }
         .filter {
             it.sourceDevice == null || it.sourceDevice == deviceName
-        }
+        }.shareIn(context, SharingStarted.Lazily,10)
 
     val deferredDescriptorMessage = CompletableDeferred<DescriptionMessage>()
 
