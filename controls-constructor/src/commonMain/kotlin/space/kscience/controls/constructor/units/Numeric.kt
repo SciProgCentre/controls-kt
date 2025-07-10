@@ -1,5 +1,8 @@
 package space.kscience.controls.constructor.units
 
+import space.kscience.controls.constructor.DeviceState
+import space.kscience.controls.constructor.DeviceStateWithDependencies
+import space.kscience.controls.constructor.map
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
@@ -10,7 +13,15 @@ import kotlin.jvm.JvmInline
  * A value without identity coupled to units of measurements.
  */
 @JvmInline
-public value class Numeric<U : UnitsOfMeasurement>(override val value: Double) : Amount<U>
+public value class Numeric<U : UnitsOfMeasurement>(override val value: Double) : Amount<U> {
+    public companion object {
+
+        private val zero: Numeric<Nothing> = Numeric(0.0)
+
+        @Suppress("UNCHECKED_CAST")
+        public fun <U : UnitsOfMeasurement> zero(): Numeric<U> = zero as Numeric<U>
+    }
+}
 
 public fun <U : UnitsOfMeasurement> Numeric(
     number: Number,
@@ -47,7 +58,11 @@ public operator fun <U : UnitsOfMeasurement> Numeric<U>.div(
 public operator fun <U : UnitsOfMeasurement> Numeric<U>.div(other: Numeric<U>): Double =
     value / other.value
 
-public operator fun <U: UnitsOfMeasurement> Numeric<U>.unaryMinus(): Numeric<U> = Numeric(-value)
+public operator fun <U : UnitsOfMeasurement> Numeric<U>.unaryMinus(): Numeric<U> = Numeric(-value)
+
+public fun <U : UnitsOfMeasurement> Amount<U>.asNumeric() = this as? Numeric<U> ?: Numeric(value)
+
+public fun <U : UnitsOfMeasurement> DeviceState<Amount<U>>.asNumeric(): DeviceStateWithDependencies<Numeric<U>> = map { it.asNumeric() }
 
 
 private object NumericalValueMetaConverter : MetaConverter<Numeric<*>> {
@@ -57,5 +72,5 @@ private object NumericalValueMetaConverter : MetaConverter<Numeric<*>> {
 }
 
 @Suppress("UNCHECKED_CAST")
-public fun <U : UnitsOfMeasurement> MetaConverter.Companion.numericalValue(): MetaConverter<Numeric<U>> =
+public fun <U : UnitsOfMeasurement> MetaConverter.Companion.numeric(): MetaConverter<Numeric<U>> =
     NumericalValueMetaConverter as MetaConverter<Numeric<U>>

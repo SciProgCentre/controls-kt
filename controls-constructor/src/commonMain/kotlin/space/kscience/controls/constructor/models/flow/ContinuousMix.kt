@@ -25,14 +25,14 @@ public enum class JoinManagementStrategy {
  * of available material flow across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
  */
-public class ContinuousJoin<T : Amount<*>>(
+public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<T>,
+    public val algebra: AmountAlgebra<U, T>,
     public val outputNames: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : ModelConstructor(context), ContinuousProducerModel<T> {
+) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
-    public val consumerRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero)
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero())
     public val supplyRequest: Map<String, LateBindDeviceState<T>> = outputNames.associateWith {
         LateBindDeviceState(algebra.zero)
     }
@@ -55,7 +55,7 @@ public class ContinuousJoin<T : Amount<*>>(
 
         with(algebra) {
             val totalInput: T = sum(supplyRequest.values)
-            val totalOutput: T = consumerRequest
+            val totalOutput: Numeric<U> = consumerRequest
 
             when (joinManagementStrategy) {
                 JoinManagementStrategy.PROPORTIONAL -> {
@@ -72,12 +72,13 @@ public class ContinuousJoin<T : Amount<*>>(
                 JoinManagementStrategy.ORDERED -> buildMap {
                     var cumSum = zero
                     for ((key, value) in supplyRequest) {
-                        if (cumSum + value > totalOutput) {
-                            put(key, totalOutput - cumSum)
+                        val sumAfter = (cumSum + value).coerceValueIn(cumSum..totalOutput)
+                        if(sumAfter.value == totalOutput.value){
+                            put(key, sumAfter - cumSum)
                             break
                         } else {
                             put(key, value)
-                            cumSum += value
+                            cumSum = sumAfter
                         }
                     }
                 }
@@ -91,7 +92,7 @@ public class ContinuousJoin<T : Amount<*>>(
             consumation.map { it[key]!! }
         }
 
-    public val maximumProduction: DeviceState<T> = DeviceState.combine(supplyRequest.values) { array ->
+    override val productionCapacity: DeviceState<T> = DeviceState.combine(supplyRequest.values) { array ->
         algebra.sum(array)
 
     }
@@ -115,28 +116,30 @@ public class ContinuousJoin<T : Amount<*>>(
  * JoinManagementStrategy.PROPORTIONAL.
  * @return A ContinuousJoin instance configured with numeric values coupled to units of measurement.
  */
-public fun <U : UnitsOfMeasurement> ContinuousJoin(
+public fun <U : UnitsOfMeasurement> ContinuousMix(
     context: Context,
     outputNames: Collection<String>,
     joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL
-): ContinuousJoin<Numeric<U>> = ContinuousJoin(context, NumericAmountAlgebra<U>(), outputNames, joinManagementStrategy)
+): ContinuousMix<U, Numeric<U>> =
+    ContinuousMix(context, NumericAmountAlgebra<U>(), outputNames, joinManagementStrategy)
 
-/**
- * Converts a [ContinuousJoin] instance into a [ContinuousProducer] instance.
- *
- * This transformation allows the material flow managed by the `MaterialFlowJoin` to be
- * represented as a producer model, enabling compatibility with systems or components
- * that consume material flow from producer models. The producer's production state will
- * reflect the output capacity of the join based on consumer requests.
- *
- * @return A [ContinuousProducer] representing the material flow output of the [ContinuousJoin].
- */
-public fun <T : Amount<*>> ContinuousJoin<T>.asProducer(): ContinuousProducer<T> = ContinuousProducer(
-    context = context,
-    algebra = algebra,
-    capacity = maximumProduction,
-    consumerRequest = consumerRequest
-)
+///**
+// * Converts a [ContinuousMix] instance into a [ContinuousProducer] instance.
+// *
+// * This transformation allows the material flow managed by the `MaterialFlowJoin` to be
+// * represented as a producer model, enabling compatibility with systems or components
+// * that consume material flow from producer models. The producer's production state will
+// * reflect the output capacity of the join based on consumer requests.
+// *
+// * @return A [ContinuousProducer] representing the material flow output of the [ContinuousMix].
+// */
+//public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.asProducer(): ContinuousProducer<U, T> =
+//    ContinuousProducer(
+//        context = context,
+//        algebra = algebra,
+//        productionCapacity = productionCapacity,
+//        consumerRequest = consumerRequest
+//    )
 
 /**
  * Converts a material flow join instance into a material flow consumer using a specified supplier key.
@@ -145,53 +148,53 @@ public fun <T : Amount<*>> ContinuousJoin<T>.asProducer(): ContinuousProducer<T>
  * @return A [ContinuousConsumer] instance configured with the supply request specified by the given key.
  * @throws IllegalStateException If no supplier with the given key is found in the supply requests.
  */
-public fun <T : Amount<*>> ContinuousJoin<T>.asConsumer(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
     key: String
-): ContinuousConsumer<T> = supplyRequest[key]?.let { input ->
+): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
     ContinuousConsumer(
         context = context,
         algebra = algebra,
-        capacity = partialConsumation[key]!!,
+        consumationCapacity = partialConsumation[key]!!.asNumeric(),
         supplyRequest = input
     )
 } ?: error("No supplier with key $key found")
 
 
 /**
- * Connect a consumer to this [ContinuousJoin]
+ * Connect a consumer to this [ContinuousMix]
  */
-public fun <T : Amount<*>> ContinuousJoin<T>.connectConsumer(
-    consumer: ContinuousConsumer<T>
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectConsumer(
+    consumer: ContinuousConsumerInterface<U, T>
 ) {
-    Connections.connect(this.asProducer(), consumer)
+    ContinuousFlowModel.connect(this, consumer)
 }
 
-public fun <T : Amount<*>> ContinuousJoin<T>.connectConsumer(
-    consumerCapacity: DeviceState<T>
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectConsumer(
+    consumerCapacity: DeviceState<Numeric<U>>
 ) {
     consumerRequest.bind(consumerCapacity)
 }
 
-public fun <T : Amount<*>> ContinuousJoin<T>.connectProducer(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
-    producer: ContinuousProducer<T>
+    producer: ContinuousProducerInterface<U, T>
 ) {
-    Connections.connect(producer, this.asConsumer(key))
+    ContinuousFlowModel.connect(producer, this.asConsumer(key))
 }
 
-public fun <T : Amount<*>> ContinuousJoin<T>.connectProducer(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
     producerCapacity: DeviceState<T>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
 
-public fun <T : Amount<*>> ContinuousJoin(
-    producers: Map<String, ContinuousProducer<T>>,
-    consumer: ContinuousConsumer<T>,
-    algebra: AmountAlgebra<T> = consumer.algebra,
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix(
+    producers: Map<String, ContinuousProducer<U, T>>,
+    consumer: ContinuousConsumer<U, T>,
+    algebra: AmountAlgebra<U, T> = consumer.algebra,
     context: Context = producers.values.first().context,
-): ContinuousJoin<T> = ContinuousJoin<T>(
+): ContinuousMix<U, T> = ContinuousMix<U, T>(
     context = context,
     algebra = algebra,
     outputNames = producers.keys

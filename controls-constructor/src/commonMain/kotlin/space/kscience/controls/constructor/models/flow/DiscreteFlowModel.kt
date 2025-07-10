@@ -30,7 +30,8 @@ public data class DiscreteFlowPacket<U : UnitsOfMeasurement>(
 )
 
 @ExperimentalControlsApi
-public interface DiscreteFlowModel : Model
+public abstract class DiscreteFlowModel(context: Context, vararg dependencies: DeviceState<*>) :
+    ModelConstructor(context, *dependencies)
 
 
 /**

@@ -1,17 +1,41 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import space.kscience.controls.constructor.models.flow.*
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.time.withVirtualTime
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 class ContinuousFlowTest {
+
+    val epoch = Instant.fromEpochMilliseconds(0L)
+
+    val context = Context("test") {
+        withVirtualTime(epoch)
+    }
+
+    fun DeviceState<*>.printEach(scope: TestScope, stateName: String) {
+        fun printOne(value: Any?) {
+            println("$stateName: $value")
+        }
+
+        printOne(value)
+
+        valueFlow.onEach {
+            printOne(it)
+        }.launchIn(scope.backgroundScope)
+    }
+
     @Test
     fun producerConsumer() = runTest {
 
@@ -38,18 +62,6 @@ class ContinuousFlowTest {
 
     }
 
-    fun DeviceState<*>.printEach(scope: TestScope, stateName: String) {
-        fun printOne(value: Any?) {
-            println("$stateName: $value")
-        }
-
-        printOne(value)
-
-        valueFlow.onEach {
-            printOne(it)
-        }.launchIn(scope.backgroundScope)
-    }
-
     /**
      * a  b
      * |  |
@@ -58,22 +70,22 @@ class ContinuousFlowTest {
      *  (abc)
      */
     @Test
-    fun join() = runTest {
+    fun mix() = runTest {
         val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
         val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
         val cProduction = MutableDeviceState(Numeric<Kilograms>(3.0))
         val abcConsumation = MutableDeviceState(Numeric<Kilograms>(8.0))
 
-        val joinAB = ContinuousJoin<Kilograms>(context = Global, listOf("a", "b"))
+        val joinAB = ContinuousMix<Kilograms>(context = Global, listOf("a", "b"))
 
         joinAB.connectProducer("a", aProduction)
         joinAB.connectProducer("b", bProduction)
 
         joinAB.production.printEach(this, "joinAB.production")
 
-        val joinABC = ContinuousJoin<Kilograms>(context = Global, listOf("ab", "c"))
+        val joinABC = ContinuousMix<Kilograms>(context = Global, listOf("ab", "c"))
 
-        joinABC.connectProducer("ab", joinAB.asProducer())
+        joinABC.connectProducer("ab", joinAB)
         joinABC.connectProducer("c", cProduction)
         joinABC.connectConsumer(abcConsumation)
 
@@ -102,4 +114,51 @@ class ContinuousFlowTest {
         assertEquals(7.0, joinAB.partialConsumation["a"]?.value?.value)
     }
 
+
+    @Test
+    fun buffer() = runTest {
+
+        val model = object : ContinuousFlowModel(context) {
+            val bufferCapacity = Numeric<Kilograms>(10.0)
+
+            val productionCapacity = MutableDeviceState(Numeric<Kilograms>(2.0))
+            val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
+
+            val producer = producer(productionCapacity)
+
+            val buffer = ContinuousBuffer(context, bufferCapacity)
+
+            val consumer = consumer(consumationCapacity)
+        }.runSimulation {
+
+            ContinuousFlowModel.connect(producer = producer, consumer = buffer)
+            ContinuousFlowModel.connect(producer = buffer, consumer = consumer)
+
+            buffer.content.valueFlow.onEach {
+                println("content: $it (${clock.now() - epoch})")
+            }.launchIn(backgroundScope)
+
+
+            assertEquals(2.0, producer.production.value.value)
+            assertEquals(1.0, consumer.consumation.value.value)
+
+            delay(11.seconds)
+
+            assertEquals(1.0, producer.production.value.value)
+            assertEquals(1.0, consumer.consumation.value.value)
+
+            productionCapacity.value = Numeric(1.0)
+            consumationCapacity.value = Numeric(2.0)
+
+            assertEquals(1.0, producer.production.value.value)
+            assertEquals(2.0, consumer.consumation.value.value)
+
+            delay(11.seconds)
+
+            assertEquals(1.0, producer.production.value.value)
+            assertEquals(1.0, consumer.consumation.value.value)
+
+
+        }
+    }
 }

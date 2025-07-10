@@ -23,18 +23,18 @@ public class TimerState(
     initialValue: Instant = Instant.DISTANT_PAST,
 ) : DeviceState<Instant> {
 
-    private val clock = MutableStateFlow(initialValue)
+    private val time = MutableStateFlow(initialValue)
 
     private val updateJob = clockManager.context.launch(clockManager.simulationDispatcher) {
         while (isActive) {
-            clock.value = clockManager.clock.now()
+            time.value = clockManager.clock.now()
             delay(tick)
         }
     }
 
-    override val valueFlow: Flow<Instant> get() = clock
+    override val valueFlow: Flow<Instant> get() = time
 
-    override val value: Instant get() = clock.value
+    override val value: Instant get() = time.value
 
     override fun toString(): String = "TimerState(tick=$tick)"
 }

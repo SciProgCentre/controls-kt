@@ -83,7 +83,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
     }
 }
 
-public interface Model: StateContainer
+public interface Model : StateContainer
 
 /**
  * Run simulation using context simulation dispatcher
@@ -96,7 +96,8 @@ public suspend fun <M : Model> M.runSimulation(
     }
 }
 
-public val StateContainer.states get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
+public val StateContainer.states
+    get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
 
 /**
  * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
@@ -122,7 +123,7 @@ public fun <T : ModelConstructor> StateContainer.model(model: T): T {
  * Create and register a timer state.
  */
 public fun StateContainer.timer(tick: Duration): TimerState =
-    registerState(TimerState(context.request(ClockManager), tick))
+    registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick))
 
 /**
  * Register a new timer and perform [block] on its change
@@ -180,6 +181,14 @@ public fun <T1, T2, R> StateContainer.combineState(
     second: DeviceState<T2>,
     transformation: (T1, T2) -> R,
 ): DeviceState<R> = registerState(DeviceState.combine(first, second, transformation))
+
+
+public fun <T1, T2, T3, R> StateContainer.combineState(
+    first: DeviceState<T1>,
+    second: DeviceState<T2>,
+    third: DeviceState<T3>,
+    transformation: (T1, T2, T3) -> R,
+): DeviceState<R> = registerState(DeviceState.combine(first, second, third, transformation))
 
 /**
  * Combines multiple device states into a single state by applying a transformation function.

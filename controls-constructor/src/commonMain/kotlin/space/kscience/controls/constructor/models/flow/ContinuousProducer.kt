@@ -4,16 +4,25 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
-public interface ContinuousProducerModel<T : Amount<*>> {
+public interface ContinuousProducerInterface<U: UnitsOfMeasurement, T : Amount<U>> {
     public val production: DeviceState<T>
+    public val productionCapacity: DeviceState<T>
+    public val consumerRequest: LateBindDeviceState<Numeric<U>>
 }
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
+    consumerCapacity: DeviceState<Numeric<U>>,
+) {
+    consumerRequest.bind(consumerCapacity)
+}
+
 
 /**
  * A model representing a producer with continuous output constrained by its capacity and consumer requests.
  *
  * @param U The type of units of measurement for the production flow.
  * @param context The execution context for state management and operations.
- * @param capacity The maximum capacity state defining the upper limit of the producer's output.
+ * @param productionCapacity The maximum capacity state defining the upper limit of the producer's output.
  *
  * @property consumerRequest A deferred-binding state representing the material flow requested by consumers.
  * @property production A state representing the actual production flow, calculated as the minimum of the
@@ -21,38 +30,32 @@ public interface ContinuousProducerModel<T : Amount<*>> {
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.
  */
-public class ContinuousProducer<T : Amount<*>>(
+public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<T>,
-    public val capacity: DeviceState<T>,
-    public val consumerRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
-) : ModelConstructor(context), ContinuousProducerModel<T> {
+    public val algebra: AmountAlgebra<U, T>,
+    override val productionCapacity: DeviceState<T>,
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
+) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
     init {
-        registerState(capacity)
+        registerState(productionCapacity)
         registerState(consumerRequest)
     }
 
     override val production: DeviceState<T> = combineState(
         first = consumerRequest,
-        second = capacity
-    ) { request, capacity ->
+        second = productionCapacity
+    ) { request: Numeric<U>, capacity: T ->
         with(algebra) {
-            minOf(request, capacity)
+            capacity.coerceValueIn(Numeric.zero<U>()..request)
         }
     }
 
     public val efficiency: DeviceState<Double> = combineState(
         production,
-        capacity
+        productionCapacity
     ) { production, capacity ->
         production.value / capacity.value
-    }
-
-    public fun connectConsumer(
-        consumerCapacity: DeviceState<T>,
-    ) {
-        this.consumerRequest.bind(consumerCapacity)
     }
 
     public companion object {
@@ -68,17 +71,17 @@ public class ContinuousProducer<T : Amount<*>>(
          * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
          * on the minimum of the provided capacity and the consumer's consumption requests.
          */
-        public fun <T : Amount<*>> fromConsumer(
-            consumer: ContinuousConsumer<T>,
+        public fun <U : UnitsOfMeasurement, T : Amount<U>> fromConsumer(
+            consumer: ContinuousConsumer<U, T>,
             capacity: DeviceState<T>,
-        ): ContinuousProducer<T> {
+        ): ContinuousProducer<U, T> {
             return ContinuousProducer(
                 context = consumer.context,
                 algebra = consumer.algebra,
-                capacity = capacity,
+                productionCapacity = capacity,
             ).also { producer ->
                 //provide bi-directional connection
-                Connections.connect(producer, consumer)
+                ContinuousFlowModel.connect(producer, consumer)
             }
         }
 
@@ -99,4 +102,4 @@ public fun <U : UnitsOfMeasurement> ContinuousProducer(
     context: Context,
     capacity: DeviceState<Numeric<U>>,
     supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousProducer<Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)
+): ContinuousProducer<U, Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)

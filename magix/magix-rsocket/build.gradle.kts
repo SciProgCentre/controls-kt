@@ -18,13 +18,13 @@ kscience {
     useSerialization {
         json()
     }
-    dependencies {
+    commonMain {
         api(projects.magix.magixApi)
         api(spclibs.kotlinx.io.core)
-        api(spclibs.ktor.client.core)
+        api("io.ktor:ktor-client-core")
         api(libs.rsocket.ktor.client)
     }
-    dependencies(jvmMain) {
+    jvmMain {
         api(libs.rsocket.transport.ktor.tcp)
     }
 }
