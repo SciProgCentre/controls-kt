@@ -52,7 +52,7 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
     public suspend fun writeProperty(propertyName: String, value: Meta)
 
     /**
-     * A subscription-based [Flow] of [DeviceMessage] provided by device. The flow is guaranteed to be readable
+     * A subscription-based [Flow] of [DeviceMessage] provided by device. The discrete is guaranteed to be readable
      * multiple times.
      */
     public val messageFlow: Flow<DeviceMessage>

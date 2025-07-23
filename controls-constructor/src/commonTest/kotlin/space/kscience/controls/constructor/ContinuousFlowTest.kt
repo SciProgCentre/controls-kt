@@ -6,9 +6,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
-import space.kscience.controls.constructor.models.flow.*
+import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmountAlgebra
 import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
@@ -94,24 +95,24 @@ class ContinuousFlowTest {
 
         assertEquals(Numeric(6.0), joinABC.production.value)
 
-        assertEquals(1.0, joinAB.partialConsumation["a"]?.value?.value)
+        assertEquals(1.0, joinAB.individualConsumation["a"]?.value?.value)
 
         abcConsumation.value = Numeric(3.0)
 
         assertEquals(Numeric(1.5), joinAB.production.value)
 
-        assertEquals(0.5, joinAB.partialConsumation["a"]?.value?.value)
+        assertEquals(0.5, joinAB.individualConsumation["a"]?.value?.value)
 
         abcConsumation.value = Numeric(4.0)
         aProduction.value = Numeric(7.0)
 
         assertEquals(3.0, joinAB.production.value.value, 1e-5)
-        assertEquals(2.33333, joinAB.partialConsumation["a"]!!.value.value, 1e-3)
+        assertEquals(2.33333, joinAB.individualConsumation["a"]!!.value.value, 1e-3)
 
         abcConsumation.value = Numeric(15.0)
 
         assertEquals(9.0, joinAB.production.value.value, 1e-5)
-        assertEquals(7.0, joinAB.partialConsumation["a"]?.value?.value)
+        assertEquals(7.0, joinAB.individualConsumation["a"]?.value?.value)
     }
 
 
@@ -126,13 +127,15 @@ class ContinuousFlowTest {
 
             val producer = producer(productionCapacity)
 
-            val buffer = ContinuousBuffer(context, bufferCapacity)
+            val buffer = model(ContinuousBuffer(context, bufferCapacity))
 
             val consumer = consumer(consumationCapacity)
-        }.runSimulation {
 
-            ContinuousFlowModel.connect(producer = producer, consumer = buffer)
-            ContinuousFlowModel.connect(producer = buffer, consumer = consumer)
+            init {
+                connect(producer = producer, consumer = buffer)
+                connect(producer = buffer, consumer = consumer)
+            }
+        }.runSimulation {
 
             buffer.content.valueFlow.onEach {
                 println("content: $it (${clock.now() - epoch})")
@@ -157,7 +160,41 @@ class ContinuousFlowTest {
 
             assertEquals(1.0, producer.production.value.value)
             assertEquals(1.0, consumer.consumation.value.value)
+        }
+    }
 
+    @Test
+    fun reaction() = runTest {
+        val model = object : ContinuousFlowModel(context) {
+            val algebra = NumericAmountAlgebra<Kilograms>()
+
+            val aProductionCapacity = MutableDeviceState(Numeric<Kilograms>(2.0))
+            val bProductionCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
+            val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
+
+            val aProducer = producer(aProductionCapacity)
+            val bProducer = producer(bProductionCapacity)
+
+            val reactor = ContinuousReaction(
+                context, algebra,
+                ReactionRule.formula(
+                    algebra,
+                    mapOf("a" to algebra.one, "b" to algebra.one)
+                )
+            )
+
+            val consumer = consumer(consumationCapacity)
+
+            init {
+               reactor.connectProducer("a", aProducer)
+               reactor.connectProducer("b", bProducer)
+               reactor.connectConsumer(consumer)
+            }
+        }.runSimulation {
+
+            assertEquals(1.0, aProducer.production.value.value)
+            assertEquals(1.0, bProducer.production.value.value)
+            assertEquals(1.0, consumer.consumation.value.value)
 
         }
     }

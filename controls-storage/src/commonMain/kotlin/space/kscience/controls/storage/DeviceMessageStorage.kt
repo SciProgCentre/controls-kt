@@ -15,7 +15,7 @@ public interface DeviceMessageStorage {
     public suspend fun write(event: DeviceMessage)
 
     /**
-     * Return all messages in a storage as a flow
+     * Return all messages in a storage as a discrete
      */
     public fun readAll(): Flow<DeviceMessage>
 

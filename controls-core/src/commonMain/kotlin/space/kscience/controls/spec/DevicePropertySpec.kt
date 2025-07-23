@@ -100,7 +100,7 @@ public fun <T, D : Device> D.writeAsync(propertySpec: MutableDevicePropertySpec<
 }
 
 /**
- * A type safe flow of property changes for given property
+ * A type safe discrete of property changes for given property
  */
 public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<T> = messageFlow
     .filterIsInstance<PropertyChangedMessage>()

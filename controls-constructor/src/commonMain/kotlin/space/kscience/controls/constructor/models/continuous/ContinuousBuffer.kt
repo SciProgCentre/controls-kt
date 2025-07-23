@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.models.flow
+package space.kscience.controls.constructor.models.continuous
 
 import kotlinx.coroutines.delay
 import space.kscience.controls.constructor.*

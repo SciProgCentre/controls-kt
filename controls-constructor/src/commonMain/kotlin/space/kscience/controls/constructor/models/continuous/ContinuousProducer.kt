@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.models.flow
+package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
@@ -20,12 +20,12 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
 /**
  * A model representing a producer with continuous output constrained by its capacity and consumer requests.
  *
- * @param U The type of units of measurement for the production flow.
+ * @param U The type of units of measurement for the production discrete.
  * @param context The execution context for state management and operations.
  * @param productionCapacity The maximum capacity state defining the upper limit of the producer's output.
  *
- * @property consumerRequest A deferred-binding state representing the material flow requested by consumers.
- * @property production A state representing the actual production flow, calculated as the minimum of the
+ * @property consumerRequest A deferred-binding state representing the material discrete requested by consumers.
+ * @property production A state representing the actual production discrete, calculated as the minimum of the
  * consumer request and the producer's capacity.
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.
@@ -66,8 +66,8 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
          * the consumer's needs and the producer's constraints.
          *
          * @param consumer The `MaterialFlowConsumer` whose consumption requests are used to calculate
-         * the producer's actual material flow production.
-         * @param capacity The capacity `DeviceState` defining the maximum flow that this producer can handle.
+         * the producer's actual material discrete production.
+         * @param capacity The capacity `DeviceState` defining the maximum discrete that this producer can handle.
          * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
          * on the minimum of the provided capacity and the consumer's consumption requests.
          */
@@ -94,7 +94,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
  *
  * @param context The context for managing state and performing operations for the producer.
  * @param capacity The device state representing the capacity of the producer, defining the maximum output.
- * @param supplyRequest The deferred-binding state representing the material flow supply requests.
+ * @param supplyRequest The deferred-binding state representing the material discrete supply requests.
  * Defaults to a state with an initial value of zero.
  * @return A new instance of `ContinuousProducer` configured with the provided capacity and supply requests.
  */

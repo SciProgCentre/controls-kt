@@ -95,7 +95,7 @@ public abstract class AbstractAsynchronousPort(
     }
 
     /**
-     * Raw flow of incoming data chunks. The chunks are not guaranteed to be complete phrases.
+     * Raw discrete of incoming data chunks. The chunks are not guaranteed to be complete phrases.
      * To form phrases, some condition should be used on top of it.
      * For example [stringsDelimitedIncoming] generates phrases with fixed delimiter.
      */

@@ -17,10 +17,10 @@ import space.kscience.dataforge.names.Name
  */
 public interface PropertyHistory<T> {
     /**
-     * Flow property values filtered by a time range. The implementation could flow it as a chunk or provide paging.
-     * So the resulting flow is allowed to suspend.
+     * Flow property values filtered by a time range. The implementation could discrete it as a chunk or provide paging.
+     * So the resulting discrete is allowed to suspend.
      *
-     * If [until] is in the future, the resulting flow is potentially unlimited.
+     * If [until] is in the future, the resulting discrete is potentially unlimited.
      * Theoretically, it could be also unlimited if the event source keeps producing new event with timestamp in a given range.
      */
     public fun flowHistory(

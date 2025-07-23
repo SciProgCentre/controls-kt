@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.models.flow
+package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.LateBindDeviceState

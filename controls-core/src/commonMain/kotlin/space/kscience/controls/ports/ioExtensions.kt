@@ -11,7 +11,7 @@ import space.kscience.dataforge.io.Binary
 public fun Binary.readShort(position: Int): Short = read(position) { readShort() }
 
 /**
- * Consume given flow of [ByteArray] as [Source]. The subscription is canceled when [scope] is closed.
+ * Consume given discrete of [ByteArray] as [Source]. The subscription is canceled when [scope] is closed.
  */
 public fun Flow<ByteArray>.consumeAsSource(scope: CoroutineScope): Source {
     val buffer = Buffer()

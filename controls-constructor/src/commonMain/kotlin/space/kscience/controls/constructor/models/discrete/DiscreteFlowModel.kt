@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.models.flow
+package space.kscience.controls.constructor.models.discrete
 
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -47,7 +47,7 @@ public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteF
 }
 
 /**
- * Non-invasive measurement of flow rate. Writes values to [target]
+ * Non-invasive measurement of discrete rate. Writes values to [target]
  */
 @ExperimentalControlsApi
 internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
@@ -78,7 +78,7 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
 }
 
 /**
- * Limits input of the incoming flow to [limit] per second
+ * Limits input of the incoming discrete to [limit] per second
  */
 @ExperimentalControlsApi
 internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
@@ -107,7 +107,7 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
 
 
 /**
- * A consumer for discrete material flow
+ * A consumer for discrete material discrete
  */
 @ExperimentalControlsApi
 public class DiscreteConsumer<U : UnitsOfMeasurement>(

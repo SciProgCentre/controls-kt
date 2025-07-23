@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.models.flow
+package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
@@ -18,15 +18,15 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
 }
 
 /**
- * Represents a model for a material flow consumer capable of consuming material flow based on its defined capacity
- * and requested supply. This class calculates the actual material flow consumed and the efficiency of consumption.
+ * Represents a model for a material discrete consumer capable of consuming material discrete based on its defined capacity
+ * and requested supply. This class calculates the actual material discrete consumed and the efficiency of consumption.
  *
- * @param U The type of units of measurement for the material flow.
+ * @param U The type of units of measurement for the material discrete.
  * @param context The execution context used for state management and operations.
- * @param consumationCapacity The maximum capacity for material flow consumption of the consumer.
- * @param supplyRequest The state representing the requested material flow to be supplied.
+ * @param consumationCapacity The maximum capacity for material discrete consumption of the consumer.
+ * @param supplyRequest The state representing the requested material discrete to be supplied.
  *
- * @property consumation A device state representing the actual material flow consumed,
+ * @property consumation A device state representing the actual material discrete consumed,
  * calculated as the minimum of the requested supply and the consumer's capacity.
  * @property efficiency A device state representing the efficiency of the consumer, calculated
  * as the ratio of the actual consumption to the capacity.
@@ -63,13 +63,13 @@ public class ContinuousConsumer<U: UnitsOfMeasurement, T : Amount<U>>(
 }
 
 /**
- * Creates an instance of a [ContinuousConsumer] for managing material flow consumption based on its capacity
+ * Creates an instance of a [ContinuousConsumer] for managing material discrete consumption based on its capacity
  * and a supply request.
  *
- * @param U The type of units of measurement for the material flow.
+ * @param U The type of units of measurement for the material discrete.
  * @param context The execution context used for state management and operations.
- * @param capacity A device state representing the maximum capacity for material flow consumption.
- * @param supplyRequest An optional late-bound device state representing the requested material flow to be supplied.
+ * @param capacity A device state representing the maximum capacity for material discrete consumption.
+ * @param supplyRequest An optional late-bound device state representing the requested material discrete to be supplied.
  * Defaults to a state with an initial value of zero.
  * @return An instance of ContinuousConsumer configured with the supplied parameters.
  */

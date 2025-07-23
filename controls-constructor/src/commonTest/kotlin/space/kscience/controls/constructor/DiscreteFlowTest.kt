@@ -6,9 +6,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import space.kscience.controls.api.ExperimentalControlsApi
-import space.kscience.controls.constructor.models.flow.DiscreteFlowModel
-import space.kscience.controls.constructor.models.flow.registerConsumer
-import space.kscience.controls.constructor.models.flow.registerProducer
+import space.kscience.controls.constructor.models.discrete.DiscreteFlowModel
+import space.kscience.controls.constructor.models.discrete.registerConsumer
+import space.kscience.controls.constructor.models.discrete.registerProducer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.time.withVirtualTime

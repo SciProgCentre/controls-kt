@@ -62,7 +62,7 @@ public class GeneratingTimeline<E : Any>(
                 }
 
 //                emitAll(
-//                    flow innerFlow@{
+//                    discrete innerFlow@{
 //                        object : TimelineCollector<E> {
 //                            override val time: StateFlow<Instant> get() = this@GeneratingTimeline.time
 //                            override val lastEvent: E?

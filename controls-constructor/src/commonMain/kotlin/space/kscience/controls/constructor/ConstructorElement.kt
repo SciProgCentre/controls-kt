@@ -205,6 +205,25 @@ public fun <T, R> StateContainer.combineState(
 ): DeviceState<R> = registerState(DeviceState.combine(states, transformation))
 
 /**
+ * Combines multiple [DeviceState] instances into a new combined [DeviceState].
+ * The combined state is created by applying the specified transformation function to the current values
+ * of the input states.
+ *
+ * @param K the type of keys in the input `states` map.
+ * @param T the type of individual states' values.
+ * @param R the resulting type of the value after the `transformation` is applied.
+ * @param states a map of keys to `DeviceState` instances representing the individual states to be combined.
+ * @param transformation a function that takes a map of key-value pairs (where keys are the same as in the `states` map
+ *        and values are the current values of the associated `DeviceState` instances) and produces the combined state's value.
+ * @return a new `DeviceState` instance representing the combined state, with its value derived dynamically
+ *         from the input states and the `transformation` function.
+ */
+public fun <K, T, R> StateContainer.combineState(
+    states: Map<K, DeviceState<T>>,
+    transformation: (Map<K, T>) -> R,
+): DeviceState<R> = registerState(DeviceState.combine(states, transformation))
+
+/**
  * Create and start binding between [sourceState] and [targetState]. Changes made to [sourceState] are automatically
  * transferred onto [targetState], but not vise versa.
  *
