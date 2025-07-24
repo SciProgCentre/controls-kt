@@ -168,34 +168,43 @@ class ContinuousFlowTest {
         val model = object : ContinuousFlowModel(context) {
             val algebra = NumericAmountAlgebra<Kilograms>()
 
-            val aProductionCapacity = MutableDeviceState(Numeric<Kilograms>(2.0))
+            val aProductionCapacity = MutableDeviceState(Numeric<Kilograms>(6.0))
             val bProductionCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
             val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
 
             val aProducer = producer(aProductionCapacity)
             val bProducer = producer(bProductionCapacity)
 
-            val reactor = ContinuousReaction(
-                context, algebra,
-                ReactionRule.formula(
-                    algebra,
-                    mapOf("a" to algebra.one, "b" to algebra.one)
+            val reactor = model(
+                ContinuousReaction(
+                    context = context,
+                    algebra = algebra,
+                    reaction = ReactionRule.formula(
+                        algebra,
+                        mapOf("a" to algebra.one, "b" to algebra.one)
+                    )
                 )
             )
 
             val consumer = consumer(consumationCapacity)
 
             init {
-               reactor.connectProducer("a", aProducer)
-               reactor.connectProducer("b", bProducer)
-               reactor.connectConsumer(consumer)
+                reactor.connectProducer("a", aProducer)
+                reactor.connectProducer("b", bProducer)
+                reactor.connectConsumer(consumer)
             }
+
         }.runSimulation {
 
             assertEquals(1.0, aProducer.production.value.value)
             assertEquals(1.0, bProducer.production.value.value)
             assertEquals(1.0, consumer.consumation.value.value)
 
+            aProductionCapacity.value = Numeric(0.5)
+
+            assertEquals(0.5, aProducer.production.value.value)
+            assertEquals(0.5, bProducer.production.value.value)
+            assertEquals(0.5, consumer.consumation.value.value)
         }
     }
 }

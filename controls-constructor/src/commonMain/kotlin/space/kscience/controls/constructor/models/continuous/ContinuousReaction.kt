@@ -38,21 +38,14 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
 
             override fun invoke(input: Map<String, T>): Map<String, T> = with(algebra) {
                 //Find the lowest factor that limits production
-                val factor = formula.mapValues { (key, value) ->
-                    (input[key]?.value ?: 0.0) / value.value
+                val factor = formula.mapValues { (key, formulaValue) ->
+                    (input[key]?.value ?: 0.0) / formulaValue.value
                 }.minBy { it.value }.value
 
-                val consumed = input.mapNotNull { (key, amount) ->
-                    if (key in supplyKeys) {
-                        key to amount * factor
-                    } else {
-                        null
-                    }
-                }.toMap()
-
-                consumed.mapValues { (key, value)->
-                    (input[key] ?: zero) - value
-                } + (productKey to production*factor)
+                formula.mapValues { (key, formulaValue) ->
+                    val input = input[key] ?: zero
+                    input * (1.0 - formulaValue.value * factor / input.value)
+                } + (productKey to production * factor)
             }
 
         }
@@ -134,9 +127,9 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
             consumation.map { it[key]!! }
         }
 
-    override val productionCapacity: DeviceState<T> = combineState(supplyRequest.values) { array ->
-        algebra.sum(array)
-
+    override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supplyRequest ->
+        val reactionResult = reaction(supplyRequest)
+        reactionResult[reaction.productKey] ?: algebra.zero
     }
 
     override val production: DeviceState<T> = mapState(reactionResult) { result ->
