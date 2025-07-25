@@ -3,11 +3,11 @@ package space.kscience.simulation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /**
  * Suspend the collection of this [Flow] until event time is lower that threshold

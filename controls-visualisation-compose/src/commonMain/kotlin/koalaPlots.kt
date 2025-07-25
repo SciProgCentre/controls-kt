@@ -10,8 +10,6 @@ import io.github.koalaplot.core.xygraph.DefaultPoint
 import io.github.koalaplot.core.xygraph.XYGraphScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.propertyMessageFlow
@@ -26,9 +24,11 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 
 private val defaultMaxAge get() = 10.minutes

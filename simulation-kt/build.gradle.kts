@@ -9,9 +9,9 @@ kscience {
     jvm()
     js()
     native()
-    wasm()
+    wasmJs()
     useCoroutines()
-    useContextReceivers()
+    useContextParameters()
 
     commonMain {
         api(spclibs.kotlinx.datetime)

@@ -3,8 +3,6 @@ package space.kscience.controls.constructor.models.discrete
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.ExperimentalControlsApi
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Amount
@@ -17,9 +15,11 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.names.asName
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
+import kotlin.time.Instant
 
 
 @ExperimentalControlsApi

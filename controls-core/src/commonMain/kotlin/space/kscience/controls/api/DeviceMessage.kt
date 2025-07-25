@@ -2,7 +2,6 @@
 
 package space.kscience.controls.api
 
-import kotlinx.datetime.Instant
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -14,6 +13,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
+import kotlin.time.Instant
 
 @Serializable
 public sealed class DeviceMessage {

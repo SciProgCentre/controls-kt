@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
@@ -14,6 +13,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.parseAsName
+import kotlin.time.Clock
 
 /**
  *  General interface describing a managed Device.

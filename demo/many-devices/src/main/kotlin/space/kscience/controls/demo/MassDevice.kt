@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package space.kscience.controls.demo
 
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +43,7 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.ExperimentalTime
 
 
 class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDevice, context, meta) {

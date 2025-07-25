@@ -6,8 +6,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.DeviceState
@@ -20,9 +18,11 @@ import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.plotly.Plot
 import space.kscience.plotly.models.*
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 private var TraceValues.values: List<Value>
     get() = value?.list ?: emptyList()

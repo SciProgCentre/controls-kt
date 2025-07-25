@@ -42,6 +42,7 @@ import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.start
 import space.kscience.magix.server.magixModule
+import kotlin.time.Clock
 
 
 private fun Application.deviceServerModule(manager: DeviceManager) {
@@ -173,7 +174,7 @@ public fun Application.deviceManagerModule(
                         val target: String by call.parameters
                         val property: String by call.parameters
                         val request = PropertyGetMessage(
-                            time = kotlinx.datetime.Clock.System.now(),
+                            time = Clock.System.now(),
                             sourceDevice = WEB_SERVER_TARGET,
                             targetDevice = Name.parse(target),
                             property = property,
@@ -193,7 +194,7 @@ public fun Application.deviceManagerModule(
                         val json = Json.parseToJsonElement(body)
 
                         val request = PropertySetMessage(
-                            time = kotlinx.datetime.Clock.System.now(),
+                            time = Clock.System.now(),
                             sourceDevice = WEB_SERVER_TARGET,
                             targetDevice = Name.parse(target),
                             property = property,

@@ -1,10 +1,10 @@
 package space.kscience.controls.api
 
-import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import space.kscience.controls.asMeta
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Clock
 
 class MessageTest {
     @Test

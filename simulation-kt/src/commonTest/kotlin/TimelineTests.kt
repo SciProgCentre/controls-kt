@@ -2,10 +2,10 @@ package space.kscience.simulation
 
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 class TimelineTests {
 

@@ -4,7 +4,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.ExperimentalControlsApi
 import space.kscience.controls.constructor.models.discrete.DiscreteFlowModel
 import space.kscience.controls.constructor.models.discrete.registerConsumer
@@ -19,6 +18,7 @@ import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 @OptIn(ExperimentalControlsApi::class)
 class DiscreteFlowTest {

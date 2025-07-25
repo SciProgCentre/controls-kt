@@ -60,7 +60,7 @@ public operator fun <U : UnitsOfMeasurement> Numeric<U>.div(other: Numeric<U>): 
 
 public operator fun <U : UnitsOfMeasurement> Numeric<U>.unaryMinus(): Numeric<U> = Numeric(-value)
 
-public fun <U : UnitsOfMeasurement> Amount<U>.asNumeric() = this as? Numeric<U> ?: Numeric(value)
+public fun <U : UnitsOfMeasurement> Amount<U>.asNumeric(): Numeric<U> = this as? Numeric<U> ?: Numeric(value)
 
 public fun <U : UnitsOfMeasurement> DeviceState<Amount<U>>.asNumeric(): DeviceStateWithDependencies<Numeric<U>> = map { it.asNumeric() }
 

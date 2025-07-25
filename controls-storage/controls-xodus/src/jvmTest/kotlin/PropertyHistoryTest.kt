@@ -2,7 +2,6 @@ import jetbrains.exodus.entitystore.PersistentEntityStores
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
@@ -15,6 +14,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import java.nio.file.Files
+import kotlin.time.Instant
 
 internal class PropertyHistoryTest {
     companion object {

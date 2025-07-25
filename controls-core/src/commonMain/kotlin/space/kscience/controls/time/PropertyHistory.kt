@@ -2,8 +2,6 @@ package space.kscience.controls.time
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
@@ -11,6 +9,8 @@ import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * An interface for device property history.

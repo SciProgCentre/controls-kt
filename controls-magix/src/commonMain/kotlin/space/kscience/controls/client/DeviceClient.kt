@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.DevicePropertySpec
@@ -22,6 +21,7 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 
 private fun stringUID() = uuid4().leastSignificantBits.toString(16)
 

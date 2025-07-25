@@ -4,7 +4,7 @@ package space.kscience.controls.demo.car
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.doRecurring

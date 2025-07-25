@@ -14,12 +14,12 @@ kscience {
     jvm()
     js()
     native()
-    wasm()
+    wasmJs()
     useCoroutines()
     useSerialization{
         json()
     }
-    useContextReceivers()
+    useContextParameters()
     commonMain {
         api(libs.dataforge.io)
         api(spclibs.kotlinx.datetime)

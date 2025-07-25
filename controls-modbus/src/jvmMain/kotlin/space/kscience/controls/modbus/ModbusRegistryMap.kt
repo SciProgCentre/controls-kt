@@ -181,7 +181,7 @@ public fun ModbusRegistryMap.print(to: Appendable = System.out) {
     ModbusRegistryMap.validate(this)
     entries.entries
         .sortedWith(
-            Comparator.comparingInt<Map.Entry<ModbusRegistryKey, String>?> { it.key.sectionNumber }
+            Comparator.comparingInt<Map.Entry<ModbusRegistryKey, String>> { it.key.sectionNumber }
                 .thenComparingInt { it.key.address }
         )
         .forEach { (key, description) ->

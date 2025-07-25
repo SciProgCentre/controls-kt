@@ -1,14 +1,14 @@
 package space.kscience.controls.time
 
 import kotlinx.coroutines.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.instant
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.roundToLong
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 @OptIn(InternalCoroutinesApi::class)
 private class CompressedTimeDispatcher(

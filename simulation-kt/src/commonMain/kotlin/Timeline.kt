@@ -2,8 +2,8 @@ package space.kscience.simulation
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.datetime.Instant
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /**
  * A handler for observation of a timeline. On close stops collection.

@@ -1,6 +1,5 @@
 package space.kscience.controls
 
-import kotlinx.datetime.Instant
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import space.kscience.dataforge.context.Context
@@ -13,6 +12,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
+import kotlin.time.Instant
 import kotlin.time.toDuration
 
 public fun Double.asMeta(): Meta = Meta(asValue())

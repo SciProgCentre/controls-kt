@@ -3,11 +3,11 @@ package space.kscience.controls.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.time.PropertyHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
+import kotlin.time.Instant
 
 public fun <T> DeviceMessageStorage.propertyHistory(
     propertyName: String,

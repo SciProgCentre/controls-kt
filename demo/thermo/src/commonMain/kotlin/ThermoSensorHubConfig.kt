@@ -1,12 +1,12 @@
 package center.sciprog.controls.demo.thermo
 
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.misc.DFExperimental
 import kotlin.math.floor
+import kotlin.time.Clock
 
 internal fun normalize(d: Double): Double = floor(d * 10.0) / 10.0
 

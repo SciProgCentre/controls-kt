@@ -1,23 +1,24 @@
+import org.jetbrains.kotlinx.jupyter.api.plugin.tasks.JupyterApiResourcesTask
+
 plugins {
     id("space.kscience.gradle.mpp")
+    alias(spclibs.plugins.kotlin.jupyter.api)
     `maven-publish`
 }
 
 kscience {
     fullStack("js/controls-jupyter.js")
-    useContextReceivers()
-    jupyterLibrary("space.kscience.controls.jupyter.ControlsJupyter")
+    useContextParameters()
     dependencies {
         implementation(projects.controlsVision)
         implementation(libs.visionforge.jupiter)
     }
 
-    jsMain{
-        //FIXME remove after VisionForge 0.5
-        api("org.jetbrains.kotlin-wrappers:kotlin-extensions:1.0.1-pre.823")
-    }
-
     jvmMain {
         implementation(spclibs.logback.classic)
     }
+}
+
+tasks.withType<JupyterApiResourcesTask> {
+    libraryProducers = listOf("space.kscience.controls.jupyter.ControlsJupyter")
 }

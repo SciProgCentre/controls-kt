@@ -1,6 +1,5 @@
 package space.kscience.controls.time
 
-import kotlinx.datetime.Instant
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import space.kscience.controls.InstantIOFormat
@@ -10,6 +9,7 @@ import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
+import kotlin.time.Instant
 
 /**
  * A value coupled to a time it was obtained at

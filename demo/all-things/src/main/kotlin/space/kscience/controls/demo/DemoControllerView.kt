@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package space.kscience.controls.demo
 
 import androidx.compose.foundation.layout.*
@@ -15,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
@@ -41,6 +42,8 @@ import space.kscience.magix.server.startMagixServer
 import space.kscince.magix.zmq.ZmqMagixFlowPlugin
 import java.awt.Desktop
 import java.net.URI
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 
 private val json = Json { prettyPrint = true }

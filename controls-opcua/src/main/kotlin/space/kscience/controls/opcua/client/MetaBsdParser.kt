@@ -1,7 +1,5 @@
 package space.kscience.controls.opcua.client
 
-import kotlinx.datetime.toJavaInstant
-import kotlinx.datetime.toKotlinInstant
 import org.eclipse.milo.opcua.binaryschema.AbstractCodec
 import org.eclipse.milo.opcua.binaryschema.parser.BsdParser
 import org.eclipse.milo.opcua.stack.core.UaSerializationException
@@ -19,6 +17,8 @@ import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import java.util.*
+import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
 
 
 public class MetaBsdParser : BsdParser() {

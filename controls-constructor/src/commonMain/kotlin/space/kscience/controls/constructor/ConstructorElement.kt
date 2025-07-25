@@ -5,7 +5,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.simulationDispatcher
@@ -13,6 +12,7 @@ import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 
 /**
  * A binding that is used to describe device functionality
@@ -96,7 +96,7 @@ public suspend fun <M : Model> M.runSimulation(
     }
 }
 
-public val StateContainer.states
+public val StateContainer.states: List<DeviceState<Any?>>
     get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
 
 /**

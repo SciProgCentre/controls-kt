@@ -4,10 +4,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.koalaplot.core.xygraph.AxisModel
 import io.github.koalaplot.core.xygraph.TickValues
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.math.floor
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 import kotlin.time.times
 
 public class TimeAxisModel(

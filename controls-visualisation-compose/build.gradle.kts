@@ -14,12 +14,13 @@ description = """
 kscience {
     jvm()
     useSerialization()
-    useContextReceivers()
+    useContextParameters()
     commonMain {
         api(projects.controlsConstructor)
         api(libs.koala.plots)
         api(compose.foundation)
         api(compose.material3)
+        api(compose.materialIconsExtended)
         @OptIn(ExperimentalComposeLibrary::class)
         api(compose.desktop.components.splitPane)
     }

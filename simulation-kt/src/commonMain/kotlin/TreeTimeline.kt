@@ -6,8 +6,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Instant
 
 /**
  * A timeline that could be forked. The events from the fork appear in parent timeline events, but not vise versa.

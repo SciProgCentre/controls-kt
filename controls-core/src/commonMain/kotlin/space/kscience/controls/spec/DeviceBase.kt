@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import space.kscience.controls.api.*
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.simulationDispatcher
@@ -18,6 +17,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 
 /**
  * Write a meta [item] to [device]

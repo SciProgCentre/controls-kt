@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.newCoroutineContext
-import kotlinx.datetime.Clock
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.Context
@@ -13,6 +12,7 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.names.asName
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 
 public abstract class ModelConstructor(
     final override val context: Context,

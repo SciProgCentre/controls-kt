@@ -2,7 +2,6 @@ package space.kscience.controls.opcua.server
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.datetime.toJavaInstant
 import org.eclipse.milo.opcua.sdk.core.AccessLevel
 import org.eclipse.milo.opcua.sdk.core.Reference
 import org.eclipse.milo.opcua.sdk.server.Lifecycle
@@ -24,6 +23,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.client.opcToMeta
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
+import kotlin.time.toJavaInstant
 
 
 public operator fun CachingDevice.get(propertyDescriptor: PropertyDescriptor): Meta? =

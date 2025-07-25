@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
@@ -16,6 +15,7 @@ import space.kscience.dataforge.context.Global
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 class ContinuousFlowTest {
 

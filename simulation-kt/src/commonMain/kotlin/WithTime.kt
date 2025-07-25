@@ -1,6 +1,6 @@
 package space.kscience.simulation
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 public interface WithTime {
     public val time: Instant

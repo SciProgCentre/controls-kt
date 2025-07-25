@@ -12,14 +12,9 @@ import kotlinx.coroutines.internal.ThreadSafeHeap
 import kotlinx.coroutines.internal.ThreadSafeHeapNode
 import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.selects.SelectClause1
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
-import kotlin.time.AbstractLongTimeSource
-import kotlin.time.Duration
+import kotlin.time.*
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.DurationUnit
-import kotlin.time.TimeSource
 
 /**
  * This class exists to allow cleanup code to avoid throwing for cancelled continuations scheduled
@@ -264,7 +259,7 @@ public class VirtualTimeDispatcher(
 /**
  * Create a [Clock] based on this scheduler with given time offset for simulation start
  */
-public fun VirtualTimeDispatcher.asClock(startTime: Instant = Clock.System.now()) = object : Clock {
+public fun VirtualTimeDispatcher.asClock(startTime: Instant = Clock.System.now()): Clock = object : Clock {
     override fun now(): Instant = startTime + currentTime.milliseconds
 }
 

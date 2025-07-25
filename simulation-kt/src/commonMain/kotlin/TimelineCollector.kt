@@ -2,8 +2,8 @@ package space.kscience.simulation
 
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.datetime.Instant
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 public interface TimelineCollector<E : Any> : FlowCollector<E> {
     public val time: StateFlow<Instant>

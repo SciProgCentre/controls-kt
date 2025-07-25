@@ -3,9 +3,9 @@ package space.kscience.simulation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Instant
 
 public interface CollectingTimeline<E: Any>: Timeline<E>, TimelineCollector<E>
 

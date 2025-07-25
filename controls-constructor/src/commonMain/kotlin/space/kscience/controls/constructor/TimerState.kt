@@ -5,9 +5,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
 import space.kscience.controls.time.ClockManager
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /**
  * A dedicated [DeviceState] that operates with time.
