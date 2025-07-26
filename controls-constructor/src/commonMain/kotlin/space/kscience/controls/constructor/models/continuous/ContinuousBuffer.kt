@@ -122,3 +122,20 @@ public fun <U : UnitsOfMeasurement> ContinuousBuffer(
     DeviceState(capacity),
     supplyRequest
 )
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.buffer(
+    algebra: AmountAlgebra<U, T>,
+    bufferCapacity: Numeric<U>,
+    supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
+    consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
+    initialLevel: T = algebra.zero,
+    timeStep: Duration = 1.seconds
+): ContinuousBuffer<U, T> = model(ContinuousBuffer(
+    context = context,
+    algebra = algebra,
+    bufferCapacity = DeviceState(bufferCapacity),
+    supplyRequest = supplyRequest,
+    consumerRequest = consumerRequest,
+    initialLevel = initialLevel,
+    timeStep = timeStep
+))

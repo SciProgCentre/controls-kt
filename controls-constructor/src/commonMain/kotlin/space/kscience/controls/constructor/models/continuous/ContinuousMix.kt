@@ -73,7 +73,7 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
                     var cumSum = zero
                     for ((key, value) in supplyRequest) {
                         val sumAfter = (cumSum + value).coerceValueIn(cumSum..totalOutput)
-                        if(sumAfter.value == totalOutput.value){
+                        if (sumAfter.value == totalOutput.value) {
                             put(key, sumAfter - cumSum)
                             break
                         } else {
@@ -146,21 +146,6 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.asConsume
 } ?: error("No supplier with key $key found")
 
 
-/**
- * Connect a consumer to this [ContinuousMix]
- */
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectConsumer(
-    consumer: ContinuousConsumerInterface<U, T>
-) {
-    ContinuousFlowModel.connect(this, consumer)
-}
-
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectConsumer(
-    consumerCapacity: DeviceState<Numeric<U>>
-) {
-    consumerRequest.bind(consumerCapacity)
-}
-
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
     producer: ContinuousProducerInterface<U, T>
@@ -190,3 +175,9 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix(
         join.connectProducer(key, producer)
     }
 }
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.mix(
+    algebra: AmountAlgebra<U, T>,
+    supplyKeys: Collection<String>,
+    joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
+): ContinuousMix<U, T> = model(ContinuousMix(context, algebra, supplyKeys, joinManagementStrategy))

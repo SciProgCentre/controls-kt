@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.models.continuous.*
+import space.kscience.controls.constructor.units.CubicMeters
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.units.NumericAmountAlgebra
@@ -120,6 +121,7 @@ class ContinuousFlowTest {
     fun buffer() = runTest {
 
         val model = object : ContinuousFlowModel(context) {
+            val algebra = NumericAmountAlgebra<Kilograms>()
             val bufferCapacity = Numeric<Kilograms>(10.0)
 
             val productionCapacity = MutableDeviceState(Numeric<Kilograms>(2.0))
@@ -127,7 +129,7 @@ class ContinuousFlowTest {
 
             val producer = producer(productionCapacity)
 
-            val buffer = model(ContinuousBuffer(context, bufferCapacity))
+            val buffer = buffer(algebra, bufferCapacity)
 
             val consumer = consumer(consumationCapacity)
 
@@ -175,16 +177,7 @@ class ContinuousFlowTest {
             val aProducer = producer(aProductionCapacity)
             val bProducer = producer(bProductionCapacity)
 
-            val reactor = model(
-                ContinuousReaction(
-                    context = context,
-                    algebra = algebra,
-                    reaction = ReactionRule.formula(
-                        algebra,
-                        mapOf("a" to algebra.one, "b" to algebra.one)
-                    )
-                )
-            )
+            val reactor = reaction(algebra, formula = mapOf("a" to algebra.one, "b" to algebra.one))
 
             val consumer = consumer(consumationCapacity)
 
@@ -205,6 +198,39 @@ class ContinuousFlowTest {
             assertEquals(0.5, aProducer.production.value.value)
             assertEquals(0.5, bProducer.production.value.value)
             assertEquals(0.5, consumer.consumation.value.value)
+        }
+    }
+
+    @Test
+    fun transformation() = runTest {
+        val model = object : ContinuousFlowModel(context) {
+            val output = MutableDeviceState(Numeric<Kilograms>(2.0))
+            val input = MutableDeviceState(Numeric<CubicMeters>(1.0))
+
+            val producer = producer(input)
+            val consumer = consumer(output)
+
+            val transformer = linearTransformer(
+                supplyAlgebra = NumericAmountAlgebra<CubicMeters>(),
+                productionAlgebra = NumericAmountAlgebra<Kilograms>(),
+                production = Numeric<Kilograms>(0.1)
+            )
+
+            init {
+                transformer.connectProducer(producer)
+                transformer.connectConsumer(consumer)
+            }
+        }.runSimulation {
+            assertEquals(0.1, transformer.production.value.value)
+            assertEquals(0.1, consumer.consumation.value.value)
+            assertEquals(1.0, producer.production.value.value)
+
+            input.value = Numeric(30.0)
+
+            assertEquals(2.0, transformer.production.value.value)
+            assertEquals(2.0, consumer.consumation.value.value)
+            assertEquals(20.0, producer.production.value.value)
+
         }
     }
 }

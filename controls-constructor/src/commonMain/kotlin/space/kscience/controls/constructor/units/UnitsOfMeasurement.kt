@@ -49,6 +49,12 @@ public data object NewtonsMeters: UnitsOfTorque
 
 /**/
 
+public interface UnitsOfVolume: UnitsOfMeasurement
+
+public data object CubicMeters: UnitsOfVolume
+
+/**/
+
 public interface UnitsOfMass: UnitsOfMeasurement
 
 public data object Kilograms : UnitsOfMass

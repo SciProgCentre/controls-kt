@@ -1,11 +1,8 @@
 package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.LateBindDeviceState
 import space.kscience.controls.constructor.ModelConstructor
-import space.kscience.controls.constructor.model
 import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.dataforge.context.Context
 
@@ -24,13 +21,3 @@ public abstract class ContinuousFlowModel(
         }
     }
 }
-
-public fun <U : UnitsOfMeasurement> ContinuousFlowModel.producer(
-    capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousProducer<U, Numeric<U>> = model(ContinuousProducer(context, capacity, supplyRequest))
-
-public fun <U : UnitsOfMeasurement> ContinuousFlowModel.consumer(
-    capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousConsumer<U, Numeric<U>> = model(ContinuousConsumer(context, capacity, supplyRequest))

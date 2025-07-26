@@ -4,7 +4,7 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
-public interface ContinuousProducerInterface<U: UnitsOfMeasurement, T : Amount<U>> {
+public interface ContinuousProducerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
     public val production: DeviceState<T>
     public val productionCapacity: DeviceState<T>
     public val consumerRequest: LateBindDeviceState<Numeric<U>>
@@ -16,6 +16,14 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
     consumerRequest.bind(consumerCapacity)
 }
 
+/**
+ * Connect a consumer to this [ContinuousProducerInterface]
+ */
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
+    consumer: ContinuousConsumerInterface<U, T>
+) {
+    ContinuousFlowModel.connect(this, consumer)
+}
 
 /**
  * A model representing a producer with continuous output constrained by its capacity and consumer requests.
@@ -103,3 +111,14 @@ public fun <U : UnitsOfMeasurement> ContinuousProducer(
     capacity: DeviceState<Numeric<U>>,
     supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
 ): ContinuousProducer<U, Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.producer(
+    algebra: AmountAlgebra<U, T>,
+    capacity: DeviceState<T>,
+    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
+): ContinuousProducer<U, T> = model(ContinuousProducer(context, algebra, capacity, supplyRequest))
+
+public fun <U : UnitsOfMeasurement> ContinuousFlowModel.producer(
+    capacity: DeviceState<Numeric<U>>,
+    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
+): ContinuousProducer<U, Numeric<U>> = model(ContinuousProducer(context, capacity, supplyRequest))

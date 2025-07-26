@@ -4,7 +4,7 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
-public interface ContinuousConsumerInterface<U: UnitsOfMeasurement, T : Amount<U>> {
+public interface ContinuousConsumerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
     public val consumation: DeviceState<T>
     public val consumationCapacity: DeviceState<Numeric<U>>
     public val supplyRequest: LateBindDeviceState<T>
@@ -15,6 +15,12 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
     producerCapacity: DeviceState<T>,
 ) {
     supplyRequest.bind(producerCapacity)
+}
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.connectProducer(
+    producerInterface: ContinuousProducerInterface<U, T>
+) {
+    ContinuousFlowModel.connect(producerInterface, this)
 }
 
 /**
@@ -31,7 +37,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
  * @property efficiency A device state representing the efficiency of the consumer, calculated
  * as the ratio of the actual consumption to the capacity.
  */
-public class ContinuousConsumer<U: UnitsOfMeasurement, T : Amount<U>>(
+public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     override val consumationCapacity: DeviceState<Numeric<U>>,
@@ -78,3 +84,14 @@ public fun <U : UnitsOfMeasurement> ContinuousConsumer(
     capacity: DeviceState<Numeric<U>>,
     supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
 ): ContinuousConsumer<U, Numeric<U>> = ContinuousConsumer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.consumer(
+    algebra: AmountAlgebra<U, T>,
+    capacity: DeviceState<Numeric<U>>,
+    supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
+): ContinuousConsumer<U, T> = model(ContinuousConsumer(context, algebra, capacity, supplyRequest))
+
+public fun <U : UnitsOfMeasurement> ContinuousFlowModel.consumer(
+    capacity: DeviceState<Numeric<U>>,
+    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
+): ContinuousConsumer<U, Numeric<U>> = model(ContinuousConsumer(context, capacity, supplyRequest))

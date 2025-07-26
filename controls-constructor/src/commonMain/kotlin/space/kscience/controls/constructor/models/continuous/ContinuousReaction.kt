@@ -160,20 +160,6 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.asCo
     )
 } ?: error("No supplier with key $key found")
 
-/**
- * Connect a consumer to this [ContinuousReaction]
- */
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.connectConsumer(
-    consumer: ContinuousConsumerInterface<U, T>
-) {
-    ContinuousFlowModel.connect(this, consumer)
-}
-
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.connectConsumer(
-    consumerCapacity: DeviceState<Numeric<U>>
-) {
-    consumerRequest.bind(consumerCapacity)
-}
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
@@ -188,3 +174,21 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.conn
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
+    algebra: AmountAlgebra<U, T>,
+    reaction: ReactionRule<U, T>,
+): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction))
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
+    algebra: AmountAlgebra<U, T>,
+    formula: Map<String, Numeric<U>>,
+): ContinuousReaction<U, T> = model(
+    ContinuousReaction(
+        context, algebra,
+        reaction = ReactionRule.formula(
+            algebra,
+            formula
+        )
+    )
+)
