@@ -220,6 +220,7 @@ class ContinuousFlowTest {
                 transformer.connectProducer(producer)
                 transformer.connectConsumer(consumer)
             }
+
         }.runSimulation {
             assertEquals(0.1, transformer.production.value.value)
             assertEquals(0.1, consumer.consumation.value.value)
