@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalFoundationApi::class, ExperimentalSplitPaneApi::class, DFExperimental::class)
+@file:OptIn(ExperimentalFoundationApi::class, ExperimentalSplitPaneApi::class, DFExperimental::class, FlowPreview::class)
 
 package space.kscience.controls.demo.collective
 

@@ -68,7 +68,7 @@ fun CoroutineScope.startDemoDeviceServer(magixEndpoint: MagixEndpoint): Embedded
         (payload as? PropertyChangedMessage)?.takeIf { it.property == DemoDevice.coordinates.name }
     }.map { it.value }
 
-    return Plotly.serveSinglePage(port = 9091, routeConfiguration = {
+    return Plotly.serveSinglePage(port = 9090, routeConfiguration = {
         updateInterval = 100
     }) {
         link {

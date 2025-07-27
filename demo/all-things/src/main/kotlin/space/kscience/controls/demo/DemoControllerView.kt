@@ -11,12 +11,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import io.ktor.server.application.port
 import io.ktor.server.engine.EmbeddedServer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
@@ -53,11 +53,12 @@ class DemoController : ContextAware {
     var device: DemoDevice? = null
     var magixServer: EmbeddedServer<*, *>? = null
     var visualizer: EmbeddedServer<*, *>? = null
+
     val opcUaServer: OpcUaServer = OpcUaServer {
         setApplicationName(LocalizedText.english("space.kscience.controls.opcua"))
 
         endpoint {
-            setBindPort(4840)
+            setBindPort(9091)
             //use default endpoint
         }
     }
@@ -70,7 +71,10 @@ class DemoController : ContextAware {
 
 
     fun start(): Job = context.launch {
-        device = deviceManager.install("demo", DemoDevice)
+        device = deviceManager.install("demo", DemoDevice).apply {
+            write(DemoDevice.comment, "Device initialized")
+        }
+
         //starting magix event loop
         magixServer = startMagixServer(
             RSocketMagixFlowPlugin(), //TCP rsocket support
@@ -84,8 +88,8 @@ class DemoController : ContextAware {
         visualizer = startDemoDeviceServer(visualEndpoint)
 
         //serve devices as OPC-UA namespace
+        opcUaServer.serveDevices(this, deviceManager)
         opcUaServer.startup()
-        opcUaServer.serveDevices(deviceManager)
 
         //create a remote listener endpoint
         val listenerEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
@@ -178,8 +182,9 @@ fun DemoControls(controller: DemoController) {
                 Button(
                     onClick = {
                         controller.visualizer?.run {
-                            val host = "localhost"//environment.connectors.first().host
-                            val port = environment.config.port
+                            val connector = runBlocking { application.engine.resolvedConnectors().first()}
+                            val host = "localhost"
+                            val port = connector.port
                             val uri = URI("http", null, host, port, "/", null, null)
                             Desktop.getDesktop().browse(uri)
                         }

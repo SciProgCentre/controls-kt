@@ -1,5 +1,6 @@
 package space.kscience.controls.spec
 
+import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.metaDescriptor
@@ -47,7 +48,7 @@ public fun <T, D : Device> DeviceSpec<D>.mutableProperty(
  * Register a read-only logical property
  * (without a corresponding physical state or with a state that is updated asynchronously) for a device
  */
-public fun <T, D : DeviceBase<D>> DeviceSpec<D>.property(
+public fun <T, D : CachingDevice> DeviceSpec<D>.property(
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
@@ -56,7 +57,7 @@ public fun <T, D : DeviceBase<D>> DeviceSpec<D>.property(
         converter,
         descriptorBuilder,
         name,
-        read = { propertyName -> getProperty(propertyName)?.let(converter::readOrNull) },
+        read = { propertyName -> getCachedProperty(propertyName)?.let(converter::readOrNull) },
     )
 
 public fun <D : Device> DeviceSpec<D>.booleanProperty(
@@ -145,7 +146,8 @@ public fun <D : Device> DeviceSpec<D>.metaProperty(
  * Register a mutable logical property
  * (without a corresponding physical state or with a state that is updated asynchronously) for a device
  */
-public fun <T, D : DeviceBase<D>> DeviceSpec<D>.mutableProperty(
+@OptIn(InternalDeviceAPI::class)
+public fun <T, D : CachingDevice> DeviceSpec<D>.mutableProperty(
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
@@ -154,8 +156,8 @@ public fun <T, D : DeviceBase<D>> DeviceSpec<D>.mutableProperty(
         converter,
         descriptorBuilder,
         name,
-        read = { propertyName -> getProperty(propertyName)?.let(converter::readOrNull) },
-        write = { propertyName, value -> writeProperty(propertyName, converter.convert(value)) }
+        read = { propertyName -> getCachedProperty(propertyName)?.let(converter::readOrNull) },
+        write = { propertyName, value -> setCachedProperty(propertyName, converter.convert(value)) }
     )
 
 public fun <D : Device> DeviceSpec<D>.mutableBooleanProperty(

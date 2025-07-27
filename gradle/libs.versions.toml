@@ -20,7 +20,7 @@ kmongo = "4.5.1"
 
 j2mod = "3.2.1"
 
-milo = "0.6.12"
+milo = "1.0.2"
 
 pi4j = "2.3.0"
 pi4j-ktx = "2.4.0"
@@ -64,9 +64,10 @@ j2mod = { module = "com.ghgande:j2mod", version.ref = "j2mod" }
 
 kmongo-coroutine-serialization = { module = "org.litote.kmongo:kmongo-coroutine-serialization", version.ref = "kmongo" }
 
-milo-client = { module = "org.eclipse.milo:sdk-client", version.ref = "milo" }
-milo-parser = { module = "org.eclipse.milo:bsd-parser", version.ref = "milo" }
-milo-server = { module = "org.eclipse.milo:sdk-server", version.ref = "milo" }
+milo-client = { module = "org.eclipse.milo:milo-sdk-client", version.ref = "milo" }
+milo-sdk-core = { module = "org.eclipse.milo:milo-sdk-core", version.ref = "milo" }
+milo-dtd-core = { module = "org.eclipse.milo:milo-dtd-core", version.ref = "milo" }
+milo-server = { module = "org.eclipse.milo:milo-sdk-server", version.ref = "milo" }
 
 pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
 pi4j-core = { module = "com.pi4j:pi4j-core", version.ref = "pi4j" }
@@ -82,7 +83,7 @@ visionforge-compose-html = { module = "space.kscience:visionforge-compose-html",
 
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
-koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.8.0" }
+koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.9.0" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }

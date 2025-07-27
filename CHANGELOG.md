@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- `setCachedValue` API for `CachingDevice` to directly manipulate cached value and solve circular write problem with virtual properties.
 - Flow control simulation
 - Value averaging plot extension
 - PLC4X bindings
@@ -13,6 +14,8 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- `getProperty` renamed to `getCachedProperty` for `CachingDevice`
+- Milo migrated to stable version
 - Constructor properties return `DeviceState` in order to be able to subscribe to them
 - Refactored ports. Now we have `AsynchronousPort` as well as `SynchronousPort`
 - `DeviceClient` now initializes property and action descriptors eagerly.

@@ -5,29 +5,28 @@ import kotlinx.coroutines.launch
 import org.eclipse.milo.opcua.sdk.core.AccessLevel
 import org.eclipse.milo.opcua.sdk.core.Reference
 import org.eclipse.milo.opcua.sdk.server.Lifecycle
+import org.eclipse.milo.opcua.sdk.server.ManagedNamespaceWithLifecycle
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
-import org.eclipse.milo.opcua.sdk.server.api.DataItem
-import org.eclipse.milo.opcua.sdk.server.api.ManagedNamespaceWithLifecycle
-import org.eclipse.milo.opcua.sdk.server.api.MonitoredItem
+import org.eclipse.milo.opcua.sdk.server.items.DataItem
+import org.eclipse.milo.opcua.sdk.server.items.MonitoredItem
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode
 import org.eclipse.milo.opcua.sdk.server.nodes.UaNode
 import org.eclipse.milo.opcua.sdk.server.nodes.UaNodeContext
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
 import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel
 import org.eclipse.milo.opcua.stack.core.AttributeId
-import org.eclipse.milo.opcua.stack.core.Identifiers
+import org.eclipse.milo.opcua.stack.core.NodeIds
 import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.opcua.client.opcToMeta
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
 import kotlin.time.toJavaInstant
 
 
 public operator fun CachingDevice.get(propertyDescriptor: PropertyDescriptor): Meta? =
-    getProperty(propertyDescriptor.name)
+    getCachedProperty(propertyDescriptor.name)
 
 public suspend fun Device.read(propertyDescriptor: PropertyDescriptor): Meta = readProperty(propertyDescriptor.name)
 
@@ -78,17 +77,18 @@ public class DeviceNameSpace(
 
                 browseName = newQualifiedName(propertyName)
                 displayName = LocalizedText.english(propertyName)
+
                 dataType = if (descriptor.metaDescriptor.nodes.isNotEmpty()) {
-                    Identifiers.String
+                    NodeIds.String
                 } else when (descriptor.metaDescriptor.valueTypes?.first()) {
-                    null, ValueType.STRING, ValueType.NULL -> Identifiers.String
-                    ValueType.NUMBER -> Identifiers.Number
-                    ValueType.BOOLEAN -> Identifiers.Boolean
-                    ValueType.LIST -> Identifiers.ArrayItemType
+                    null, ValueType.STRING, ValueType.NULL -> NodeIds.String
+                    ValueType.NUMBER -> NodeIds.Number
+                    ValueType.BOOLEAN -> NodeIds.Boolean
+                    ValueType.LIST -> NodeIds.ArrayItemType
                 }
 
 
-                setTypeDefinition(Identifiers.BaseDataVariableType)
+                setTypeDefinition(NodeIds.BaseDataVariableType)
             }.build()
 
             // Update the initial value, but only if it is cached
@@ -178,8 +178,8 @@ public class DeviceNameSpace(
         rootNode.addReference(
             Reference(
                 rootNode.nodeId,
-                Identifiers.Organizes,
-                Identifiers.ObjectsFolder.expanded(),
+                NodeIds.Organizes,
+                NodeIds.ObjectsFolder.expanded(),
                 false
             )
         )

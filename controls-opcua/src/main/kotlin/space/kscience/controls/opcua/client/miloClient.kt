@@ -1,20 +1,17 @@
 package space.kscience.controls.opcua.client
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
-import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder
-import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider
-import org.eclipse.milo.opcua.stack.client.security.DefaultClientCertificateValidator
-import org.eclipse.milo.opcua.stack.core.security.DefaultTrustListManager
+import org.eclipse.milo.opcua.sdk.client.OpcUaClientConfigBuilder
+import org.eclipse.milo.opcua.sdk.client.identity.AnonymousProvider
+import org.eclipse.milo.opcua.stack.core.security.DefaultClientCertificateValidator
+import org.eclipse.milo.opcua.stack.core.security.MemoryCertificateQuarantine
+import org.eclipse.milo.opcua.stack.core.security.MemoryTrustListManager
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint
 import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription
+import org.eclipse.milo.opcua.stack.transport.client.tcp.OpcTcpClientTransportConfigBuilder
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.info
-import space.kscience.dataforge.context.logger
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.*
 
 internal fun <T : Any> T?.toOptional(): Optional<T> = Optional.ofNullable(this)
@@ -27,23 +24,27 @@ internal fun Context.createOpcUaClient(
     opcClientConfig: OpcUaClientConfigBuilder.() -> Unit,
 ): OpcUaClient {
 
-    val securityTempDir: Path = Paths.get(System.getProperty("java.io.tmpdir"), "client", "security")
-    Files.createDirectories(securityTempDir)
-    check(Files.exists(securityTempDir)) { "Unable to create security dir: $securityTempDir" }
-
-    val pkiDir: Path = securityTempDir.resolve("pki")
-    logger.info { "Milo client security dir: ${securityTempDir.toAbsolutePath()}" }
-    logger.info { "Security pki dir: ${pkiDir.toAbsolutePath()}" }
+//    val securityTempDir: Path = Paths.get(System.getProperty("java.io.tmpdir"), "client", "security")
+//    Files.createDirectories(securityTempDir)
+//    check(Files.exists(securityTempDir)) { "Unable to create security dir: $securityTempDir" }
+//
+//    val pkiDir: Path = securityTempDir.resolve("pki")
+//    logger.info { "Milo client security dir: ${securityTempDir.toAbsolutePath()}" }
+//    logger.info { "Security pki dir: ${pkiDir.toAbsolutePath()}" }
 
     //val loader: KeyStoreLoader = KeyStoreLoader().load(securityTempDir)
-    val trustListManager = DefaultTrustListManager(pkiDir.toFile())
-    val certificateValidator = DefaultClientCertificateValidator(trustListManager)
+    val trustListManager = MemoryTrustListManager()
+    val certificateQuarantine = MemoryCertificateQuarantine()
+    val certificateValidator = DefaultClientCertificateValidator(trustListManager, certificateQuarantine)
 
     return OpcUaClient.create(
         endpointUrl,
         { endpoints: List<EndpointDescription?> ->
             endpoints.firstOrNull(endpointFilter).toOptional()
-        }
+        },
+        { transportConfigBuilder: OpcTcpClientTransportConfigBuilder ->
+
+        },
     ) { configBuilder: OpcUaClientConfigBuilder ->
         configBuilder
             .setApplicationName(LocalizedText.english("Controls-kt"))
