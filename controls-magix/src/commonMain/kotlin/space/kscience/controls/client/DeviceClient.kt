@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.spec.name
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
@@ -76,7 +77,16 @@ public class DeviceClient internal constructor(
         }.value
     }
 
-    override fun getProperty(propertyName: String): Meta? = propertyCache[propertyName]
+    override fun getCachedProperty(propertyName: String): Meta? = propertyCache[propertyName]
+
+    @InternalDeviceAPI
+    override fun setCachedProperty(propertyName: String, value: Meta?) {
+        if (value == null) {
+            propertyCache.remove(propertyName)
+        } else {
+            propertyCache[propertyName] = value
+        }
+    }
 
     override suspend fun invalidate(propertyName: String) {
         mutex.withLock {
@@ -138,7 +148,7 @@ public suspend fun MagixEndpoint.remoteDevice(
         .map { it.second }
         .filter {
             it.sourceDevice == null || it.sourceDevice == deviceName
-        }.shareIn(context, SharingStarted.Lazily,10)
+        }.shareIn(context, SharingStarted.Lazily, 10)
 
     val deferredDescriptorMessage = CompletableDeferred<DescriptionMessage>()
 

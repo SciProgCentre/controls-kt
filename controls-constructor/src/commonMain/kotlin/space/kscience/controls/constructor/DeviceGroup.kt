@@ -7,6 +7,7 @@ import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Laminate
@@ -151,9 +152,10 @@ public open class DeviceGroup(
         properties[propertyName.parseAsName()]?.valueAsMeta
             ?: error("Property with name $propertyName not found")
 
-    override fun getProperty(propertyName: String): Meta? = properties[propertyName.parseAsName()]?.valueAsMeta
+    override fun getCachedProperty(propertyName: String): Meta? = properties[propertyName.parseAsName()]?.valueAsMeta
 
-    override suspend fun invalidate(propertyName: String) {
+    @InternalDeviceAPI
+    override fun setCachedProperty(propertyName: String, value: Meta?) {
         //does nothing for this implementation
     }
 
@@ -199,9 +201,7 @@ public open class DeviceGroup(
 
     override val clock: Clock = context.clock
 
-    public companion object {
-
-    }
+    public companion object
 }
 
 public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<*, T>, state: DeviceState<T>) {

@@ -151,7 +151,16 @@ public abstract class DeviceBase<D : Device>(
         return meta
     }
 
-    override fun getProperty(propertyName: String): Meta? = logicalState[propertyName]
+    override fun getCachedProperty(propertyName: String): Meta? = logicalState[propertyName]
+
+    @InternalDeviceAPI
+    override fun setCachedProperty(propertyName: String, value: Meta?) {
+        if (value == null) {
+            logicalState.remove(propertyName)
+        } else {
+            logicalState[propertyName] = value
+        }
+    }
 
     override suspend fun invalidate(propertyName: String) {
         stateLock.withLock {
