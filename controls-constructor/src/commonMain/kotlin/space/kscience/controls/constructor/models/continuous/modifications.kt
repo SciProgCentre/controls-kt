@@ -55,3 +55,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
     }
 
 }
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.limited(
+    productionLimit: Numeric<U>
+): ContinuousProducerInterface<U, T> = limited(DeviceState(productionLimit))

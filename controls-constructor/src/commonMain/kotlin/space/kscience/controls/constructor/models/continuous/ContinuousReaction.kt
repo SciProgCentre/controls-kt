@@ -33,6 +33,10 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
             productKey: String = "@product"
         ): ReactionRule<U, T> = object : ReactionRule<U, T> {
 
+            init {
+                formula.forEach { (key, value) -> require(value.value > 0.0) { "Formula value for $key must be positive, but was $value" } }
+            }
+
             override val supplyKeys: Collection<String> = formula.keys
             override val productKey: String = productKey
 
@@ -44,7 +48,11 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
 
                 formula.mapValues { (key, formulaValue) ->
                     val input = input[key] ?: zero
-                    input * (1.0 - formulaValue.value * factor / input.value)
+                    if (input.value == 0.0) {
+                        zero
+                    } else {
+                        input * (1.0 - formulaValue.value * factor / input.value)
+                    }
                 } + (productKey to production * factor)
             }
 
@@ -84,23 +92,28 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     }
 
     // trick with casts is needed for reification to work
-    @Suppress("UNCHECKED_CAST")
-    private val jointSupplyRequest: DeviceState<Map<String, T>> =
-        combineState(supplyRequest) { it }
+    private val jointSupplyRequest: DeviceState<Map<String, T>> = combineState(supplyRequest) {
+        it
+    }
 
 
-    private val reactionResult = combineState(
+    private val reactionBalance: DeviceState<Map<String, Pair<T, T>>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest, supplyRequest: Map<String, T> ->
         with(algebra) {
             val reactionResult = reaction(supplyRequest)
             val production = reactionResult[reaction.productKey] ?: zero
 
+            check(reactionResult.all { (key, value) -> key == reaction.productKey || value <= supplyRequest[key]!! }) {
+                "reaction remain exceeds supply request: $reactionResult, $supplyRequest"
+            }
+
             if (production <= consumerRequest) {
-                reactionResult
+                reactionResult.mapValues { (key, value) -> (supplyRequest[key] ?: zero) to value }
             } else {
                 val scale = production.value / consumerRequest.value
-                reactionResult.mapValues { it.value / scale }
+                check(scale > 0.0) { "production ratio must be positive" }
+                reactionResult.mapValues { (key, value) -> (supplyRequest[key] ?: zero) to (value / scale) }
             }
         }
     }
@@ -108,13 +121,17 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     /**
      * A state of consumation from all sources
      */
-    public val consumation: DeviceState<Map<String, T>> = combineState(
-        jointSupplyRequest, reactionResult
-    ) { supply, reaction ->
+    public val consumation: DeviceState<Map<String, T>> = mapState(
+        reactionBalance
+    ) { balance ->
         with(algebra) {
-            reaction.keys.associateWith {
+            balance.mapValues { (key, balance) ->
                 //subtract output quantity from input quantity to compute the value actually consumed
-                (supply[it] ?: zero) - (reaction[it] ?: zero)
+                val res = balance.first - balance.second
+                check(key == reaction.productKey ||res.value >= 0.0) {
+                    "Reaction balance for key $key is negative: $balance"
+                }
+                res
             }
         }
     }
@@ -132,8 +149,8 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
         reactionResult[reaction.productKey] ?: algebra.zero
     }
 
-    override val production: DeviceState<T> = mapState(reactionResult) { result ->
-        result[reaction.productKey] ?: algebra.zero
+    override val production: DeviceState<T> = mapState(reactionBalance) { result ->
+        result[reaction.productKey]?.second ?: algebra.zero
     }
 
 
@@ -183,12 +200,16 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
     formula: Map<String, Numeric<U>>,
+    production: T = algebra.one,
+    productKey: String = "@product"
 ): ContinuousReaction<U, T> = model(
     ContinuousReaction(
         context, algebra,
-        reaction = ReactionRule.formula(
-            algebra,
-            formula
+        reaction = formula(
+            algebra = algebra,
+            formula = formula,
+            production = production,
+            productKey = productKey
         )
     )
 )

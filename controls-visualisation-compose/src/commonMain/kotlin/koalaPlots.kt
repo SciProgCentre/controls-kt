@@ -154,7 +154,7 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
     LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
         val clock = context.clock
 
-        state.valueFlow.sample(sampling)
+        state.valueFlow.sample (sampling)
             .map { ValueWithTime(it.toDouble(), clock.now()) }
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
             .onEach { points = it }

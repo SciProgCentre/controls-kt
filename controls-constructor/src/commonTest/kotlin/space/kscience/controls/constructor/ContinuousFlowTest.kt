@@ -73,47 +73,61 @@ class ContinuousFlowTest {
      */
     @Test
     fun mix() = runTest {
-        val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
-        val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
-        val cProduction = MutableDeviceState(Numeric<Kilograms>(3.0))
-        val abcConsumation = MutableDeviceState(Numeric<Kilograms>(8.0))
 
-        val joinAB = ContinuousMix<Kilograms>(context = Global, listOf("a", "b"))
+        val model = object : ContinuousFlowModel(context) {
+            val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
+            val aProducer = producer(aProduction)
 
-        joinAB.connectProducer("a", aProduction)
-        joinAB.connectProducer("b", bProduction)
+            val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
+            val bProducer = producer(bProduction)
 
-        joinAB.production.printEach(this, "joinAB.production")
+            val cProduction = MutableDeviceState(Numeric<Kilograms>(3.0))
+            val cProducer = producer(cProduction)
 
-        val joinABC = ContinuousMix<Kilograms>(context = Global, listOf("ab", "c"))
+            val abcConsumation = MutableDeviceState(Numeric<Kilograms>(8.0))
+            val consumer = consumer(abcConsumation)
 
-        joinABC.connectProducer("ab", joinAB)
-        joinABC.connectProducer("c", cProduction)
-        joinABC.connectConsumer(abcConsumation)
+            val joinAB = ContinuousMix<Kilograms>(context = Global, listOf("a", "b"))
 
-        joinABC.production.printEach(this, "joinABC.production")
-        joinABC.consumation.printEach(this, "joinABC.consumation")
+            init {
+                joinAB.connectProducer("a", aProducer)
+                joinAB.connectProducer("b", bProducer)
+            }
 
-        assertEquals(Numeric(6.0), joinABC.production.value)
+            val joinABC = ContinuousMix<Kilograms>(context = Global, listOf("ab", "c"))
 
-        assertEquals(1.0, joinAB.individualConsumation["a"]?.value?.value)
+            init {
+                joinABC.connectProducer("ab", joinAB)
+                joinABC.connectProducer("c", cProducer)
+                joinABC.connectConsumer(consumer)
+            }
+        }.runSimulation {
+            joinAB.production.printEach(this@runTest, "joinAB.production")
 
-        abcConsumation.value = Numeric(3.0)
+            joinABC.production.printEach(this@runTest, "joinABC.production")
+            joinABC.consumation.printEach(this@runTest, "joinABC.consumation")
 
-        assertEquals(Numeric(1.5), joinAB.production.value)
+            assertEquals(Numeric(6.0), joinABC.production.value)
+            assertEquals(2.0,bProducer.production.value.value)
+            assertEquals(1.0, joinAB.individualConsumation["a"]?.value?.value)
 
-        assertEquals(0.5, joinAB.individualConsumation["a"]?.value?.value)
+            abcConsumation.value = Numeric(3.0)
 
-        abcConsumation.value = Numeric(4.0)
-        aProduction.value = Numeric(7.0)
+            assertEquals(Numeric(1.5), joinAB.production.value)
+            assertEquals(1.0,bProducer.production.value.value)
+            assertEquals(0.5, joinAB.individualConsumation["a"]?.value?.value)
 
-        assertEquals(3.0, joinAB.production.value.value, 1e-5)
-        assertEquals(2.33333, joinAB.individualConsumation["a"]!!.value.value, 1e-3)
+            abcConsumation.value = Numeric(4.0)
+            aProduction.value = Numeric(7.0)
 
-        abcConsumation.value = Numeric(15.0)
+            assertEquals(3.0, joinAB.production.value.value, 1e-5)
+            assertEquals(2.33333, joinAB.individualConsumation["a"]!!.value.value, 1e-3)
 
-        assertEquals(9.0, joinAB.production.value.value, 1e-5)
-        assertEquals(7.0, joinAB.individualConsumation["a"]?.value?.value)
+            abcConsumation.value = Numeric(15.0)
+
+            assertEquals(9.0, joinAB.production.value.value, 1e-5)
+            assertEquals(7.0, joinAB.individualConsumation["a"]?.value?.value)
+        }
     }
 
 
@@ -184,7 +198,7 @@ class ContinuousFlowTest {
             init {
                 reactor.connectProducer("a", aProducer)
                 reactor.connectProducer("b", bProducer)
-                reactor.connectConsumer(consumer)
+                consumer.connectProducer(reactor)
             }
 
         }.runSimulation {
