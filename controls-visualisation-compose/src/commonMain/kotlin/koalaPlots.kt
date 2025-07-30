@@ -36,6 +36,23 @@ private val defaultMaxPoints get() = 800
 private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
+private fun <T> Flow<T>.repeatOrSample(clock: Clock, interval: Duration): Flow<ValueWithTime<T>> = flow {
+    coroutineScope {
+        var current: T? = null
+
+        launch {
+            collect {
+                current = it
+            }
+        }
+
+        while (isActive) {
+            current?.let { emit(ValueWithTime(it, clock.now())) }
+            delay(interval)
+        }
+    }
+}
+
 
 internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     maxAge: Duration = defaultMaxAge,
@@ -107,8 +124,8 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
 
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
         device.propertyMessageFlow(propertyName)
-            .sample(sampling)
-            .map { ValueWithTime(it.value.extractValue(), it.time) }
+            .map { it.value.extractValue() }
+            .repeatOrSample(device.clock, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
             .onEach { points = it }
             .launchIn(this)
@@ -154,8 +171,9 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
     LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
         val clock = context.clock
 
-        state.valueFlow.sample (sampling)
-            .map { ValueWithTime(it.toDouble(), clock.now()) }
+        state.valueFlow
+            .map { it.toDouble() }
+            .repeatOrSample(clock, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
             .onEach { points = it }
             .launchIn(this)

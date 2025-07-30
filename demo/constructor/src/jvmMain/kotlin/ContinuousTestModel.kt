@@ -176,7 +176,7 @@ fun main() {
                                 )
                                 PlotNumericState(
                                     context = context,
-                                    state = model.cProducer.production,
+                                    state = model.transformer.production,
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Magenta))
@@ -187,6 +187,13 @@ fun main() {
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Red))
+                                )
+                                PlotNumericState(
+                                    context = context,
+                                    state = model.cBuffer.content,
+                                    maxAge = maxAge,
+                                    sampling = 250.milliseconds,
+                                    lineStyle = LineStyle(SolidColor(Color.Black))
                                 )
                             }
                             Surface {
@@ -202,6 +209,10 @@ fun main() {
 
                                         2 -> {
                                             Text("B Production", color = Color.Red)
+                                        }
+
+                                        3 -> {
+                                            Text("C Buffer", color = Color.Black)
                                         }
                                     }
                                 })

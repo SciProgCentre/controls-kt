@@ -138,9 +138,11 @@ public fun <U : UnitsOfMeasurement> ContinuousMix(
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
     key: String
 ): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<T> ->
+    val consumation = individualConsumation[key]!!
+
     object : ContinuousConsumerInterface<U, T> {
-        override val consumation: DeviceState<T> get() = individualConsumation[key]!!
-        override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumation[key]!!.asNumeric()
+        override val consumation: DeviceState<T> get() = consumation
+        override val consumationCapacity: DeviceState<Numeric<U>> get() = consumation.asNumeric()
         override val supplyRequest: LateBindDeviceState<T> get() = input
     }
 } ?: error("No supplier with key $key found")
