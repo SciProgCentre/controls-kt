@@ -17,14 +17,14 @@ public class Leadscrew(
 
     public fun torqueToForce(
         stateOfTorque: DeviceState<Numeric<NewtonsMeters>>,
-    ): DeviceState<Numeric<Newtons>> = DeviceState.map(stateOfTorque) { torque ->
+    ): DeviceState<Numeric<Newtons>> = DeviceState.map(this,stateOfTorque) { torque ->
         Numeric(torque.value / leverage.value )
     }
 
     public fun degreesToMeters(
         stateOfAngle: DeviceState<Numeric<Degrees>>,
         offset: Numeric<Meters> = Numeric(0),
-    ): DeviceState<Numeric<Meters>> = DeviceState.map(stateOfAngle) { degrees ->
+    ): DeviceState<Numeric<Meters>> = DeviceState.map(this, stateOfAngle) { degrees ->
         offset + Numeric(degrees.value * 2 * PI / 360 * leverage.value )
     }
 

@@ -42,7 +42,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     override val productionCapacity: DeviceState<T>,
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(context,Numeric.zero()),
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
     init {
@@ -112,16 +112,13 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
 public fun <U : UnitsOfMeasurement> ContinuousProducer(
     context: Context,
     capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousProducer<U, Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)
+): ContinuousProducer<U, Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity)
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: DeviceState<T>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousProducer<U, T> = model(ContinuousProducer(context, algebra, capacity, supplyRequest))
+    capacity: DeviceState<T>
+): ContinuousProducer<U, T> = model(ContinuousProducer(context, algebra, capacity))
 
 public fun <U : UnitsOfMeasurement> ContinuousFlowModel.producer(
-    capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousProducer<U, Numeric<U>> = model(ContinuousProducer(context, capacity, supplyRequest))
+    capacity: DeviceState<Numeric<U>>
+): ContinuousProducer<U, Numeric<U>> = model(ContinuousProducer(context, capacity))

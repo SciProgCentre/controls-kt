@@ -59,7 +59,7 @@ public class StepDrive(
 public fun StepDrive.angle(
     step: Numeric<Degrees>,
     zero: Numeric<Degrees> = Numeric(0),
-): DeviceState<Numeric<Degrees>> = position.map {
+): DeviceState<Numeric<Degrees>> = position.map(this) {
     zero + it * step
 }
 

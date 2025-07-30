@@ -28,8 +28,8 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     public val bufferCapacity: DeviceState<Numeric<U>>,
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(context,algebra.zero),
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(context,Numeric.zero()),
     initialLevel: T = algebra.zero,
     timeStep: Duration = 1.seconds
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T>, ContinuousConsumerInterface<U, T> {
@@ -45,27 +45,23 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         registerState(consumerRequest)
     }
 
-//    private val remainingBufferSpace: DeviceState<Numeric<U>> = combineState(
-//        bufferCapacity, content
-//    ) { capacity: Numeric<U>, content: T ->
-//        capacity - Numeric<U>(content.value)
-//    }
-
     override val productionCapacity: DeviceState<T> = combineState(
         supplyRequest,
         content
-    ) { supply: T, content: T ->
+    ) { supplyRequest: T, content: T ->
         with(algebra) {
-            supply + content
+            supplyRequest + content
         }
     }
 
     override val production: DeviceState<T> = combineState(
-        productionCapacity,
+        supplyRequest,
+        content,
         consumerRequest
-    ) { capacity, request ->
+    ) { supplyRequest, content, consumeRequest ->
         with(algebra) {
-            capacity.coerceValueIn(Numeric.zero<U>()..request)
+            val productionCapacity = supplyRequest + content
+            productionCapacity.coerceValueIn(Numeric.zero<U>()..consumeRequest)
         }
     }
 
@@ -73,17 +69,21 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         bufferCapacity,
         content,
         consumerRequest
-    ) { bufferSize, content,  consumation: Numeric<U> ->
-        val remaining = bufferSize - Numeric<U>(content.value)
-        remaining + consumation
+    ) { bufferSize, content, consumationRequest: Numeric<U> ->
+        val remainingSpace = bufferSize - Numeric<U>(content.value)
+        remainingSpace + consumationRequest
     }
 
     override val consumation: DeviceState<T> = combineState(
         supplyRequest,
-        consumationCapacity
-    ) { supply: T, capacity ->
+        bufferCapacity,
+        content,
+        consumerRequest
+    ) { supplyRequest: T, bufferCapacity, content, consumationRequest ->
         with(algebra) {
-            supply.coerceValueIn(Numeric.zero<U>()..capacity)
+            val remainingSpace = bufferCapacity - Numeric<U>(content.value)
+            val consumationCapacity = remainingSpace + consumationRequest
+            supplyRequest.coerceValueIn(Numeric.zero<U>()..consumationCapacity)
         }
     }
 
@@ -117,27 +117,23 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
 public fun <U : UnitsOfMeasurement> ContinuousBuffer(
     context: Context,
     capacity: Numeric<U>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
 ): ContinuousBuffer<U, Numeric<U>> = ContinuousBuffer(
     context,
     NumericAmountAlgebra<U>(),
-    DeviceState(capacity),
-    supplyRequest
+    DeviceState(capacity)
 )
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.buffer(
     algebra: AmountAlgebra<U, T>,
     bufferCapacity: Numeric<U>,
-    supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
-    consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
     initialLevel: T = algebra.zero,
     timeStep: Duration = 1.seconds
-): ContinuousBuffer<U, T> = model(ContinuousBuffer(
-    context = context,
-    algebra = algebra,
-    bufferCapacity = DeviceState(bufferCapacity),
-    supplyRequest = supplyRequest,
-    consumerRequest = consumerRequest,
-    initialLevel = initialLevel,
-    timeStep = timeStep
-))
+): ContinuousBuffer<U, T> = model(
+    ContinuousBuffer(
+        context = context,
+        algebra = algebra,
+        bufferCapacity = DeviceState(bufferCapacity),
+        initialLevel = initialLevel,
+        timeStep = timeStep
+    )
+)

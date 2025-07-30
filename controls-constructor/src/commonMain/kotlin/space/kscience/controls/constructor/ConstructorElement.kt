@@ -158,7 +158,7 @@ public fun StateContainer.onTimer(
 public fun <T, R> StateContainer.mapState(
     origin: DeviceState<T>,
     transformation: (T) -> R,
-): DeviceStateWithDependencies<R> = registerState(DeviceState.map(origin, transformation))
+): DeviceStateWithDependencies<R> = registerState(DeviceState.map(this, origin, transformation))
 
 /**
  * Perform a complex transformation on state change
@@ -180,7 +180,7 @@ public fun <T1, T2, R> StateContainer.combineState(
     first: DeviceState<T1>,
     second: DeviceState<T2>,
     transformation: (T1, T2) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(first, second, transformation))
+): DeviceState<R> = registerState(DeviceState.combine(this, first, second, transformation))
 
 
 public fun <T1, T2, T3, R> StateContainer.combineState(
@@ -188,7 +188,15 @@ public fun <T1, T2, T3, R> StateContainer.combineState(
     second: DeviceState<T2>,
     third: DeviceState<T3>,
     transformation: (T1, T2, T3) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(first, second, third, transformation))
+): DeviceState<R> = registerState(DeviceState.combine(this, first, second, third, transformation))
+
+public fun <T1, T2, T3, T4, R> StateContainer.combineState(
+    first: DeviceState<T1>,
+    second: DeviceState<T2>,
+    third: DeviceState<T3>,
+    forth: DeviceState<T4>,
+    transformation: (T1, T2, T3, T4) -> R,
+): DeviceState<R> = registerState(DeviceState.combine(this, first, second, third, forth, transformation))
 
 /**
  * Combines multiple device states into a single state by applying a transformation function.
@@ -202,7 +210,7 @@ public fun <T1, T2, T3, R> StateContainer.combineState(
 public fun <T, R> StateContainer.combineState(
     states: Collection<DeviceState<T>>,
     transformation: (List<T>) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(states, transformation))
+): DeviceState<R> = registerState(DeviceState.combine(this, states, transformation))
 
 /**
  * Combines multiple [DeviceState] instances into a new combined [DeviceState].
@@ -221,7 +229,7 @@ public fun <T, R> StateContainer.combineState(
 public fun <K, T, R> StateContainer.combineState(
     states: Map<K, DeviceState<T>>,
     transformation: (Map<K, T>) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(states, transformation))
+): DeviceState<R> = registerState(DeviceState.combine(this, states, transformation))
 
 /**
  * Create and start binding between [sourceState] and [targetState]. Changes made to [sourceState] are automatically

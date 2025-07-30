@@ -67,10 +67,12 @@ private class BodyOnSprings(
         Spring(context, k, l0, rightAnchor, position)
     )
 
-    val force: DeviceState<XYZ<Newtons>> =
-        combineState(leftSpring.tension, rightSpring.tension) { left: XYZ<Newtons>, right ->
-            -left - right
-        }
+    val force: DeviceState<XYZ<Newtons>> = combineState(
+        first = leftSpring.tension,
+        second = rightSpring.tension
+    ) { left: XYZ<Newtons>, right ->
+        -left - right
+    }
 
 
     val body = model(

@@ -75,12 +75,13 @@ private class ContinuousTestModel(
         connectProducer("a", aProducer)
         connectProducer("b", bProducer)
     }
-//
-//    val abBuffer = buffer(kilograms, Numeric(10.0)).apply {
-//        connectProducer(joinAB)
-//    }
 
-    val cProduction = MutableDeviceState(Numeric<CubicMeters>(3.0))
+    val cProduction = MutableDeviceState(Numeric<CubicMeters>(3.0)).apply {
+        onTimer(0.2.seconds) { _, _ ->
+            value = Numeric(3.0 + Random.nextDouble(-0.1, 0.1))
+        }
+    }
+
     val cProducer = producer(cProduction)
 
     val cBuffer = buffer(cubicMeters, Numeric(10.0)).apply {

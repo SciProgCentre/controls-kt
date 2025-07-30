@@ -41,8 +41,9 @@ public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     override val consumationCapacity: DeviceState<Numeric<U>>,
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero)
 ) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
+
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(this, algebra.zero)
 
     init {
         registerState(consumationCapacity)
@@ -84,17 +85,14 @@ public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
  */
 public fun <U : UnitsOfMeasurement> ContinuousConsumer(
     context: Context,
-    capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousConsumer<U, Numeric<U>> = ContinuousConsumer(context, NumericAmountAlgebra<U>(), capacity, supplyRequest)
+    capacity: DeviceState<Numeric<U>>
+): ContinuousConsumer<U, Numeric<U>> = ContinuousConsumer(context, NumericAmountAlgebra<U>(), capacity)
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
-    capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero),
-): ContinuousConsumer<U, T> = model(ContinuousConsumer(context, algebra, capacity, supplyRequest))
+    capacity: DeviceState<Numeric<U>>
+): ContinuousConsumer<U, T> = model(ContinuousConsumer(context, algebra, capacity))
 
 public fun <U : UnitsOfMeasurement> ContinuousFlowModel.consumer(
-    capacity: DeviceState<Numeric<U>>,
-    supplyRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric(0))
-): ContinuousConsumer<U, Numeric<U>> = model(ContinuousConsumer(context, capacity, supplyRequest))
+    capacity: DeviceState<Numeric<U>>
+): ContinuousConsumer<U, Numeric<U>> = model(ContinuousConsumer(context, capacity))

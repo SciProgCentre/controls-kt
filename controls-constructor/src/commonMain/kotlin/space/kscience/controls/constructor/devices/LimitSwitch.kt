@@ -35,7 +35,7 @@ public fun <U : UnitsOfMeasurement, T : Numeric<U>> LimitSwitch(
     position: DeviceState<T>,
 ): LimitSwitch = LimitSwitch(
     context,
-    DeviceState.map(position) {
+    DeviceState.map(context, position) {
         when (boundary) {
             Direction.UP -> it >= limit
             Direction.DOWN -> it <= limit

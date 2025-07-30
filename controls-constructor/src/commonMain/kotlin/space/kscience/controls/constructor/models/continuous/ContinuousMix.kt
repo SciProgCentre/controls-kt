@@ -32,9 +32,11 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
 ) : ContinuousFlowModel(context), ContinuousProducerInterface<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero())
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(this, Numeric.zero())
+
+
     public val supplyRequest: Map<String, LateBindDeviceState<T>> = supplyKeys.associateWith {
-        LateBindDeviceState(algebra.zero)
+        LateBindDeviceState(this, algebra.zero)
     }
 
 
@@ -135,13 +137,12 @@ public fun <U : UnitsOfMeasurement> ContinuousMix(
  */
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
     key: String
-): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
-    ContinuousConsumer(
-        context = context,
-        algebra = algebra,
-        consumationCapacity = individualConsumation[key]!!.asNumeric(),
-        supplyRequest = input
-    )
+): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<T> ->
+    object : ContinuousConsumerInterface<U, T> {
+        override val consumation: DeviceState<T> get() = individualConsumation[key]!!
+        override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumation[key]!!.asNumeric()
+        override val supplyRequest: LateBindDeviceState<T> get() = input
+    }
 } ?: error("No supplier with key $key found")
 
 
@@ -149,7 +150,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectPr
     key: String,
     producer: ContinuousProducerInterface<U, T>
 ) {
-    ContinuousFlowModel.connect(producer, this.asConsumer(key))
+    ContinuousFlowModel.connect(producer, asConsumer(key))
 }
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectProducer(

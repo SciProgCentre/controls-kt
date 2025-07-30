@@ -80,9 +80,9 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     public val reaction: ReactionRule<U, T>,
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero())
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(this, Numeric.zero())
     public val supplyRequest: Map<String, LateBindDeviceState<T>> = reaction.supplyKeys.associateWith {
-        LateBindDeviceState(algebra.zero)
+        LateBindDeviceState(this, algebra.zero)
     }
 
 
@@ -141,7 +141,7 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
      */
     public val individualConsumation: Map<String, DeviceState<T>> =
         supplyRequest.keys.associateWith { key ->
-            consumation.map { it[key]!! }
+            mapState(consumation) { it[key]!! }
         }
 
     override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supplyRequest ->
@@ -168,13 +168,12 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
  */
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.asConsumer(
     key: String
-): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
-    ContinuousConsumer(
-        context = context,
-        algebra = algebra,
-        consumationCapacity = individualConsumation[key]!!.asNumeric(),
-        supplyRequest = input
-    )
+): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input ->
+    object : ContinuousConsumerInterface<U, T> {
+        override val consumation: DeviceState<T> get() = individualConsumation[key]!!
+        override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumation[key]!!.asNumeric()
+        override val supplyRequest: LateBindDeviceState<T> get() = input
+    }
 } ?: error("No supplier with key $key found")
 
 

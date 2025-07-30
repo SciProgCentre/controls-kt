@@ -62,7 +62,8 @@ public operator fun <U : UnitsOfMeasurement> Numeric<U>.unaryMinus(): Numeric<U>
 
 public fun <U : UnitsOfMeasurement> Amount<U>.asNumeric(): Numeric<U> = this as? Numeric<U> ?: Numeric(value)
 
-public fun <U : UnitsOfMeasurement> DeviceState<Amount<U>>.asNumeric(): DeviceStateWithDependencies<Numeric<U>> = map { it.asNumeric() }
+public fun <U : UnitsOfMeasurement> DeviceState<Amount<U>>.asNumeric(): DeviceStateWithDependencies<Numeric<U>> =
+    DeviceState.map(this) { it.asNumeric() }
 
 
 private object NumericalValueMetaConverter : MetaConverter<Numeric<*>> {

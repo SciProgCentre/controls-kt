@@ -143,13 +143,12 @@ class ContinuousFlowTest {
 
             val producer = producer(productionCapacity)
 
-            val buffer = buffer(algebra, bufferCapacity)
+            val buffer = buffer(algebra, bufferCapacity).apply {
+                connectProducer(producer)
+            }
 
-            val consumer = consumer(consumationCapacity)
-
-            init {
-                connect(producer = producer, consumer = buffer)
-                connect(producer = buffer, consumer = consumer)
+            val consumer = consumer(consumationCapacity).apply {
+                connectProducer(buffer)
             }
         }.runSimulation {
 

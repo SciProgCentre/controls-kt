@@ -18,8 +18,8 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
 ): ContinuousProducerInterface<U, T> = object : ContinuousProducerInterface<U, T> {
 
     override val production: DeviceState<T> = DeviceState.transform(
-        state = this@delayed.production,
         scope = scope,
+        state = this@delayed.production,
         initialValue = this@delayed.production.value
     ) {
         delay(delay)
@@ -33,6 +33,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
 }
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.limited(
+    scope: CoroutineScope,
     productionLimit: DeviceState<Numeric<U>>
 ): ContinuousProducerInterface<U, T> = object : ContinuousProducerInterface<U, T> {
     override val production: DeviceState<T>
@@ -41,9 +42,10 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
     override val productionCapacity: DeviceState<T>
         get() = this@limited.productionCapacity
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(productionLimit.value)
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(scope,productionLimit.value)
 
     private val limitedValue: DeviceState<Numeric<U>> = DeviceState.combine(
+        scope,
         consumerRequest,
         productionLimit
     ) { consumerRequest: Numeric<U>, limit: Numeric<U> ->
@@ -57,5 +59,6 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
 }
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.limited(
+    scope: CoroutineScope,
     productionLimit: Numeric<U>
-): ContinuousProducerInterface<U, T> = limited(DeviceState(productionLimit))
+): ContinuousProducerInterface<U, T> = limited(scope, DeviceState(productionLimit))

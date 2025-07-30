@@ -1,9 +1,12 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * A device state implementation that supports deferred binding to another [DeviceState] instance.
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.flow
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 public class LateBindDeviceState<T>(
+    scope: CoroutineScope,
     private val initialValue: T
 ) : DeviceState<T> {
 
@@ -27,18 +31,20 @@ public class LateBindDeviceState<T>(
     public val isBound: Boolean get() = binding.isCompleted
 
     override val value: T
-        get() = if (isBound) binding.getCompleted().value else initialValue
-
-    override val valueFlow: Flow<T> = if (binding.isCompleted) {
-        binding.getCompleted().valueFlow
-    } else {
-        flow {
-            emit(initialValue)
-            binding.await().valueFlow.collect {
-                emit(it)
-            }
+        get() = if (isBound) {
+            binding.getCompleted().value
+        } else {
+            initialValue
         }
-    }
+
+    override val valueFlow: StateFlow<T> = flow {
+        val bound = binding.await()
+        emit(bound.value)
+        bound.valueFlow.collect {
+            emit(it)
+        }
+    }.stateIn(scope, SharingStarted.Eagerly, initialValue)
+
 
     override fun toString(): String =
         "LateBindDeviceState(initialValue=$initialValue, binding=${binding.takeIf { it.isCompleted }})"

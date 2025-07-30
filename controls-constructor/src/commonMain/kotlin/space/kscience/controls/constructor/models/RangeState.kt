@@ -25,12 +25,12 @@ public open class RangeState<T : Comparable<T>>(
     /**
      * A state showing that the range is on its lower boundary
      */
-    public val atStart: DeviceState<Boolean> = input.map { it <= range.start }
+    public val atStart: DeviceState<Boolean> = DeviceState.map(input) { it <= range.start }
 
     /**
      * A state showing that the range is on its higher boundary
      */
-    public val atEnd: DeviceState<Boolean> = input.map { it >= range.endInclusive }
+    public val atEnd: DeviceState<Boolean> = DeviceState.map(input) { it >= range.endInclusive }
 
     override fun toString(): String = "DoubleRangeState(value=${value},range=$range)"
 }
