@@ -59,10 +59,13 @@ public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
     }
 
     public val efficiency: DeviceState<Double> = combineState(
-        consumation,
+        supplyRequest,
         consumationCapacity
-    ) { consumation, capacity ->
-        consumation.value / capacity.value
+    ) { request, capacity ->
+        with(algebra) {
+            val consumation = request.coerceValueIn(Numeric.zero<U>()..capacity)
+            consumation.value / capacity.value
+        }
     }
 
     public companion object

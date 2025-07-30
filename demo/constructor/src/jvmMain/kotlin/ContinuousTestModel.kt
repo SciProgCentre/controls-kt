@@ -71,33 +71,44 @@ private class ContinuousTestModel(
     val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
     val bProducer = producer(bProduction)
 
-    val cProduction = MutableDeviceState(Numeric<Kilograms>(3.0))
-    val cProducer = producer(cProduction)
-
-
     val joinAB = mix(kilograms, listOf("a", "b")).apply {
         connectProducer("a", aProducer)
         connectProducer("b", bProducer)
     }
+//
+//    val abBuffer = buffer(kilograms, Numeric(10.0)).apply {
+//        connectProducer(joinAB)
+//    }
 
-    val joinABC = reaction(
+    val cProduction = MutableDeviceState(Numeric<CubicMeters>(3.0))
+    val cProducer = producer(cProduction)
+
+    val cBuffer = buffer(cubicMeters, Numeric(10.0)).apply {
+        connectProducer(cProducer)
+    }
+
+    val transformer = linearTransformer(cubicMeters, kilograms, Numeric(1.0)).apply {
+        connectProducer(cBuffer)
+    }
+
+    val reactor = reaction(
         algebra = kilograms,
         formula = mapOf("ab" to Numeric(0.66), "c" to Numeric(0.33)),
     ).apply {
         connectProducer("ab", joinAB)
-        connectProducer("c", cProducer)
+        connectProducer("c", transformer)
     }
 
 
-    val abcConsumation = MutableDeviceState(Numeric<Kilograms>(8.0)).apply {
+    val consumation = MutableDeviceState(Numeric<Kilograms>(8.0)).apply {
         // add jitter
         onTimer(0.2.seconds) { _, _ ->
             value = Numeric(8.0 + Random.nextDouble(-0.1, 0.1))
         }
     }
 
-    val consumer = consumer(abcConsumation).apply {
-        connectProducer(joinABC)
+    val consumer = consumer(consumation).apply {
+        connectProducer(reactor)
     }
 
     companion object {

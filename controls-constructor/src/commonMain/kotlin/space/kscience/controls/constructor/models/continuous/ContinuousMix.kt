@@ -95,9 +95,8 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
             mapState(consumation) { it[key]!! }
         }
 
-    override val productionCapacity: DeviceState<T> = combineState(supplyRequest.values) { array ->
-        algebra.sum(array)
-
+    override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supply: Map<String, T> ->
+        algebra.sum(supply.values)
     }
 
     override val production: DeviceState<T> = mapState(consumation) { consume ->

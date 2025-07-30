@@ -45,11 +45,11 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         registerState(consumerRequest)
     }
 
-    public val remainingBufferSpace: DeviceState<Numeric<U>> = combineState(
-        bufferCapacity, content
-    ) { capacity: Numeric<U>, content: T ->
-        capacity - Numeric<U>(content.value)
-    }
+//    private val remainingBufferSpace: DeviceState<Numeric<U>> = combineState(
+//        bufferCapacity, content
+//    ) { capacity: Numeric<U>, content: T ->
+//        capacity - Numeric<U>(content.value)
+//    }
 
     override val productionCapacity: DeviceState<T> = combineState(
         supplyRequest,
@@ -70,9 +70,11 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
     }
 
     override val consumationCapacity: DeviceState<Numeric<U>> = combineState(
-        remainingBufferSpace,
+        bufferCapacity,
+        content,
         consumerRequest
-    ) { remaining: Numeric<U>, consumation: Numeric<U> ->
+    ) { bufferSize, content,  consumation: Numeric<U> ->
+        val remaining = bufferSize - Numeric<U>(content.value)
         remaining + consumation
     }
 
@@ -87,7 +89,7 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
 
     private val levelChange = onTimer(
         tick = timeStep,
-        reads = listOf(production, consumation, remainingBufferSpace),
+        reads = listOf(production, consumation, bufferCapacity),
         writes = listOf(content)
     ) { prev, next ->
         with(algebra) {

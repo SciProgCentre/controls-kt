@@ -60,10 +60,13 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
     }
 
     public val efficiency: DeviceState<Double> = combineState(
-        production,
+        consumerRequest,
         productionCapacity
-    ) { production, capacity ->
-        production.value / capacity.value
+    ) { request, capacity ->
+        with(algebra) {
+            val production = capacity.coerceValueIn(Numeric.zero<U>()..request)
+            production.value / capacity.value
+        }
     }
 
     public companion object {
