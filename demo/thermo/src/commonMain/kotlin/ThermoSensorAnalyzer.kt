@@ -2,6 +2,9 @@ package center.sciprog.controls.demo.thermo
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.valueType
 import space.kscience.controls.constructor.*
@@ -11,6 +14,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.names.asName
 import kotlin.math.abs
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
 @Serializable
@@ -56,6 +60,40 @@ class ThermoSensorAnalyzer(
 
     private val mutex = Mutex()
 
+    //cache analyzer config values
+
+    private val daily = analyzerConfig.correction.daily
+
+    private val yearly = analyzerConfig.correction.yearly
+
+    private fun computeCorrection(time: LocalDateTime): Double{
+        val dailyCorrection = if (daily.isNullOrEmpty()) {
+            0.0
+        } else {
+            daily.entries.filter { it.key <= time.hour }.maxByOrNull{ it.key }?.value ?: 0.0
+        }
+
+        val yearlyCorrection = if (yearly.isNullOrEmpty()) {
+            0.0
+        } else {
+            yearly.entries.filter { it.key <= time.dayOfYear }.maxByOrNull { it.key }?.value ?: 0.0
+        }
+
+        return dailyCorrection + yearlyCorrection
+    }
+
+    private val warningThreshold = analyzerConfig.warningThreshold
+
+    private val alarmThreshold = analyzerConfig.alarmThreshold
+
+    private fun computeWarningThreshold(
+        time: LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    ): Double = warningThreshold + computeCorrection(time)
+
+    private fun computeAlarmThreshold(
+        time: LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    ): Double = alarmThreshold + computeCorrection(time)
+
     private val statusUpdateJob = temperature.onNext(
         writes = listOf(status)
     ) { next ->
@@ -76,8 +114,8 @@ class ThermoSensorAnalyzer(
             averagedTemperatureState.value = average
 
             val newStatus = when {
-                average > analyzerConfig.computeAlarmThreshold() -> ThermoSensorStatus.Alarm
-                average > analyzerConfig.computeWarningThreshold() -> ThermoSensorStatus.Warning
+                average > computeAlarmThreshold() -> ThermoSensorStatus.Alarm
+                average > computeWarningThreshold() -> ThermoSensorStatus.Warning
                 else -> ThermoSensorStatus.Normal
             }
 
