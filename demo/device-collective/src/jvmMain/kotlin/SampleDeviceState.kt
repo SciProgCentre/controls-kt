@@ -20,7 +20,7 @@ class SampleDeviceState<T>(
 }
 
 
-fun <T> DeviceState<T>.debounce(interval: Duration) = SampleDeviceState(this, interval)
+fun <T> DeviceState<T>.sample(interval: Duration) = SampleDeviceState(this, interval)
 
 @OptIn(FlowPreview::class)
 class MutableSampleDeviceState<T>(
@@ -38,4 +38,4 @@ class MutableSampleDeviceState<T>(
     override fun toString(): String = "DebounceDeviceState($value, interval=$interval)"
 }
 
-fun <T> MutableDeviceState<T>.debounce(interval: Duration) = MutableSampleDeviceState(this, interval)
+fun <T> MutableDeviceState<T>.sample(interval: Duration) = MutableSampleDeviceState(this, interval)

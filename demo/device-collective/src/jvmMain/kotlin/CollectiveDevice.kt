@@ -84,12 +84,12 @@ class CollectiveDeviceConstructor(
 
     val position = registerAsProperty(
         CollectiveDevice.position,
-        position.debounce(configuration.reportInterval.milliseconds)
+        position.sample(configuration.reportInterval.milliseconds)
     )
 
     val velocity = registerAsProperty(
         CollectiveDevice.velocity,
-        velocity.debounce(configuration.reportInterval.milliseconds)
+        velocity.sample(configuration.reportInterval.milliseconds)
     )
 
     private val _visibleNeighbors: MutableDeviceState<Collection<CollectiveDeviceId>> = stateOf(emptyList())
