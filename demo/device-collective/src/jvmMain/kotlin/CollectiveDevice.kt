@@ -96,7 +96,7 @@ class CollectiveDeviceConstructor(
 
     val visibleNeighbors = registerAsProperty(
         CollectiveDevice.visibleNeighbors,
-        _visibleNeighbors.map { it.toList() }
+        DeviceState.map(_visibleNeighbors){ it.toList() }
     )
 
     init {

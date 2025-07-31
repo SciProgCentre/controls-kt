@@ -3,7 +3,6 @@ package space.kscience.controls.demo.collective
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.sample
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.MutableDeviceState
 import kotlin.time.Duration
@@ -14,7 +13,8 @@ class DebounceDeviceState<T>(
     val interval: Duration,
 ) : DeviceState<T> {
     override val value: T by origin::value
-    override val valueFlow: Flow<T> get() = origin.valueFlow.debounce(interval)
+
+    override fun subscribe(): Flow<T>  = origin.subscribe().debounce(interval)
 
     override fun toString(): String = "DebounceDeviceState($value, interval=$interval)"
 }
@@ -33,7 +33,7 @@ class MutableDebounceDeviceState<T>(
         origin.emit(value)
     }
 
-    override val valueFlow: Flow<T> get() = origin.valueFlow.sample(interval)
+    override fun subscribe(): Flow<T>  = origin.subscribe().debounce(interval)
 
     override fun toString(): String = "DebounceDeviceState($value, interval=$interval)"
 }

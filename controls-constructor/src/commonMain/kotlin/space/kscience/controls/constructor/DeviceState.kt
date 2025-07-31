@@ -83,6 +83,9 @@ public fun <T, R> DeviceState.Companion.map(
     override fun toString(): String = "DeviceState.map(state=${state}, mapper=$mapper)"
 }
 
+public fun <T, R> DeviceState<T>.map(mapper: (T) -> R): DeviceStateWithDependencies<R> =
+    DeviceState.map(this, mapper)
+
 /**
  * Create a new read-only [DeviceState] that mirrors receiver state by mapping the value with [mapper].
  *

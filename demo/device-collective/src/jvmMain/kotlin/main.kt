@@ -33,6 +33,7 @@ import org.jetbrains.compose.splitpane.rememberSplitPaneState
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.*
 import space.kscience.controls.compose.conditional
+import space.kscience.controls.constructor.useValue
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextBuilder
@@ -151,7 +152,7 @@ fun App() {
                 //draw real positions
                 collectiveModel.deviceStates.forEach { device ->
                     circle(device.position.value, id = device.id + ".position").color(Color.Red)
-                    device.position.valueFlow.sample(50.milliseconds).onEach {
+                    device.position.subscribe().sample(50.milliseconds).onEach {
                         val activeDevice = selectedDeviceId?.let { devices[it] }
                         val color = if (selectedDeviceId == device.id) {
                             Color.Magenta
@@ -195,9 +196,9 @@ fun App() {
 
                 // draw trawler
 
-                trawler.position.valueFlow.onEach {
+                trawler.position.useValue(scope){
                     circle(it, id = "trawler").color(Color.Black)
-                }.launchIn(scope)
+                }
             }
         }
         second(200.dp) {

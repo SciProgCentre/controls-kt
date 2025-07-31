@@ -129,7 +129,7 @@ private fun <T> Trace.updateFromState(
 ): Job {
     val clock = context.clock
     val data = TimeData()
-    return state.valueFlow.sample(sampling).transform<T, TimeData> {
+    return state.subscribe().sample(sampling).transform<T, TimeData> {
         data.append(clock.now(), it.extractValue())
         data.trim(maxAge, maxPoints, minPoints)
     }.onEach {
