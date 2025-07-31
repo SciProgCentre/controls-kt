@@ -17,7 +17,7 @@ import space.kscience.visionforge.server.visionPage
 import space.kscience.visionforge.visionManager
 
 public suspend fun Context.showDashboard(
-    port: Int = 7777,
+    port: Int = 7080,
     routes: Routing.() -> Unit = {},
     configurationBuilder: VisionRoute.() -> Unit = {},
     visionFragment: HtmlVisionFragment,

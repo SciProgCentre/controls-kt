@@ -103,7 +103,7 @@ suspend fun main(): Unit = coroutineScope {
         }
     }
 
-    context.embeddedServer(CIO, port = 7777) {
+    context.embeddedServer(CIO, port = 7080) {
         routing {
             staticResources("js", "js", null)
             staticResources("css", "css", null)
