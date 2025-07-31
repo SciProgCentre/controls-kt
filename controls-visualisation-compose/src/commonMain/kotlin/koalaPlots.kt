@@ -171,7 +171,7 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
     LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
         val clock = context.clock
 
-        state.valueFlow
+        state.subscribe()
             .map { it.toDouble() }
             .repeatOrSample(clock, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)

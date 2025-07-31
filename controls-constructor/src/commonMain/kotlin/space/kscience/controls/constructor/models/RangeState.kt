@@ -16,11 +16,11 @@ public open class RangeState<T : Comparable<T>>(
     public val range: ClosedRange<T>,
 ) : DeviceState<T> {
 
-    override val valueFlow: Flow<T> get() = input.valueFlow.map {
+    override val value: T get() = input.value.coerceIn(range)
+
+    override fun subscribe(): Flow<T>  = input.subscribe().map {
         it.coerceIn(range)
     }
-
-    override val value: T get() = input.value.coerceIn(range)
 
     /**
      * A state showing that the range is on its lower boundary
@@ -44,6 +44,10 @@ public class MutableRangeState<T : Comparable<T>>(
         set(value) {
             mutableInput.value = value.coerceIn(range)
         }
+
+    override suspend fun emit(value: T) {
+        mutableInput.emit(value.coerceIn(range))
+    }
 }
 
 public fun <T : Comparable<T>> MutableRangeState(

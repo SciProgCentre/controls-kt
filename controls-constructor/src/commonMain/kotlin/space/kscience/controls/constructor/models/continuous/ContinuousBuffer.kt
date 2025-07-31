@@ -28,8 +28,8 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     public val bufferCapacity: DeviceState<Numeric<U>>,
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(context,algebra.zero),
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(context,Numeric.zero()),
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(context, algebra.zero),
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(context, Numeric.zero()),
     initialLevel: T = algebra.zero,
     timeStep: Duration = 1.seconds
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T>, ContinuousConsumerInterface<U, T> {
@@ -68,10 +68,9 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
     override val consumationCapacity: DeviceState<Numeric<U>> = combineState(
         bufferCapacity,
         content,
-        consumerRequest
-    ) { bufferSize, content, consumationRequest: Numeric<U> ->
-        val remainingSpace = bufferSize - Numeric<U>(content.value)
-        remainingSpace + consumationRequest
+        consumerRequest,
+    ) { bufferSize: Numeric<U>, content: T, consumationRequest: Numeric<U> ->
+        consumationRequest + bufferSize - Numeric(content.value)
     }
 
     override val consumation: DeviceState<T> = combineState(
@@ -97,8 +96,10 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
 
             val delta = consumation.value - production.value
 
-            _content.value = (_content.value + delta * (timeStep / 1.seconds))
-                .coerceValueIn(Numeric.zero<U>()..bufferCapacity.value)
+            _content.emit(
+                (_content.value + delta * (timeStep / 1.seconds))
+                    .coerceValueIn(Numeric.zero<U>()..bufferCapacity.value)
+            )
         }
     }
 }

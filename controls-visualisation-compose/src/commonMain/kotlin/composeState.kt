@@ -16,7 +16,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 @Composable
 public fun <T> DeviceState<T>.asComposeState(
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
-): State<T> = valueFlow.collectAsState(value, coroutineContext)
+): State<T> = subscribe().collectAsState(value, coroutineContext)
 
 
 /**
@@ -25,7 +25,7 @@ public fun <T> DeviceState<T>.asComposeState(
 public fun <T> State<T>.asDeviceState(): DeviceState<T> = object : DeviceState<T> {
     override val value: T get() = this@asDeviceState.value
 
-    override val valueFlow: Flow<T> get() = snapshotFlow { this@asDeviceState.value }
+    override fun subscribe(): Flow<T> = snapshotFlow { this@asDeviceState.value }
 
     override fun toString(): String = "ComposeState(value=$value)"
 }

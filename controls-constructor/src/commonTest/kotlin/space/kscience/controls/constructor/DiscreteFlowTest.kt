@@ -46,11 +46,11 @@ class DiscreteFlowTest {
             val producer = registerProducer(production, consumer, 0.02.seconds)
         }.runSimulation {
 
-            producer.production.valueFlow.onEach {
+            producer.production.subscribe().onEach {
                 println("production: $it (${clock.now() - epoch})")
             }.launchIn(backgroundScope)
 
-            consumer.consumation.valueFlow.onEach {
+            consumer.consumation.subscribe().onEach {
                 println("consumation: $it (${clock.now() - epoch})")
             }.launchIn(backgroundScope)
 
@@ -97,7 +97,7 @@ class DiscreteFlowTest {
             val aProducer = registerProducer(a, joinAB, 0.02.seconds)
         }.runSimulation {
 
-            joinABC.consumation.valueFlow.onEach {
+            joinABC.consumation.subscribe().onEach {
                 println("consumation: $it (${clock.now() - epoch})")
             }.launchIn(backgroundScope)
 

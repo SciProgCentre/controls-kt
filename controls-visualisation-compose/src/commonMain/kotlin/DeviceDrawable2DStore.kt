@@ -48,7 +48,7 @@ public fun <T> DeviceDrawable2DStore.observeState(
     state: DeviceState<T>,
     id: String = state.toString(),
     transform: suspend DeviceDrawable2DStore.(T) -> DeviceDrawable2D,
-): Job = observe(id, state.valueFlow.map { transform(this, it) })
+): Job = observe(id, state.subscribe().map { transform(this, it) })
 
 /**
  * Observe a single [Device] property

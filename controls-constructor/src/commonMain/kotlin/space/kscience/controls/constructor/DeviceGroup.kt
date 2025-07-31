@@ -109,7 +109,7 @@ public open class DeviceGroup(
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
-        state.valueFlow.map(converter::convert).onEach {
+        state.subscribe().map(converter::convert).onEach {
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
                     time = clock.now(),

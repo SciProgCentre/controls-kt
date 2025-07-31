@@ -2,6 +2,7 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.id
@@ -21,11 +22,13 @@ private open class PropertyDeviceState<T>(
     initialValue: T,
 ) : DeviceState<T> {
 
-    override val valueFlow: StateFlow<T> = device.messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
+    val valueFlow: StateFlow<T> = device.messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
         it.property == propertyName
     }.mapNotNull {
         converter.read(it.value)
     }.stateIn(device.context, SharingStarted.Eagerly, initialValue)
+
+    override fun subscribe(): StateFlow<T> = valueFlow
 
     override val value: T get() = valueFlow.value
     override fun toString(): String =
@@ -74,6 +77,12 @@ private class MutablePropertyDeviceState<T>(
                 device.writeProperty(propertyName, converter.convert(newValue))
             }
         }
+
+    override suspend fun emit(value: T) {
+        withContext(device.coroutineContext) {
+            device.writeProperty(propertyName, converter.convert(value))
+        }
+    }
 }
 
 public fun <T> Device.mutablePropertyAsState(

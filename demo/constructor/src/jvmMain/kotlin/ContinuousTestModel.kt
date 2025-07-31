@@ -30,7 +30,6 @@ import io.github.koalaplot.core.xygraph.XYGraph
 import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.PlotNumericState
@@ -49,17 +48,10 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
-internal fun StateContainer.debugState(name: String, state: DeviceState<Amount<*>>): Job = launch {
-    fun print(value: Amount<*>) {
+internal fun StateContainer.debugState(name: String, state: DeviceState<Amount<*>>): Job =
+    state.useValue(this) { value ->
         println("(${clock.now()}) $name: ${value.value}")
     }
-
-    print(state.value)
-
-    state.valueFlow.collect {
-        print(it)
-    }
-}
 
 
 private class ContinuousTestModel(
@@ -77,15 +69,20 @@ private class ContinuousTestModel(
     }
 
     val cProduction = MutableDeviceState(Numeric<CubicMeters>(3.0)).apply {
-        onTimer(0.2.seconds) { _, _ ->
-            value = Numeric(3.0 + Random.nextDouble(-0.1, 0.1))
-        }
+//        onTimer(0.2.seconds) { _, _ ->
+//            value = Numeric(3.0 + Random.nextDouble(-0.1, 0.1))
+//        }
     }
 
     val cProducer = producer(cProduction)
 
     val cBuffer = buffer(cubicMeters, Numeric(10.0)).apply {
         connectProducer(cProducer)
+
+        debugState("C buffer level", content)
+        debugState("C buffer request", consumationCapacity)
+        debugState("C buffer consumption", consumation)
+//        debugState("C buffer production", production)
     }
 
     val transformer = linearTransformer(cubicMeters, kilograms, Numeric(1.0)).apply {
@@ -140,7 +137,7 @@ fun main() {
                             Row {
                                 Text("Enable B producer", modifier = Modifier.align(Alignment.CenterVertically))
 
-                                val checked by model.bProduction.valueFlow.map { it.value > 0.0 }.collectAsState(true)
+                                val checked by model.bProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
                                         model.bProduction.value = Numeric(2.0)
@@ -176,7 +173,7 @@ fun main() {
                                 )
                                 PlotNumericState(
                                     context = context,
-                                    state = model.transformer.production,
+                                    state = model.cProducer.production,
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Magenta))
@@ -192,12 +189,20 @@ fun main() {
                                     context = context,
                                     state = model.cBuffer.content,
                                     maxAge = maxAge,
-                                    sampling = 250.milliseconds,
+                                    sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Black))
                                 )
+                                PlotNumericState(
+                                    context = context,
+                                    state = model.transformer.consumation,
+                                    maxAge = maxAge,
+                                    sampling = 500.milliseconds,
+                                    lineStyle = LineStyle(SolidColor(Color.Green))
+                                )
+
                             }
                             Surface {
-                                FlowLegend(4, label = {
+                                FlowLegend(5, label = {
                                     when (it) {
                                         0 -> {
                                             Text("Production", color = Color.Blue)
@@ -213,6 +218,10 @@ fun main() {
 
                                         3 -> {
                                             Text("C Buffer", color = Color.Black)
+                                        }
+
+                                        4 -> {
+                                            Text("Transformer C consumption", color = Color.Green)
                                         }
                                     }
                                 })

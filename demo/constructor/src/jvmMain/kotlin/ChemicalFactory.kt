@@ -152,7 +152,7 @@ fun main() {
                             Row {
                                 Text("Enable B producer", modifier = Modifier.align(Alignment.CenterVertically))
 
-                                val checked by model.bProduction.valueFlow.map { it.value > 0.0 }.collectAsState(true)
+                                val checked by model.bProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
                                         model.bProduction.value = Numeric(1.5)

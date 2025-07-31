@@ -33,7 +33,7 @@ class ContinuousFlowTest {
 
         printOne(value)
 
-        valueFlow.onEach {
+        subscribe().onEach {
             printOne(it)
         }.launchIn(scope.backgroundScope)
     }
@@ -152,7 +152,7 @@ class ContinuousFlowTest {
             }
         }.runSimulation {
 
-            buffer.content.valueFlow.onEach {
+            buffer.content.subscribe().onEach {
                 println("content: $it (${clock.now() - epoch})")
             }.launchIn(backgroundScope)
 

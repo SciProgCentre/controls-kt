@@ -1,8 +1,8 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import space.kscience.controls.time.ClockManager
@@ -27,12 +27,12 @@ public class TimerState(
 
     private val updateJob = clockManager.context.launch(clockManager.simulationDispatcher) {
         while (isActive) {
-            time.value = clockManager.clock.now()
+            time.emit(clockManager.clock.now())
             delay(tick)
         }
     }
 
-    override val valueFlow: Flow<Instant> get() = time
+    override fun subscribe(): StateFlow<Instant> = time
 
     override val value: Instant get() = time.value
 

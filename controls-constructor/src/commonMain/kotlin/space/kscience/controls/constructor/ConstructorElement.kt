@@ -64,7 +64,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
         writes: Collection<DeviceState<*>> = emptySet(),
         reads: Collection<DeviceState<*>> = emptySet(),
         onChange: suspend (T) -> Unit,
-    ): Job = valueFlow.onEach(onChange).launchIn(this@StateContainer).also {
+    ): Job = subscribe().onEach(onChange).launchIn(this@StateContainer).also {
         registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 
@@ -72,7 +72,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
         writes: Collection<DeviceState<*>> = emptySet(),
         reads: Collection<DeviceState<*>> = emptySet(),
         onChange: suspend (prev: T, next: T) -> Unit,
-    ): Job = valueFlow.runningFold(Pair(value, value)) { pair, next ->
+    ): Job = subscribe().runningFold(Pair(value, value)) { pair, next ->
         Pair(pair.second, next)
     }.onEach { pair ->
         if (pair.first != pair.second) {
@@ -169,7 +169,7 @@ public fun <T, R> StateContainer.flowState(
     transformation: suspend FlowCollector<R>.(T) -> Unit,
 ): DeviceStateWithDependencies<R> {
     val state = MutableDeviceState(initialValue)
-    origin.valueFlow.transform(transformation).onEach { state.value = it }.launchIn(this)
+    origin.subscribe().transform(transformation).onEach { state.value = it }.launchIn(this)
     return registerState(state.withDependencies(setOf(origin)))
 }
 
@@ -243,7 +243,7 @@ public fun <T> StateContainer.bindState(sourceState: DeviceState<T>, targetState
 
     return launch {
         targetState.value = sourceState.value
-        sourceState.valueFlow.collect {
+        sourceState.subscribe().collect {
             targetState.value = it
         }
     }.apply {
@@ -269,7 +269,7 @@ public fun <T, R> StateContainer.bindTransformedState(
 
     return launch {
         targetState.value = transformation(sourceState.value)
-        sourceState.valueFlow.collect {
+        sourceState.subscribe().collect {
             targetState.value = transformation(it)
         }
     }.apply {
@@ -295,7 +295,7 @@ public fun <T1, T2, R> StateContainer.bindCombinedState(
 
     return launch {
         targetState.value = transformation(sourceState1.value, sourceState2.value)
-        combine(sourceState1.valueFlow, sourceState2.valueFlow, transformation).collect {
+        combine(sourceState1.subscribe(), sourceState2.subscribe(), transformation).collect {
             targetState.value = it
         }
     }.apply {
@@ -320,7 +320,7 @@ public inline fun <reified T, R> StateContainer.bindCombinedState(
 
     return launch {
         targetState.value = transformation(sourceStates.map { it.value }.toTypedArray())
-        combine(sourceStates.map { it.valueFlow }, transformation).collect {
+        combine(sourceStates.map { it.subscribe() }, transformation).collect {
             targetState.value = it
         }
     }.apply {

@@ -28,6 +28,11 @@ class MutableDebounceDeviceState<T>(
     val interval: Duration,
 ) : MutableDeviceState<T> {
     override var value: T by origin::value
+
+    override suspend fun emit(value: T) {
+        origin.emit(value)
+    }
+
     override val valueFlow: Flow<T> get() = origin.valueFlow.sample(interval)
 
     override fun toString(): String = "DebounceDeviceState($value, interval=$interval)"

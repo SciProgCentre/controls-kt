@@ -2,8 +2,12 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration
 
 
@@ -22,9 +26,10 @@ private open class ExternalDeviceState<T>(
     }.stateIn(scope, SharingStarted.Eagerly, initialValue)
 
     override val value: T get() = flow.value
-    override val valueFlow: Flow<T> get() = flow
 
-    override fun toString(): String  = "ExternalState()"
+    override fun subscribe(): StateFlow<T> = flow
+
+    override fun toString(): String = "ExternalState()"
 }
 
 /**
@@ -35,7 +40,7 @@ public fun <T> DeviceState.Companion.external(
     readInterval: Duration,
     initialValue: T,
     reader: suspend () -> T,
-): DeviceState<T> = ExternalDeviceState(scope,  readInterval, initialValue, reader)
+): DeviceState<T> = ExternalDeviceState(scope, readInterval, initialValue, reader)
 
 private class MutableExternalDeviceState<T>(
     scope: CoroutineScope,
@@ -51,6 +56,12 @@ private class MutableExternalDeviceState<T>(
                 writer(value)
             }
         }
+
+    override suspend fun emit(value: T) {
+        withContext(scope.coroutineContext) {
+            writer(value)
+        }
+    }
 }
 
 /**
