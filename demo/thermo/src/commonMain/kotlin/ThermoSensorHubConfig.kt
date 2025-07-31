@@ -8,7 +8,7 @@ import space.kscience.dataforge.misc.DFExperimental
 import kotlin.math.floor
 import kotlin.time.Clock
 
-internal fun normalize(d: Double): Double = floor(d * 10.0) / 10.0
+internal fun normalize(d: Double): Double = (floor(d * 10.0) / 10.0).takeIf { it.isFinite() } ?: 0.0
 
 @OptIn(DFExperimental::class)
 class ThermoSensorAnalyzerCorrectionConfig : Scheme() {
