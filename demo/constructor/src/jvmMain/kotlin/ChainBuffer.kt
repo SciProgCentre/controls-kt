@@ -67,6 +67,7 @@ private class ChainBufferModel(
 
     val buffer2 = buffer(cubicMeters, Numeric(10.0)).apply {
         connectProducer(transformer.limited(this, Numeric(2.0)))
+        debugState("Buffer 2", content)
     }
 
     val consumation = MutableDeviceState(Numeric<CubicMeters>(2.0))

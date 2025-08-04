@@ -18,10 +18,12 @@ import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
 import kotlin.time.Clock
@@ -36,21 +38,34 @@ private val defaultMaxPoints get() = 800
 private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
-private fun <T> Flow<T>.repeatOrSample(clock: Clock, interval: Duration): Flow<ValueWithTime<T>> = flow {
+private fun <T> Flow<T>.repeatOrSample(clockManager: ClockManager, interval: Duration): Flow<ValueWithTime<T>> = flow {
+    val clock = clockManager.clock
+
     coroutineScope {
+
         var current: T? = null
+        var flag: Boolean = false
 
         launch {
             collect {
                 current = it
+                flag = true
             }
         }
 
         while (isActive) {
-            current?.let { emit(ValueWithTime(it, clock.now())) }
-            delay(interval)
+            current?.let {
+                if(!flag) {
+                    emit(ValueWithTime(it, clock.now()))
+                }
+            }
+            flag = false
+            withContext(clockManager.simulationDispatcher) {
+                delay(interval)
+            }
         }
     }
+
 }
 
 
@@ -121,11 +136,13 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     lineStyle: LineStyle = defaultLineStyle,
 ) {
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
+    val clockManager =
+        remember(device) { device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager) }
 
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
         device.propertyMessageFlow(propertyName)
             .map { it.value.extractValue() }
-            .repeatOrSample(device.clock, sampling)
+            .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
             .onEach { points = it }
             .launchIn(this)
@@ -166,14 +183,14 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
     lineStyle: LineStyle = defaultLineStyle,
 ): Unit {
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
-
+    val clockManager = remember(context) { context.plugins.get<ClockManager>() ?: context.request(ClockManager) }
 
     LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
         val clock = context.clock
 
         state.subscribe()
             .map { it.toDouble() }
-            .repeatOrSample(clock, sampling)
+            .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
             .onEach { points = it }
             .launchIn(this)

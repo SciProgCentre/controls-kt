@@ -85,7 +85,7 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     }
 
     /**
-     * Provide a [CoroutineDispatcher] with compressed time based on context dispatcher
+     * Provide a [CoroutineDispatcher] with time management for simulations
      */
     public val simulationDispatcher: CoroutineDispatcher by lazy {
         when (val mode = clockMode) {
