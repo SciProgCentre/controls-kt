@@ -33,7 +33,6 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
-import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.CubicMeters
@@ -50,48 +49,31 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
-class ChemicalFactory(
+private class ChainBufferModel(
     context: Context
 ) : ContinuousFlowModel(context) {
-
-    val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
-    val aProducer = producer(aProduction)
-
-    val bProduction = MutableDeviceState(Numeric<Kilograms>(1.5))
-    val bProducer = producer(bProduction)
-
-    val mixer = mix(kilograms, setOf("a", "b")).apply {
-        connectProducer("a", aProducer)
-        connectProducer("b", bProducer)
+    val production = MutableDeviceState(Numeric<Kilograms>(1.0))
+    val producer = producer(kilograms, production).apply {
+        debugState("Producer production", production)
     }
 
-    val abBuffer = buffer(kilograms, Numeric(10.0)).apply {
-        connectProducer(mixer)
-        debugState("AB buffer", content)
+    val buffer1 = buffer(kilograms, Numeric(10.0)).apply {
+        connectProducer(producer)
     }
 
-    val cProduction = MutableDeviceState(Numeric<CubicMeters>(10.0))
-    val cProducer = producer(cProduction)
-
-    val cBuffer = buffer(cubicMeters, Numeric(50.0)).apply {
-        connectProducer(cProducer)
-        debugState("C buffer", content)
+    val transformer = linearTransformer(kilograms, cubicMeters, Numeric(1.0)).apply {
+        connectProducer(buffer1)
     }
 
-    val converter = linearTransformer(cubicMeters, kilograms, Numeric(0.2)).apply {
-        connectProducer(cBuffer)
+    val buffer2 = buffer(cubicMeters, Numeric(10.0)).apply {
+        connectProducer(transformer.limited(this, Numeric(2.0)))
     }
 
-    val reactor = reaction(kilograms, mapOf("ab" to Numeric(1.0), "c" to Numeric(1.0))).apply {
-        connectProducer("ab", abBuffer)
-        connectProducer("c", converter)
-    }
+    val consumation = MutableDeviceState(Numeric<CubicMeters>(2.0))
 
-
-    val consumer = consumer(kilograms, DeviceState(Numeric(2.0))).apply {
-        connectProducer(reactor)
-
-        debugState("Consumer consumation", consumation)
+    val consumer = consumer(cubicMeters, consumation).apply {
+        connectProducer(buffer2)
+        debugState("Consumer consumption", consumation)
     }
 
     companion object {
@@ -106,7 +88,7 @@ fun main() {
         plugin(ClockManager)
     }
 
-    val model = ChemicalFactory(context)
+    val model = ChainBufferModel(context)
 
     val maxAge = 60.seconds
 
@@ -120,26 +102,26 @@ fun main() {
                     first(200.dp) {
                         Column(modifier = Modifier.background(color = Color.LightGray).fillMaxHeight().fillMaxWidth()) {
                             Row {
-                                Text("Enable B producer", modifier = Modifier.align(Alignment.CenterVertically))
+                                Text("Enable producer", modifier = Modifier.align(Alignment.CenterVertically))
 
-                                val checked by model.bProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
+                                val checked by model.production.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.bProduction.value = Numeric(1.5)
+                                        model.production.value = Numeric(1.0)
                                     } else {
-                                        model.bProduction.value = Numeric(0.0)
+                                        model.production.value = Numeric(0.0)
                                     }
                                 })
                             }
                             Row {
-                                Text("Enable C producer", modifier = Modifier.align(Alignment.CenterVertically))
+                                Text("Enable consumer", modifier = Modifier.align(Alignment.CenterVertically))
 
-                                val checked by model.cProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
+                                val checked by model.consumation.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.cProduction.value = Numeric(10.0)
+                                        model.consumation.value = Numeric(2.0)
                                     } else {
-                                        model.cProduction.value = Numeric(0.0)
+                                        model.consumation.value = Numeric(0.0)
                                     }
                                 })
                             }
@@ -170,54 +152,55 @@ fun main() {
                                 )
                                 PlotNumericState(
                                     context = context,
-                                    state = model.abBuffer.content,
-                                    maxAge = maxAge,
-                                    sampling = 500.milliseconds,
-                                    lineStyle = LineStyle(SolidColor(Color.Black))
-                                )
-                                PlotNumericState(
-                                    context = context,
-                                    state = model.cProducer.production,
+                                    state = model.buffer1.content,
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Magenta))
                                 )
                                 PlotNumericState(
                                     context = context,
-                                    state = model.bProducer.production,
+                                    state = model.transformer.production,
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Red))
                                 )
                                 PlotNumericState(
                                     context = context,
-                                    state = model.aProducer.production,
+                                    state = model.buffer2.content,
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
-                                    lineStyle = LineStyle(SolidColor(Color.Cyan))
+                                    lineStyle = LineStyle(SolidColor(Color.Black))
                                 )
+                                PlotNumericState(
+                                    context = context,
+                                    state = model.producer.production,
+                                    maxAge = maxAge,
+                                    sampling = 500.milliseconds,
+                                    lineStyle = LineStyle(SolidColor(Color.Green))
+                                )
+
                             }
                             Surface {
                                 FlowLegend(5, label = {
                                     when (it) {
                                         0 -> {
-                                            Text("Production", color = Color.Blue)
+                                            Text("Total product", color = Color.Blue)
                                         }
 
                                         1 -> {
-                                            Text("AB Buffer level", color = Color.Black)
+                                            Text("Buffer 1", color = Color.Magenta)
                                         }
 
                                         2 -> {
-                                            Text("C Production", color = Color.Magenta)
+                                            Text("Transformer production", color = Color.Red)
                                         }
 
                                         3 -> {
-                                            Text("B Production", color = Color.Red)
+                                            Text("Buffer 2", color = Color.Black)
                                         }
 
                                         4 -> {
-                                            Text("A Production", color = Color.Cyan)
+                                            Text("Producer production", color = Color.Green)
                                         }
                                     }
                                 })

@@ -98,12 +98,12 @@ public fun <T, R> DeviceState.Companion.map(
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = listOf(state)
 
-    val valueFlow: SharedFlow<R> = state.subscribe().map(mapper)
-        .shareIn(scope, SharingStarted.Eagerly)
-
     override val value: R get() = mapper(state.value)
 
-    override fun subscribe(): SharedFlow<R> = valueFlow
+    val valueFlow: StateFlow<R> = state.subscribe().map(mapper)
+        .stateIn(scope, SharingStarted.WhileSubscribed(), value)
+
+    override fun subscribe(): StateFlow<R> = valueFlow
 
     override fun toString(): String = "DeviceState.map(state=${state}, mapper=$mapper)"
 }
@@ -160,12 +160,12 @@ public fun <T1, T2, R> DeviceState.Companion.combine(
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2)
 
-    val valueFlow: SharedFlow<R> = combine(state1.subscribe(), state2.subscribe(), mapper)
-        .shareIn(scope, SharingStarted.Eagerly)
-
     override val value: R get() = mapper(state1.value, state2.value)
 
-    override fun subscribe(): SharedFlow<R> = valueFlow
+    val valueFlow: StateFlow<R> = combine(state1.subscribe(), state2.subscribe(), mapper)
+        .stateIn(scope, SharingStarted.WhileSubscribed(), value)
+
+    override fun subscribe(): StateFlow<R> = valueFlow
 
     override fun toString(): String = "DeviceState.combine(state1=$state1, state2=$state2)"
 }
@@ -188,10 +188,10 @@ public fun <T1, T2, T3, R> DeviceState.Companion.combine(
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2, state3)
 
-    val valueFlow: SharedFlow<R> = combine(state1.subscribe(), state2.subscribe(), state3.subscribe(), mapper)
-        .shareIn(scope, SharingStarted.Eagerly)
-
     override val value: R get() = mapper(state1.value, state2.value, state3.value)
+
+    val valueFlow: SharedFlow<R> = combine(state1.subscribe(), state2.subscribe(), state3.subscribe(), mapper)
+        .stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): SharedFlow<R> = valueFlow
 
@@ -208,17 +208,17 @@ public fun <T1, T2, T3, T4, R> DeviceState.Companion.combine(
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2, state3, state4)
 
-    val valueFlow: SharedFlow<R> = combine(
+    override val value: R get() = mapper(state1.value, state2.value, state3.value, state4.value)
+
+    val valueFlow: StateFlow<R> = combine(
         flow = state1.subscribe(),
         flow2 = state2.subscribe(),
         flow3 = state3.subscribe(),
         flow4 = state4.subscribe(),
         transform = mapper
-    ).shareIn(scope, SharingStarted.Eagerly)
+    ).stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
-    override val value: R get() = mapper(state1.value, state2.value, state3.value, state4.value)
-
-    override fun subscribe(): SharedFlow<R> = valueFlow
+    override fun subscribe(): StateFlow<R> = valueFlow
 
     override fun toString(): String =
         "DeviceState.combine(state1=$state1, state2=$state2, state3=$state3, state4=$state4)"
@@ -241,14 +241,14 @@ public fun <T, R> DeviceState.Companion.combine(
 ): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
     override val dependencies = states
 
-    @Suppress("UNCHECKED_CAST")
-    val valueFlow: SharedFlow<R> = combine(states.map { it.subscribe() }) { array: Array<Any?> ->
-        mapper(array.asList() as List<T>)
-    }.shareIn(scope, SharingStarted.Eagerly)
-
     override val value: R get() = mapper(states.map { it.value })
 
-    override fun subscribe(): SharedFlow<R> = valueFlow
+    @Suppress("UNCHECKED_CAST")
+    val valueFlow: StateFlow<R> = combine(states.map { it.subscribe() }) { array: Array<Any?> ->
+        mapper(array.asList() as List<T>)
+    }.stateIn(scope, SharingStarted.WhileSubscribed(), value)
+
+    override fun subscribe(): StateFlow<R> = valueFlow
 
     override fun toString(): String = "DeviceState.combine(states=${states.joinToString()})"
 }
@@ -275,15 +275,15 @@ public fun <T, K, R> DeviceState.Companion.combine(
 
     private val entries = states.entries.toList()
 
-    @Suppress("UNCHECKED_CAST")
-    val valueFlow: SharedFlow<R> = combine(entries.map { it.value.subscribe() }) { array: Array<Any?> ->
-        // restore mapping
-        mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
-    }.shareIn(scope, SharingStarted.Eagerly)
-
     override val value: R get() = mapper(states.mapValues { it.value.value })
 
-    override fun subscribe(): SharedFlow<R> = valueFlow
+    @Suppress("UNCHECKED_CAST")
+    val valueFlow: StateFlow<R> = combine(entries.map { it.value.subscribe() }) { array: Array<Any?> ->
+        // restore mapping
+        mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
+    }.stateIn(scope, SharingStarted.WhileSubscribed(), value)
+
+    override fun subscribe(): StateFlow<R> = valueFlow
 
     override fun toString(): String = "DeviceState.associate(states=${states})"
 }

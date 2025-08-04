@@ -35,12 +35,14 @@ public class LateBindDeviceState<T>(
             initialValue
         }
 
-    override fun subscribe(): Flow<T>  = if(isBound) {
+    override fun subscribe(): Flow<T> = if (isBound) {
         binding.getCompleted().subscribe()
     } else {
         flow {
             emit(initialValue)
-            binding.await().subscribe().collect { emit(it) }
+            binding.await().subscribe().collect {
+                emit(it)
+            }
         }
     }
 
