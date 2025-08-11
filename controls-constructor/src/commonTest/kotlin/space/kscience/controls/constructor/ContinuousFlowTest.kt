@@ -190,16 +190,14 @@ class ContinuousFlowTest {
             val aProducer = producer(aProductionCapacity)
             val bProducer = producer(bProductionCapacity)
 
-            val reactor = reaction(algebra, formula = mapOf("a" to algebra.one, "b" to algebra.one))
-
-            val consumer = consumer(consumationCapacity)
-
-            init {
-                reactor.connectProducer("a", aProducer)
-                reactor.connectProducer("b", bProducer)
-                consumer.connectProducer(reactor)
+            val reactor = reaction(algebra, formula = mapOf("a" to algebra.one, "b" to algebra.one)).apply {
+                connectProducer("a", aProducer)
+                connectProducer("b", bProducer)
             }
 
+            val consumer = consumer(consumationCapacity).apply {
+                connectProducer(reactor)
+            }
         }.runSimulation {
 
             assertEquals(1.0, aProducer.production.value.value)

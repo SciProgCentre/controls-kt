@@ -30,7 +30,7 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
     public val algebra: AmountAlgebra<U, T>,
     public val supplyKeys: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : ContinuousFlowModel(context), ContinuousProducerInterface<U, T> {
+) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
     override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(this, Numeric.zero())
 

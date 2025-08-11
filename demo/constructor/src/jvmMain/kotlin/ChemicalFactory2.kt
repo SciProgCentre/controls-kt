@@ -42,7 +42,6 @@ import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
-import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -54,7 +53,7 @@ internal fun StateContainer.debugState(name: String, state: DeviceState<Amount<*
     }
 
 
-private class ContinuousTestModel(
+private class ChemicalFactory2(
     context: Context
 ) : ContinuousFlowModel(context) {
     val aProduction = MutableDeviceState(Numeric<Kilograms>(4.0))
@@ -68,7 +67,7 @@ private class ContinuousTestModel(
         connectProducer("b", bProducer)
     }
 
-    val cProduction = MutableDeviceState(Numeric<CubicMeters>(3.0)).apply {
+    val cProduction = MutableDeviceState(Numeric<CubicMeters>(2.5)).apply {
 //        onTimer(0.2.seconds) { _, _ ->
 //            value = Numeric(3.0 + Random.nextDouble(-0.1, 0.1))
 //        }
@@ -82,7 +81,7 @@ private class ContinuousTestModel(
         debugState("C buffer level", content)
         debugState("C buffer request", consumationCapacity)
         debugState("C buffer consumption", consumation)
-//        debugState("C buffer production", production)
+        debugState("C buffer production", production)
     }
 
     val transformer = linearTransformer(cubicMeters, kilograms, Numeric(1.0)).apply {
@@ -95,18 +94,15 @@ private class ContinuousTestModel(
     ).apply {
         connectProducer("ab", joinAB)
         connectProducer("c", transformer)
+        debugState("Reactor consumation request AB", individualConsumationCapacity["ab"]!!)
+        debugState("Reactor consumation requesst C", individualConsumationCapacity["c"]!!)
     }
 
-
-    val consumation = MutableDeviceState(Numeric<Kilograms>(8.0)).apply {
-        // add jitter
-        onTimer(0.2.seconds) { _, _ ->
-            value = Numeric(8.0 + Random.nextDouble(-0.1, 0.1))
-        }
-    }
+    val consumation = MutableDeviceState(Numeric<Kilograms>(10.0))
 
     val consumer = consumer(consumation).apply {
         connectProducer(reactor)
+        debugState("consumation", consumation)
     }
 
     companion object {
@@ -121,7 +117,7 @@ fun main() {
         plugin(ClockManager)
     }
 
-    val model = ContinuousTestModel(context)
+    val model = ChemicalFactory2(context)
 
     val maxAge = 60.seconds
 
@@ -199,10 +195,16 @@ fun main() {
                                     sampling = 500.milliseconds,
                                     lineStyle = LineStyle(SolidColor(Color.Green))
                                 )
-
+                                PlotNumericState(
+                                    context = context,
+                                    state = model.aProducer.production,
+                                    maxAge = maxAge,
+                                    sampling = 500.milliseconds,
+                                    lineStyle = LineStyle(SolidColor(Color.Cyan))
+                                )
                             }
                             Surface {
-                                FlowLegend(5, label = {
+                                FlowLegend(6, label = {
                                     when (it) {
                                         0 -> {
                                             Text("Production", color = Color.Blue)
@@ -222,6 +224,10 @@ fun main() {
 
                                         4 -> {
                                             Text("Transformer C consumption", color = Color.Green)
+                                        }
+
+                                        5 -> {
+                                            Text("A production", color = Color.Cyan)
                                         }
                                     }
                                 })

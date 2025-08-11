@@ -2,7 +2,10 @@ package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.models.continuous.ReactionRule.Companion.formula
-import space.kscience.controls.constructor.units.*
+import space.kscience.controls.constructor.units.Amount
+import space.kscience.controls.constructor.units.AmountAlgebra
+import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.dataforge.context.Context
 
 /**
@@ -18,7 +21,9 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
 
     public val productKey: String
 
-    public operator fun invoke(input: Map<String, T>): Map<String, T>
+    public fun forward(input: Map<String, T>): T
+
+    public fun backward(output: Amount<U>): Map<String, Numeric<U>>
 
     public companion object {
 
@@ -40,22 +45,16 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
             override val supplyKeys: Collection<String> = formula.keys
             override val productKey: String = productKey
 
-            override fun invoke(input: Map<String, T>): Map<String, T> = with(algebra) {
-                //Find the lowest factor that limits production
-                val factor = formula.mapValues { (key, formulaValue) ->
+            override fun forward(input: Map<String, T>): T {
+                val factor = formula.minOf { (key, formulaValue) ->
                     (input[key]?.value ?: 0.0) / formulaValue.value
-                }.minBy { it.value }.value
-
-                formula.mapValues { (key, formulaValue) ->
-                    val input = input[key] ?: zero
-                    if (input.value == 0.0) {
-                        zero
-                    } else {
-                        input * (1.0 - formulaValue.value * factor / input.value)
-                    }
-                } + (productKey to production * factor)
+                }
+                return with(algebra) { factor * production }
             }
 
+            override fun backward(output: Amount<U>): Map<String, Numeric<U>> = formula.mapValues {
+                Numeric(output.value * it.value.value)
+            }
         }
     }
 }
@@ -96,42 +95,23 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
         it
     }
 
-
-    private val reactionBalance: DeviceState<Map<String, Pair<T, T>>> = combineState(
-        consumerRequest, jointSupplyRequest
-    ) { consumerRequest, supplyRequest: Map<String, T> ->
-        with(algebra) {
-            val reactionResult = reaction(supplyRequest)
-            val production = reactionResult[reaction.productKey] ?: zero
-
-            check(reactionResult.all { (key, value) -> key == reaction.productKey || value <= supplyRequest[key]!! }) {
-                "reaction remain exceeds supply request: $reactionResult, $supplyRequest"
-            }
-
-            if (production <= consumerRequest) {
-                reactionResult.mapValues { (key, value) -> (supplyRequest[key] ?: zero) to value }
-            } else {
-                val scale = production.value / consumerRequest.value
-                check(scale > 0.0) { "production ratio must be positive" }
-                reactionResult.mapValues { (key, value) -> (supplyRequest[key] ?: zero) to (value / scale) }
-            }
-        }
-    }
-
     /**
      * A state of consumation from all sources
      */
-    public val consumation: DeviceState<Map<String, T>> = mapState(
-        reactionBalance
-    ) { balance ->
+    public val consumation: DeviceState<Map<String, T>> = combineState(
+        consumerRequest, jointSupplyRequest
+    ) { consumerRequest, supplyRequest: Map<String, T> ->
         with(algebra) {
-            balance.mapValues { (key, balance) ->
-                //subtract output quantity from input quantity to compute the value actually consumed
-                val res = balance.first - balance.second
-                check(key == reaction.productKey ||res.value >= 0.0) {
-                    "Reaction balance for key $key is negative: $balance"
-                }
-                res
+            //compute expected amount of each supply
+            val forwardRequest = reaction.forward(supplyRequest)
+            //limit forward request to consumer capacity
+            val forward = forwardRequest.coerceIn(algebra.zero..consumerRequest)
+            //consumation from request
+            val backward = reaction.backward(forward)
+
+            //limit consumation to actually consumed
+            supplyRequest.mapValues { (key, value) ->
+                value.coerceValueIn(Numeric.zero<U>()..backward[key]!!)
             }
         }
     }
@@ -139,18 +119,39 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     /**
      * Represents a mapping of individual consumptions keyed by a string representing the associated device or identifier.
      */
-    public val individualConsumation: Map<String, DeviceState<T>> =
-        supplyRequest.keys.associateWith { key ->
-            mapState(consumation) { it[key]!! }
-        }
-
-    override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supplyRequest ->
-        val reactionResult = reaction(supplyRequest)
-        reactionResult[reaction.productKey] ?: algebra.zero
+    public val individualConsumation: Map<String, DeviceState<T>> = reaction.supplyKeys.associateWith { key ->
+        mapState(consumation) { it[key]!! }
     }
 
-    override val production: DeviceState<T> = mapState(reactionBalance) { result ->
-        result[reaction.productKey]?.second ?: algebra.zero
+    public val consumationCapacity: DeviceState<Map<String, Numeric<U>>> = combineState(
+        consumerRequest, jointSupplyRequest
+    ) { consumerRequest: Numeric<U>, supplyRequest: Map<String, T> ->
+        with(algebra) {
+            //compute expected amount of each supply
+            val forwardRequest = reaction.forward(supplyRequest)
+            //limit forward request to consumer capacity
+            val forward = forwardRequest.coerceIn(algebra.zero..consumerRequest)
+            //consumation from request
+            reaction.backward(forward)
+        }
+    }
+
+    public val individualConsumationCapacity: Map<String, DeviceState<Numeric<U>>> =
+        reaction.supplyKeys.associateWith { key ->
+            mapState(consumationCapacity) { it[key]!! }
+        }
+
+
+    override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supplyRequest ->
+        reaction.forward(supplyRequest)
+    }
+
+    override val production: DeviceState<T> = combineState(
+        consumerRequest, jointSupplyRequest
+    ) { consumerRequest, supplyRequest: Map<String, T> ->
+        with(algebra) {
+            reaction.forward(supplyRequest).coerceValueIn(Numeric.zero<U>()..consumerRequest)
+        }
     }
 
 
@@ -171,7 +172,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.asCo
 ): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input ->
     object : ContinuousConsumerInterface<U, T> {
         override val consumation: DeviceState<T> get() = individualConsumation[key]!!
-        override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumation[key]!!.asNumeric()
+        override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumationCapacity[key]!!
         override val supplyRequest: LateBindDeviceState<T> get() = input
     }
 } ?: error("No supplier with key $key found")
