@@ -1,10 +1,7 @@
 package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.AmountAlgebra
-import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
 public interface SeparationRule<U : UnitsOfMeasurement, T : Amount<U>> {
@@ -13,6 +10,31 @@ public interface SeparationRule<U : UnitsOfMeasurement, T : Amount<U>> {
     public fun forward(input: T): Map<String, T>
 
     public fun backward(output: Map<String, Numeric<U>>): Numeric<U>
+
+    public companion object {
+        public fun <U : UnitsOfMeasurement, T : Amount<U>> proportional(
+            algebra: AmountAlgebra<U, T>,
+            fractions: Map<String, Double>,
+        ): SeparationRule<U, T> = object : SeparationRule<U, T> {
+
+            private val norm = fractions.values.sum()
+
+            override val productionKeys: Collection<String> get() = fractions.keys
+
+            override fun forward(input: T): Map<String, T> = fractions.mapValues {
+                with(algebra) {
+                    input * (it.value / norm)
+                }
+            }
+
+            override fun backward(
+                output: Map<String, Numeric<U>>
+            ): Numeric<U> = output.minOf { (key, value) ->
+                value / (fractions.getValue(key) / norm)
+            }
+
+        }
+    }
 }
 
 public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
@@ -50,8 +72,15 @@ public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
         mapState(production) { it[key]!! }
     }
 
-    public val productionCapacity: DeviceState<Map<String, T>> = mapState(supplyRequest) {
-        rule.forward(it)
+    public val productionCapacity: DeviceState<Map<String, T>> = combineState(
+        first = supplyRequest,
+        second = jointConsumationRequest
+    ) { supply: T, consumation: Map<String, Numeric<U>> ->
+        with(algebra) {
+            val productionLimit = rule.backward(consumation)
+            val expectedProduction = supply.coerceValueIn(zero.. productionLimit)
+            rule.forward(expectedProduction)
+        }
     }
 
     public val individualProductionCapacity: Map<String, DeviceState<T>> = rule.productionKeys.associateWith { key ->
@@ -66,7 +95,7 @@ public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
 
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousSeparate<U, T>.asConsumer(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousSeparate<U, T>.asProducer(
     key: String
 ): ContinuousProducerInterface<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
     object : ContinuousProducerInterface<U, T> {
@@ -75,3 +104,9 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousSeparate<U, T>.asCo
         override val consumerRequest: LateBindDeviceState<Numeric<U>> get() = specificConsumationRequest
     }
 } ?: error("No supplier with key $key found")
+
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.separator(
+    algebra: AmountAlgebra<U, T>,
+    separationRule: SeparationRule<U, T>
+): ContinuousSeparate<U, T> = model(ContinuousSeparate<U, T>(context, algebra, separationRule))
