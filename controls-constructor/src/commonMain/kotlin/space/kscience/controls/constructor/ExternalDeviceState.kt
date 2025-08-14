@@ -29,7 +29,7 @@ private open class ExternalDeviceState<T>(
 
     override fun subscribe(): StateFlow<T> = flow
 
-    override fun toString(): String = "ExternalState()"
+    override fun toString(): String = "ExternalState(value=$value)"
 }
 
 /**

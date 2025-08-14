@@ -126,17 +126,16 @@ public fun <T : Any> DeviceConstructor.mutableProperty(
 )
 
 /**
- * Create and register a virtual mutable property with optional [callback]
+ * Create and register a virtual mutable property
  */
 public fun <T> DeviceConstructor.virtualProperty(
     metaConverter: MetaConverter<T>,
     initialState: T,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
-    callback: (T) -> Unit = {},
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableDeviceState<T>>> = property(
     metaConverter,
-    MutableDeviceState(initialState, callback),
+    MutableDeviceState(initialState),
     descriptorBuilder,
     nameOverride,
 )

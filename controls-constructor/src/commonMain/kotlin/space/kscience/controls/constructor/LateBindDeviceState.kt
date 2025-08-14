@@ -47,6 +47,9 @@ public class LateBindDeviceState<T>(
     }
 
 
-    override fun toString(): String =
-        "LateBindDeviceState(initialValue=$initialValue, binding=${binding.takeIf { it.isCompleted }?.getCompleted()})"
+    override fun toString(): String = if (isBound) {
+        "LateBindDeviceState(binding=${binding.getCompleted()})"
+    } else {
+        "LateBindDeviceState(initialValue=$initialValue)"
+    }
 }

@@ -80,7 +80,7 @@ public fun <T, R> DeviceState.Companion.map(
 
     override fun subscribe(): Flow<R> = state.subscribe().map(mapper)
 
-    override fun toString(): String = "DeviceState.map(state=${state}, mapper=$mapper)"
+    override fun toString(): String = "DeviceState.map(state=${state.value}, value=$value)"
 }
 
 public fun <T, R> DeviceState<T>.map(mapper: (T) -> R): DeviceStateWithDependencies<R> =
@@ -105,7 +105,7 @@ public fun <T, R> DeviceState.Companion.map(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    override fun toString(): String = "DeviceState.map(state=${state}, mapper=$mapper)"
+    override fun toString(): String = "DeviceState.map(state=${state.value}, value=$value)"
 }
 
 public fun <T, R> DeviceState<T>.map(scope: CoroutineScope, mapper: (T) -> R): DeviceStateWithDependencies<R> =
@@ -136,7 +136,7 @@ public fun <T, R> DeviceState.Companion.transform(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    override fun toString(): String = "DeviceState.transform(state=${state}, transform=$transform)"
+    override fun toString(): String = "DeviceState.transform(state=${state.value}, value=$value)"
 }
 
 public suspend fun <T, R> DeviceState<T>.transform(
@@ -167,7 +167,8 @@ public fun <T1, T2, R> DeviceState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    override fun toString(): String = "DeviceState.combine(state1=$state1, state2=$state2)"
+    override fun toString(): String =
+        "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, value=$value)"
 }
 
 /**
@@ -195,7 +196,8 @@ public fun <T1, T2, T3, R> DeviceState.Companion.combine(
 
     override fun subscribe(): SharedFlow<R> = valueFlow
 
-    override fun toString(): String = "DeviceState.combine(state1=$state1, state2=$state2, state3=$state3)"
+    override fun toString(): String =
+        "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, state3=${state3.value}, value=$value)"
 }
 
 public fun <T1, T2, T3, T4, R> DeviceState.Companion.combine(
@@ -221,7 +223,7 @@ public fun <T1, T2, T3, T4, R> DeviceState.Companion.combine(
     override fun subscribe(): StateFlow<R> = valueFlow
 
     override fun toString(): String =
-        "DeviceState.combine(state1=$state1, state2=$state2, state3=$state3, state4=$state4)"
+        "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, state3=${state3.value}, state4=${state4.value}, value=$value)"
 }
 
 /**
@@ -250,7 +252,14 @@ public fun <T, R> DeviceState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    override fun toString(): String = "DeviceState.combine(states=${states.joinToString()})"
+    override fun toString(): String =
+        "DeviceState.combine(states=${
+            states.joinToString(
+                prefix = "[",
+                separator = ", ",
+                postfix = "]"
+            ) { "${it.value}" }
+        }, value=$value)"
 }
 
 /**
@@ -285,7 +294,14 @@ public fun <T, K, R> DeviceState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    override fun toString(): String = "DeviceState.associate(states=${states})"
+    override fun toString(): String =
+        "DeviceState.associate(states=${
+            states.entries.joinToString(
+                prefix = "[",
+                separator = ", ",
+                postfix = "]"
+            ) { "${it.key}=${it.value.value}" }
+        }, value=$value)"
 }
 
 /**

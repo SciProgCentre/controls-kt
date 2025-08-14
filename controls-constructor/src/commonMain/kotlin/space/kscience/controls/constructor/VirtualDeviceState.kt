@@ -12,12 +12,7 @@ import kotlinx.coroutines.flow.flowOf
  */
 private class VirtualDeviceState<T>(
     initialValue: T,
-    private val callback: (T) -> Unit = {}
 ) : MutableDeviceState<T> {
-
-    init {
-        callback(initialValue)
-    }
 
     private val flow = MutableStateFlow(initialValue)
 
@@ -27,12 +22,10 @@ private class VirtualDeviceState<T>(
         get() = flow.value
         set(value) {
             flow.value = value
-            callback(value)
         }
 
     override suspend fun emit(value: T) {
         flow.emit(value)
-        callback(value)
     }
 
     override fun toString(): String = "VirtualDeviceState($value)"
@@ -46,8 +39,7 @@ private class VirtualDeviceState<T>(
  */
 public fun <T> MutableDeviceState(
     initialValue: T,
-    callback: (T) -> Unit = {}
-): MutableDeviceState<T> = VirtualDeviceState(initialValue, callback)
+): MutableDeviceState<T> = VirtualDeviceState(initialValue)
 
 
 /**
