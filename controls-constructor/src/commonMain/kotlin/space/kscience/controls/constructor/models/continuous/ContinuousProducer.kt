@@ -42,7 +42,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     override val productionCapacity: DeviceState<T>,
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(context,Numeric.zero()),
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
     init {

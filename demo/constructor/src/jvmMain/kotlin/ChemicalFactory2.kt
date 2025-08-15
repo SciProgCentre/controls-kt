@@ -28,15 +28,16 @@ import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
 import io.github.koalaplot.core.util.toString
 import io.github.koalaplot.core.xygraph.XYGraph
 import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.models.continuous.*
-import space.kscience.controls.constructor.units.*
+import space.kscience.controls.constructor.units.CubicMeters
+import space.kscience.controls.constructor.units.Kilograms
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -47,12 +48,6 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
-internal fun StateContainer.debugState(name: String, state: DeviceState<Amount<*>>): Job =
-    state.useValue(this) { value ->
-        println("(${clock.now()}) $name: ${value.value}")
-    }
-
-
 private class ChemicalFactory2(
     context: Context
 ) : ContinuousFlowModel(context) {
@@ -62,7 +57,7 @@ private class ChemicalFactory2(
     val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
     val bProducer = producer(bProduction)
 
-    val joinAB = mix(kilograms, listOf("a", "b")).apply {
+    val joinAB = mix(Kilograms, listOf("a", "b")).apply {
         connectProducer("a", aProducer)
         connectProducer("b", bProducer)
     }
@@ -75,7 +70,7 @@ private class ChemicalFactory2(
 
     val cProducer = producer(cProduction)
 
-    val cBuffer = buffer(cubicMeters, Numeric(10.0)).apply {
+    val cBuffer = buffer(CubicMeters, Numeric(10.0)).apply {
         connectProducer(cProducer)
 
         debugState("C buffer level", content)
@@ -84,12 +79,12 @@ private class ChemicalFactory2(
         debugState("C buffer production", production)
     }
 
-    val transformer = linearTransformer(cubicMeters, kilograms, Numeric(1.0)).apply {
+    val transformer = linearTransformer(CubicMeters, Kilograms, Numeric(1.0)).apply {
         connectProducer(cBuffer)
     }
 
     val reactor = reaction(
-        algebra = kilograms,
+        algebra = Kilograms,
         formula = mapOf("ab" to Numeric(0.66), "c" to Numeric(0.33)),
     ).apply {
         connectProducer("ab", joinAB)
@@ -103,11 +98,6 @@ private class ChemicalFactory2(
     val consumer = consumer(consumation).apply {
         connectProducer(reactor)
         debugState("consumation", consumation)
-    }
-
-    companion object {
-        val kilograms = NumericAmountAlgebra<Kilograms>()
-        val cubicMeters = NumericAmountAlgebra<CubicMeters>()
     }
 }
 

@@ -79,9 +79,9 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     public val reaction: ReactionRule<U, T>,
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(this, Numeric.zero())
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState( Numeric.zero())
     public val supplyRequest: Map<String, LateBindDeviceState<T>> = reaction.supplyKeys.associateWith {
-        LateBindDeviceState(this, algebra.zero)
+        LateBindDeviceState( algebra.zero)
     }
 
 

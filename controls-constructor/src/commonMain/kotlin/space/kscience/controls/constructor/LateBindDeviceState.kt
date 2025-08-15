@@ -1,7 +1,6 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.flow
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 public class LateBindDeviceState<T>(
-    scope: CoroutineScope,
     private val initialValue: T
 ) : DeviceState<T> {
 

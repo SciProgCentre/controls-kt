@@ -28,8 +28,8 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
     public val algebra: AmountAlgebra<U, T>,
     public val bufferCapacity: DeviceState<Numeric<U>>,
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(context, algebra.zero),
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(context, Numeric.zero()),
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState( algebra.zero),
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState( Numeric.zero()),
     initialLevel: T = algebra.zero,
     timeStep: Duration = 1.seconds
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T>, ContinuousConsumerInterface<U, T> {

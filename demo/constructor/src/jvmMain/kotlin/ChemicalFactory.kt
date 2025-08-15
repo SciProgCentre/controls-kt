@@ -39,7 +39,6 @@ import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.CubicMeters
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.NumericAmountAlgebra
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -60,12 +59,12 @@ class ChemicalFactory(
     val bProduction = MutableDeviceState(Numeric<Kilograms>(1.5))
     val bProducer = producer(bProduction)
 
-    val mixer = mix(kilograms, setOf("a", "b")).apply {
+    val mixer = mix(Kilograms, setOf("a", "b")).apply {
         connectProducer("a", aProducer)
         connectProducer("b", bProducer)
     }
 
-    val abBuffer = buffer(kilograms, Numeric(10.0)).apply {
+    val abBuffer = buffer(Kilograms, Numeric(10.0)).apply {
         connectProducer(mixer)
         debugState("AB buffer", content)
     }
@@ -73,30 +72,25 @@ class ChemicalFactory(
     val cProduction = MutableDeviceState(Numeric<CubicMeters>(10.0))
     val cProducer = producer(cProduction)
 
-    val cBuffer = buffer(cubicMeters, Numeric(50.0)).apply {
+    val cBuffer = buffer(CubicMeters, Numeric(50.0)).apply {
         connectProducer(cProducer)
         debugState("C buffer", content)
     }
 
-    val converter = linearTransformer(cubicMeters, kilograms, Numeric(0.2)).apply {
+    val converter = linearTransformer(CubicMeters, Kilograms, Numeric(0.2)).apply {
         connectProducer(cBuffer)
     }
 
-    val reactor = reaction(kilograms, mapOf("ab" to Numeric(1.0), "c" to Numeric(1.0))).apply {
+    val reactor = reaction(Kilograms, mapOf("ab" to Numeric(1.0), "c" to Numeric(1.0))).apply {
         connectProducer("ab", abBuffer)
         connectProducer("c", converter)
     }
 
 
-    val consumer = consumer(kilograms, DeviceState(Numeric(2.0))).apply {
+    val consumer = consumer(Kilograms, DeviceState(Numeric(2.0))).apply {
         connectProducer(reactor)
 
         debugState("Consumer consumation", consumation)
-    }
-
-    companion object {
-        val kilograms = NumericAmountAlgebra<Kilograms>()
-        val cubicMeters = NumericAmountAlgebra<CubicMeters>()
     }
 }
 

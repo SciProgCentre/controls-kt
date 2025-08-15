@@ -35,22 +35,18 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.maxOf(fir
 public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.sum(args: Iterable<T>): T =
     args.fold(zero) { acc, t -> acc + t }
 
-private object NumericAmountAlgebra : AmountAlgebra<Nothing, Numeric<Nothing>> {
-    override fun Numeric<Nothing>.plus(other: Numeric<Nothing>): Numeric<Nothing> = Numeric(value + other.value)
+public open class NumericAmountAlgebra<U: UnitsOfMeasurement> : AmountAlgebra<U, Numeric<U>> {
+    override fun Numeric<U>.plus(other: Numeric<U>): Numeric<U> = Numeric(value + other.value)
 
-    override fun Numeric<Nothing>.minus(other: Numeric<Nothing>): Numeric<Nothing> = Numeric(value - other.value)
+    override fun Numeric<U>.minus(other: Numeric<U>): Numeric<U> = Numeric(value - other.value)
 
-    override fun Numeric<Nothing>.unaryMinus(): Numeric<Nothing> = Numeric(-value)
+    override fun Numeric<U>.unaryMinus(): Numeric<U> = Numeric(-value)
 
-    override fun Numeric<Nothing>.times(scale: Number): Numeric<Nothing> = Numeric(value * scale.toDouble())
+    override fun Numeric<U>.times(scale: Number): Numeric<U> = Numeric(value * scale.toDouble())
 
-    override fun Numeric<Nothing>.div(scale: Number): Numeric<Nothing> = Numeric(value / scale.toDouble())
+    override fun Numeric<U>.div(scale: Number): Numeric<U> = Numeric(value / scale.toDouble())
 
-    override val zero: Numeric<Nothing> = Numeric(0.0)
+    override val zero: Numeric<U> = Numeric(0.0)
 
-    override val one: Numeric<Nothing> = Numeric(1.0)
+    override val one: Numeric<U> = Numeric(1.0)
 }
-
-@Suppress("UNCHECKED_CAST", "FunctionName")
-public fun <U : UnitsOfMeasurement> NumericAmountAlgebra(): AmountAlgebra<U, Numeric<U>> =
-    NumericAmountAlgebra as AmountAlgebra<U, Numeric<U>>

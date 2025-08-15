@@ -43,7 +43,7 @@ public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
     override val consumationCapacity: DeviceState<Numeric<U>>,
 ) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(this, algebra.zero)
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero)
 
     init {
         registerState(consumationCapacity)

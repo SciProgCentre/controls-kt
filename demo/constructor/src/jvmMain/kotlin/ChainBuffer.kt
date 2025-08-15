@@ -38,7 +38,6 @@ import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.CubicMeters
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.NumericAmountAlgebra
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -53,33 +52,28 @@ private class ChainBufferModel(
     context: Context
 ) : ContinuousFlowModel(context) {
     val production = MutableDeviceState(Numeric<Kilograms>(1.0))
-    val producer = producer(kilograms, production).apply {
+    val producer = producer(Kilograms, production).apply {
         debugState("Producer production", production)
     }
 
-    val buffer1 = buffer(kilograms, Numeric(10.0)).apply {
+    val buffer1 = buffer(Kilograms, Numeric(10.0)).apply {
         connectProducer(producer)
     }
 
-    val transformer = linearTransformer(kilograms, cubicMeters, Numeric(1.0)).apply {
+    val transformer = linearTransformer(Kilograms, CubicMeters, Numeric(1.0)).apply {
         connectProducer(buffer1)
     }
 
-    val buffer2 = buffer(cubicMeters, Numeric(10.0)).apply {
+    val buffer2 = buffer(CubicMeters, Numeric(10.0)).apply {
         connectProducer(transformer.limited(this, Numeric(2.0)))
         debugState("Buffer 2", content)
     }
 
     val consumation = MutableDeviceState(Numeric<CubicMeters>(2.0))
 
-    val consumer = consumer(cubicMeters, consumation).apply {
+    val consumer = consumer(CubicMeters, consumation).apply {
         connectProducer(buffer2)
         debugState("Consumer consumption", consumation)
-    }
-
-    companion object {
-        val kilograms = NumericAmountAlgebra<Kilograms>()
-        val cubicMeters = NumericAmountAlgebra<CubicMeters>()
     }
 }
 

@@ -22,7 +22,6 @@ class ContinuousFlowTest {
 
     val epoch = Instant.fromEpochMilliseconds(0L)
 
-    val kilograms = NumericAmountAlgebra<Kilograms>()
 
     val context = Context("test") {
         withVirtualTime(epoch)
@@ -258,8 +257,8 @@ class ContinuousFlowTest {
             val producer = producer(production)
 
             val splitter1 = separator(
-                algebra = kilograms,
-                separationRule = SeparationRule.proportional(kilograms, mapOf("a" to 1.0, "bc" to 1.0))
+                algebra = Kilograms,
+                separationRule = SeparationRule.proportional(Kilograms, mapOf("a" to 1.0, "bc" to 1.0))
             ).apply {
                 connectProducer(producer)
             }
@@ -269,8 +268,8 @@ class ContinuousFlowTest {
             }
 
             val splitter2 = separator(
-                algebra = kilograms,
-                separationRule = SeparationRule.proportional(kilograms, mapOf("b" to 1.0, "c" to 1.0))
+                algebra = Kilograms,
+                separationRule = SeparationRule.proportional(Kilograms, mapOf("b" to 1.0, "c" to 1.0))
             ).apply {
                 connectProducer(splitter1.asProducer("bc"))
             }

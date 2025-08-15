@@ -45,8 +45,8 @@ public class ContinuousTransformer<U1 : UnitsOfMeasurement, T : Amount<U1>, U2 :
     public val rule: ContinuousTransformationRule<U1, T, U2, R>,
 ) : ModelConstructor(context), ContinuousProducerInterface<U2, R>, ContinuousConsumerInterface<U1, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(this, supplyAlgebra.zero)
-    override val consumerRequest: LateBindDeviceState<Numeric<U2>> = LateBindDeviceState(this, Numeric.zero())
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(supplyAlgebra.zero)
+    override val consumerRequest: LateBindDeviceState<Numeric<U2>> = LateBindDeviceState(Numeric.zero())
 
     override val consumation: DeviceState<T> = combineState(supplyRequest, consumerRequest) { supply, consume ->
         with(supplyAlgebra) {

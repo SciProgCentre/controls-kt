@@ -32,11 +32,11 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(this, Numeric.zero())
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState( Numeric.zero())
 
 
     public val supplyRequest: Map<String, LateBindDeviceState<T>> = supplyKeys.associateWith {
-        LateBindDeviceState(this, algebra.zero)
+        LateBindDeviceState( algebra.zero)
     }
 
 
@@ -125,7 +125,7 @@ public fun <U : UnitsOfMeasurement> ContinuousMix(
     outputNames: Collection<String>,
     joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL
 ): ContinuousMix<U, Numeric<U>> =
-    ContinuousMix(context, NumericAmountAlgebra<U>(), outputNames, joinManagementStrategy)
+    ContinuousMix(context, NumericAmountAlgebra(), outputNames, joinManagementStrategy)
 
 /**
  * Creates a consumer instance for a specific supply key from a continuous mix instance.

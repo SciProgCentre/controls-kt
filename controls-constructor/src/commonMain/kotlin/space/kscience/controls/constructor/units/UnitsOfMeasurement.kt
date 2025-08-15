@@ -32,35 +32,39 @@ public data object Degrees : UnitsOfAngles
 
 public sealed interface UnitsAngularOfVelocity : UnitsOfMeasurement
 
-public data object RadiansPerSecond : UnitsAngularOfVelocity
+public data object RadiansPerSecond : UnitsAngularOfVelocity, NumericAmountAlgebra<RadiansPerSecond>()
 
-public data object DegreesPerSecond : UnitsAngularOfVelocity
-
-/**/
-public interface UnitsOfForce: UnitsOfMeasurement
-
-public data object Newtons: UnitsOfForce
+public data object DegreesPerSecond : UnitsAngularOfVelocity, NumericAmountAlgebra<DegreesPerSecond>()
 
 /**/
+public interface UnitsOfForce : UnitsOfMeasurement
 
-public interface UnitsOfTorque: UnitsOfMeasurement
-
-public data object NewtonsMeters: UnitsOfTorque
+public data object Newtons : UnitsOfForce, NumericAmountAlgebra<Newtons>()
 
 /**/
 
-public interface UnitsOfVolume: UnitsOfMeasurement
+public interface UnitsOfTorque : UnitsOfMeasurement
 
-public data object CubicMeters: UnitsOfVolume
-
-/**/
-
-public interface UnitsOfMass: UnitsOfMeasurement
-
-public data object Kilograms : UnitsOfMass
+public data object NewtonsMeters : UnitsOfTorque, NumericAmountAlgebra<NewtonsMeters>()
 
 /**/
 
-public interface UnitsOfMomentOfInertia: UnitsOfMeasurement
+public interface UnitsOfVolume : UnitsOfMeasurement
 
-public data object KgM2: UnitsOfMomentOfInertia
+public data object CubicMeters : UnitsOfVolume, NumericAmountAlgebra<CubicMeters>()
+
+/**/
+
+public interface UnitsOfMass : UnitsOfMeasurement
+
+public data object Kilograms : UnitsOfMass, NumericAmountAlgebra<Kilograms>()
+
+/**/
+
+public interface UnitsOfMomentOfInertia : UnitsOfMeasurement
+
+public data object KgM2 : UnitsOfMomentOfInertia, NumericAmountAlgebra<KgM2>()
+
+/**/
+
+public data object Mole : UnitsOfMeasurement, NumericAmountAlgebra<Mole>()
