@@ -42,14 +42,18 @@ import kotlin.time.Instant
 
 
 private class EnrichmentFacility(
-    context: Context
+    context: Context,
 ) : ContinuousFlowModel(context) {
 
     val mixture = MixtureAlgebra(Kilograms, Mixture.ofFractions(component1 to 1.0, component2 to 1.0))
 
-    val production = MutableDeviceState(
-        mixture.one
-    )
+    val productionValue = MutableDeviceState(Numeric<Kilograms>(1.0))
+
+    val production = productionValue.map {
+        with(mixture) {
+            one * it.value
+        }
+    }
 
     val producer = producer(mixture, production)
 
@@ -58,7 +62,7 @@ private class EnrichmentFacility(
     }
 
     private class MyMixtureSeparationRule(
-        val fractions: Map<MixtureComponent, Map<String, Double>>
+        val fractions: Map<MixtureComponent, Map<String, Double>>,
     ) : SeparationRule<Kilograms, Mixture<Kilograms, Numeric<Kilograms>>> {
         override val productionKeys: Collection<String> = fractions.flatMap { it.value.keys }.distinct()
 
@@ -100,7 +104,7 @@ private class EnrichmentFacility(
         )
     ).apply {
         connectProducer(mixer)
-        mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 100.milliseconds))
+        mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 200.milliseconds))
     }
 
     val discard = consumer(mixture, DeviceState(Numeric(2.0))).apply {
@@ -155,7 +159,10 @@ fun main() {
                                 Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
                             }
 
-                            model.displayState("Feedback", model.mixer.individualConsumation[EnrichmentFacility.feedbackKey]!!) {
+                            model.displayState(
+                                "Feedback",
+                                model.mixer.individualConsumation[EnrichmentFacility.feedbackKey]!!
+                            ) {
                                 Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
                             }
 
@@ -163,7 +170,8 @@ fun main() {
                                 Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
                             }
 
-                            model.slider<Kilograms>("Consumption", model.consumption, 0f..4f)
+                            model.slider("Production", model.productionValue, 0f..4f)
+                            model.slider("Consumption", model.consumption, 0f..4f)
 
                         }
 
