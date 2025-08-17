@@ -93,8 +93,8 @@ private class EnrichmentFacility(
                 ),
                 component2 to mapOf(
                     productionKey to 0.1,
-                    feedbackKey to 0.1,
-                    discardKey to 0.8
+                    feedbackKey to 0.2,
+                    discardKey to 0.7
                 )
             )
         )
@@ -107,7 +107,8 @@ private class EnrichmentFacility(
         connectProducer(separator.asProducer(discardKey))
     }
 
-    val consumer = consumer(mixture, DeviceState(Numeric(2.0))).apply {
+    val consumption = MutableDeviceState<Numeric<Kilograms>>(Numeric(2.0))
+    val consumer = consumer(mixture, consumption).apply {
         connectProducer(separator.asProducer(productionKey))
     }
 
@@ -162,6 +163,7 @@ fun main() {
                                 Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
                             }
 
+                            model.slider<Kilograms>("Consumption", model.consumption, 0f..4f)
 
                         }
 
