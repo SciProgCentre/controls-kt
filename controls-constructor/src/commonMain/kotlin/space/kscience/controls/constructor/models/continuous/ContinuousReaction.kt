@@ -19,7 +19,7 @@ import space.kscience.dataforge.context.Context
 public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
     public val supplyKeys: Collection<String>
 
-    public val productKey: String
+    public val productKey: String get() = DEFAULT_PRODUCT_KEY
 
     public fun forward(input: Map<String, T>): T
 
@@ -27,6 +27,7 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
 
     public companion object {
 
+        public const val DEFAULT_PRODUCT_KEY: String = "@product"
 
         /**
          * @param formula components needed to produce [production] of resulting substance
@@ -35,7 +36,7 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
             algebra: AmountAlgebra<U, T>,
             formula: Map<String, Numeric<U>>,
             production: T = algebra.one,
-            productKey: String = "@product"
+            productKey: String = DEFAULT_PRODUCT_KEY
         ): ReactionRule<U, T> = object : ReactionRule<U, T> {
 
             init {
