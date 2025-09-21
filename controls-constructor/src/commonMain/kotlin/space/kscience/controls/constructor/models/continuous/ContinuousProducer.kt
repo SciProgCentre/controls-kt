@@ -10,6 +10,14 @@ public interface ContinuousProducerInterface<U : UnitsOfMeasurement, T : Amount<
     public val consumerRequest: LateBindDeviceState<Numeric<U>>
 }
 
+public interface ContinuousProducerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousProducerInterface<U, T> {
+    public val producer: ContinuousProducerInterface<U, T>
+
+    override val production: DeviceState<T> get() = producer.production
+    override val productionCapacity: DeviceState<T> get() = producer.productionCapacity
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> get() = producer.consumerRequest
+}
+
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
     consumerCapacity: DeviceState<Numeric<U>>,
 ) {

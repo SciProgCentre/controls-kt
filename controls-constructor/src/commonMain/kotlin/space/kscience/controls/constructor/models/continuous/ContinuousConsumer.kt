@@ -8,7 +8,13 @@ public interface ContinuousConsumerInterface<U : UnitsOfMeasurement, T : Amount<
     public val consumation: DeviceState<T>
     public val consumationCapacity: DeviceState<Numeric<U>>
     public val supplyRequest: LateBindDeviceState<T>
+}
 
+public interface ContinuousConsumerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousConsumerInterface<U, T> {
+    public val consumer: ContinuousConsumerInterface<U, T>
+    override val consumation: DeviceState<T> get() = consumer.consumation
+    override val consumationCapacity: DeviceState<Numeric<U>> get() = consumer.consumationCapacity
+    override val supplyRequest: LateBindDeviceState<T> get() = consumer.supplyRequest
 }
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.connectProducer(

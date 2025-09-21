@@ -87,9 +87,9 @@ private class EnrichmentFacility(
         separationRule = MyMixtureSeparationRule(
             mapOf(
                 component1 to mapOf(
-                    productionKey to 0.7,
+                    productionKey to 0.75,
                     feedbackKey to 0.2,
-                    discardKey to 0.1
+                    discardKey to 0.05
                 ),
                 component2 to mapOf(
                     productionKey to 0.1,
@@ -100,7 +100,7 @@ private class EnrichmentFacility(
         )
     ).apply {
         connectProducer(mixer)
-        mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 100.milliseconds))
+        mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 400.milliseconds))
     }
 
     val discard = consumer(mixture, DeviceState(Numeric(2.0))).apply {
@@ -161,10 +161,7 @@ fun main() {
                             model.displayState("Mixer production", model.mixer.production) {
                                 Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
                             }
-
-
                         }
-
                     }
                     second(400.dp) {
                         ChartLayout {
