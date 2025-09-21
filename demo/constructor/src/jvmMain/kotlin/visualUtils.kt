@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Text
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -13,11 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import space.kscience.controls.compose.asComposeState
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.StateContainer
-import space.kscience.controls.constructor.clock
+import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.useValue
+import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.time.Duration.Companion.seconds
 
 internal fun StateContainer.debugState(name: String, state: DeviceState<Amount<*>>): Job =
@@ -43,5 +43,28 @@ fun <T> StateContainer.displayState(
         val value by state.asComposeState(coroutineContext, 0.1.seconds)
 
         content(value)
+    }
+}
+
+@Composable
+fun <U: UnitsOfMeasurement> StateContainer.slider(
+    name: String,
+    state: MutableDeviceState<Numeric<U>>,
+    valueRange: ClosedFloatingPointRange<Float>
+) {
+
+    val value: Numeric<U> by state.asComposeState(coroutineContext, 0.1.seconds)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().border(2.dp, Color.Blue).padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$name: ")
+        Slider(
+            value = value.value.toFloat(),
+            onValueChange = { state.value = Numeric(it) },
+            valueRange = valueRange,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
