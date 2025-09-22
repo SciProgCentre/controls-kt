@@ -35,7 +35,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.maxOf(fir
 public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.sum(args: Iterable<T>): T =
     args.fold(zero) { acc, t -> acc + t }
 
-public open class NumericAmountAlgebra<U: UnitsOfMeasurement> : AmountAlgebra<U, Numeric<U>> {
+public open class NumericAmountAlgebra<U : UnitsOfMeasurement> : AmountAlgebra<U, Numeric<U>> {
     override fun Numeric<U>.plus(other: Numeric<U>): Numeric<U> = Numeric(value + other.value)
 
     override fun Numeric<U>.minus(other: Numeric<U>): Numeric<U> = Numeric(value - other.value)
@@ -50,3 +50,8 @@ public open class NumericAmountAlgebra<U: UnitsOfMeasurement> : AmountAlgebra<U,
 
     override val one: Numeric<U> = Numeric(1.0)
 }
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> T.coerceValueIn(
+    algebra: AmountAlgebra<U, T>,
+    range: ClosedRange<Amount<U>>
+): T = with(algebra) { coerceValueIn(range) }

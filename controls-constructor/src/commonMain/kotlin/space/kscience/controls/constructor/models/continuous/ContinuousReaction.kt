@@ -70,19 +70,19 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
  * @param U The type of the units of measurement associated with the amounts.
  * @param T The type of the amount with units, representing the quantities of substances.
  * @param context The simulation context in which the reaction operates.
- * @param algebra The algebra defining the operations on the amounts of type T.
+ * @param producerAlgebra The algebra defining the operations on the amounts of type T.
  * @param reaction The reaction rule defining consumption and production behavior
  *                 for given supply and product keys.
  */
 public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<U, T>,
+    override val producerAlgebra: AmountAlgebra<U, T>,
     public val reaction: ReactionRule<U, T>,
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState( Numeric.zero())
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero())
     public val supplyRequest: Map<String, LateBindDeviceState<T>> = reaction.supplyKeys.associateWith {
-        LateBindDeviceState( algebra.zero)
+        LateBindDeviceState(producerAlgebra.zero)
     }
 
 
@@ -102,11 +102,11 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     public val consumation: DeviceState<Map<String, T>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest, supplyRequest: Map<String, T> ->
-        with(algebra) {
+        with(producerAlgebra) {
             //compute expected amount of each supply
             val forwardRequest = reaction.forward(supplyRequest)
             //limit forward request to consumer capacity
-            val forward = forwardRequest.coerceIn(algebra.zero..consumerRequest)
+            val forward = forwardRequest.coerceIn(producerAlgebra.zero..consumerRequest)
             //consumation from request
             val backward = reaction.backward(forward)
 
@@ -127,11 +127,11 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     public val consumationCapacity: DeviceState<Map<String, Numeric<U>>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest: Numeric<U>, supplyRequest: Map<String, T> ->
-        with(algebra) {
+        with(producerAlgebra) {
             //compute expected amount of each supply
             val forwardRequest = reaction.forward(supplyRequest)
             //limit forward request to consumer capacity
-            val forward = forwardRequest.coerceIn(algebra.zero..consumerRequest)
+            val forward = forwardRequest.coerceIn(producerAlgebra.zero..consumerRequest)
             //consumation from request
             reaction.backward(forward)
         }
@@ -150,7 +150,7 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     override val production: DeviceState<T> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest, supplyRequest: Map<String, T> ->
-        with(algebra) {
+        with(producerAlgebra) {
             reaction.forward(supplyRequest).coerceValueIn(Numeric.zero<U>()..consumerRequest)
         }
     }
@@ -172,6 +172,8 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.asCo
     key: String
 ): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input ->
     object : ContinuousConsumerInterface<U, T> {
+        override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
+
         override val consumation: DeviceState<T> get() = individualConsumation[key]!!
         override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumationCapacity[key]!!
         override val supplyRequest: LateBindDeviceState<T> get() = input

@@ -5,6 +5,8 @@ import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
 public interface ContinuousConsumerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
+    public val consumerAlgebra: AmountAlgebra<U, T>
+
     public val consumation: DeviceState<T>
     public val consumationCapacity: DeviceState<Numeric<U>>
     public val supplyRequest: LateBindDeviceState<T>
@@ -12,6 +14,10 @@ public interface ContinuousConsumerInterface<U : UnitsOfMeasurement, T : Amount<
 
 public interface ContinuousConsumerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousConsumerInterface<U, T> {
     public val consumer: ContinuousConsumerInterface<U, T>
+
+    override val consumerAlgebra: AmountAlgebra<U, T> get() = consumer.consumerAlgebra
+
+
     override val consumation: DeviceState<T> get() = consumer.consumation
     override val consumationCapacity: DeviceState<Numeric<U>> get() = consumer.consumationCapacity
     override val supplyRequest: LateBindDeviceState<T> get() = consumer.supplyRequest
@@ -45,11 +51,11 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
  */
 public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<U, T>,
+    override val consumerAlgebra: AmountAlgebra<U, T>,
     override val consumationCapacity: DeviceState<Numeric<U>>,
 ) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(algebra.zero)
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
 
     init {
         registerState(consumationCapacity)
@@ -60,7 +66,7 @@ public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
         supplyRequest,
         consumationCapacity
     ) { request, capacity ->
-        with(algebra) {
+        with(consumerAlgebra) {
             request.coerceValueIn(Numeric.zero<U>()..capacity)
         }
     }
@@ -69,7 +75,7 @@ public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
         supplyRequest,
         consumationCapacity
     ) { request, capacity ->
-        with(algebra) {
+        with(consumerAlgebra) {
             val consumation = request.coerceValueIn(Numeric.zero<U>()..capacity)
             consumation.value / capacity.value
         }

@@ -41,16 +41,17 @@ public interface ContinuousTransformationRule<U1 : UnitsOfMeasurement, T : Amoun
 
 public class ContinuousTransformer<U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>>(
     context: Context,
-    public val supplyAlgebra: AmountAlgebra<U1, T>,
+    override val consumerAlgebra: AmountAlgebra<U1, T>,
+    override val producerAlgebra: AmountAlgebra<U2, R>,
     public val rule: ContinuousTransformationRule<U1, T, U2, R>,
 ) : ModelConstructor(context), ContinuousProducerInterface<U2, R>, ContinuousConsumerInterface<U1, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(supplyAlgebra.zero)
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
     override val consumerRequest: LateBindDeviceState<Numeric<U2>> = LateBindDeviceState(Numeric.zero())
 
     override val consumation: DeviceState<T> = combineState(supplyRequest, consumerRequest) { supply, consume ->
-        with(supplyAlgebra) {
-            supply.coerceValueIn(supplyAlgebra.zero..rule.computeConsumption(consume))
+        with(consumerAlgebra) {
+            supply.coerceValueIn(consumerAlgebra.zero..rule.computeConsumption(consume))
         }
     }
 
@@ -66,18 +67,20 @@ public class ContinuousTransformer<U1 : UnitsOfMeasurement, T : Amount<U1>, U2 :
 }
 
 public fun <U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>> ContinuousFlowModel.transformer(
-    supplyAlgebra: AmountAlgebra<U1, T>,
+    consumerAlgebra: AmountAlgebra<U1, T>,
+    producerAlgebra: AmountAlgebra<U2, R>,
     rule: ContinuousTransformationRule<U1, T, U2, R>,
-): ContinuousTransformer<U1, T, U2, R> = model(ContinuousTransformer(context, supplyAlgebra, rule))
+): ContinuousTransformer<U1, T, U2, R> = model(ContinuousTransformer(context, consumerAlgebra, producerAlgebra, rule))
 
 public fun <U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>> ContinuousFlowModel.linearTransformer(
-    supplyAlgebra: AmountAlgebra<U1, T>,
-    productionAlgebra: AmountAlgebra<U2, R>,
+    consumerAlgebra: AmountAlgebra<U1, T>,
+    producerAlgebra: AmountAlgebra<U2, R>,
     production: R
 ): ContinuousTransformer<U1, T, U2, R> = model(
     ContinuousTransformer(
         context = context,
-        supplyAlgebra = supplyAlgebra,
-        rule = ContinuousTransformationRule.linear(productionAlgebra, production)
+        producerAlgebra = producerAlgebra,
+        consumerAlgebra = consumerAlgebra,
+        rule = ContinuousTransformationRule.linear(producerAlgebra, production)
     )
 )

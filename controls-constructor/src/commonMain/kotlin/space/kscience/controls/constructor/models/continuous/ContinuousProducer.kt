@@ -5,6 +5,8 @@ import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
 public interface ContinuousProducerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
+    public val producerAlgebra: AmountAlgebra<U, T>
+
     public val production: DeviceState<T>
     public val productionCapacity: DeviceState<T>
     public val consumerRequest: LateBindDeviceState<Numeric<U>>
@@ -12,6 +14,8 @@ public interface ContinuousProducerInterface<U : UnitsOfMeasurement, T : Amount<
 
 public interface ContinuousProducerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousProducerInterface<U, T> {
     public val producer: ContinuousProducerInterface<U, T>
+
+    override val producerAlgebra: AmountAlgebra<U, T> get() = producer.producerAlgebra
 
     override val production: DeviceState<T> get() = producer.production
     override val productionCapacity: DeviceState<T> get() = producer.productionCapacity
@@ -48,7 +52,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
  */
 public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<U, T>,
+    override val producerAlgebra: AmountAlgebra<U, T>,
     override val productionCapacity: DeviceState<T>,
     override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
@@ -62,7 +66,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
         first = consumerRequest,
         second = productionCapacity
     ) { request: Numeric<U>, capacity: T ->
-        with(algebra) {
+        with(producerAlgebra) {
             capacity.coerceValueIn(Numeric.zero<U>()..request)
         }
     }
@@ -71,7 +75,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
         consumerRequest,
         productionCapacity
     ) { request, capacity ->
-        with(algebra) {
+        with(producerAlgebra) {
             val production = capacity.coerceValueIn(Numeric.zero<U>()..request)
             production.value / capacity.value
         }
@@ -96,7 +100,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
         ): ContinuousProducer<U, T> {
             return ContinuousProducer(
                 context = consumer.context,
-                algebra = consumer.algebra,
+                producerAlgebra = consumer.consumerAlgebra,
                 productionCapacity = capacity,
             ).also { producer ->
                 //provide bi-directional connection

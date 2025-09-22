@@ -40,14 +40,14 @@ public interface SeparationRule<U : UnitsOfMeasurement, T : Amount<U>> {
 
 public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<U, T>,
+    override val consumerAlgebra: AmountAlgebra<U, T>,
     public val rule: SeparationRule<U, T>,
 ) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState( algebra.zero)
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
 
     public val consumationRequest: Map<String, LateBindDeviceState<Numeric<U>>> = rule.productionKeys.associateWith {
-        LateBindDeviceState( Numeric.zero())
+        LateBindDeviceState(Numeric.zero())
     }
 
     private val jointConsumationRequest: DeviceState<Map<String, Numeric<U>>> = combineState(consumationRequest) {
@@ -62,7 +62,7 @@ public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
         val limitingFactor = expectation.minOfOrNull { (key, value) ->
             (consumation[key] ?: Numeric.zero()).value / value.value
         } ?: 0.0
-        with(algebra) {
+        with(consumerAlgebra) {
             supply * limitingFactor to expectation.mapValues { (key, value) -> supply * limitingFactor }
         }
     }
@@ -70,22 +70,22 @@ public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
     public val production: DeviceState<Map<String, T>> = mapState(balance) { it.second }
 
     public val individualProduction: Map<String, DeviceState<T>> = rule.productionKeys.associateWith { key ->
-        mapState(production) { it[key] ?: algebra.zero }
+        mapState(production) { it[key] ?: consumerAlgebra.zero }
     }
 
     public val productionCapacity: DeviceState<Map<String, T>> = combineState(
         first = supplyRequest,
         second = jointConsumationRequest
     ) { supply: T, consumation: Map<String, Numeric<U>> ->
-        with(algebra) {
+        with(consumerAlgebra) {
             val productionLimit = rule.backward(consumation)
-            val expectedProduction = supply.coerceValueIn(zero.. productionLimit)
+            val expectedProduction = supply.coerceValueIn(zero..productionLimit)
             rule.forward(expectedProduction)
         }
     }
 
     public val individualProductionCapacity: Map<String, DeviceState<T>> = rule.productionKeys.associateWith { key ->
-        mapState(productionCapacity) { it[key] ?: algebra.zero }
+        mapState(productionCapacity) { it[key] ?: consumerAlgebra.zero }
     }
 
     override val consumation: DeviceState<T> = mapState(balance) { it.first }
@@ -100,6 +100,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousSeparate<U, T>.asPr
     key: String
 ): ContinuousProducerInterface<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
     object : ContinuousProducerInterface<U, T> {
+        override val producerAlgebra: AmountAlgebra<U, T> get() = this@asProducer.consumerAlgebra
         override val production: DeviceState<T> get() = individualProduction[key]!!
         override val productionCapacity: DeviceState<T> = individualProductionCapacity[key]!!
         override val consumerRequest: LateBindDeviceState<Numeric<U>> get() = specificConsumationRequest

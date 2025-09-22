@@ -223,8 +223,8 @@ class ContinuousFlowTest {
             val consumer = consumer(output)
 
             val transformer = linearTransformer(
-                supplyAlgebra = NumericAmountAlgebra<CubicMeters>(),
-                productionAlgebra = NumericAmountAlgebra<Kilograms>(),
+                consumerAlgebra = NumericAmountAlgebra<CubicMeters>(),
+                producerAlgebra = NumericAmountAlgebra<Kilograms>(),
                 production = Numeric<Kilograms>(0.1)
             )
 

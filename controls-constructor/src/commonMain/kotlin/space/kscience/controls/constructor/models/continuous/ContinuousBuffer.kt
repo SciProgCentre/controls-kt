@@ -14,7 +14,7 @@ import kotlin.time.Duration.Companion.seconds
  * @param U The unit of measurement associated with the buffer contents.
  * @param T The amount type representing the measurable quantity stored in the buffer.
  * @param context The simulation context in which the buffer operates.
- * @param algebra The algebraic operations to manipulate the amount type.
+ * @param consumerAlgebra The algebraic operations to manipulate the amount type.
  * @param bufferCapacity The maximum capacity of the buffer as a device state.
  * @param supplyRequest A device state representing the amount requested to be added to the buffer.
  * @param consumerRequest A device state representing the amount requested to be consumed from the buffer.
@@ -26,13 +26,15 @@ import kotlin.time.Duration.Companion.seconds
  */
 public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
     context: Context,
-    public val algebra: AmountAlgebra<U, T>,
+    override val consumerAlgebra: AmountAlgebra<U, T>,
     public val bufferCapacity: DeviceState<Numeric<U>>,
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState( algebra.zero),
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState( Numeric.zero()),
-    initialLevel: T = algebra.zero,
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero),
+    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
+    initialLevel: T = consumerAlgebra.zero,
     timeStep: Duration = 1.seconds
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T>, ContinuousConsumerInterface<U, T> {
+
+    override val producerAlgebra: AmountAlgebra<U, T> get() = consumerAlgebra
 
     private val _content: MutableDeviceState<T> = MutableDeviceState(initialLevel)
 
@@ -49,7 +51,7 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         supplyRequest,
         content
     ) { supplyRequest: T, content: T ->
-        with(algebra) {
+        with(consumerAlgebra) {
             supplyRequest + content
         }
     }
@@ -59,7 +61,7 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         content,
         consumerRequest
     ) { supplyRequest, content, consumeRequest ->
-        with(algebra) {
+        with(consumerAlgebra) {
             val productionCapacity = supplyRequest + content
             productionCapacity.coerceValueIn(Numeric.zero<U>()..consumeRequest)
         }
@@ -79,7 +81,7 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         content,
         consumerRequest
     ) { supplyRequest: T, bufferCapacity, content, consumationRequest ->
-        with(algebra) {
+        with(consumerAlgebra) {
             val remainingSpace = bufferCapacity - Numeric<U>(content.value)
             val consumationCapacity = remainingSpace + consumationRequest
             supplyRequest.coerceValueIn(Numeric.zero<U>()..consumationCapacity)
@@ -91,7 +93,7 @@ public class ContinuousBuffer<U : UnitsOfMeasurement, T : Amount<U>>(
         reads = listOf(production, consumation, bufferCapacity),
         writes = listOf(content)
     ) { prev, next ->
-        with(algebra) {
+        with(consumerAlgebra) {
             delay(timeStep)
 
             val delta = consumation.value - production.value
@@ -132,7 +134,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.buffer(
 ): ContinuousBuffer<U, T> = model(
     ContinuousBuffer(
         context = context,
-        algebra = algebra,
+        consumerAlgebra = algebra,
         bufferCapacity = DeviceState(bufferCapacity),
         initialLevel = initialLevel,
         timeStep = timeStep
