@@ -6,11 +6,7 @@ import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.LateBindDeviceState
 import space.kscience.controls.constructor.combine
 import space.kscience.controls.constructor.transform
-import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.AmountAlgebra
-import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.UnitsOfMeasurement
-import space.kscience.controls.constructor.units.coerceValueIn
+import space.kscience.controls.constructor.units.*
 import kotlin.time.Duration
 
 /**
@@ -91,18 +87,25 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
 
     override val consumation: DeviceState<T> get() = this@limited.consumation
     override val consumationCapacity: DeviceState<Numeric<U>> get() = this@limited.consumationCapacity
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumationLimit.value)
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(
+        this@limited.supplyRequest.value.coerceValueIn<U, T>(consumerAlgebra, Numeric.zero<U>()..consumationLimit.value)
+
+    )
 
     private val limitedValue: DeviceState<T> = DeviceState.combine(
         scope,
         supplyRequest,
         consumationLimit
     ) { supplyRequest: T, limit: Numeric<U> ->
-        supplyRequest.coerceValueIn(consumerAlgebra,Numeric.zero<U>()..limit)
+        supplyRequest.coerceValueIn(consumerAlgebra, Numeric.zero<U>()..limit)
     }
 
     init {
         this@limited.supplyRequest.bind(limitedValue)
     }
-
 }
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.limited(
+    scope: CoroutineScope,
+    consumationLimit: Numeric<U>
+): ContinuousConsumerInterface<U, T> = limited(scope, DeviceState(consumationLimit))
