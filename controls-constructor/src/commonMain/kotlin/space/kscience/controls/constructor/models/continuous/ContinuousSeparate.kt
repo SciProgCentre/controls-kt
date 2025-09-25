@@ -3,8 +3,6 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 public interface SeparationRule<U : UnitsOfMeasurement, T : Amount<U>> {
     public val productionKeys: Collection<String>
@@ -54,7 +52,7 @@ public class ContinuousSeparate<U : UnitsOfMeasurement, T : Amount<U>>(
 
     private val jointConsumationRequest: DeviceState<Map<String, Numeric<U>>> = combineState(consumationRequest) {
         it
-    }.delayedBy(this, 0.milliseconds) // decouple request to avoid loops
+    }
 
     private val balance: DeviceState<Pair<T, Map<String, T>>> = combineState(
         first = supplyRequest,
