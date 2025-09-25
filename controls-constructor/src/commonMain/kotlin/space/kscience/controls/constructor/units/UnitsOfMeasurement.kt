@@ -1,7 +1,9 @@
 package space.kscience.controls.constructor.units
 
 
-public interface UnitsOfMeasurement
+public interface UnitsOfMeasurement{
+    public val displayName: String get() = this::class.simpleName ?: "UnnamedUnits"
+}
 
 /**/
 

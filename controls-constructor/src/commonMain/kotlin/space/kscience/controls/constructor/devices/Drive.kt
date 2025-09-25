@@ -15,5 +15,5 @@ public class Drive(
     context: Context,
     force: MutableDeviceState<Numeric<NewtonsMeters>> = MutableDeviceState(Numeric(0)),
 ) : DeviceConstructor(context) {
-    public val force: MutableDeviceState<Numeric<NewtonsMeters>> by property(MetaConverter.numeric(), force)
+    public val force: MutableDeviceState<Numeric<NewtonsMeters>> by property(MetaConverter.numeric(NewtonsMeters), force)
 }

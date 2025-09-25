@@ -16,11 +16,14 @@ import kotlin.time.Duration
  * @param delay The delay duration to apply to each value emitted by the [DeviceState].
  * @return A new [DeviceState] that emits delayed values from the current state by the specified [delay].
  */
-public fun <T> DeviceState<T>.delayedBy(scope: CoroutineScope, delay: Duration): DeviceState<T> =
-    DeviceState.transform(scope, this, value) {
-        delay(delay)
-        it
-    }
+public fun <T> DeviceState<T>.delayedBy(
+    scope: CoroutineScope,
+    delay: Duration,
+    initialValue: T = value
+): DeviceState<T> = DeviceState.transform(scope, this, initialValue) {
+    delay(delay)
+    it
+}
 
 /**
  * Delays the emission of values from the production and productionCapacity properties of a
@@ -45,6 +48,23 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
 
     init {
         this@delayed.consumerRequest.bind(consumerRequest.delayedBy(scope, delay))
+    }
+}
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.delayedConsumer(
+    scope: CoroutineScope,
+    delay: Duration,
+): ContinuousConsumerInterface<U, T> = object : ContinuousConsumerInterface<U, T> {
+    override val consumerAlgebra: AmountAlgebra<U, T> get() = this@delayedConsumer.consumerAlgebra
+
+    override val consumation: DeviceState<T> = this@delayedConsumer.consumation
+
+    override val consumationCapacity: DeviceState<Numeric<U>> = this@delayedConsumer.consumationCapacity.delayedBy(scope, delay,Numeric.zero())
+
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
+
+    init {
+        this@delayedConsumer.supplyRequest.bind(supplyRequest.delayedBy(scope, delay, consumerAlgebra.zero))
     }
 }
 
@@ -79,16 +99,16 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
     productionLimit: Numeric<U>
 ): ContinuousProducerInterface<U, T> = limited(scope, DeviceState(productionLimit))
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.limited(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.limitedConsumer(
     scope: CoroutineScope,
     consumationLimit: DeviceState<Numeric<U>>
 ): ContinuousConsumerInterface<U, T> = object : ContinuousConsumerInterface<U, T> {
-    override val consumerAlgebra: AmountAlgebra<U, T> get() = this@limited.consumerAlgebra
+    override val consumerAlgebra: AmountAlgebra<U, T> get() = this@limitedConsumer.consumerAlgebra
 
-    override val consumation: DeviceState<T> get() = this@limited.consumation
-    override val consumationCapacity: DeviceState<Numeric<U>> get() = this@limited.consumationCapacity
+    override val consumation: DeviceState<T> get() = this@limitedConsumer.consumation
+    override val consumationCapacity: DeviceState<Numeric<U>> get() = this@limitedConsumer.consumationCapacity
     override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(
-        this@limited.supplyRequest.value.coerceValueIn<U, T>(consumerAlgebra, Numeric.zero<U>()..consumationLimit.value)
+        this@limitedConsumer.supplyRequest.value.coerceValueIn<U, T>(consumerAlgebra, Numeric.zero<U>()..consumationLimit.value)
 
     )
 
@@ -101,11 +121,11 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
     }
 
     init {
-        this@limited.supplyRequest.bind(limitedValue)
+        this@limitedConsumer.supplyRequest.bind(limitedValue)
     }
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.limited(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.limitedConsumer(
     scope: CoroutineScope,
     consumationLimit: Numeric<U>
-): ContinuousConsumerInterface<U, T> = limited(scope, DeviceState(consumationLimit))
+): ContinuousConsumerInterface<U, T> = limitedConsumer(scope, DeviceState(consumationLimit))

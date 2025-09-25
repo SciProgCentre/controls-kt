@@ -3,9 +3,7 @@ package space.kscience.controls.constructor.units
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.DeviceStateWithDependencies
 import space.kscience.controls.constructor.map
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.*
 import kotlin.jvm.JvmInline
 
 
@@ -66,12 +64,19 @@ public fun <U : UnitsOfMeasurement> DeviceState<Amount<U>>.asNumeric(): DeviceSt
     DeviceState.map(this) { it.asNumeric() }
 
 
-private object NumericalValueMetaConverter : MetaConverter<Numeric<*>> {
-    override fun convert(obj: Numeric<*>): Meta = Meta(obj.value)
+public fun <U : UnitsOfMeasurement> MetaConverter.Companion.numeric(
+    units: U
+): MetaConverter<Numeric<U>> =
+    object : MetaConverter<Numeric<U>> {
+        override fun readOrNull(source: Meta): Numeric<U>? {
+            val unitsInSource = source["units"].string
+            if (unitsInSource != null && unitsInSource != units.displayName) error("The units $unitsInSource do not match expected ${units.displayName}")
+            val double = source.double ?: return null
+            return Numeric<U>(double)
+        }
 
-    override fun readOrNull(source: Meta): Numeric<*>? = source.double?.let { Numeric<Nothing>(it) }
-}
-
-@Suppress("UNCHECKED_CAST")
-public fun <U : UnitsOfMeasurement> MetaConverter.Companion.numeric(): MetaConverter<Numeric<U>> =
-    NumericalValueMetaConverter as MetaConverter<Numeric<U>>
+        override fun convert(obj: Numeric<U>): Meta = Meta {
+            double(obj.value)
+            "units" put units.displayName
+        }
+    }

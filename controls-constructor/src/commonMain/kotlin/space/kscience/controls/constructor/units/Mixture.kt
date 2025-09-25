@@ -1,9 +1,14 @@
 package space.kscience.controls.constructor.units
 
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.isEmpty
 import kotlin.jvm.JvmInline
 
 @JvmInline
-public value class MixtureComponent(public val name: String)
+public value class MixtureComponent(public val name: String){
+    override fun toString(): String = name
+}
 
 @JvmInline
 public value class Mixture<U : UnitsOfMeasurement, T : Amount<U>>(
@@ -11,7 +16,7 @@ public value class Mixture<U : UnitsOfMeasurement, T : Amount<U>>(
 ) : Amount<U> {
     override val value: Double get() = components.values.sumOf { it.value }
 
-    public companion object{
+    public companion object {
         public fun <U : UnitsOfMeasurement, T : Amount<U>> ofAmounts(vararg entries: Pair<MixtureComponent, T>): Mixture<U, T> =
             Mixture(entries.toMap())
 
@@ -21,7 +26,8 @@ public value class Mixture<U : UnitsOfMeasurement, T : Amount<U>>(
     }
 }
 
-public operator fun <U : UnitsOfMeasurement, T : Amount<U>> Mixture<U, T>.get(component: MixtureComponent): T? = components[component]
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> Mixture<U, T>.get(component: MixtureComponent): T? =
+    components[component]
 
 public val <U : UnitsOfMeasurement, T : Amount<U>> Mixture<U, T>.fractions: Map<MixtureComponent, Double>
     get() {
@@ -77,4 +83,24 @@ public class MixtureAlgebra<U : UnitsOfMeasurement, T : Amount<U>>(
     )
 
     override val zero: Mixture<U, T> = Mixture(emptyMap())
+}
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> MetaConverter.Companion.mixture(
+    fractionConverter: MetaConverter<T>,
+): MetaConverter<Mixture<U, T>> = object : MetaConverter<Mixture<U, T>> {
+    override fun readOrNull(source: Meta): Mixture<U, T>? {
+        if (source.isEmpty()) return null
+        return Mixture(
+            source.items.map { (key, value) ->
+                MixtureComponent(key.toStringUnescaped()) to fractionConverter.read(value)
+            }.toMap()
+        )
+    }
+
+    override fun convert(obj: Mixture<U, T>): Meta = Meta {
+        obj.components.forEach { (component, amount) ->
+            component.name put fractionConverter.convert(amount)
+        }
+    }
+
 }

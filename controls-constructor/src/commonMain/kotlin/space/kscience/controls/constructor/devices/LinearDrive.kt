@@ -21,7 +21,7 @@ public class LinearDrive(
     meta: Meta = Meta.EMPTY,
 ) : DeviceConstructor(context, meta) {
 
-    public val position: DeviceState<Numeric<Meters>> by property(MetaConverter.numeric(), position)
+    public val position: DeviceState<Numeric<Meters>> by property(MetaConverter.numeric(Meters), position)
 
     public val drive: Drive by device(drive)
     public val pid: PidRegulator<Meters, NewtonsMeters>  = model(

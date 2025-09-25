@@ -112,7 +112,7 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
 
             //limit consumation to actually consumed
             supplyRequest.mapValues { (key, value) ->
-                value.coerceValueIn(Numeric.zero<U>()..backward[key]!!)
+                value.coerceValueIn(Numeric.zero<U>()..(backward[key] ?: Numeric.zero()))
             }
         }
     }
@@ -139,7 +139,7 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
 
     public val individualConsumationCapacity: Map<String, DeviceState<Numeric<U>>> =
         reaction.supplyKeys.associateWith { key ->
-            mapState(consumationCapacity) { it[key]!! }
+            mapState(consumationCapacity) { it[key] ?: Numeric.zero() }
         }
 
 

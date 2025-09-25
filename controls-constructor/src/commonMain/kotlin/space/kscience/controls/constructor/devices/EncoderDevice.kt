@@ -16,5 +16,5 @@ public class EncoderDevice(
     context: Context,
     position: DeviceState<Numeric<Degrees>>
 ) : DeviceConstructor(context) {
-    public val position: DeviceState<Numeric<Degrees>> by property(MetaConverter.numeric<Degrees>(), position)
+    public val position: DeviceState<Numeric<Degrees>> by property(MetaConverter.numeric(Degrees), position)
 }
