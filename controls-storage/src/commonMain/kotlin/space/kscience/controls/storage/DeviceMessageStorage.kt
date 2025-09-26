@@ -2,11 +2,11 @@ package space.kscience.controls.storage
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.Instant
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.descriptors.serialDescriptor
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.dataforge.names.Name
+import kotlin.time.Instant
 
 /**
  * A storage for Controls-kt [DeviceMessage]
@@ -15,7 +15,7 @@ public interface DeviceMessageStorage {
     public suspend fun write(event: DeviceMessage)
 
     /**
-     * Return all messages in a storage as a flow
+     * Return all messages in a storage as a discrete
      */
     public fun readAll(): Flow<DeviceMessage>
 

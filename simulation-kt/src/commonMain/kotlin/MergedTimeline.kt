@@ -5,24 +5,27 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Instant
 
 
-public class MergedTimeline<E : TimelineEvent>(
+public class MergedTimeline<E : Any>(
     private val timelines: List<Timeline<E>>,
+    private val timeOf: E.() -> Instant,
     coroutineContext: CoroutineContext = EmptyCoroutineContext
 ) : Timeline<E> {
 
-    protected val timelineScope: CoroutineScope = CoroutineScope(
+    private val timelineScope: CoroutineScope = CoroutineScope(
         coroutineContext +
                 SupervisorJob(coroutineContext[Job]) +
-                CoroutineExceptionHandler{ _, throwable -> throwable.printStackTrace() } +
+                CoroutineExceptionHandler { _, throwable -> throwable.printStackTrace() } +
                 CoroutineName("MergedTimeline")
     )
 
-    override val time: StateFlow<Instant> = combine(timelines.map { it.time }){ array->
+    override fun timeOf(event: E): Instant = event.timeOf()
+
+    override val time: StateFlow<Instant> = combine(timelines.map { it.time }) { array ->
         array.max()
     }.stateIn(timelineScope, SharingStarted.Lazily, timelines.maxOf { it.time.value })
 
@@ -52,17 +55,17 @@ public class MergedTimeline<E : TimelineEvent>(
 
             private val collectJob = timelineScope.launch(context) {
                 channel.consumeAsFlow().onEach {
-                    time.emit(it.time)
+                    time.emit(timeOf(it))
                 }.collector()
             }
 
             private val mutex = Mutex()
 
-            override suspend fun collect(upTo: Instant) = mutex.withLock{
+            override suspend fun collect(upTo: Instant) = mutex.withLock {
                 timelineObservers.forEach {
                     it.collect(upTo)
                 }
-                buffer.sortedBy { it.time }.forEach {
+                buffer.sortedBy { timeOf(it) }.forEach {
                     channel.send(it)
                     buffer.remove(it)
                 }

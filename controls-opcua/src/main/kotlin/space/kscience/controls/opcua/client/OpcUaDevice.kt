@@ -29,17 +29,17 @@ public interface OpcUaDevice : Device {
  * Read OPC-UA value with timestamp
  * @param T the type of property to read. The value is coerced to it.
  */
-public suspend inline fun <reified T: Any> OpcUaDevice.readOpcWithTime(
+public suspend inline fun <reified T : Any> OpcUaDevice.readOpcWithTime(
     nodeId: NodeId,
     converter: MetaConverter<T>,
     magAge: Double = 500.0
 ): Pair<T, DateTime> {
-    val data: DataValue = client.readValue(magAge, TimestampsToReturn.Server, nodeId).await()
+    val data: DataValue = client.readValuesAsync(magAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
     val time = data.serverTime ?: error("No server time provided")
     val meta: Meta = when (val content = data.value.value) {
         is T -> return content to time
         is Meta -> content
-        is ExtensionObject -> content.decode(client.dynamicSerializationContext) as Meta
+        is ExtensionObject -> content.decode(client.dynamicEncodingContext) as Meta
         else -> error("Incompatible OPC property value $content")
     }
 
@@ -55,10 +55,10 @@ public suspend inline fun <reified T> OpcUaDevice.readOpc(
     converter: MetaConverter<T>,
     magAge: Double = 500.0
 ): T {
-    val data: DataValue = client.readValue(magAge, TimestampsToReturn.Neither, nodeId).await()
+    val data: DataValue = client.readValuesAsync(magAge, TimestampsToReturn.Neither, listOf(nodeId)).await().first()
 
     val content = data.value.value
-    if(content is T) return  content
+    if (content is T) return content
     val meta: Meta = when (content) {
         is Meta -> content
         //Always decode string as Json meta
@@ -78,7 +78,7 @@ public suspend inline fun <reified T> OpcUaDevice.writeOpc(
     value: T
 ): StatusCode {
     val meta = converter.convert(value)
-    return client.writeValue(nodeId, DataValue(Variant(meta))).await()
+    return client.writeValuesAsync(listOf(nodeId), listOf(DataValue(Variant(meta)))).await().first()
 }
 
 

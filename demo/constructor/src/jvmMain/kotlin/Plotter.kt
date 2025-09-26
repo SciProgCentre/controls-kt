@@ -31,8 +31,8 @@ import space.kscience.controls.constructor.devices.angle
 import space.kscience.controls.constructor.models.Leadscrew
 import space.kscience.controls.constructor.models.coerceIn
 import space.kscience.controls.constructor.units.*
-import space.kscience.controls.manager.ClockManager
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
 import kotlin.random.Random
@@ -100,15 +100,15 @@ private suspend fun Plotter.square(xRange: IntRange, yRange: IntRange) {
     }
 }
 
-private val xRange = NumericalValue<Meters>(-0.5)..NumericalValue<Meters>(0.5)
-private val yRange = NumericalValue<Meters>(-0.5)..NumericalValue<Meters>(0.5)
+private val xRange = Numeric<Meters>(-0.5)..Numeric<Meters>(0.5)
+private val yRange = Numeric<Meters>(-0.5)..Numeric<Meters>(0.5)
 private const val ticksPerSecond = 3000.0
-private val step = NumericalValue<Degrees>(1.8)
+private val step = Numeric<Degrees>(1.8)
 
 
 private data class PlotterPoint(
-    val x: NumericalValue<Meters>,
-    val y: NumericalValue<Meters>,
+    val x: Numeric<Meters>,
+    val y: Numeric<Meters>,
     val color: Color = Color.Black,
 )
 
@@ -118,11 +118,11 @@ private class PlotterModel(
 ) : ModelConstructor(context) {
 
     private val xDrive = StepDrive(context, ticksPerSecond)
-    private val xTransmission = Leadscrew(context, NumericalValue(0.01))
+    private val xTransmission = Leadscrew(context, Numeric(0.01))
     val x = xTransmission.degreesToMeters(xDrive.angle(step)).coerceIn(xRange)
 
     private val yDrive = StepDrive(context, ticksPerSecond)
-    private val yTransmission = Leadscrew(context, NumericalValue(0.01))
+    private val yTransmission = Leadscrew(context, Numeric(0.01))
     val y = yTransmission.degreesToMeters(yDrive.angle(step)).coerceIn(yRange)
 
     val xy: DeviceState<XY<Meters>> = combineState(x, y) { x, y -> XY(x, y) }
@@ -199,10 +199,10 @@ suspend fun main() = application {
                 }
                 second {
                     Device2DCanvas(modifier = Modifier.fillMaxSize()) {
-                        fun xToPx(x: NumericalValue<Meters>): Float =
+                        fun xToPx(x: Numeric<Meters>): Float =
                             ((x - xRange.start) / (xRange.endInclusive - xRange.start) * size.width).toFloat()
 
-                        fun yToPx(y: NumericalValue<Meters>): Float =
+                        fun yToPx(y: Numeric<Meters>): Float =
                             ((y - yRange.start) / (yRange.endInclusive - yRange.start) * size.height).toFloat()
 
 

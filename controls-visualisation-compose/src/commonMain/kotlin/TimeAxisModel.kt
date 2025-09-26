@@ -4,14 +4,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.koalaplot.core.xygraph.AxisModel
 import io.github.koalaplot.core.xygraph.TickValues
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.math.floor
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 import kotlin.time.times
 
 public class TimeAxisModel(
-    override val minimumMajorTickSpacing: Dp = 50.dp,
+    private val minimumMajorTickSpacing: Dp = 50.dp,
     private val rangeProvider: () -> ClosedRange<Instant>,
 ) : AxisModel<Instant> {
 
@@ -34,7 +34,11 @@ public class TimeAxisModel(
     }
 
     public companion object {
-        public fun recent(duration: Duration, clock: Clock = Clock.System): TimeAxisModel = TimeAxisModel {
+        public fun recent(
+            duration: Duration,
+            clock: Clock = Clock.System,
+            minimumMajorTickSpacing: Dp = 50.dp
+        ): TimeAxisModel = TimeAxisModel(minimumMajorTickSpacing) {
             val now = clock.now()
             (now - duration)..now
         }

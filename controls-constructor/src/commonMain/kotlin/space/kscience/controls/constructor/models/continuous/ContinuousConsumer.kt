@@ -1,0 +1,110 @@
+package space.kscience.controls.constructor.models.continuous
+
+import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.units.*
+import space.kscience.dataforge.context.Context
+
+public interface ContinuousConsumerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
+    public val consumerAlgebra: AmountAlgebra<U, T>
+
+    public val consumation: DeviceState<T>
+    public val consumationCapacity: DeviceState<Numeric<U>>
+    public val supplyRequest: LateBindDeviceState<T>
+}
+
+public interface ContinuousConsumerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousConsumerInterface<U, T> {
+    public val consumer: ContinuousConsumerInterface<U, T>
+
+    override val consumerAlgebra: AmountAlgebra<U, T> get() = consumer.consumerAlgebra
+
+
+    override val consumation: DeviceState<T> get() = consumer.consumation
+    override val consumationCapacity: DeviceState<Numeric<U>> get() = consumer.consumationCapacity
+    override val supplyRequest: LateBindDeviceState<T> get() = consumer.supplyRequest
+}
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.connectProducer(
+    producerCapacity: DeviceState<T>,
+) {
+    supplyRequest.bind(producerCapacity)
+}
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.connectProducer(
+    producerInterface: ContinuousProducerInterface<U, T>
+) {
+    ContinuousFlowModel.connect(producerInterface, this)
+}
+
+/**
+ * Represents a model for a material discrete consumer capable of consuming material discrete based on its defined capacity
+ * and requested supply. This class calculates the actual material discrete consumed and the efficiency of consumption.
+ *
+ * @param U The type of units of measurement for the material discrete.
+ * @param context The execution context used for state management and operations.
+ * @param consumationCapacity The maximum capacity for material discrete consumption of the consumer.
+ * @param supplyRequest The state representing the requested material discrete to be supplied.
+ *
+ * @property consumation A device state representing the actual material discrete consumed,
+ * calculated as the minimum of the requested supply and the consumer's capacity.
+ * @property efficiency A device state representing the efficiency of the consumer, calculated
+ * as the ratio of the actual consumption to the capacity.
+ */
+public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
+    context: Context,
+    override val consumerAlgebra: AmountAlgebra<U, T>,
+    override val consumationCapacity: DeviceState<Numeric<U>>,
+) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
+
+    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
+
+    init {
+        registerState(consumationCapacity)
+        registerState(supplyRequest)
+    }
+
+    override val consumation: DeviceState<T> = combineState(
+        supplyRequest,
+        consumationCapacity
+    ) { request, capacity ->
+        with(consumerAlgebra) {
+            request.coerceValueIn(Numeric.zero<U>()..capacity)
+        }
+    }
+
+    public val efficiency: DeviceState<Double> = combineState(
+        supplyRequest,
+        consumationCapacity
+    ) { request, capacity ->
+        with(consumerAlgebra) {
+            val consumation = request.coerceValueIn(Numeric.zero<U>()..capacity)
+            consumation.value / capacity.value
+        }
+    }
+
+    public companion object
+}
+
+/**
+ * Creates an instance of a [ContinuousConsumer] for managing material discrete consumption based on its capacity
+ * and a supply request.
+ *
+ * @param U The type of units of measurement for the material discrete.
+ * @param context The execution context used for state management and operations.
+ * @param capacity A device state representing the maximum capacity for material discrete consumption.
+ * @param supplyRequest An optional late-bound device state representing the requested material discrete to be supplied.
+ * Defaults to a state with an initial value of zero.
+ * @return An instance of ContinuousConsumer configured with the supplied parameters.
+ */
+public fun <U : UnitsOfMeasurement> ContinuousConsumer(
+    context: Context,
+    capacity: DeviceState<Numeric<U>>
+): ContinuousConsumer<U, Numeric<U>> = ContinuousConsumer(context, NumericAmountAlgebra<U>(), capacity)
+
+public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.consumer(
+    algebra: AmountAlgebra<U, T>,
+    capacity: DeviceState<Numeric<U>>
+): ContinuousConsumer<U, T> = model(ContinuousConsumer(context, algebra, capacity))
+
+public fun <U : UnitsOfMeasurement> ContinuousFlowModel.consumer(
+    capacity: DeviceState<Numeric<U>>
+): ContinuousConsumer<U, Numeric<U>> = model(ContinuousConsumer(context, capacity))

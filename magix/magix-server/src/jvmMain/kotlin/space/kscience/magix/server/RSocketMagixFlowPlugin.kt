@@ -1,24 +1,78 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package space.kscience.magix.server
 
-import io.ktor.network.sockets.SocketOptions
 import io.rsocket.kotlin.ConnectionAcceptor
 import io.rsocket.kotlin.RSocketRequestHandler
 import io.rsocket.kotlin.core.RSocketServer
 import io.rsocket.kotlin.core.RSocketServerBuilder
 import io.rsocket.kotlin.payload.Payload
 import io.rsocket.kotlin.payload.buildPayload
-import io.rsocket.kotlin.payload.data
-import io.rsocket.kotlin.transport.ktor.tcp.TcpServer
-import io.rsocket.kotlin.transport.ktor.tcp.TcpServerTransport
+import io.rsocket.kotlin.transport.ktor.tcp.KtorTcpServerTransport
+import io.rsocket.kotlin.transport.ktor.tcp.KtorTcpServerTransportBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.serialization.encodeToString
+import kotlinx.coroutines.launch
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
+import kotlinx.io.readString
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.cbor.Cbor
+import kotlinx.serialization.json.io.encodeToSink
+import kotlinx.serialization.protobuf.ProtoBuf
 import space.kscience.magix.api.*
 import space.kscience.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
+
+private enum class RSocketMessageEncoding {
+    JSON,
+    CBOR,
+    PROTO
+}
+
+
+private fun Buffer?.inferFormat(): RSocketMessageEncoding = when (val str = this?.readString()) {
+    "proto" -> RSocketMessageEncoding.PROTO
+    "cbor" -> RSocketMessageEncoding.CBOR
+    else -> RSocketMessageEncoding.JSON
+}
+
+private fun decodeMessage(buffer: Buffer, format: RSocketMessageEncoding): MagixMessage = when (format) {
+    RSocketMessageEncoding.JSON -> MagixEndpoint.magixJson.decodeFromString(
+        MagixMessage.serializer(),
+        buffer.readString()
+    )
+
+    RSocketMessageEncoding.CBOR -> Cbor.decodeFromByteArray(
+        MagixMessage.serializer(),
+        buffer.readByteArray()
+    )
+
+    RSocketMessageEncoding.PROTO -> ProtoBuf.decodeFromByteArray(
+        MagixMessage.serializer(),
+        buffer.readByteArray()
+    )
+}
+
+
+private fun encodeMessage(message: MagixMessage, format: RSocketMessageEncoding): Buffer {
+    return when (format) {
+        RSocketMessageEncoding.JSON -> Buffer().also { buffer ->
+            MagixEndpoint.magixJson.encodeToSink(MagixMessage.serializer(), message, buffer)
+        }
+
+        RSocketMessageEncoding.CBOR -> Buffer().also { buffer ->
+            buffer.write(Cbor.encodeToByteArray(MagixMessage.serializer(), message))
+        }
+
+        RSocketMessageEncoding.PROTO -> Buffer().also { buffer ->
+            buffer.write(ProtoBuf.encodeToByteArray(MagixMessage.serializer(), message))
+        }
+    }
+}
 
 /**
  * Raw TCP magix server plugin
@@ -26,7 +80,7 @@ import space.kscience.magix.api.MagixEndpoint.Companion.DEFAULT_MAGIX_RAW_PORT
 public class RSocketMagixFlowPlugin(
     private val serverHost: String = "0.0.0.0",
     private val serverPort: Int = DEFAULT_MAGIX_RAW_PORT,
-    private val transportConfiguration: SocketOptions.AcceptorOptions.() -> Unit = {},
+    private val transportConfiguration: KtorTcpServerTransportBuilder.() -> Unit = {},
     private val rsocketConfiguration: RSocketServerBuilder.() -> Unit = {},
 ) : MagixFlowPlugin {
 
@@ -35,19 +89,15 @@ public class RSocketMagixFlowPlugin(
         receive: Flow<MagixMessage>,
         sendMessage: suspend (MagixMessage) -> Unit,
     ): Job {
-        val tcpTransport = TcpServerTransport(
-            hostname = serverHost,
-            port = serverPort,
+        val tcpTransport = KtorTcpServerTransport(
+            scope.coroutineContext,
             configure = transportConfiguration
-        )
-        val rSocketJob: TcpServer = RSocketServer(rsocketConfiguration)
-            .bindIn(scope, tcpTransport, acceptor(scope, receive, sendMessage))
+        ).target(serverHost, serverPort)
 
-        scope.coroutineContext[Job]?.invokeOnCompletion {
-            rSocketJob.handlerJob.cancel()
+        return scope.launch {
+            RSocketServer(rsocketConfiguration)
+                .startServer(tcpTransport, acceptor(scope, receive, sendMessage))
         }
-
-        return rSocketJob.handlerJob
     }
 
     public companion object {
@@ -59,40 +109,38 @@ public class RSocketMagixFlowPlugin(
             RSocketRequestHandler(coroutineScope.coroutineContext) {
                 //handler for request/stream
                 requestStream { request: Payload ->
-                    val requestText = request.data.readText()
-                    val filter = if(requestText.isBlank()) {
+                    val format = request.metadata.inferFormat()
+
+                    val requestText = request.data.readString()
+                    val filter = if (requestText.isBlank()) {
                         MagixMessageFilter.ALL
-                    } else  MagixEndpoint.magixJson.decodeFromString(
+                    } else MagixEndpoint.magixJson.decodeFromString(
                         MagixMessageFilter.serializer(),
                         requestText
                     )
 
                     receive.filter(filter).map { message ->
-                        val string = MagixEndpoint.magixJson.encodeToString(MagixMessage.serializer(), message)
-                        buildPayload { data(string) }
+                        buildPayload {
+                            data(encodeMessage(message,format))
+                        }
                     }
                 }
                 //single send
                 fireAndForget { request: Payload ->
-                    val message = MagixEndpoint.magixJson.decodeFromString(
-                        MagixMessage.serializer(),
-                        request.data.readText()
-                    )
+                    val format = request.metadata.inferFormat()
+                    val message = decodeMessage(request.data, format)
 
                     sendMessage(message)
                 }
                 // bidirectional connection, used for streaming connection
                 requestChannel { request: Payload, input: Flow<Payload> ->
-                    input.onEach { inputPayload ->
-                        sendMessage(
-                            MagixEndpoint.magixJson.decodeFromString(
-                                MagixMessage.serializer(),
-                                inputPayload.use { it.data.readText() }
-                            )
-                        )
+                    val format = request.metadata.inferFormat()
+
+                    input.onEach { inputPayload: Payload ->
+                        sendMessage(decodeMessage(inputPayload.data, format))
                     }.launchIn(this)
 
-                    val filterText = request.data.readText()
+                    val filterText = request.data.readString()
 
                     val filter = if (filterText.isBlank()) {
                         MagixMessageFilter.ALL
@@ -101,8 +149,9 @@ public class RSocketMagixFlowPlugin(
                     }
 
                     receive.filter(filter).map { message ->
-                        val string = MagixEndpoint.magixJson.encodeToString(message)
-                        buildPayload { data(string) }
+                        buildPayload {
+                            data(encodeMessage(message,format))
+                        }
                     }
                 }
             }

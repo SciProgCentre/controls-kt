@@ -1,7 +1,7 @@
 package space.kscience.magix.server
 
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -19,7 +19,7 @@ public fun CoroutineScope.startMagixServer(
     vararg plugins: MagixFlowPlugin,
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     buffer: Int = 1000,
-): ApplicationEngine {
+): EmbeddedServer<*,*> {
 
     val magixFlow = MutableSharedFlow<MagixMessage>(
         replay = buffer,
@@ -30,7 +30,5 @@ public fun CoroutineScope.startMagixServer(
         it.start(this, magixFlow)
     }
 
-    return embeddedServer(CIO, host = "localhost", port = port, module = { magixModule(magixFlow) }).apply {
-        start()
-    }
+    return embeddedServer(CIO, host = "localhost", port = port, module = { magixModule(magixFlow) }).start()
 }

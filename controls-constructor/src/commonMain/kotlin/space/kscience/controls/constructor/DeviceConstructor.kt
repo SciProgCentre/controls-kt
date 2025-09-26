@@ -15,7 +15,7 @@ import kotlin.reflect.KProperty
 import kotlin.time.Duration
 
 /**
- * A base for strongly typed device constructor block. Has additional delegates for type-safe devices
+ * A base for a strongly typed device constructor block. Has additional delegates for type-safe devices
  */
 public abstract class DeviceConstructor(
     context: Context,
@@ -126,17 +126,16 @@ public fun <T : Any> DeviceConstructor.mutableProperty(
 )
 
 /**
- * Create and register a virtual mutable property with optional [callback]
+ * Create and register a virtual mutable property
  */
 public fun <T> DeviceConstructor.virtualProperty(
     metaConverter: MetaConverter<T>,
     initialState: T,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
-    callback: (T) -> Unit = {},
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableDeviceState<T>>> = property(
     metaConverter,
-    MutableDeviceState(initialState, callback),
+    MutableDeviceState(initialState),
     descriptorBuilder,
     nameOverride,
 )

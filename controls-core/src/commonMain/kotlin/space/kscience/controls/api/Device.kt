@@ -5,6 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
+import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
@@ -13,6 +14,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.parseAsName
+import kotlin.time.Clock
 
 /**
  *  General interface describing a managed Device.
@@ -51,7 +53,7 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
     public suspend fun writeProperty(propertyName: String, value: Meta)
 
     /**
-     * A subscription-based [Flow] of [DeviceMessage] provided by device. The flow is guaranteed to be readable
+     * A subscription-based [Flow] of [DeviceMessage] provided by device. The discrete is guaranteed to be readable
      * multiple times.
      */
     public val messageFlow: Flow<DeviceMessage>
@@ -67,6 +69,11 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
      * Does nothing if the device is started or is starting
      */
     override suspend fun start(): Unit = Unit
+
+    /**
+     * Clock associated with this device
+     */
+    public val clock: Clock
 
     /**
      * Close and terminate the device. This function does not wait for the device to be closed.
@@ -94,21 +101,31 @@ public interface CachingDevice : Device {
     /**
      * Immediately (without waiting) get the cached (logical) state of property or return null if it is invalid
      */
-    public fun getProperty(propertyName: String): Meta?
+    public fun getCachedProperty(propertyName: String): Meta?
+
+    /**
+     * Immediately (without waiting) set the cached (logical) state of a property to a specific value
+     * or remove cached value (if [value] is null).
+     *
+     * This method is not thread-safe and should be used with care. Preferably only for internal APIs
+     */
+    @InternalDeviceAPI
+    public fun setCachedProperty(propertyName: String, value: Meta?)
 
     /**
      * Invalidate property (set logical state to invalid).
      *
      * This message is suspended to provide lock-free local property changes (they require coroutine context).
      */
-    public suspend fun invalidate(propertyName: String)
+    @OptIn(InternalDeviceAPI::class)
+    public suspend fun invalidate(propertyName: String): Unit = setCachedProperty(propertyName, null)
 }
 
 /**
  * Get the logical state of property or suspend to read the physical value.
  */
 public suspend fun Device.getOrReadProperty(propertyName: String): Meta = if (this is CachingDevice) {
-    getProperty(propertyName) ?: readProperty(propertyName)
+    getCachedProperty(propertyName) ?: readProperty(propertyName)
 } else {
     readProperty(propertyName)
 }
@@ -119,7 +136,7 @@ public suspend fun Device.getOrReadProperty(propertyName: String): Meta = if (th
  */
 public fun CachingDevice.getAllProperties(): Meta = Meta {
     for (descriptor in propertyDescriptors) {
-        set(descriptor.name.parseAsName(), getProperty(descriptor.name))
+        set(descriptor.name.parseAsName(), getCachedProperty(descriptor.name))
     }
 }
 

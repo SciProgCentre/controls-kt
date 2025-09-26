@@ -22,7 +22,7 @@ pluginManagement {
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 dependencyResolutionManagement {
@@ -92,5 +92,7 @@ include(
     ":demo:echo",
     ":demo:mks-pdr900",
     ":demo:constructor",
-    ":demo:device-collective"
+    ":demo:device-collective",
+    ":demo:thermo",
+//    ":demo:thermo:thermo-desktop"
 )

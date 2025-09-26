@@ -4,7 +4,7 @@ package space.kscience.controls.demo.car
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import space.kscience.controls.manager.clock
 import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.doRecurring
@@ -37,8 +37,10 @@ data class Vector2D(var x: Double = 0.0, var y: Double = 0.0) : MetaRepr {
     }
 }
 
-open class VirtualCar(context: Context, meta: Meta) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta),
-    IVirtualCar {
+open class VirtualCar(
+    context: Context,
+    meta: Meta
+) : DeviceBySpec<VirtualCar>(IVirtualCar, context, meta), IVirtualCar {
     private val clock = context.clock
 
     private val timeScale = 1e-3

@@ -1,7 +1,7 @@
 package space.kscience.controls.demo
 
 import kotlinx.coroutines.launch
-import space.kscience.controls.api.Device
+import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.metaDescriptor
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
@@ -16,7 +16,7 @@ import kotlin.math.sin
 import kotlin.time.Duration.Companion.milliseconds
 
 
-interface IDemoDevice : Device {
+interface IDemoDevice : CachingDevice {
     var timeScaleState: Double
     var sinScaleState: Double
     var cosScaleState: Double
@@ -72,6 +72,7 @@ class DemoDevice(context: Context, meta: Meta) : DeviceBySpec<IDemoDevice>(Compa
             }
         }
 
+        val comment by mutableProperty(MetaConverter.string)
 
         val resetScale by unitAction {
             write(timeScale, 5000.0)

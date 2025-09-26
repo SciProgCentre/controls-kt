@@ -19,8 +19,8 @@ import space.kscience.dataforge.context.ContextAware
 public interface SynchronousPort : ContextAware, WithLifeCycle {
 
     /**
-     * Send a single message and wait for the flow of response chunks.
-     * The consumer is responsible for calling a terminal operation on the flow.
+     * Send a single message and wait for the discrete of response chunks.
+     * The consumer is responsible for calling a terminal operation on the discrete.
      */
     public suspend fun <R> respond(
         request: ByteArray,

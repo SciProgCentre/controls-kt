@@ -4,11 +4,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.collectValuesIn
 import space.kscience.controls.constructor.device
 import space.kscience.controls.constructor.devices.LimitSwitch
 import space.kscience.controls.constructor.devices.StepDrive
 import space.kscience.controls.constructor.models.MutableRangeState
+import space.kscience.controls.constructor.useValue
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import kotlin.time.Duration.Companion.seconds
@@ -67,7 +67,7 @@ suspend fun main() = coroutineScope {
 
     val linearStepDrive = LinearStepDrive(context, positionModel)
 
-    val printJob = linearStepDrive.drive.target.collectValuesIn(this){
+    val printJob = linearStepDrive.drive.target.useValue(this){
         println("Move to $it")
     }
 

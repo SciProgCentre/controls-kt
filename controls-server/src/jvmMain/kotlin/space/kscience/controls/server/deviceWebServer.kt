@@ -2,9 +2,12 @@ package space.kscience.controls.server
 
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.*
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStarted
+import io.ktor.server.application.install
+import io.ktor.server.application.pluginOrNull
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.html.respondHtml
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -21,7 +24,6 @@ import io.ktor.server.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.html.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.encodeToJsonElement
@@ -40,6 +42,7 @@ import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.start
 import space.kscience.magix.server.magixModule
+import kotlin.time.Clock
 
 
 private fun Application.deviceServerModule(manager: DeviceManager) {
@@ -63,10 +66,10 @@ public fun CoroutineScope.startDeviceServer(
     manager: DeviceManager,
     port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
     host: String = "localhost",
-): ApplicationEngine = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
+): EmbeddedServer<*, *> = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
 
-public fun ApplicationEngine.whenStarted(callback: Application.() -> Unit) {
-    environment.monitor.subscribe(ApplicationStarted, callback)
+public fun EmbeddedServer<*, *>.whenStarted(callback: Application.() -> Unit) {
+    monitor.subscribe(ApplicationStarted, callback)
 }
 
 
@@ -171,6 +174,7 @@ public fun Application.deviceManagerModule(
                         val target: String by call.parameters
                         val property: String by call.parameters
                         val request = PropertyGetMessage(
+                            time = Clock.System.now(),
                             sourceDevice = WEB_SERVER_TARGET,
                             targetDevice = Name.parse(target),
                             property = property,
@@ -190,6 +194,7 @@ public fun Application.deviceManagerModule(
                         val json = Json.parseToJsonElement(body)
 
                         val request = PropertySetMessage(
+                            time = Clock.System.now(),
                             sourceDevice = WEB_SERVER_TARGET,
                             targetDevice = Name.parse(target),
                             property = property,

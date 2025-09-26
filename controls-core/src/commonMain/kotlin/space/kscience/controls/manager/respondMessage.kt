@@ -15,25 +15,28 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
     when (request) {
         is PropertyGetMessage -> {
             PropertyChangedMessage(
+                time = clock.now(),
                 property = request.property,
                 value = getOrReadProperty(request.property),
                 sourceDevice = deviceTarget,
-                targetDevice = request.sourceDevice
+                targetDevice = request.sourceDevice,
             )
         }
 
         is PropertySetMessage -> {
             writeProperty(request.property, request.value)
             PropertyChangedMessage(
+                time = clock.now(),
                 property = request.property,
                 value = getOrReadProperty(request.property),
                 sourceDevice = deviceTarget,
-                targetDevice = request.sourceDevice
+                targetDevice = request.sourceDevice,
             )
         }
 
         is ActionExecuteMessage -> {
             ActionResultMessage(
+                time = clock.now(),
                 action = request.action,
                 result = execute(request.action, request.argument),
                 requestId = request.requestId,
@@ -44,6 +47,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
 
         is GetDescriptionMessage -> {
             DescriptionMessage(
+                time = clock.now(),
                 description = meta,
                 properties = propertyDescriptors,
                 actions = actionDescriptors,
@@ -60,10 +64,15 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
         is EmptyDeviceMessage,
         is DeviceLogMessage,
         is DeviceLifeCycleMessage,
-        -> null
+            -> null
     }
 } catch (ex: Exception) {
-    DeviceMessage.error(ex, sourceDevice = deviceTarget, targetDevice = request.sourceDevice)
+    DeviceMessage.error(
+        time = clock.now(),
+        cause = ex,
+        sourceDevice = deviceTarget,
+        targetDevice = request.sourceDevice
+    )
 }
 
 /**
@@ -82,7 +91,14 @@ public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<Dev
             listOfNotNull(device.respondMessage(targetName, request))
         }
     } catch (ex: Exception) {
-        listOf(DeviceMessage.error(ex, sourceDevice = Name.EMPTY, targetDevice = request.sourceDevice))
+        listOf(
+            DeviceMessage.error(
+                time = request.time, //FIXME add actual time
+                cause = ex,
+                sourceDevice = Name.EMPTY,
+                targetDevice = request.sourceDevice
+            )
+        )
     }
 }
 

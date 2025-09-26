@@ -10,7 +10,6 @@ import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.get
 import space.kscience.dataforge.names.parseAsName
-import kotlin.collections.set
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -38,13 +37,15 @@ public class DeviceManager : AbstractPlugin(), DeviceHub {
     }
 }
 
-public fun <D : Device> DeviceManager.install(name: String, device: D): D {
-    registerDevice(name.parseAsName(), device)
+public fun <D : Device> DeviceManager.install(name: Name, device: D): D {
+    registerDevice(name, device)
     device.launch {
         device.start()
     }
     return device
 }
+
+public fun <D : Device> DeviceManager.install(name: String, device: D): D = install(name.parseAsName(), device)
 
 public fun <D : Device> DeviceManager.install(device: D): D = install(device.id, device)
 

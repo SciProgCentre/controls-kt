@@ -27,9 +27,9 @@ public data class MagixMessageFilter(
 /**
  * Filter a [Flow] of messages based on given filter
  */
-public fun Flow<MagixMessage>.filter(filter: MagixMessageFilter): Flow<MagixMessage> {
-    if (filter == MagixMessageFilter.ALL) {
-        return this
-    }
-    return filter(filter::accepts)
+@Suppress("UnusedFlow")
+public fun Flow<MagixMessage>.filter(filter: MagixMessageFilter): Flow<MagixMessage> = if (filter == MagixMessageFilter.ALL) {
+    this
+} else {
+    filter(filter::accepts)
 }

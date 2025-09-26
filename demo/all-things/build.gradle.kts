@@ -36,7 +36,7 @@ dependencies {
 kotlin{
     jvmToolchain(17)
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
+        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn", "-Xcontext-parameters")
     }
 }
 

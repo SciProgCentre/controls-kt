@@ -7,6 +7,8 @@ import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.InternalDeviceAPI
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
@@ -16,8 +18,8 @@ import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.get
 import space.kscience.dataforge.names.parseAsName
-import kotlin.collections.set
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 
 
 /**
@@ -66,6 +68,7 @@ public open class DeviceGroup(
                     context.launch {
                         sharedMessageFlow.emit(
                             DeviceErrorMessage(
+                                time = clock.now(),
                                 errorMessage = throwable.message,
                                 errorType = throwable::class.simpleName,
                                 errorStackTrace = throwable.stackTraceToString()
@@ -106,11 +109,12 @@ public open class DeviceGroup(
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
-        state.valueFlow.map(converter::convert).onEach {
+        state.subscribe().map(converter::convert).onEach {
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
-                    descriptor.name,
-                    it
+                    time = clock.now(),
+                    property = descriptor.name,
+                    value = it
                 )
             )
         }.launchIn(this)
@@ -148,9 +152,10 @@ public open class DeviceGroup(
         properties[propertyName.parseAsName()]?.valueAsMeta
             ?: error("Property with name $propertyName not found")
 
-    override fun getProperty(propertyName: String): Meta? = properties[propertyName.parseAsName()]?.valueAsMeta
+    override fun getCachedProperty(propertyName: String): Meta? = properties[propertyName.parseAsName()]?.valueAsMeta
 
-    override suspend fun invalidate(propertyName: String) {
+    @InternalDeviceAPI
+    override fun setCachedProperty(propertyName: String, value: Meta?) {
         //does nothing for this implementation
     }
 
@@ -172,7 +177,7 @@ public open class DeviceGroup(
     private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
         sharedMessageFlow.emit(
-            DeviceLifeCycleMessage(lifecycleState)
+            DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
 
@@ -194,9 +199,9 @@ public open class DeviceGroup(
         super.stop()
     }
 
-    public companion object {
+    override val clock: Clock = context.clock
 
-    }
+    public companion object
 }
 
 public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<*, T>, state: DeviceState<T>) {
@@ -310,9 +315,8 @@ public fun <T : Any> DeviceGroup.registerVirtualProperty(
     initialValue: T,
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-    callback: (T) -> Unit = {},
 ): MutableDeviceState<T> {
-    val state = MutableDeviceState<T>(initialValue, callback)
+    val state = MutableDeviceState<T>(initialValue)
     registerMutableProperty(name, converter, state, descriptorBuilder)
     return state
 }

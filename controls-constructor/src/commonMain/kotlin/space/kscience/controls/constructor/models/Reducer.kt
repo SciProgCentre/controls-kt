@@ -2,7 +2,7 @@ package space.kscience.controls.constructor.models
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Degrees
-import space.kscience.controls.constructor.units.NumericalValue
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.units.times
 import space.kscience.dataforge.context.Context
 
@@ -12,13 +12,13 @@ import space.kscience.dataforge.context.Context
 public class Reducer(
     context: Context,
     public val ratio: Double,
-    public val input: DeviceState<NumericalValue<Degrees>>,
-    public val output: MutableDeviceState<NumericalValue<Degrees>>,
+    public val input: DeviceState<Numeric<Degrees>>,
+    public val output: MutableDeviceState<Numeric<Degrees>>,
 ) : ModelConstructor(context) {
     init {
         registerState(input)
         registerState(output)
-        transformTo(input, output) {
+        bindTransformedState(input, output) {
             it * ratio
         }
     }

@@ -10,15 +10,15 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3.5.1
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'liberica'
           cache: 'gradle'
       - name: Gradle Wrapper Validation
-        uses: gradle/wrapper-validation-action@v1.0.4
-      - name: Gradle Build
-        uses: gradle/gradle-build-action@v2.4.2
-        with:
-          arguments: test jvmTest
+        uses: gradle/actions/wrapper-validation@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build with Gradle
+        run: ./gradlew build

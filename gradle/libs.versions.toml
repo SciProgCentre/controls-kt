@@ -1,7 +1,7 @@
 [versions]
 
-dataforge = "0.9.0"
-rsocket = "0.15.4"
+dataforge = "0.10.1"
+rsocket = "0.20.0"
 xodus = "2.0.1"
 
 uuid = "0.8.0"
@@ -9,8 +9,6 @@ uuid = "0.8.0"
 fazecast = "2.10.3"
 
 tornadofx = "1.7.20"
-
-plotlykt = "0.7.2"
 
 logback = "1.2.11"
 
@@ -22,14 +20,16 @@ kmongo = "4.5.1"
 
 j2mod = "3.2.1"
 
-milo = "0.6.12"
+milo = "1.0.2"
 
 pi4j = "2.3.0"
 pi4j-ktx = "2.4.0"
 
 plc4j = "0.12.0"
 
-visionforge = "0.4.2"
+visionforge = "0.5.0"
+
+testcontainers = "1.21.0"
 
 [libraries]
 
@@ -42,15 +42,17 @@ xodus-entity-store = { module = "org.jetbrains.xodus:xodus-entity-store", versio
 xodus-environment = { module = "org.jetbrains.xodus:xodus-environment", version.ref = "xodus" }
 xodus-vfs = { module = "org.jetbrains.xodus:xodus-vfs", version.ref = "xodus" }
 
-rsocket-ktor-client = { module = "io.rsocket.kotlin:rsocket-ktor-client", version.ref = "rsocket" }
-rsocket-ktor-server = { module = "io.rsocket.kotlin:rsocket-ktor-server", version.ref = "rsocket" }
+rsocket-ktor-client = { module = "io.rsocket.kotlin:ktor-client-rsocket", version.ref = "rsocket" }
+rsocket-ktor-server = { module = "io.rsocket.kotlin:ktor-server-rsocket", version.ref = "rsocket" }
 rsocket-transport-ktor-tcp = { module = "io.rsocket.kotlin:rsocket-transport-ktor-tcp", version.ref = "rsocket" }
 
 jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "fazecast" }
 
 tornadofx = { module = "no.tornado:tornadofx", version.ref = "tornadofx" }
 
-plotlykt-server = { module = "space.kscience:plotlykt-server", version.ref = "plotlykt" }
+plotlykt-core = { module = "space.kscience:plotly-kt-core", version.ref = "visionforge" }
+
+plotlykt-server = { module = "space.kscience:plotly-kt-server", version.ref = "visionforge" }
 
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
@@ -62,9 +64,10 @@ j2mod = { module = "com.ghgande:j2mod", version.ref = "j2mod" }
 
 kmongo-coroutine-serialization = { module = "org.litote.kmongo:kmongo-coroutine-serialization", version.ref = "kmongo" }
 
-milo-client = { module = "org.eclipse.milo:sdk-client", version.ref = "milo" }
-milo-parser = { module = "org.eclipse.milo:bsd-parser", version.ref = "milo" }
-milo-server = { module = "org.eclipse.milo:sdk-server", version.ref = "milo" }
+milo-client = { module = "org.eclipse.milo:milo-sdk-client", version.ref = "milo" }
+milo-sdk-core = { module = "org.eclipse.milo:milo-sdk-core", version.ref = "milo" }
+milo-dtd-core = { module = "org.eclipse.milo:milo-dtd-core", version.ref = "milo" }
+milo-server = { module = "org.eclipse.milo:milo-sdk-server", version.ref = "milo" }
 
 pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
 pi4j-core = { module = "com.pi4j:pi4j-core", version.ref = "pi4j" }
@@ -74,14 +77,17 @@ pi4j-plugin-pigpio = { module = "com.pi4j:pi4j-plugin-pigpio", version.ref = "pi
 plc4j-spi = { module = "org.apache.plc4x:plc4j-spi", version.ref = "plc4j" }
 
 visionforge-jupiter = { module = "space.kscience:visionforge-jupyter", version.ref = "visionforge" }
-visionforge-plotly = { module = "space.kscience:visionforge-plotly", version.ref = "visionforge" }
 visionforge-markdown = { module = "space.kscience:visionforge-markdown", version.ref = "visionforge" }
 visionforge-server = { module = "space.kscience:visionforge-server", version.ref = "visionforge" }
 visionforge-compose-html = { module = "space.kscience:visionforge-compose-html", version.ref = "visionforge" }
 
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
-koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.6.1" }
+koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.9.0" }
+
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "testcontainers" }
 
 # Buildscript
 

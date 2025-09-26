@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.datetime.Instant
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.api.PropertyChangedMessage
@@ -41,8 +40,12 @@ import space.kscience.controls.constructor.models.PidParameters
 import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Meters
-import space.kscience.controls.constructor.units.NumericalValue
-import space.kscience.controls.manager.*
+import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.manager.hubMessageFlow
+import space.kscience.controls.manager.install
+import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import java.awt.Dimension
@@ -52,11 +55,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
+import kotlin.time.Instant
 
 
 class Modulator(
     context: Context,
-    target: MutableDeviceState<NumericalValue<Meters>>,
+    target: MutableDeviceState<Numeric<Meters>>,
     var timeStep: Duration = 5.milliseconds,
     var freq: Double = 0.1,
 ) : DeviceConstructor(context) {
@@ -65,7 +69,7 @@ class Modulator(
     private val modulation = onTimer(timeStep) { _, next ->
         val timeFromStart = next - clockStart
         val t = timeFromStart.toDouble(DurationUnit.SECONDS)
-        target.value = NumericalValue(
+        target.value = Numeric(
             5 * sin(2.0 * PI * freq * t) +
                     sin(2 * PI * 21 * freq * t + 0.02 * (timeFromStart / timeStep))
         )
@@ -73,9 +77,9 @@ class Modulator(
 }
 
 
-private val mass = NumericalValue<Kilograms>(1)
+private val mass = Numeric<Kilograms>(1)
 
-private val leverage = NumericalValue<Meters>(1.0)
+private val leverage = Numeric<Meters>(1.0)
 
 private val maxAge = 10.seconds
 
@@ -87,9 +91,9 @@ private val range = -6.0..6.0
 internal fun createLinearDriveModel(
     context: Context,
     pidParameters: PidParameters,
-    mass: NumericalValue<Kilograms>,
-    leverage: NumericalValue<Meters>,
-    position: MutableRangeState<NumericalValue<Meters>>,
+    mass: Numeric<Kilograms>,
+    leverage: Numeric<Meters>,
+    position: MutableRangeState<Numeric<Meters>>,
 ): LinearDrive {
 
     //create a drive model with zero starting force
@@ -182,8 +186,6 @@ fun main() = application {
         }.collect()
     }
 
-    val clock = remember { context.clock }
-
     Window(title = "Pid regulator simulator", onCloseRequest = ::exitApplication) {
         window.minimumSize = Dimension(800, 400)
         MaterialTheme {
@@ -258,9 +260,9 @@ fun main() = application {
                             )
                         }
                         Row {
-                            Button({
+                            Button(onClick = {
                                 pidParameters = startPid
-                            }) {
+                            }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Reset")
                             }
                         }
@@ -269,12 +271,12 @@ fun main() = application {
                 second(400.dp) {
                     ChartLayout {
                         XYGraph<Instant, Double>(
-                            xAxisModel = remember { TimeAxisModel.recent(maxAge, clock) },
+                            xAxisModel = remember { TimeAxisModel.recent(maxAge, context.clock) },
                             yAxisModel = rememberDoubleLinearAxisModel((range.start - 1.0)..(range.endInclusive + 1.0)),
                             xAxisTitle = { Text("Time in seconds relative to current") },
                             xAxisLabels = { it: Instant ->
                                 Text(
-                                    (clock.now() - it).toDouble(
+                                    (context.clock.now() - it).toDouble(
                                         DurationUnit.SECONDS
                                     ).toString(2)
                                 )

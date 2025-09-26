@@ -10,24 +10,27 @@ import io.github.koalaplot.core.xygraph.DefaultPoint
 import io.github.koalaplot.core.xygraph.XYGraphScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.units.NumericalValue
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.values
-import space.kscience.controls.manager.clock
-import space.kscience.controls.misc.ValueWithTime
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.Global
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.double
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 
 private val defaultMaxAge get() = 10.minutes
@@ -35,12 +38,42 @@ private val defaultMaxPoints get() = 800
 private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
+private fun <T> Flow<T>.repeatOrSample(clockManager: ClockManager, interval: Duration): Flow<ValueWithTime<T>> = flow {
+    val clock = clockManager.clock
+
+    coroutineScope {
+
+        var current: T? = null
+        var flag: Boolean = false
+
+        launch {
+            collect {
+                current = it
+                flag = true
+            }
+        }
+
+        while (isActive) {
+            current?.let {
+                if(!flag) {
+                    emit(ValueWithTime(it, clock.now()))
+                }
+            }
+            flag = false
+            withContext(clockManager.simulationDispatcher) {
+                delay(interval)
+            }
+        }
+    }
+
+}
+
 
 internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
-    clock: Clock = Clock.System,
+    clock: Clock = Global.clock,
 ): Flow<List<ValueWithTime<T>>> {
     require(maxPoints > 2)
     require(minPoints > 0)
@@ -103,11 +136,13 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     lineStyle: LineStyle = defaultLineStyle,
 ) {
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
+    val clockManager =
+        remember(device) { device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager) }
 
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
         device.propertyMessageFlow(propertyName)
-            .sample(sampling)
-            .map { ValueWithTime(it.value.extractValue(), it.time) }
+            .map { it.value.extractValue() }
+            .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
             .onEach { points = it }
             .launchIn(this)
@@ -148,13 +183,14 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
     lineStyle: LineStyle = defaultLineStyle,
 ): Unit {
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
-
+    val clockManager = remember(context) { context.plugins.get<ClockManager>() ?: context.request(ClockManager) }
 
     LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
         val clock = context.clock
 
-        state.valueFlow.sample(sampling)
-            .map { ValueWithTime(it.toDouble(), clock.now()) }
+        state.subscribe()
+            .map { it.toDouble() }
+            .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
             .onEach { points = it }
             .launchIn(this)
@@ -167,7 +203,7 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
 @Composable
 public fun XYGraphScope<Instant, Double>.PlotNumericState(
     context: Context,
-    state: DeviceState<NumericalValue<*>>,
+    state: DeviceState<Numeric<*>>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
@@ -221,7 +257,7 @@ public fun XYGraphScope<Instant, Double>.PlotAveragedDeviceProperty(
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
 
     LaunchedEffect(device, propertyName, startValue, maxAge, maxPoints, minPoints, averagingInterval) {
-        val clock = device.clock
+        val clock: Clock = device.clock
         var lastValue = startValue
         device.propertyMessageFlow(propertyName)
             .chunkedByPeriod(averagingInterval)

@@ -6,37 +6,50 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Instant
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Instant
 
-public abstract class ProducerTimeline<E : TimelineEvent>(
+/**
+ * A general abstraction for timelines that could produce new events
+ */
+public abstract class ProducerTimeline<E : Any>(
     protected var startTime: Instant,
+    private val timeOf: E.() -> Instant,
     coroutineContext: CoroutineContext
 ) : Timeline<E>, AutoCloseable {
 
     protected val timelineScope: CoroutineScope = CoroutineScope(
         coroutineContext +
-        SupervisorJob(coroutineContext[Job]) +
-        CoroutineExceptionHandler{ _, throwable -> throwable.printStackTrace() } +
-        CoroutineName("Timeline")
+                SupervisorJob(coroutineContext[Job]) +
+                CoroutineExceptionHandler { _, throwable -> throwable.printStackTrace() } +
+                CoroutineName("Timeline[${hashCode().toString(16)}]")
     )
+
+    override fun timeOf(event: E): Instant = event.timeOf()
 
     private val observers: MutableSet<TimelineObserver> = mutableSetOf()
 
+    /**
+     * Update time on this channel event
+     */
     private val feedbackChannel = Channel<Unit>(onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     override val time: StateFlow<Instant> = feedbackChannel.consumeAsFlow().map {
-        maxOf(startTime,observers.maxOfOrNull { it.time.value } ?: startTime)
+        maxOf(startTime, observers.maxOfOrNull { it.time.value } ?: Instant.DISTANT_PAST)
     }.stateIn(timelineScope, SharingStarted.Lazily, startTime)
 
     override suspend fun advance(toTime: Instant) {
-        observers.forEach {
-            it.collect(toTime)
+        coroutineScope {
+            observers.forEach {
+                launch {
+                    it.collect(toTime)
+                }
+            }
         }
     }
 
     /**
-     * Flow unobserved events starting at [time]. The flow could be interrupted if timeline changes
+     * Flow unobserved events starting at [time]. The discrete could be interrupted if timeline changes
      */
     protected abstract fun events(): Flow<E>
 
@@ -50,7 +63,7 @@ public abstract class ProducerTimeline<E : TimelineEvent>(
 
             private val collectJob = timelineScope.launch(context) {
                 channel.consumeAsFlow().onEach {
-                    time.emit(it.time)
+                    time.emit(timeOf(it))
                     feedbackChannel.send(Unit)
                 }.collector()
             }
@@ -60,7 +73,7 @@ public abstract class ProducerTimeline<E : TimelineEvent>(
             override suspend fun collect(upTo: Instant) = mutex.withLock {
                 require(upTo >= time.value) { "Requested time $upTo is lower than observed ${time.value}" }
                 events().takeWhile {
-                    it.time <= upTo
+                    timeOf(it) <= upTo
                 }.collect {
                     channel.send(it)
                 }

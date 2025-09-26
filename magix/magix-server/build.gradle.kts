@@ -10,24 +10,28 @@ description = """
 """.trimIndent()
 
 val dataforgeVersion: String by rootProject.extra
-val ktorVersion: String  = space.kscience.gradle.KScienceVersions.ktorVersion
+//val ktorVersion: String  = space.kscience.gradle.KScienceVersions.ktorVersion
 
 kscience {
     jvm()
     useSerialization{
         json()
+        cbor()
+        protobuf()
     }
 
     jvmMain{
         api(projects.magix.magixApi)
-        api("io.ktor:ktor-server-cio:$ktorVersion")
-        api("io.ktor:ktor-server-websockets:$ktorVersion")
-        api("io.ktor:ktor-server-content-negotiation:$ktorVersion")
-        api("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-        api("io.ktor:ktor-server-html-builder:$ktorVersion")
+        api(project.dependencies.platform(spclibs.ktor.bom))
+        api("io.ktor:ktor-server-cio")
+        api("io.ktor:ktor-server-websockets")
+        api("io.ktor:ktor-server-content-negotiation")
+        api("io.ktor:ktor-serialization-kotlinx-json")
+        api("io.ktor:ktor-server-html-builder")
 
         api(libs.rsocket.ktor.server)
         api(libs.rsocket.transport.ktor.tcp)
+        api(spclibs.kotlinx.io.core)
     }
 
 }

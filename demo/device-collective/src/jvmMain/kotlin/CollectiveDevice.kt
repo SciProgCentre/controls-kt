@@ -4,7 +4,6 @@ package space.kscience.controls.demo.collective
 
 import space.kscience.controls.api.Device
 import space.kscience.controls.constructor.*
-import space.kscience.controls.misc.stringList
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.DeviceSpec
 import space.kscience.dataforge.context.Context
@@ -85,19 +84,19 @@ class CollectiveDeviceConstructor(
 
     val position = registerAsProperty(
         CollectiveDevice.position,
-        position.debounce(configuration.reportInterval.milliseconds)
+        position.sample(configuration.reportInterval.milliseconds)
     )
 
     val velocity = registerAsProperty(
         CollectiveDevice.velocity,
-        velocity.debounce(configuration.reportInterval.milliseconds)
+        velocity.sample(configuration.reportInterval.milliseconds)
     )
 
     private val _visibleNeighbors: MutableDeviceState<Collection<CollectiveDeviceId>> = stateOf(emptyList())
 
     val visibleNeighbors = registerAsProperty(
         CollectiveDevice.visibleNeighbors,
-        _visibleNeighbors.map { it.toList() }
+        DeviceState.map(_visibleNeighbors){ it.toList() }
     )
 
     init {

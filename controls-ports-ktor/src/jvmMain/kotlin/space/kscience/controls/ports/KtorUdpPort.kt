@@ -1,11 +1,16 @@
 package space.kscience.controls.ports
 
 import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.*
-import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.consumeEachBufferRange
-import io.ktor.utils.io.writeAvailable
+import io.ktor.network.sockets.Datagram
+import io.ktor.network.sockets.InetSocketAddress
+import io.ktor.network.sockets.SocketOptions
+import io.ktor.network.sockets.aSocket
 import kotlinx.coroutines.*
+import kotlinx.io.Buffer
+import kotlinx.io.Source
+import kotlinx.io.UnsafeIoApi
+import kotlinx.io.readByteArray
+import kotlinx.io.unsafe.UnsafeBufferOperations
 import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -14,6 +19,9 @@ import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.number
 import space.kscience.dataforge.meta.string
 import kotlin.coroutines.CoroutineContext
+
+@OptIn(UnsafeIoApi::class)
+private fun ByteArray.asSource(): Source = Buffer().apply { UnsafeBufferOperations.moveToTail(this, this@asSource) }
 
 public class KtorUdpPort internal constructor(
     context: Context,
@@ -36,30 +44,28 @@ public class KtorUdpPort internal constructor(
         )
     }
 
-    private val writeChannel: Deferred<ByteWriteChannel> = scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
-        futureSocket.await().openWriteChannel(true)
-    }
+//    private val writeChannel= scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
+//        futureSocket.await().outgoing
+//    }
 
     private var listenerJob: Job? = null
 
     override fun onOpen() {
         listenerJob = scope.launch {
-            val input = futureSocket.await().openReadChannel()
-            input.consumeEachBufferRange { buffer, last ->
-                val array = ByteArray(buffer.remaining())
-                buffer.get(array)
-                receive(array)
-                !last && isActive
+            val input = futureSocket.await().incoming
+            for (datagram in input) {
+                receive(datagram.packet.readByteArray())
             }
         }
     }
 
     override suspend fun write(data: ByteArray) {
-        writeChannel.await().writeAvailable(data)
+        val socket = futureSocket.await()
+        socket.send(Datagram(data.asSource(), socket.remoteAddress))
     }
 
     override val lifecycleState: LifecycleState
-        get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
+        get() = if (listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
     override suspend fun stop() {
         listenerJob?.cancel()

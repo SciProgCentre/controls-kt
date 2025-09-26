@@ -9,9 +9,8 @@ plugins {
 
 kscience {
     jvm()
-    useKtor()
     useSerialization()
-    useContextReceivers()
+    useContextParameters()
     commonMain {
         implementation(projects.controlsVisualisationCompose)
 //        implementation(projects.controlsVision)

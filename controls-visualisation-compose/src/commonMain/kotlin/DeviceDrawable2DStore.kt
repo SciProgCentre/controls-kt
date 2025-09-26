@@ -35,7 +35,7 @@ public fun DeviceDrawable2DStore.emitAll(drawables: Map<String, DeviceDrawable2D
 
 
 /**
- * Fill drawables from a flow
+ * Fill drawables from a discrete
  */
 public fun DeviceDrawable2DStore.observe(id: String, flow: Flow<DeviceDrawable2D>): Job = flow.onEach {
     drawableFlow.value += (id to it)
@@ -48,7 +48,7 @@ public fun <T> DeviceDrawable2DStore.observeState(
     state: DeviceState<T>,
     id: String = state.toString(),
     transform: suspend DeviceDrawable2DStore.(T) -> DeviceDrawable2D,
-): Job = observe(id, state.valueFlow.map { transform(this, it) })
+): Job = observe(id, state.subscribe().map { transform(this, it) })
 
 /**
  * Observe a single [Device] property

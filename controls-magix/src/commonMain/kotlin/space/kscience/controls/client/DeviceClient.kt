@@ -11,7 +11,9 @@ import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
@@ -20,11 +22,12 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
 
 private fun stringUID() = uuid4().leastSignificantBits.toString(16)
 
 /**
- * A remote accessible device that relies on connection via Magix
+ * A remote-accessible device that relies on connection via Magix
  */
 public class DeviceClient internal constructor(
     override val context: Context,
@@ -67,14 +70,23 @@ public class DeviceClient internal constructor(
 
     override suspend fun readProperty(propertyName: String): Meta {
         send(
-            PropertyGetMessage(propertyName, targetDevice = deviceName)
+            PropertyGetMessage(clock.now(), propertyName, targetDevice = deviceName)
         )
         return messageFlow.filterIsInstance<PropertyChangedMessage>().first {
             it.property == propertyName
         }.value
     }
 
-    override fun getProperty(propertyName: String): Meta? = propertyCache[propertyName]
+    override fun getCachedProperty(propertyName: String): Meta? = propertyCache[propertyName]
+
+    @InternalDeviceAPI
+    override fun setCachedProperty(propertyName: String, value: Meta?) {
+        if (value == null) {
+            propertyCache.remove(propertyName)
+        } else {
+            propertyCache[propertyName] = value
+        }
+    }
 
     override suspend fun invalidate(propertyName: String) {
         mutex.withLock {
@@ -84,14 +96,25 @@ public class DeviceClient internal constructor(
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         send(
-            PropertySetMessage(propertyName, value, targetDevice = deviceName)
+            PropertySetMessage(
+                time = clock.now(),
+                property = propertyName,
+                value = value,
+                targetDevice = deviceName
+            )
         )
     }
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val id = stringUID()
         send(
-            ActionExecuteMessage(actionName, argument, id, targetDevice = deviceName)
+            ActionExecuteMessage(
+                time = clock.now(),
+                action = actionName,
+                argument = argument,
+                requestId = id,
+                targetDevice = deviceName
+            )
         )
         return messageFlow.filterIsInstance<ActionResultMessage>().first {
             it.action == actionName && it.requestId == id
@@ -103,6 +126,8 @@ public class DeviceClient internal constructor(
 
     @DFExperimental
     override val lifecycleState: LifecycleState get() = lifecycleStateFlow.value
+
+    override val clock: Clock = context.clock
 }
 
 /**
@@ -123,7 +148,7 @@ public suspend fun MagixEndpoint.remoteDevice(
         .map { it.second }
         .filter {
             it.sourceDevice == null || it.sourceDevice == deviceName
-        }
+        }.shareIn(context, SharingStarted.Lazily, 10)
 
     val deferredDescriptorMessage = CompletableDeferred<DescriptionMessage>()
 
@@ -135,7 +160,7 @@ public suspend fun MagixEndpoint.remoteDevice(
 
     send(
         format = DeviceManager.magixFormat,
-        payload = GetDescriptionMessage(targetDevice = deviceName),
+        payload = GetDescriptionMessage(Clock.System.now(), targetDevice = deviceName),
         source = thisEndpoint,
         target = deviceEndpoint,
         id = stringUID()
@@ -170,7 +195,9 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     deviceEndpoint: String,
 ): DeviceHub {
     val devices = mutableMapOf<Name, DeviceClient>()
-    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint)).map { it.second }
+    val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
+        .map { it.second }
+        .shareIn(context, SharingStarted.Eagerly)
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
         devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(
@@ -196,7 +223,7 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
 
     send(
         format = DeviceManager.magixFormat,
-        payload = GetDescriptionMessage(targetDevice = null),
+        payload = GetDescriptionMessage(Clock.System.now(), targetDevice = null),
         source = thisEndpoint,
         target = deviceEndpoint,
         id = stringUID()
@@ -214,7 +241,7 @@ public suspend fun MagixEndpoint.requestDeviceUpdate(
 ) {
     send(
         format = DeviceManager.magixFormat,
-        payload = GetDescriptionMessage(),
+        payload = GetDescriptionMessage(Clock.System.now()),
         source = thisEndpoint,
         target = deviceEndpoint,
         id = stringUID()
@@ -247,6 +274,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
     value: T,
 ) {
     val message = PropertySetMessage(
+        Clock.System.now(),
         property = propertySpec.name,
         value = propertySpec.converter.convert(value),
         targetDevice = deviceName

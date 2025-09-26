@@ -17,12 +17,15 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.io.readString
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
 
-public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint, Closeable {
+public class RSocketMagixEndpoint(
+    private val rSocket: RSocket
+) : MagixEndpoint, Closeable {
 
     override fun subscribe(
         filter: MagixMessageFilter,
@@ -30,9 +33,11 @@ public class RSocketMagixEndpoint(private val rSocket: RSocket) : MagixEndpoint,
         val payload = buildPayload {
             data(MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), filter))
         }
-        val flow = rSocket.requestStream(payload)
-        return flow.map {
-            MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
+        return rSocket.requestStream(payload).map {
+            MagixEndpoint.magixJson.decodeFromString(
+                MagixMessage.serializer(),
+                it.data.readString()
+            )
         }.filter(filter).flowOn(rSocket.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
     }
 
@@ -65,12 +70,12 @@ public suspend fun MagixEndpoint.Companion.rSocketWithWebSockets(
     host: String,
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     path: String = "/rsocket",
-    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
+    rSocketConfig: RSocketConnectorBuilder.() -> Unit = {},
 ): RSocketMagixEndpoint {
     val client = HttpClient {
         install(WebSockets)
         install(RSocketSupport) {
-            connector = buildConnector(rSocketConfig)
+            connector(rSocketConfig)
         }
     }
 

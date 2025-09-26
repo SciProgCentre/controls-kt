@@ -21,7 +21,7 @@ import java.awt.Dimension
 private class Spring(
     context: Context,
     val k: Double,
-    val l0: NumericalValue<Meters>,
+    val l0: Numeric<Meters>,
     val begin: DeviceState<XYZ<Meters>>,
     val end: DeviceState<XYZ<Meters>>,
 ) : ModelConstructor(context) {
@@ -39,10 +39,10 @@ private class Spring(
 
 private class BodyOnSprings(
     context: Context,
-    mass: NumericalValue<Kilograms>,
+    mass: Numeric<Kilograms>,
     k: Double,
     startPosition: XYZ<Meters>,
-    l0: NumericalValue<Meters> = NumericalValue(1.0),
+    l0: Numeric<Meters> = Numeric(1.0),
     val xLeft: Double = -1.0,
     val xRight: Double = 1.0,
     val yBottom: Double = -1.0,
@@ -52,25 +52,27 @@ private class BodyOnSprings(
     val width = xRight - xLeft
     val height = yTop - yBottom
 
-    val position = stateOf(startPosition)
+    val position: MutableDeviceState<XYZ<Meters>> = stateOf(startPosition)
     val velocity: MutableDeviceState<XYZ<MetersPerSecond>> = stateOf(XYZ(0, 0, 0))
 
-    private val leftAnchor = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
+    private val leftAnchor: MutableDeviceState<XYZ<Meters>> = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
 
     val leftSpring = model(
         Spring(context, k, l0, leftAnchor, position)
     )
 
-    private val rightAnchor = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
+    private val rightAnchor: MutableDeviceState<XYZ<Meters>> = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
 
     val rightSpring = model(
         Spring(context, k, l0, rightAnchor, position)
     )
 
-    val force: DeviceState<XYZ<Newtons>> =
-        combineState(leftSpring.tension, rightSpring.tension) { left: XYZ<Newtons>, right ->
-            -left - right
-        }
+    val force: DeviceState<XYZ<Newtons>> = combineState(
+        first = leftSpring.tension,
+        second = rightSpring.tension
+    ) { left: XYZ<Newtons>, right ->
+        -left - right
+    }
 
 
     val body = model(
@@ -95,7 +97,7 @@ fun main() = application {
             }
 
             val model = remember {
-                BodyOnSprings(context, NumericalValue(10.0), 100.0, initialState)
+                BodyOnSprings(context, Numeric(10.0), 100.0, initialState)
             }
 
             //TODO add ability to freeze model

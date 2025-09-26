@@ -5,7 +5,7 @@ import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.registerAsProperty
 import space.kscience.controls.constructor.units.Direction
-import space.kscience.controls.constructor.units.NumericalValue
+import space.kscience.controls.constructor.units.Numeric
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.DeviceSpec
@@ -28,14 +28,14 @@ public class LimitSwitch(
     }
 }
 
-public fun <U : UnitsOfMeasurement, T : NumericalValue<U>> LimitSwitch(
+public fun <U : UnitsOfMeasurement, T : Numeric<U>> LimitSwitch(
     context: Context,
     limit: T,
     boundary: Direction,
     position: DeviceState<T>,
 ): LimitSwitch = LimitSwitch(
     context,
-    DeviceState.map(position) {
+    DeviceState.map(context, position) {
         when (boundary) {
             Direction.UP -> it >= limit
             Direction.DOWN -> it <= limit

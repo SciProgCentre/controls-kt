@@ -1,8 +1,8 @@
 package space.kscience.controls.opcua.client
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
-import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder
-import org.eclipse.milo.opcua.sdk.client.api.identity.UsernameProvider
+import org.eclipse.milo.opcua.sdk.client.OpcUaClientConfigBuilder
+import org.eclipse.milo.opcua.sdk.client.identity.UsernameProvider
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.DeviceBySpec
@@ -59,7 +59,7 @@ public open class OpcUaDeviceBySpec<D : Device>(
             securityPolicy = config.securityPolicy,
             opcClientConfig = { config.configureClient(this) }
         ).apply {
-            connect().get()
+            connect()
         }
     }
 

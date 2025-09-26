@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- `setCachedValue` API for `CachingDevice` to directly manipulate cached value and solve circular write problem with virtual properties.
+- Flow control simulation
 - Value averaging plot extension
 - PLC4X bindings
 - Shortcuts to access all Controls devices in a magix network.
@@ -12,12 +14,16 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- Update logic of `DeviceState` to properly address subscriptions.
+- `getProperty` renamed to `getCachedProperty` for `CachingDevice`
+- Milo migrated to stable version
 - Constructor properties return `DeviceState` in order to be able to subscribe to them
 - Refactored ports. Now we have `AsynchronousPort` as well as `SynchronousPort`
 - `DeviceClient` now initializes property and action descriptors eagerly.
 - `DeviceHub` now works with `Name` instead of `NameToken`. Tree-like structure is made using `Path`. Device messages no longer have access to sub-devices.
 - Add some utility methods to ports. Synchronous port response could be now consumed as `Source`.
 - `DeviceLifecycleState` is replaced by `LifecycleState`.
+- Time is now mandatory first field of all device messages
 
 
 ### Deprecated

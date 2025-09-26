@@ -13,17 +13,17 @@ kscience {
     jvm()
     js()
     native()
-    wasm()
+    wasmJs()
     useCoroutines()
-    useSerialization{
+    useSerialization {
         json()
     }
 
-    commonMain{
+    commonMain {
         implementation(spclibs.atomicfu)
     }
 }
 
-readme{
+readme {
     maturity = Maturity.EXPERIMENTAL
 }

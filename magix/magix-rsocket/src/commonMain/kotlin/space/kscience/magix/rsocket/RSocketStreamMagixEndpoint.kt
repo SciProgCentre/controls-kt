@@ -13,9 +13,8 @@ import io.rsocket.kotlin.payload.data
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
+import kotlinx.io.readString
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -38,20 +37,17 @@ public class RSocketStreamMagixEndpoint(
         rSocket.requestChannel(
             buildPayload {
                 data(
-                    MagixEndpoint.magixJson.encodeToString(
-                        MagixMessageFilter.serializer(),
-                        streamFilter
-                    )
+                    MagixEndpoint.magixJson.encodeToString(MagixMessageFilter.serializer(), streamFilter)
                 )
             },
             output.consumeAsFlow()
-        )
+        ).shareIn(rSocket, SharingStarted.Eagerly)
     }
 
     override fun subscribe(
         filter: MagixMessageFilter,
     ): Flow<MagixMessage> = input.map {
-        MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readText())
+        MagixEndpoint.magixJson.decodeFromString(MagixMessage.serializer(), it.data.readString())
     }.filter(filter)
 
     override suspend fun broadcast(message: MagixMessage): Unit {
@@ -72,12 +68,12 @@ public suspend fun MagixEndpoint.Companion.rSocketStreamWithWebSockets(
     port: Int = DEFAULT_MAGIX_HTTP_PORT,
     path: String = "/rsocket",
     filter: MagixMessageFilter = MagixMessageFilter.ALL,
-    rSocketConfig: RSocketConnectorBuilder.ConnectionConfigBuilder.() -> Unit = {},
+    rSocketConfig: RSocketConnectorBuilder.() -> Unit = {},
 ): RSocketStreamMagixEndpoint {
     val client = HttpClient {
         install(WebSockets)
         install(RSocketSupport) {
-            connector = buildConnector(rSocketConfig)
+            connector(rSocketConfig)
         }
     }
 

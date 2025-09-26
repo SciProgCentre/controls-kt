@@ -5,7 +5,7 @@ import org.eclipse.milo.opcua.sdk.core.Reference
 import org.eclipse.milo.opcua.sdk.server.nodes.UaNode
 import org.eclipse.milo.opcua.sdk.server.nodes.UaNodeContext
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
-import org.eclipse.milo.opcua.stack.core.Identifiers
+import org.eclipse.milo.opcua.stack.core.NodeIds
 import org.eclipse.milo.opcua.stack.core.types.builtin.*
 
 
@@ -32,7 +32,7 @@ internal fun UaNodeContext.addVariableNode(
     nodeId: NodeId = parentNodeId.resolve(name),
     dataTypeId: NodeId,
     value: Any,
-    referenceTypeId: NodeId = Identifiers.HasComponent
+    referenceTypeId: NodeId = NodeIds.HasComponent
 ): UaVariableNode {
 
     val variableNode: UaVariableNode = UaVariableNode.UaVariableNodeBuilder(this).apply {
@@ -42,7 +42,7 @@ internal fun UaNodeContext.addVariableNode(
         setBrowseName(QualifiedName(parentNodeId.namespaceIndex, name))
         setDisplayName(LocalizedText.english(name))
         setDataType(dataTypeId)
-        setTypeDefinition(Identifiers.BaseDataVariableType)
+        setTypeDefinition(NodeIds.BaseDataVariableType)
         setMinimumSamplingInterval(100.0)
         setValue(DataValue(Variant(value)))
     }.build()

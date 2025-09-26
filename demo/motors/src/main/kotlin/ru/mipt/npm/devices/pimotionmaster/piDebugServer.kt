@@ -4,9 +4,9 @@ import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
-import io.ktor.util.InternalAPI
 import io.ktor.util.moveToByteArray
-import io.ktor.utils.io.writeAvailable
+import io.ktor.utils.io.read
+import io.ktor.utils.io.writeByteArray
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -17,7 +17,6 @@ val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
     throwable.printStackTrace()
 }
 
-@OptIn(InternalAPI::class)
 fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exceptionHandler) {
     val virtualDevice = PiMotionMasterVirtualDevice(this@launchPiDebugServer, axes)
     aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", port).use { server ->
@@ -32,7 +31,7 @@ fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exc
 
                 val sendJob = virtualDevice.subscribe().onEach {
                     //println("Sending: ${it.decodeToString()}")
-                    output.writeAvailable(it)
+                    output.writeByteArray(it)
                     output.flush()
                 }.launchIn(this)
 

@@ -2,7 +2,7 @@ package space.kscience.controls.vision
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import space.kscience.controls.misc.doubleRange
+import space.kscience.controls.doubleRange
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.convertable
 import space.kscience.dataforge.meta.double

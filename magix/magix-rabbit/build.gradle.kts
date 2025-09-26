@@ -1,5 +1,5 @@
 plugins {
-    id("space.kscience.gradle.jvm")
+    id("space.kscience.gradle.mpp")
     `maven-publish`
 }
 
@@ -7,9 +7,12 @@ description = """
    RabbitMQ client magix endpoint
 """.trimIndent()
 
-dependencies {
-    api(projects.magix.magixApi)
-    implementation(libs.rabbitmq.amqp.client)
+kscience{
+    jvm()
+    jvmMain{
+        api(projects.magix.magixApi)
+        implementation(libs.rabbitmq.amqp.client)
+    }
 }
 
 readme{

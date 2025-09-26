@@ -23,7 +23,7 @@ public suspend fun <T> DeviceClient.request(propertySpec: DevicePropertySpec<*, 
     propertySpec.converter.read(getOrReadProperty(propertySpec.name))
 
 public fun <T> DeviceClient.getCached(propertySpec: DevicePropertySpec<*, T>): T? =
-    getProperty(propertySpec.name)?.let { propertySpec.converter.read(it) }
+    getCachedProperty(propertySpec.name)?.let { propertySpec.converter.read(it) }
 
 
 public suspend fun <T> DeviceClient.write(propertySpec: MutableDevicePropertySpec<*, T>, value: T) {
