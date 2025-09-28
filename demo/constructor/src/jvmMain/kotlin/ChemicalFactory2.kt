@@ -37,7 +37,7 @@ import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.CubicMeters
 import space.kscience.controls.constructor.units.Kilograms
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -51,10 +51,10 @@ import kotlin.time.Instant
 private class ChemicalFactory2(
     context: Context
 ) : ContinuousFlowModel(context) {
-    val aProduction = MutableDeviceState(Numeric<Kilograms>(4.0))
+    val aProduction = MutableDeviceState(NumericAmount<Kilograms>(4.0))
     val aProducer = producer(aProduction)
 
-    val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
+    val bProduction = MutableDeviceState(NumericAmount<Kilograms>(2.0))
     val bProducer = producer(bProduction)
 
     val joinAB = mix(Kilograms, listOf("a", "b")).apply {
@@ -62,7 +62,7 @@ private class ChemicalFactory2(
         connectProducer("b", bProducer)
     }
 
-    val cProduction = MutableDeviceState(Numeric<CubicMeters>(2.5)).apply {
+    val cProduction = MutableDeviceState(NumericAmount<CubicMeters>(2.5)).apply {
 //        onTimer(0.2.seconds) { _, _ ->
 //            value = Numeric(3.0 + Random.nextDouble(-0.1, 0.1))
 //        }
@@ -70,7 +70,7 @@ private class ChemicalFactory2(
 
     val cProducer = producer(cProduction)
 
-    val cBuffer = buffer(CubicMeters, Numeric(10.0)).apply {
+    val cBuffer = buffer(CubicMeters, NumericAmount(10.0)).apply {
         connectProducer(cProducer)
 
         debugState("C buffer level", content)
@@ -79,13 +79,13 @@ private class ChemicalFactory2(
         debugState("C buffer production", production)
     }
 
-    val transformer = linearTransformer(CubicMeters, Kilograms, Numeric(1.0)).apply {
+    val transformer = linearTransformer(CubicMeters, Kilograms, NumericAmount(1.0)).apply {
         connectProducer(cBuffer)
     }
 
     val reactor = reaction(
         algebra = Kilograms,
-        formula = mapOf("ab" to Numeric(0.66), "c" to Numeric(0.33)),
+        formula = mapOf("ab" to NumericAmount(0.66), "c" to NumericAmount(0.33)),
     ).apply {
         connectProducer("ab", joinAB)
         connectProducer("c", transformer)
@@ -93,7 +93,7 @@ private class ChemicalFactory2(
         debugState("Reactor consumation requesst C", individualConsumationCapacity["c"]!!)
     }
 
-    val consumation = MutableDeviceState(Numeric<Kilograms>(10.0))
+    val consumation = MutableDeviceState(NumericAmount<Kilograms>(10.0))
 
     val consumer = consumer(consumation).apply {
         connectProducer(reactor)
@@ -126,9 +126,9 @@ fun main() {
                                 val checked by model.bProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.bProduction.value = Numeric(2.0)
+                                        model.bProduction.value = NumericAmount(2.0)
                                     } else {
-                                        model.bProduction.value = Numeric(0.0)
+                                        model.bProduction.value = NumericAmount(0.0)
                                     }
                                 })
                             }

@@ -5,6 +5,11 @@ public interface UnitsOfMeasurement{
     public val displayName: String get() = this::class.simpleName ?: "UnnamedUnits"
 }
 
+/**
+ * Units of measurement that are not associated with physical quantity of matter
+ */
+public interface UnitsOfMatter: UnitsOfMeasurement
+
 /**/
 
 public interface UnitsOfLength : UnitsOfMeasurement
@@ -51,15 +56,17 @@ public data object NewtonsMeters : UnitsOfTorque, NumericAmountAlgebra<NewtonsMe
 
 /**/
 
-public interface UnitsOfVolume : UnitsOfMeasurement
+public interface UnitsOfVolume : UnitsOfMatter
 
 public data object CubicMeters : UnitsOfVolume, NumericAmountAlgebra<CubicMeters>()
 
 /**/
 
-public interface UnitsOfMass : UnitsOfMeasurement
+public interface UnitsOfMass : UnitsOfMatter
 
 public data object Kilograms : UnitsOfMass, NumericAmountAlgebra<Kilograms>()
+
+public val Number.kilograms: NumericAmount<Kilograms> get() = NumericAmount<Kilograms>(toDouble())
 
 /**/
 
@@ -69,4 +76,4 @@ public data object KgM2 : UnitsOfMomentOfInertia, NumericAmountAlgebra<KgM2>()
 
 /**/
 
-public data object Mole : UnitsOfMeasurement, NumericAmountAlgebra<Mole>()
+public data object Mole : UnitsOfMatter, NumericAmountAlgebra<Mole>()

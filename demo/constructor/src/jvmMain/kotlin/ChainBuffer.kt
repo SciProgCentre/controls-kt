@@ -37,7 +37,8 @@ import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.CubicMeters
 import space.kscience.controls.constructor.units.Kilograms
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
+import space.kscience.controls.constructor.units.PerSecond
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -51,25 +52,25 @@ import kotlin.time.Instant
 private class ChainBufferModel(
     context: Context
 ) : ContinuousFlowModel(context) {
-    val production = MutableDeviceState(Numeric<Kilograms>(1.0))
+    val production = MutableDeviceState(NumericAmount<Kilograms>(1.0))
     val producer = producer(Kilograms, production).apply {
         debugState("Producer production", production)
     }
 
-    val buffer1 = buffer(Kilograms, Numeric(10.0)).apply {
+    val buffer1 = buffer(Kilograms, NumericAmount(10.0)).apply {
         connectProducer(producer)
     }
 
-    val transformer = linearTransformer(Kilograms, CubicMeters, Numeric(1.0)).apply {
+    val transformer = linearTransformer(Kilograms, CubicMeters, NumericAmount(1.0)).apply {
         connectProducer(buffer1)
     }
 
-    val buffer2 = buffer(CubicMeters, Numeric(10.0)).apply {
-        connectProducer(transformer.limited(this, Numeric(2.0)))
+    val buffer2 = buffer(CubicMeters, NumericAmount(10.0)).apply {
+        connectProducer(transformer.limited(this, PerSecond(2.0)))
         debugState("Buffer 2", content)
     }
 
-    val consumation = MutableDeviceState(Numeric<CubicMeters>(2.0))
+    val consumation = MutableDeviceState(NumericAmount<CubicMeters>(2.0))
 
     val consumer = consumer(CubicMeters, consumation).apply {
         connectProducer(buffer2)
@@ -102,9 +103,9 @@ fun main() {
                                 val checked by model.production.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.production.value = Numeric(1.0)
+                                        model.production.value = NumericAmount(1.0)
                                     } else {
-                                        model.production.value = Numeric(0.0)
+                                        model.production.value = NumericAmount(0.0)
                                     }
                                 })
                             }
@@ -114,9 +115,9 @@ fun main() {
                                 val checked by model.consumation.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.consumation.value = Numeric(2.0)
+                                        model.consumation.value = NumericAmount(2.0)
                                     } else {
-                                        model.consumation.value = Numeric(0.0)
+                                        model.consumation.value = NumericAmount(0.0)
                                     }
                                 })
                             }

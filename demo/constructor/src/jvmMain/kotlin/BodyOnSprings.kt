@@ -21,7 +21,7 @@ import java.awt.Dimension
 private class Spring(
     context: Context,
     val k: Double,
-    val l0: Numeric<Meters>,
+    val l0: NumericAmount<Meters>,
     val begin: DeviceState<XYZ<Meters>>,
     val end: DeviceState<XYZ<Meters>>,
 ) : ModelConstructor(context) {
@@ -39,10 +39,10 @@ private class Spring(
 
 private class BodyOnSprings(
     context: Context,
-    mass: Numeric<Kilograms>,
+    mass: NumericAmount<Kilograms>,
     k: Double,
     startPosition: XYZ<Meters>,
-    l0: Numeric<Meters> = Numeric(1.0),
+    l0: NumericAmount<Meters> = NumericAmount(1.0),
     val xLeft: Double = -1.0,
     val xRight: Double = 1.0,
     val yBottom: Double = -1.0,
@@ -97,7 +97,7 @@ fun main() = application {
             }
 
             val model = remember {
-                BodyOnSprings(context, Numeric(10.0), 100.0, initialState)
+                BodyOnSprings(context, NumericAmount(10.0), 100.0, initialState)
             }
 
             //TODO add ability to freeze model

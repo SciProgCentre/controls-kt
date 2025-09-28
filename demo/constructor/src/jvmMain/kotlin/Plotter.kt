@@ -100,15 +100,15 @@ private suspend fun Plotter.square(xRange: IntRange, yRange: IntRange) {
     }
 }
 
-private val xRange = Numeric<Meters>(-0.5)..Numeric<Meters>(0.5)
-private val yRange = Numeric<Meters>(-0.5)..Numeric<Meters>(0.5)
+private val xRange = NumericAmount<Meters>(-0.5)..NumericAmount<Meters>(0.5)
+private val yRange = NumericAmount<Meters>(-0.5)..NumericAmount<Meters>(0.5)
 private const val ticksPerSecond = 3000.0
-private val step = Numeric<Degrees>(1.8)
+private val step = NumericAmount<Degrees>(1.8)
 
 
 private data class PlotterPoint(
-    val x: Numeric<Meters>,
-    val y: Numeric<Meters>,
+    val x: NumericAmount<Meters>,
+    val y: NumericAmount<Meters>,
     val color: Color = Color.Black,
 )
 
@@ -118,11 +118,11 @@ private class PlotterModel(
 ) : ModelConstructor(context) {
 
     private val xDrive = StepDrive(context, ticksPerSecond)
-    private val xTransmission = Leadscrew(context, Numeric(0.01))
+    private val xTransmission = Leadscrew(context, NumericAmount(0.01))
     val x = xTransmission.degreesToMeters(xDrive.angle(step)).coerceIn(xRange)
 
     private val yDrive = StepDrive(context, ticksPerSecond)
-    private val yTransmission = Leadscrew(context, Numeric(0.01))
+    private val yTransmission = Leadscrew(context, NumericAmount(0.01))
     val y = yTransmission.degreesToMeters(yDrive.angle(step)).coerceIn(yRange)
 
     val xy: DeviceState<XY<Meters>> = combineState(x, y) { x, y -> XY(x, y) }
@@ -199,10 +199,10 @@ suspend fun main() = application {
                 }
                 second {
                     Device2DCanvas(modifier = Modifier.fillMaxSize()) {
-                        fun xToPx(x: Numeric<Meters>): Float =
+                        fun xToPx(x: NumericAmount<Meters>): Float =
                             ((x - xRange.start) / (xRange.endInclusive - xRange.start) * size.width).toFloat()
 
-                        fun yToPx(y: Numeric<Meters>): Float =
+                        fun yToPx(y: NumericAmount<Meters>): Float =
                             ((y - yRange.start) / (yRange.endInclusive - yRange.start) * size.height).toFloat()
 
 

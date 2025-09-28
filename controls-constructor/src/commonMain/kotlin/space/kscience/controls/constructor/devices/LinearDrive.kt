@@ -5,7 +5,7 @@ import space.kscience.controls.constructor.models.PidParameters
 import space.kscience.controls.constructor.models.PidRegulator
 import space.kscience.controls.constructor.units.Meters
 import space.kscience.controls.constructor.units.NewtonsMeters
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.numeric
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
@@ -15,13 +15,13 @@ public class LinearDrive(
     drive: Drive,
     start: LimitSwitch,
     end: LimitSwitch,
-    position: DeviceState<Numeric<Meters>>,
+    position: DeviceState<NumericAmount<Meters>>,
     pidParameters: PidParameters,
     context: Context = drive.context,
     meta: Meta = Meta.EMPTY,
 ) : DeviceConstructor(context, meta) {
 
-    public val position: DeviceState<Numeric<Meters>> by property(MetaConverter.numeric(Meters), position)
+    public val position: DeviceState<NumericAmount<Meters>> by property(MetaConverter.numeric(Meters), position)
 
     public val drive: Drive by device(drive)
     public val pid: PidRegulator<Meters, NewtonsMeters>  = model(

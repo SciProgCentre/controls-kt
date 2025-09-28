@@ -47,7 +47,7 @@ private class EnrichmentFacility(
 
     val mixture = MixtureAlgebra(Kilograms, Mixture.ofFractions(component1 to 1.0, component2 to 1.0))
 
-    val productionValue = MutableDeviceState(Numeric<Kilograms>(1.0))
+    val productionValue = MutableDeviceState(NumericAmount<Kilograms>(1.0))
 
     val production = productionValue.map {
         with(mixture) {
@@ -63,12 +63,12 @@ private class EnrichmentFacility(
 
     private class MyMixtureSeparationRule(
         val fractions: Map<MixtureComponent, Map<String, Double>>,
-    ) : SeparationRule<Kilograms, Mixture<Kilograms, Numeric<Kilograms>>> {
+    ) : SeparationRule<Kilograms, Mixture<Kilograms, NumericAmount<Kilograms>>> {
         override val productionKeys: Collection<String> = fractions.flatMap { it.value.keys }.distinct()
 
-        private class TaggedFraction(val component: MixtureComponent, val output: String, val value: Numeric<Kilograms>)
+        private class TaggedFraction(val component: MixtureComponent, val output: String, val value: NumericAmount<Kilograms>)
 
-        override fun forward(input: Mixture<Kilograms, Numeric<Kilograms>>): Map<String, Mixture<Kilograms, Numeric<Kilograms>>> {
+        override fun forward(input: Mixture<Kilograms, NumericAmount<Kilograms>>): Map<String, Mixture<Kilograms, NumericAmount<Kilograms>>> {
             val entries = input.components.entries.flatMap { (component, inputValue) ->
                 fractions[component]?.map { (key, fraction) ->
                     TaggedFraction(component, key, inputValue * fraction)
@@ -77,12 +77,12 @@ private class EnrichmentFacility(
 
             return entries.groupBy { it.output }.mapValues { (outputKey, fractions) ->
                 Mixture(fractions.groupBy { it.component }
-                    .mapValues { Numeric(it.value.sumOf { item -> item.value.value }) })
+                    .mapValues { NumericAmount(it.value.sumOf { item -> item.value.value }) })
             }
         }
 
-        override fun backward(output: Map<String, Numeric<Kilograms>>): Numeric<Kilograms> =
-            Numeric(output.values.sumOf { it.value })
+        override fun backward(output: Map<String, NumericAmount<Kilograms>>): NumericAmount<Kilograms> =
+            NumericAmount(output.values.sumOf { it.value })
 
     }
 
@@ -107,11 +107,11 @@ private class EnrichmentFacility(
         mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 200.milliseconds))
     }
 
-    val discard = consumer(mixture, DeviceState(Numeric(2.0))).apply {
+    val discard = consumer(mixture, DeviceState(NumericAmount(2.0))).apply {
         connectProducer(separator.asProducer(discardKey))
     }
 
-    val consumption = MutableDeviceState<Numeric<Kilograms>>(Numeric(2.0))
+    val consumption = MutableDeviceState<NumericAmount<Kilograms>>(NumericAmount(2.0))
     val consumer = consumer(mixture, consumption).apply {
         connectProducer(separator.asProducer(productionKey))
     }
@@ -194,7 +194,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.consumer.consumation.map {
-                                        it.components[EnrichmentFacility.component1] ?: Numeric(0.0)
+                                        it.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
@@ -203,7 +203,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.consumer.consumation.map {
-                                        it.components[EnrichmentFacility.component2] ?: Numeric(0.0)
+                                        it.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
@@ -213,7 +213,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.producer.production.map {
-                                        it.components[EnrichmentFacility.component1] ?: Numeric(0.0)
+                                        it.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
@@ -222,7 +222,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.producer.production.map {
-                                        it.components[EnrichmentFacility.component2] ?: Numeric(0.0)
+                                        it.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,

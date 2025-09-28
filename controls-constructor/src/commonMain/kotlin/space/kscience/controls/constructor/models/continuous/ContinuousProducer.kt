@@ -4,26 +4,26 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
-public interface ContinuousProducerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
+public interface ContinuousProducerInterface<U : UnitsOfMatter, T : Amount<U>> {
     public val producerAlgebra: AmountAlgebra<U, T>
 
-    public val production: DeviceState<T>
-    public val productionCapacity: DeviceState<T>
-    public val consumerRequest: LateBindDeviceState<Numeric<U>>
+    public val production: DeviceState<PerSecond<U, T>>
+    public val productionCapacity: DeviceState<PerSecond<U, T>>
+    public val consumerRequest: LateBindDeviceState<AmountPerSecond<U>>
 }
 
-public interface ContinuousProducerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousProducerInterface<U, T> {
+public interface ContinuousProducerWrapper<U : UnitsOfMatter, T : Amount<U>> : ContinuousProducerInterface<U, T> {
     public val producer: ContinuousProducerInterface<U, T>
 
     override val producerAlgebra: AmountAlgebra<U, T> get() = producer.producerAlgebra
 
-    override val production: DeviceState<T> get() = producer.production
-    override val productionCapacity: DeviceState<T> get() = producer.productionCapacity
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> get() = producer.consumerRequest
+    override val production: DeviceState<PerSecond<U, T>> get() = producer.production
+    override val productionCapacity: DeviceState<PerSecond<U, T>> get() = producer.productionCapacity
+    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> get() = producer.consumerRequest
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
-    consumerCapacity: DeviceState<Numeric<U>>,
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
+    consumerCapacity: DeviceState<AmountPerSecond<U>>,
 ) {
     consumerRequest.bind(consumerCapacity)
 }
@@ -31,7 +31,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
 /**
  * Connect a consumer to this [ContinuousProducerInterface]
  */
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.connectConsumer(
     consumer: ContinuousConsumerInterface<U, T>
 ) {
     ContinuousFlowModel.connect(this, consumer)
@@ -50,11 +50,11 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousProducerInterface<U
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.
  */
-public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
+public class ContinuousProducer<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
-    override val productionCapacity: DeviceState<T>,
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero()),
+    override val productionCapacity: DeviceState<PerSecond<U,T>>,
+    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero()),
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
     init {
@@ -62,12 +62,12 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
         registerState(consumerRequest)
     }
 
-    override val production: DeviceState<T> = combineState(
+    override val production: DeviceState<PerSecond<U,T>> = combineState(
         first = consumerRequest,
         second = productionCapacity
-    ) { request: Numeric<U>, capacity: T ->
+    ) { request: AmountPerSecond<U>, capacity: PerSecond<U,T> ->
         with(producerAlgebra) {
-            capacity.coerceValueIn(Numeric.zero<U>()..request)
+            capacity.coerceValueIn(NumericAmount.zero<U>()..request)
         }
     }
 
@@ -76,7 +76,7 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
         productionCapacity
     ) { request, capacity ->
         with(producerAlgebra) {
-            val production = capacity.coerceValueIn(Numeric.zero<U>()..request)
+            val production = capacity.coerceValueIn(NumericAmount.zero<U>()..request)
             production.value / capacity.value
         }
     }
@@ -94,9 +94,9 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
          * @return A newly constructed `MaterialFlowProducer` instance with the adjusted capacity based
          * on the minimum of the provided capacity and the consumer's consumption requests.
          */
-        public fun <U : UnitsOfMeasurement, T : Amount<U>> fromConsumer(
+        public fun <U : UnitsOfMatter, T: Amount<U>> fromConsumer(
             consumer: ContinuousConsumer<U, T>,
-            capacity: DeviceState<T>,
+            capacity: DeviceState<PerSecond<U,T>>,
         ): ContinuousProducer<U, T> {
             return ContinuousProducer(
                 context = consumer.context,
@@ -111,26 +111,12 @@ public class ContinuousProducer<U : UnitsOfMeasurement, T : Amount<U>>(
     }
 }
 
-/**
- * Creates a [ContinuousProducer] instance utilizing numeric amounts with specified units,
- * constrained by capacity and responding to supply requests.
- *
- * @param context The context for managing state and performing operations for the producer.
- * @param capacity The device state representing the capacity of the producer, defining the maximum output.
- * @param supplyRequest The deferred-binding state representing the material discrete supply requests.
- * Defaults to a state with an initial value of zero.
- * @return A new instance of `ContinuousProducer` configured with the provided capacity and supply requests.
- */
-public fun <U : UnitsOfMeasurement> ContinuousProducer(
-    context: Context,
-    capacity: DeviceState<Numeric<U>>,
-): ContinuousProducer<U, Numeric<U>> = ContinuousProducer(context, NumericAmountAlgebra<U>(), capacity)
-
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.producer(
+public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: DeviceState<T>
+    capacity: DeviceState<PerSecond<U,T>>
 ): ContinuousProducer<U, T> = model(ContinuousProducer(context, algebra, capacity))
 
-public fun <U : UnitsOfMeasurement> ContinuousFlowModel.producer(
-    capacity: DeviceState<Numeric<U>>
-): ContinuousProducer<U, Numeric<U>> = model(ContinuousProducer(context, capacity))
+public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
+    algebra: AmountAlgebra<U, T>,
+    capacity: PerSecond<U,T>
+): ContinuousProducer<U, T> = model(ContinuousProducer(context, algebra, DeviceState(capacity)))

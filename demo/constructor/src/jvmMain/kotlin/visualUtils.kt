@@ -16,7 +16,7 @@ import kotlinx.coroutines.Job
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.time.Duration.Companion.seconds
 
@@ -49,11 +49,11 @@ fun <T> StateContainer.displayState(
 @Composable
 fun <U: UnitsOfMeasurement> StateContainer.slider(
     name: String,
-    state: MutableDeviceState<Numeric<U>>,
+    state: MutableDeviceState<NumericAmount<U>>,
     valueRange: ClosedFloatingPointRange<Float>
 ) {
 
-    val value: Numeric<U> by state.asComposeState(coroutineContext, 0.1.seconds)
+    val value: NumericAmount<U> by state.asComposeState(coroutineContext, 0.1.seconds)
 
     Row(
         modifier = Modifier.fillMaxWidth().border(2.dp, Color.Blue).padding(4.dp),
@@ -62,7 +62,7 @@ fun <U: UnitsOfMeasurement> StateContainer.slider(
         Text("$name: ")
         Slider(
             value = value.value.toFloat(),
-            onValueChange = { state.value = Numeric(it) },
+            onValueChange = { state.value = NumericAmount(it) },
             valueRange = valueRange,
             modifier = Modifier.weight(1f)
         )

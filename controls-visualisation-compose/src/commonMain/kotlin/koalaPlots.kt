@@ -14,7 +14,7 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
@@ -203,7 +203,7 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
 @Composable
 public fun XYGraphScope<Instant, Double>.PlotNumericState(
     context: Context,
-    state: DeviceState<Numeric<*>>,
+    state: DeviceState<NumericAmount<*>>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
