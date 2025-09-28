@@ -25,6 +25,26 @@ public interface AmountAlgebra<U : UnitsOfMeasurement, T : Amount<U>> {
     }
 }
 
+//bridge methods
+
+context(algebra: AmountAlgebra<U, T>)
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.plus(other: T): T = with(algebra) { this@plus + other }
+
+context(algebra: AmountAlgebra<U, T>)
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.minus(other: T): T = with(algebra) { this@minus - other }
+
+context(algebra: AmountAlgebra<U, T>)
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.unaryMinus(): T = with(algebra) { -this@unaryMinus }
+
+context(algebra: AmountAlgebra<U, T>)
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.times(scale: Number): T =
+    with(algebra) { this@times * scale }
+
+context(algebra: AmountAlgebra<U, T>)
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.div(scale: Number): T =
+    with(algebra) { this@div / scale }
+
+
 public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.minOf(first: T, second: T): T =
     if (first < second) first else second
 

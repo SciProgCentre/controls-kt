@@ -1,11 +1,12 @@
 package space.kscience.controls.constructor.models.continuous
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.LateBindDeviceState
-import space.kscience.controls.constructor.combine
-import space.kscience.controls.constructor.transform
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import kotlin.time.Duration
 
@@ -137,7 +138,38 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.
     }
 }
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousConsumerInterface<U, T>.limitedConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.limitedConsumer(
     scope: CoroutineScope,
     consumationLimit: AmountPerSecond<U>
 ): ContinuousConsumerInterface<U, T> = limitedConsumer(scope, DeviceState(consumationLimit))
+
+/**
+ * Collects an amount over a specified duration asynchronously by integrating a flow of [PerSecond] values in a
+ * [DeviceState]. The method returns the total accumulated amount computed over the given duration.
+ *
+ * @param duration The time duration over which the amount is collected.
+ * @return A [Deferred] representing the total accumulated amount of type [T] after the specified duration.
+ */
+context(container: StateContainer, algebra: AmountAlgebra<U, T>)
+public fun <U : UnitsOfMeasurement, T : Amount<U>> DeviceState<PerSecond<U, T>>.collectAmountAsync(
+    duration: Duration
+): Deferred<T> = container.async {
+    val clock = container.clock
+    var sum: T = algebra.zero
+    var lastValue: PerSecond<U, T> = value
+    var lastTime = clock.now()
+
+    val collectionJob = subscribe().onEach {
+        val now = clock.now()
+        sum += lastValue * (now - lastTime)
+        lastTime = now
+        lastValue = it
+    }.launchIn(this)
+
+    delay(duration)
+    collectionJob.cancel()
+
+    sum += lastValue.times(clock.now() - lastTime)
+
+    return@async sum
+}

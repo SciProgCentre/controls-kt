@@ -18,9 +18,9 @@ public value class PerSecond<U : UnitsOfMeasurement, T : Amount<U>>(public val v
     }
 }
 
-public val <U: UnitsOfMatter, T: Amount<U>> T.perSecond: PerSecond<U, T> get() = PerSecond(this)
+public val <U: UnitsOfMeasurement, T: Amount<U>> T.perSecond: PerSecond<U, T> get() = PerSecond(this)
 
-public fun <U : UnitsOfMatter, T : Amount<U>> MetaConverter.Companion.perSecond(
+public fun <U : UnitsOfMeasurement, T : Amount<U>> MetaConverter.Companion.perSecond(
     converter: MetaConverter<T>
 ): MetaConverter<PerSecond<U, T>> = object : MetaConverter<PerSecond<U, T>> {
 
@@ -61,17 +61,17 @@ public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.div(
 }
 
 context(algebra: AmountAlgebra<U, T>)
-public operator fun <U : UnitsOfMatter, T : Amount<U>> T.div(duration: Duration): PerSecond<U, T> = with(algebra) {
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.div(duration: Duration): PerSecond<U, T> = with(algebra) {
     PerSecond(this@div / duration.toDouble(DurationUnit.SECONDS))
 }
 
 context(algebra: AmountAlgebra<U, T>)
-public operator fun <U : UnitsOfMatter, T : Amount<U>> PerSecond<U, T>.times(
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.times(
     duration: Duration
 ): T = with(algebra) { valuePerSecond * duration.toDouble(DurationUnit.SECONDS) }
 
 context(algebra: AmountAlgebra<U, T>)
-public operator fun <U : UnitsOfMatter, T : Amount<U>> Duration.times(
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> Duration.times(
     materialFlow: PerSecond<U, T>
 ): T = with(algebra) { materialFlow.valuePerSecond * toDouble(DurationUnit.SECONDS) }
 
