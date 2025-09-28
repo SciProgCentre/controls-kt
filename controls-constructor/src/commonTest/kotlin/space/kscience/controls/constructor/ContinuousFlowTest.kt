@@ -188,7 +188,7 @@ class ContinuousFlowTest {
 
             val reactor = reaction(
                 algebra = Kilograms,
-                formula = mapOf("a" to 1.kilograms, "b" to 1.kilograms),
+                formula = mapOf("a" to 1, "b" to 1),
                 production = 1.kilograms.perSecond
             ).apply {
                 connectProducer("a", aProducer)

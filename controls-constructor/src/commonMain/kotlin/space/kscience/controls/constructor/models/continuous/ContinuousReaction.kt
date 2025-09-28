@@ -31,13 +31,13 @@ public interface ReactionRule<U : UnitsOfMatter, T : Amount<U>> {
          */
         public fun <U : UnitsOfMatter, T: Amount<U>> formula(
             algebra: AmountAlgebra<U, T>,
-            formula: Map<String, NumericAmount<U>>,
+            formula: Map<String, Number>,
             production: PerSecond<U, T>,
             productKey: String = DEFAULT_PRODUCT_KEY
         ): ReactionRule<U, T> = object : ReactionRule<U, T> {
 
             init {
-                formula.forEach { (key, value) -> require(value.value > 0.0) { "Formula value for $key must be positive, but was $value" } }
+                formula.forEach { (key, value) -> require(value.toDouble() > 0.0) { "Formula value for $key must be positive, but was $value" } }
             }
 
             override val supplyKeys: Collection<String> = formula.keys
@@ -45,13 +45,13 @@ public interface ReactionRule<U : UnitsOfMatter, T : Amount<U>> {
 
             override fun forward(input: Map<String, PerSecond<U, T>>): PerSecond<U, T> {
                 val factor = formula.minOf { (key, formulaValue) ->
-                    (input[key]?.value ?: 0.0) / formulaValue.value
+                    (input[key]?.value ?: 0.0) / formulaValue.toDouble()
                 }
                 return with(algebra) { production * factor}
             }
 
             override fun backward(output: Amount<U>): Map<String, AmountPerSecond<U>> = formula.mapValues {
-                AmountPerSecond(output.value * it.value.value)
+                AmountPerSecond(output.value * it.value.toDouble())
             }
         }
     }
@@ -199,7 +199,7 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.reaction(
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
-    formula: Map<String, NumericAmount<U>>,
+    formula: Map<String, Number>,
     production: PerSecond<U, T>,
     productKey: String = "@product"
 ): ContinuousReaction<U, T> = model(
