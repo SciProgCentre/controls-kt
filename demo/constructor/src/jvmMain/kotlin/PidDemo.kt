@@ -40,7 +40,7 @@ import space.kscience.controls.constructor.models.PidParameters
 import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Meters
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.hubMessageFlow
 import space.kscience.controls.manager.install
@@ -60,7 +60,7 @@ import kotlin.time.Instant
 
 class Modulator(
     context: Context,
-    target: MutableDeviceState<Numeric<Meters>>,
+    target: MutableDeviceState<NumericAmount<Meters>>,
     var timeStep: Duration = 5.milliseconds,
     var freq: Double = 0.1,
 ) : DeviceConstructor(context) {
@@ -69,7 +69,7 @@ class Modulator(
     private val modulation = onTimer(timeStep) { _, next ->
         val timeFromStart = next - clockStart
         val t = timeFromStart.toDouble(DurationUnit.SECONDS)
-        target.value = Numeric(
+        target.value = NumericAmount(
             5 * sin(2.0 * PI * freq * t) +
                     sin(2 * PI * 21 * freq * t + 0.02 * (timeFromStart / timeStep))
         )
@@ -77,9 +77,9 @@ class Modulator(
 }
 
 
-private val mass = Numeric<Kilograms>(1)
+private val mass = NumericAmount<Kilograms>(1)
 
-private val leverage = Numeric<Meters>(1.0)
+private val leverage = NumericAmount<Meters>(1.0)
 
 private val maxAge = 10.seconds
 
@@ -91,9 +91,9 @@ private val range = -6.0..6.0
 internal fun createLinearDriveModel(
     context: Context,
     pidParameters: PidParameters,
-    mass: Numeric<Kilograms>,
-    leverage: Numeric<Meters>,
-    position: MutableRangeState<Numeric<Meters>>,
+    mass: NumericAmount<Kilograms>,
+    leverage: NumericAmount<Meters>,
+    position: MutableRangeState<NumericAmount<Meters>>,
 ): LinearDrive {
 
     //create a drive model with zero starting force

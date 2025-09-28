@@ -20,8 +20,8 @@ public value class Mixture<U : UnitsOfMeasurement, T : Amount<U>>(
         public fun <U : UnitsOfMeasurement, T : Amount<U>> ofAmounts(vararg entries: Pair<MixtureComponent, T>): Mixture<U, T> =
             Mixture(entries.toMap())
 
-        public fun <U : UnitsOfMeasurement> ofFractions(vararg entries: Pair<MixtureComponent, Number>): Mixture<U, Numeric<U>> =
-            Mixture(entries.toMap().mapValues { Numeric(it.value) })
+        public fun <U : UnitsOfMeasurement> ofFractions(vararg entries: Pair<MixtureComponent, Number>): Mixture<U, NumericAmount<U>> =
+            Mixture(entries.toMap().mapValues { NumericAmount(it.value) })
 
     }
 }
@@ -46,7 +46,6 @@ public val <U : UnitsOfMeasurement, T : Amount<U>> Mixture<U, T>.fractions: Map<
  */
 public class MixtureAlgebra<U : UnitsOfMeasurement, T : Amount<U>>(
     public val componentAlgebra: AmountAlgebra<U, T>,
-    override val one: Mixture<U, T>
 ) : AmountAlgebra<U, Mixture<U, T>> {
     override fun Mixture<U, T>.plus(other: Mixture<U, T>): Mixture<U, T> = Mixture(
         with(componentAlgebra) {

@@ -1,15 +1,12 @@
 package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.AmountAlgebra
-import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 
-public interface ContinuousTransformationRule<U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>> {
-    public fun computeProduction(amount: T): R
-    public fun computeConsumption(numeric: Numeric<U2>): Numeric<U1>
+public interface ContinuousTransformationRule<U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>> {
+    public fun computeProduction(amount: PerSecond<U1, T>): PerSecond<U2, R>
+    public fun computeConsumption(numeric: AmountPerSecond<U2>): AmountPerSecond<U1>
 
     public companion object {
         /**
@@ -24,58 +21,60 @@ public interface ContinuousTransformationRule<U1 : UnitsOfMeasurement, T : Amoun
          * @param production the fixed amount of production corresponding to one unit of consumption.
          * @return a transformation rule that maps consumption to production and vice-versa.
          */
-        public fun <U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>> linear(
+        public fun <U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>> linear(
             productionAlgebra: AmountAlgebra<U2, R>,
-            production: R
+            production: PerSecond<U2, R>
         ): ContinuousTransformationRule<U1, T, U2, R> = object : ContinuousTransformationRule<U1, T, U2, R> {
-            override fun computeProduction(amount: T): R = with(productionAlgebra) {
+            override fun computeProduction(amount: PerSecond<U1, T>): PerSecond<U2, R> = with(productionAlgebra) {
                 production * amount.value
             }
 
-            override fun computeConsumption(numeric: Numeric<U2>): Numeric<U1> =
-                Numeric(numeric.value / production.value)
+            override fun computeConsumption(numeric: AmountPerSecond<U2>): AmountPerSecond<U1> =
+                AmountPerSecond(numeric.value / production.value)
 
         }
     }
 }
 
-public class ContinuousTransformer<U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>>(
+public class ContinuousTransformer<U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U1, T>,
     override val producerAlgebra: AmountAlgebra<U2, R>,
     public val rule: ContinuousTransformationRule<U1, T, U2, R>,
 ) : ModelConstructor(context), ContinuousProducerInterface<U2, R>, ContinuousConsumerInterface<U1, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
-    override val consumerRequest: LateBindDeviceState<Numeric<U2>> = LateBindDeviceState(Numeric.zero())
+    override val supplyRequest: LateBindDeviceState<PerSecond<U1, T>> =
+        LateBindDeviceState(consumerAlgebra.zero.perSecond)
+    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U2>> = LateBindDeviceState(PerSecond.zero())
 
-    override val consumation: DeviceState<T> = combineState(supplyRequest, consumerRequest) { supply, consume ->
-        with(consumerAlgebra) {
-            supply.coerceValueIn(consumerAlgebra.zero..rule.computeConsumption(consume))
+    override val consumation: DeviceState<PerSecond<U1, T>> =
+        combineState(supplyRequest, consumerRequest) { supply, consume ->
+            with(consumerAlgebra) {
+                supply.coerceValueIn(consumerAlgebra.zero..rule.computeConsumption(consume))
+            }
         }
-    }
 
-    override val consumationCapacity: DeviceState<Numeric<U1>> = mapState(consumerRequest) {
+    override val consumationCapacity: DeviceState<AmountPerSecond<U1>> = mapState(consumerRequest) {
         rule.computeConsumption(it)
     }
 
-    override val production: DeviceState<R> = mapState(consumation) { rule.computeProduction(it) }
+    override val production: DeviceState<PerSecond<U2, R>> = mapState(consumation) { rule.computeProduction(it) }
 
-    override val productionCapacity: DeviceState<R> = mapState(supplyRequest) {
+    override val productionCapacity: DeviceState<PerSecond<U2, R>> = mapState(supplyRequest) {
         rule.computeProduction(it)
     }
 }
 
-public fun <U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>> ContinuousFlowModel.transformer(
+public fun <U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>> ContinuousFlowModel.transformer(
     consumerAlgebra: AmountAlgebra<U1, T>,
     producerAlgebra: AmountAlgebra<U2, R>,
     rule: ContinuousTransformationRule<U1, T, U2, R>,
 ): ContinuousTransformer<U1, T, U2, R> = model(ContinuousTransformer(context, consumerAlgebra, producerAlgebra, rule))
 
-public fun <U1 : UnitsOfMeasurement, T : Amount<U1>, U2 : UnitsOfMeasurement, R : Amount<U2>> ContinuousFlowModel.linearTransformer(
+public fun <U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>> ContinuousFlowModel.linearTransformer(
     consumerAlgebra: AmountAlgebra<U1, T>,
     producerAlgebra: AmountAlgebra<U2, R>,
-    production: R
+    production: PerSecond<U2, R>
 ): ContinuousTransformer<U1, T, U2, R> = model(
     ContinuousTransformer(
         context = context,

@@ -7,7 +7,7 @@ description = """
     A low-code constructor for composite devices simulation
 """.trimIndent()
 
-kscience{
+kscience {
     jvm()
     js()
     native()
@@ -20,11 +20,17 @@ kscience{
         api(projects.simulationKt)
     }
 
-    commonTest{
+    commonTest {
         implementation(spclibs.logback.classic)
     }
 }
 
-readme{
+readme {
     maturity = space.kscience.gradle.Maturity.PROTOTYPE
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
 }

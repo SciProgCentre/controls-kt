@@ -45,14 +45,14 @@ private class EnrichmentFacility(
     context: Context,
 ) : ContinuousFlowModel(context) {
 
-    val mixture = MixtureAlgebra(Kilograms, Mixture.ofFractions(component1 to 1.0, component2 to 1.0))
+    val mixture = MixtureAlgebra(Kilograms)
 
-    val productionValue = MutableDeviceState(Numeric<Kilograms>(1.0))
+    val productionValue = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
 
     val production = productionValue.map {
         with(mixture) {
-            one * it.value
-        }
+            Mixture.ofFractions<Kilograms>(component1 to 1.0, component2 to 1.0) * it.value
+        }.perSecond
     }
 
     val producer = producer(mixture, production)
@@ -63,26 +63,32 @@ private class EnrichmentFacility(
 
     private class MyMixtureSeparationRule(
         val fractions: Map<MixtureComponent, Map<String, Double>>,
-    ) : SeparationRule<Kilograms, Mixture<Kilograms, Numeric<Kilograms>>> {
+    ) : SeparationRule<Kilograms, Mixture<Kilograms, NumericAmount<Kilograms>>> {
         override val productionKeys: Collection<String> = fractions.flatMap { it.value.keys }.distinct()
 
-        private class TaggedFraction(val component: MixtureComponent, val output: String, val value: Numeric<Kilograms>)
+        private class TaggedFraction(
+            val component: MixtureComponent,
+            val output: String,
+            val value: NumericAmount<Kilograms>
+        )
 
-        override fun forward(input: Mixture<Kilograms, Numeric<Kilograms>>): Map<String, Mixture<Kilograms, Numeric<Kilograms>>> {
-            val entries = input.components.entries.flatMap { (component, inputValue) ->
+        override fun forward(input: PerSecond<Kilograms, Mixture<Kilograms, NumericAmount<Kilograms>>>): Map<String, PerSecond<Kilograms, Mixture<Kilograms, NumericAmount<Kilograms>>>> {
+            val entries = input.valuePerSecond.components.entries.flatMap { (component, inputValue) ->
                 fractions[component]?.map { (key, fraction) ->
                     TaggedFraction(component, key, inputValue * fraction)
                 } ?: emptyList()
             }
 
             return entries.groupBy { it.output }.mapValues { (outputKey, fractions) ->
-                Mixture(fractions.groupBy { it.component }
-                    .mapValues { Numeric(it.value.sumOf { item -> item.value.value }) })
+                PerSecond(
+                    Mixture(fractions.groupBy { it.component }
+                        .mapValues { NumericAmount(it.value.sumOf { item -> item.value.value }) })
+                )
             }
         }
 
-        override fun backward(output: Map<String, Numeric<Kilograms>>): Numeric<Kilograms> =
-            Numeric(output.values.sumOf { it.value })
+        override fun backward(output: Map<String, AmountPerSecond<Kilograms>>): AmountPerSecond<Kilograms> =
+            AmountPerSecond(output.values.sumOf { it.value })
 
     }
 
@@ -107,11 +113,11 @@ private class EnrichmentFacility(
         mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 200.milliseconds))
     }
 
-    val discard = consumer(mixture, DeviceState(Numeric(2.0))).apply {
+    val discard = consumer(mixture, DeviceState(AmountPerSecond(2.0))).apply {
         connectProducer(separator.asProducer(discardKey))
     }
 
-    val consumption = MutableDeviceState<Numeric<Kilograms>>(Numeric(2.0))
+    val consumption = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
     val consumer = consumer(mixture, consumption).apply {
         connectProducer(separator.asProducer(productionKey))
     }
@@ -148,26 +154,26 @@ fun main() {
                     first(200.dp) {
                         Column(modifier = Modifier.background(color = Color.LightGray).fillMaxHeight().fillMaxWidth()) {
                             model.displayState("Source", model.producer.production) {
-                                Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
+                                Text("${it.valuePerSecond[EnrichmentFacility.component1]?.value}, ${it.valuePerSecond[EnrichmentFacility.component2]?.value}")
                             }
 
                             model.displayState("Production", model.consumer.consumation) {
-                                Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
+                                Text("${it.valuePerSecond[EnrichmentFacility.component1]?.value}, ${it.valuePerSecond[EnrichmentFacility.component2]?.value}")
                             }
 
                             model.displayState("Refuse", model.discard.consumation) {
-                                Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
+                                Text("${it.valuePerSecond[EnrichmentFacility.component1]?.value}, ${it.valuePerSecond[EnrichmentFacility.component2]?.value}")
                             }
 
                             model.displayState(
                                 "Feedback",
                                 model.mixer.individualConsumation[EnrichmentFacility.feedbackKey]!!
                             ) {
-                                Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
+                                Text("${it.valuePerSecond[EnrichmentFacility.component1]?.value}, ${it.valuePerSecond[EnrichmentFacility.component2]?.value}")
                             }
 
                             model.displayState("Mixer production", model.mixer.production) {
-                                Text("${it[EnrichmentFacility.component1]?.value}, ${it[EnrichmentFacility.component2]?.value}")
+                                Text("${it.valuePerSecond[EnrichmentFacility.component1]?.value}, ${it.valuePerSecond[EnrichmentFacility.component2]?.value}")
                             }
 
                             model.slider("Production", model.productionValue, 0f..4f)
@@ -194,7 +200,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.consumer.consumation.map {
-                                        it.components[EnrichmentFacility.component1] ?: Numeric(0.0)
+                                        it.valuePerSecond.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
@@ -203,7 +209,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.consumer.consumation.map {
-                                        it.components[EnrichmentFacility.component2] ?: Numeric(0.0)
+                                        it.valuePerSecond.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
@@ -213,7 +219,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.producer.production.map {
-                                        it.components[EnrichmentFacility.component1] ?: Numeric(0.0)
+                                        it.valuePerSecond.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,
@@ -222,7 +228,7 @@ fun main() {
                                 PlotNumericState(
                                     context = context,
                                     state = model.producer.production.map {
-                                        it.components[EnrichmentFacility.component2] ?: Numeric(0.0)
+                                        it.valuePerSecond.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
                                     },
                                     maxAge = maxAge,
                                     sampling = 500.milliseconds,

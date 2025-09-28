@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.map
 import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.map
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 
 /**
@@ -58,9 +58,9 @@ public fun <T : Comparable<T>> MutableRangeState(
 public fun <U : UnitsOfMeasurement> MutableRangeState(
     initialValue: Double,
     range: ClosedRange<Double>,
-): MutableRangeState<Numeric<U>> = MutableRangeState(
-    initialValue = Numeric(initialValue),
-    range = Numeric<U>(range.start)..Numeric<U>(range.endInclusive)
+): MutableRangeState<NumericAmount<U>> = MutableRangeState(
+    initialValue = NumericAmount(initialValue),
+    range = NumericAmount<U>(range.start)..NumericAmount<U>(range.endInclusive)
 )
 
 

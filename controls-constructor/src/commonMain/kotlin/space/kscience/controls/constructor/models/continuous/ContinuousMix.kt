@@ -25,18 +25,18 @@ public enum class JoinManagementStrategy {
  * of available material discrete across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
  */
-public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
+public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val supplyKeys: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
 ) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero())
+    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
 
 
-    public val supplyRequest: Map<String, LateBindDeviceState<T>> = supplyKeys.associateWith {
-        LateBindDeviceState(producerAlgebra.zero)
+    public val supplyRequest: Map<String, LateBindDeviceState<PerSecond<U, T>>> = supplyKeys.associateWith {
+        LateBindDeviceState(producerAlgebra.zero.perSecond)
     }
 
 
@@ -47,17 +47,17 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
 
     // trick with casts is needed for reification to work
     @Suppress("UNCHECKED_CAST")
-    private val jointSupplyRequest: DeviceState<Map<String, T>> =
+    private val jointSupplyRequest: DeviceState<Map<String, PerSecond<U, T>>> =
         combineState(supplyRequest) { it }
 
 
-    public val consumation: DeviceState<Map<String, T>> = combineState(
+    public val consumation: DeviceState<Map<String, PerSecond<U, T>>> = combineState(
         consumerRequest, jointSupplyRequest
-    ) { consumerRequest, supplyRequest: Map<String, T> ->
+    ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
 
         with(producerAlgebra) {
-            val totalInput: T = sum(supplyRequest.values)
-            val totalOutput: Numeric<U> = consumerRequest
+            val totalInput: PerSecond<U, T> = sum(supplyRequest.values)
+            val totalOutput: AmountPerSecond<U> = consumerRequest
 
             when (joinManagementStrategy) {
                 JoinManagementStrategy.PROPORTIONAL -> {
@@ -72,7 +72,7 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
                 }
 
                 JoinManagementStrategy.ORDERED -> buildMap {
-                    var cumSum = zero
+                    var cumSum = zero.perSecond
                     for ((key, value) in supplyRequest) {
                         val sumAfter = (cumSum + value).coerceValueIn(cumSum..totalOutput)
                         if (sumAfter.value == totalOutput.value) {
@@ -92,40 +92,28 @@ public class ContinuousMix<U : UnitsOfMeasurement, T : Amount<U>>(
     /**
      * Represents a mapping of individual consumptions keyed by a string representing the associated device or identifier.
      */
-    public val individualConsumation: Map<String, DeviceState<T>> =
+    public val individualConsumation: Map<String, DeviceState<PerSecond<U, T>>> =
         supplyRequest.keys.associateWith { key ->
             mapState(consumation) { it[key]!! }
         }
 
-    override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supply: Map<String, T> ->
-        producerAlgebra.sum(supply.values)
-    }
+    override val productionCapacity: DeviceState<PerSecond<U, T>> =
+        mapState(jointSupplyRequest) { supply: Map<String, PerSecond<U, T>> ->
+            with(producerAlgebra) {
+                sum(supply.values)
+            }
+        }
 
-    override val production: DeviceState<T> = mapState(consumation) { consume ->
-        producerAlgebra.sum(consume.values)
+    override val production: DeviceState<PerSecond<U, T>> = mapState(consumation) { consume ->
+        with(producerAlgebra) {
+            sum(consume.values)
+        }
     }
 
 
     override fun toString(): String =
         "ContinuousMix(strategy=$joinManagementStrategy, consumation=${consumation.value}, production=${production.value})"
 }
-
-/**
- * Creates a continuous join model instance that is responsible for managing material discrete by combining supply
- * and consumer requests with a specific join management strategy.
- *
- * @param context The context in which the material discrete is managed.
- * @param outputNames A collection of output state identifiers representing the suppliers.
- * @param joinManagementStrategy The strategy used to distribute available supply to consumers. Defaults to
- * JoinManagementStrategy.PROPORTIONAL.
- * @return A ContinuousJoin instance configured with numeric values coupled to units of measurement.
- */
-public fun <U : UnitsOfMeasurement> ContinuousMix(
-    context: Context,
-    outputNames: Collection<String>,
-    joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL
-): ContinuousMix<U, Numeric<U>> =
-    ContinuousMix(context, NumericAmountAlgebra(), outputNames, joinManagementStrategy)
 
 /**
  * Creates a consumer instance for a specific supply key from a continuous mix instance.
@@ -135,36 +123,41 @@ public fun <U : UnitsOfMeasurement> ContinuousMix(
  * based on its capacity and the corresponding supply request.
  * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
  */
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
     key: String
-): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<T> ->
+): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<PerSecond<U, T>> ->
     val consumation = individualConsumation[key]!!
 
     object : ContinuousConsumerInterface<U, T> {
         override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
 
-        override val consumation: DeviceState<T> get() = consumation
-        override val consumationCapacity: DeviceState<Numeric<U>> get() = consumation.asNumeric()
-        override val supplyRequest: LateBindDeviceState<T> get() = input
+        override val consumation: DeviceState<PerSecond<U, T>> get() = consumation
+
+        override val consumationCapacity: DeviceState<AmountPerSecond<U>>
+            get() = DeviceState.map(consumation) {
+                AmountPerSecond<U>(consumation.value.value)
+            }
+
+        override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> get() = input
     }
 } ?: error("No supplier with key $key found")
 
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
     producer: ContinuousProducerInterface<U, T>
 ) {
     ContinuousFlowModel.connect(producer, asConsumer(key))
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
-    producerCapacity: DeviceState<T>
+    producerCapacity: DeviceState<PerSecond<U, T>>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix(
+public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousMix(
     producers: Map<String, ContinuousProducer<U, T>>,
     consumer: ContinuousConsumer<U, T>,
     algebra: AmountAlgebra<U, T> = consumer.consumerAlgebra,
@@ -180,7 +173,7 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousMix(
     }
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.mix(
+public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.mix(
     algebra: AmountAlgebra<U, T>,
     supplyKeys: Collection<String>,
     joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,

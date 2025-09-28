@@ -6,10 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.models.continuous.*
-import space.kscience.controls.constructor.units.CubicMeters
-import space.kscience.controls.constructor.units.Kilograms
-import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.NumericAmountAlgebra
+import space.kscience.controls.constructor.units.*
 import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Global
@@ -42,10 +39,10 @@ class ContinuousFlowTest {
     @Test
     fun producerConsumer() = runTest {
 
-        val productionCapacity = MutableDeviceState(Numeric<Kilograms>(4.0))
-        val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
+        val productionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(4.0))
+        val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
 
-        val consumer = ContinuousConsumer(Global, consumationCapacity)
+        val consumer = ContinuousConsumer(Global, Kilograms, consumationCapacity)
 
         val producer = ContinuousProducer.fromConsumer(consumer, productionCapacity)
 
@@ -53,12 +50,12 @@ class ContinuousFlowTest {
         assertEquals(1.0, producer.production.value.value)
         assertEquals(1.0, consumer.consumation.value.value)
 
-        consumationCapacity.value = Numeric(2.0)
+        consumationCapacity.value = AmountPerSecond(2.0)
 
         assertEquals(2.0, producer.production.value.value)
         assertEquals(2.0, consumer.consumation.value.value)
 
-        consumationCapacity.value = Numeric(5.0)
+        consumationCapacity.value = AmountPerSecond(5.0)
 
         assertEquals(4.0, producer.production.value.value)
         assertEquals(4.0, consumer.consumation.value.value)
@@ -76,26 +73,26 @@ class ContinuousFlowTest {
     fun mix() = runTest {
 
         val model = object : ContinuousFlowModel(context) {
-            val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
-            val aProducer = producer(aProduction)
+            val aProduction = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val aProducer = producer(Kilograms, aProduction)
 
-            val bProduction = MutableDeviceState(Numeric<Kilograms>(2.0))
-            val bProducer = producer(bProduction)
+            val bProduction = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val bProducer = producer(Kilograms, bProduction)
 
-            val cProduction = MutableDeviceState(Numeric<Kilograms>(3.0))
-            val cProducer = producer(cProduction)
+            val cProduction = MutableDeviceState(AmountPerSecond<Kilograms>(3.0))
+            val cProducer = producer(Kilograms, cProduction)
 
-            val abcConsumation = MutableDeviceState(Numeric<Kilograms>(8.0))
-            val consumer = consumer(abcConsumation)
+            val abcConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(8.0))
+            val consumer = consumer(Kilograms, abcConsumation)
 
-            val joinAB = ContinuousMix<Kilograms>(context = Global, listOf("a", "b"))
+            val joinAB = ContinuousMix(context = Global, Kilograms, listOf("a", "b"))
 
             init {
                 joinAB.connectProducer("a", aProducer)
                 joinAB.connectProducer("b", bProducer)
             }
 
-            val joinABC = ContinuousMix<Kilograms>(context = Global, listOf("ab", "c"))
+            val joinABC = ContinuousMix(context = Global, Kilograms, listOf("ab", "c"))
 
             init {
                 joinABC.connectProducer("ab", joinAB)
@@ -108,23 +105,23 @@ class ContinuousFlowTest {
             joinABC.production.printEach(this@runTest, "joinABC.production")
             joinABC.consumation.printEach(this@runTest, "joinABC.consumation")
 
-            assertEquals(Numeric(6.0), joinABC.production.value)
+            assertEquals(AmountPerSecond(6.0), joinABC.production.value)
             assertEquals(2.0, bProducer.production.value.value)
             assertEquals(1.0, joinAB.individualConsumation["a"]?.value?.value)
 
-            abcConsumation.value = Numeric(3.0)
+            abcConsumation.value = AmountPerSecond(3.0)
 
-            assertEquals(Numeric(1.5), joinAB.production.value)
+            assertEquals(AmountPerSecond(1.5), joinAB.production.value)
             assertEquals(1.0, bProducer.production.value.value)
             assertEquals(0.5, joinAB.individualConsumation["a"]?.value?.value)
 
-            abcConsumation.value = Numeric(4.0)
-            aProduction.value = Numeric(7.0)
+            abcConsumation.value = AmountPerSecond(4.0)
+            aProduction.value = AmountPerSecond(7.0)
 
             assertEquals(3.0, joinAB.production.value.value, 1e-5)
             assertEquals(2.33333, joinAB.individualConsumation["a"]!!.value.value, 1e-3)
 
-            abcConsumation.value = Numeric(15.0)
+            abcConsumation.value = AmountPerSecond(15.0)
 
             assertEquals(9.0, joinAB.production.value.value, 1e-5)
             assertEquals(7.0, joinAB.individualConsumation["a"]?.value?.value)
@@ -136,19 +133,18 @@ class ContinuousFlowTest {
     fun buffer() = runTest {
 
         val model = object : ContinuousFlowModel(context) {
-            val algebra = NumericAmountAlgebra<Kilograms>()
-            val bufferCapacity = Numeric<Kilograms>(10.0)
+            val bufferCapacity = NumericAmount<Kilograms>(10.0)
 
-            val productionCapacity = MutableDeviceState(Numeric<Kilograms>(2.0))
-            val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
+            val productionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
 
-            val producer = producer(productionCapacity)
+            val producer = producer(Kilograms, productionCapacity)
 
-            val buffer = buffer(algebra, bufferCapacity).apply {
+            val buffer = buffer(Kilograms, bufferCapacity).apply {
                 connectProducer(producer)
             }
 
-            val consumer = consumer(consumationCapacity).apply {
+            val consumer = consumer(Kilograms, consumationCapacity).apply {
                 connectProducer(buffer)
             }
         }.runSimulation {
@@ -166,8 +162,8 @@ class ContinuousFlowTest {
             assertEquals(1.0, producer.production.value.value)
             assertEquals(1.0, consumer.consumation.value.value)
 
-            productionCapacity.value = Numeric(1.0)
-            consumationCapacity.value = Numeric(2.0)
+            productionCapacity.value = AmountPerSecond(1.0)
+            consumationCapacity.value = AmountPerSecond(2.0)
 
             assertEquals(1.0, producer.production.value.value)
             assertEquals(2.0, consumer.consumation.value.value)
@@ -182,21 +178,24 @@ class ContinuousFlowTest {
     @Test
     fun reaction() = runTest {
         val model = object : ContinuousFlowModel(context) {
-            val algebra = NumericAmountAlgebra<Kilograms>()
 
-            val aProductionCapacity = MutableDeviceState(Numeric<Kilograms>(6.0))
-            val bProductionCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
-            val consumationCapacity = MutableDeviceState(Numeric<Kilograms>(1.0))
+            val aProductionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(6.0))
+            val bProductionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
 
-            val aProducer = producer(aProductionCapacity)
-            val bProducer = producer(bProductionCapacity)
+            val aProducer = producer(Kilograms, aProductionCapacity)
+            val bProducer = producer(Kilograms, bProductionCapacity)
 
-            val reactor = reaction(algebra, formula = mapOf("a" to algebra.one, "b" to algebra.one)).apply {
+            val reactor = reaction(
+                algebra = Kilograms,
+                formula = mapOf("a" to 1, "b" to 1),
+                production = 1.kilograms.perSecond
+            ).apply {
                 connectProducer("a", aProducer)
                 connectProducer("b", bProducer)
             }
 
-            val consumer = consumer(consumationCapacity).apply {
+            val consumer = consumer(Kilograms, consumationCapacity).apply {
                 connectProducer(reactor)
             }
         }.runSimulation {
@@ -205,7 +204,7 @@ class ContinuousFlowTest {
             assertEquals(1.0, bProducer.production.value.value)
             assertEquals(1.0, consumer.consumation.value.value)
 
-            aProductionCapacity.value = Numeric(0.5)
+            aProductionCapacity.value = AmountPerSecond(0.5)
 
             assertEquals(0.5, aProducer.production.value.value)
             assertEquals(0.5, bProducer.production.value.value)
@@ -216,16 +215,16 @@ class ContinuousFlowTest {
     @Test
     fun transformation() = runTest {
         val model = object : ContinuousFlowModel(context) {
-            val output = MutableDeviceState(Numeric<Kilograms>(2.0))
-            val input = MutableDeviceState(Numeric<CubicMeters>(1.0))
+            val output = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val input = MutableDeviceState(AmountPerSecond<CubicMeters>(1.0))
 
-            val producer = producer(input)
-            val consumer = consumer(output)
+            val producer = producer(CubicMeters, input)
+            val consumer = consumer(Kilograms, output)
 
             val transformer = linearTransformer(
-                consumerAlgebra = NumericAmountAlgebra<CubicMeters>(),
-                producerAlgebra = NumericAmountAlgebra<Kilograms>(),
-                production = Numeric<Kilograms>(0.1)
+                consumerAlgebra = CubicMeters,
+                producerAlgebra = Kilograms,
+                production = AmountPerSecond(0.1)
             )
 
             init {
@@ -238,7 +237,7 @@ class ContinuousFlowTest {
             assertEquals(0.1, consumer.consumation.value.value)
             assertEquals(1.0, producer.production.value.value)
 
-            input.value = Numeric(30.0)
+            input.value = AmountPerSecond(30.0)
 
             assertEquals(2.0, transformer.production.value.value)
             assertEquals(2.0, consumer.consumation.value.value)
@@ -249,12 +248,12 @@ class ContinuousFlowTest {
     @Test
     fun separation() = runTest {
         val model = object : ContinuousFlowModel(context) {
-            val production = MutableDeviceState(Numeric<Kilograms>(4.0))
-            val aConsumation = MutableDeviceState(Numeric<Kilograms>(2.0))
-            val bConsumation = MutableDeviceState(Numeric<Kilograms>(2.0))
-            val cConsumation = MutableDeviceState(Numeric<Kilograms>(1.0))
+            val production = MutableDeviceState(AmountPerSecond<Kilograms>(4.0))
+            val aConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val bConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val cConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
 
-            val producer = producer(production)
+            val producer = producer(Kilograms, production)
 
             val splitter1 = separator(
                 algebra = Kilograms,
@@ -263,7 +262,7 @@ class ContinuousFlowTest {
                 connectProducer(producer)
             }
 
-            val aConsumer = consumer(aConsumation).apply {
+            val aConsumer = consumer(Kilograms, aConsumation).apply {
                 connectProducer(splitter1.asProducer("a"))
             }
 
@@ -274,11 +273,11 @@ class ContinuousFlowTest {
                 connectProducer(splitter1.asProducer("bc"))
             }
 
-            val bConsumer = consumer(bConsumation).apply {
+            val bConsumer = consumer(Kilograms, bConsumation).apply {
                 connectProducer(splitter2.asProducer("b"))
             }
 
-            val cConsumer = consumer(cConsumation).apply {
+            val cConsumer = consumer(Kilograms, cConsumation).apply {
                 connectProducer(splitter2.asProducer("c"))
             }
         }.runSimulation {
@@ -288,7 +287,7 @@ class ContinuousFlowTest {
             assertEquals(1.0, bConsumer.consumation.value.value)
             assertEquals(1.0, cConsumer.consumation.value.value)
 
-            aConsumation.value = Numeric(1.0)
+            aConsumation.value = AmountPerSecond(1.0)
 
             assertEquals(2.0, producer.production.value.value)
             assertEquals(1.0, aConsumer.consumation.value.value)
