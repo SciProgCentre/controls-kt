@@ -47,7 +47,7 @@ Example view of a demo:
 ### [controls-constructor](controls-constructor)
 > A low-code constructor for composite devices simulation
 >
-> **Maturity**: PROTOTYPE
+> **Maturity**: EXPERIMENTAL
 
 ### [controls-core](controls-core)
 > Core interfaces for building a device server

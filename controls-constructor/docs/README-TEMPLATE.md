@@ -46,23 +46,9 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 ## Features:
 
+${features}
 
-
-## Artifact:
-
-The Maven coordinates of this project are `space.kscience:controls-constructor:0.4.0-dev-8`.
-
-**Gradle Kotlin DSL:**
-```kotlin
-repositories {
-    maven("https://repo.kotlin.link")
-    mavenCentral()
-}
-
-dependencies {
-    implementation("space.kscience:controls-constructor:0.4.0-dev-8")
-}
-```
+${artifact}
 
 ## Notes
 

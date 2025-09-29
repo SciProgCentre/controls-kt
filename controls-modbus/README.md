@@ -13,7 +13,7 @@ A plugin for Controls-kt device server on top of modbus-rtu/modbus-tcp protocols
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-modbus:0.4.0-dev-7`.
+The Maven coordinates of this project are `space.kscience:controls-modbus:0.4.0-dev-8`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -23,6 +23,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-modbus:0.4.0-dev-7")
+    implementation("space.kscience:controls-modbus:0.4.0-dev-8")
 }
 ```

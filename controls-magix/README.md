@@ -12,7 +12,7 @@ Magix service for binding controls devices (both as RPC client and server)
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-magix:0.4.0-dev-7`.
+The Maven coordinates of this project are `space.kscience:controls-magix:0.4.0-dev-8`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -22,6 +22,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-magix:0.4.0-dev-7")
+    implementation("space.kscience:controls-magix:0.4.0-dev-8")
 }
 ```
