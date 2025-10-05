@@ -30,7 +30,7 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val supplyKeys: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
+) : ModelConstructor(context), ContinuousProducer<U, T> {
 
     override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
 
@@ -119,16 +119,16 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
  * Creates a consumer instance for a specific supply key from a continuous mix instance.
  *
  * @param key The unique identifier of the supply for which the consumer is to be created.
- * @return A [ContinuousConsumer] instance associated with the specified key, capable of consuming material discrete
+ * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material discrete
  * based on its capacity and the corresponding supply request.
  * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
  */
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
     key: String
-): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<PerSecond<U, T>> ->
+): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<PerSecond<U, T>> ->
     val consumation = individualConsumation[key]!!
 
-    object : ContinuousConsumerInterface<U, T> {
+    object : ContinuousConsumer<U, T> {
         override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
 
         override val consumation: DeviceState<PerSecond<U, T>> get() = consumation
@@ -145,7 +145,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
-    producer: ContinuousProducerInterface<U, T>
+    producer: ContinuousProducer<U, T>
 ) {
     ContinuousFlowModel.connect(producer, asConsumer(key))
 }
@@ -158,10 +158,10 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProduce
 }
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousMix(
+    context: Context,
     producers: Map<String, ContinuousProducer<U, T>>,
     consumer: ContinuousConsumer<U, T>,
     algebra: AmountAlgebra<U, T> = consumer.consumerAlgebra,
-    context: Context = producers.values.first().context,
 ): ContinuousMix<U, T> = ContinuousMix<U, T>(
     context = context,
     producerAlgebra = algebra,

@@ -42,7 +42,7 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
     public val rule: SeparationRule<U, T>,
-) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
+) : ModelConstructor(context), ContinuousConsumer<U, T> {
 
     override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> =
         LateBindDeviceState(consumerAlgebra.zero.perSecond)
@@ -105,8 +105,8 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousSeparate<U, T>.asProducer(
     key: String
-): ContinuousProducerInterface<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
-    object : ContinuousProducerInterface<U, T> {
+): ContinuousProducer<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
+    object : ContinuousProducer<U, T> {
         override val producerAlgebra: AmountAlgebra<U, T> get() = this@asProducer.consumerAlgebra
         override val production: DeviceState<PerSecond<U, T>> get() = individualProduction[key]!!
         override val productionCapacity: DeviceState<PerSecond<U, T>> = individualProductionCapacity[key]!!

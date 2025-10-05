@@ -18,7 +18,7 @@ public value class PerSecond<U : UnitsOfMeasurement, T : Amount<U>>(public val v
     }
 }
 
-public val <U: UnitsOfMeasurement, T: Amount<U>> T.perSecond: PerSecond<U, T> get() = PerSecond(this)
+public val <U : UnitsOfMeasurement, T : Amount<U>> T.perSecond: PerSecond<U, T> get() = PerSecond(this)
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> MetaConverter.Companion.perSecond(
     converter: MetaConverter<T>
@@ -44,9 +44,10 @@ public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.minu
 }
 
 context(algebra: AmountAlgebra<U, T>)
-public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.unaryMinus(): PerSecond<U, T> = with(algebra) {
-    PerSecond(-valuePerSecond)
-}
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.unaryMinus(): PerSecond<U, T> =
+    with(algebra) {
+        PerSecond(-valuePerSecond)
+    }
 
 context(algebra: AmountAlgebra<U, T>)
 public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.times(
@@ -56,9 +57,10 @@ public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.time
 }
 
 context(algebra: AmountAlgebra<U, T>)
-public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.div(scale: Number): PerSecond<U, T> = with(algebra) {
-    PerSecond(valuePerSecond / scale.toDouble())
-}
+public operator fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.div(scale: Number): PerSecond<U, T> =
+    with(algebra) {
+        PerSecond(valuePerSecond / scale.toDouble())
+    }
 
 context(algebra: AmountAlgebra<U, T>)
 public operator fun <U : UnitsOfMeasurement, T : Amount<U>> T.div(duration: Duration): PerSecond<U, T> = with(algebra) {
@@ -83,18 +85,34 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.coerceValueIn
     PerSecond(valuePerSecond.coerceValueIn(range))
 }
 
-context(algebra: AmountAlgebra<U, T>)
-public fun <U : UnitsOfMeasurement, T : Amount<U>> sum(args: Iterable<PerSecond<U, T>>): PerSecond<U, T> = with(algebra) {
-    PerSecond(args.fold(zero) { acc, t -> acc + t.valuePerSecond })
-}
+public fun <U : UnitsOfMeasurement> AmountPerSecond<U>.coerceValueIn(
+    range: ClosedRange<Amount<U>>
+): AmountPerSecond<U> = AmountPerSecond(valuePerSecond.value.coerceIn(range.start.value, range.endInclusive.value))
 
 context(algebra: AmountAlgebra<U, T>)
-public fun <U : UnitsOfMeasurement, T : Amount<U>> minOf(first: PerSecond<U,T>, second: PerSecond<U,T>): PerSecond<U,T> =
-    if (first < second) first else second
+public fun <U : UnitsOfMeasurement, T : Amount<U>> PerSecond<U, T>.coerceValueAtMost(max: Amount<U>): PerSecond<U, T> =
+    coerceValueIn(algebra.zero..max)
+
+public fun <U : UnitsOfMeasurement> AmountPerSecond<U>.coerceValueAtMost(max: Amount<U>): AmountPerSecond<U> =
+    AmountPerSecond(valuePerSecond.value.coerceAtMost(max.value))
 
 context(algebra: AmountAlgebra<U, T>)
-public fun <U : UnitsOfMeasurement, T : Amount<U>> maxOf(first: PerSecond<U,T>, second: PerSecond<U,T>): PerSecond<U,T> =
-    if (first > second) first else second
+public fun <U : UnitsOfMeasurement, T : Amount<U>> sum(args: Iterable<PerSecond<U, T>>): PerSecond<U, T> =
+    with(algebra) {
+        PerSecond(args.fold(zero) { acc, t -> acc + t.valuePerSecond })
+    }
+
+context(algebra: AmountAlgebra<U, T>)
+public fun <U : UnitsOfMeasurement, T : Amount<U>> minOf(
+    first: PerSecond<U, T>,
+    second: PerSecond<U, T>
+): PerSecond<U, T> = if (first < second) first else second
+
+context(algebra: AmountAlgebra<U, T>)
+public fun <U : UnitsOfMeasurement, T : Amount<U>> maxOf(
+    first: PerSecond<U, T>,
+    second: PerSecond<U, T>
+): PerSecond<U, T> = if (first > second) first else second
 
 public typealias AmountPerSecond<U> = PerSecond<U, NumericAmount<U>>
 

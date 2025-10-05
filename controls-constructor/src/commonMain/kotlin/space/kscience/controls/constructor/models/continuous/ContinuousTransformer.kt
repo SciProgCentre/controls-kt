@@ -41,7 +41,7 @@ public class ContinuousTransformer<U1 : UnitsOfMatter, T : Amount<U1>, U2 : Unit
     override val consumerAlgebra: AmountAlgebra<U1, T>,
     override val producerAlgebra: AmountAlgebra<U2, R>,
     public val rule: ContinuousTransformationRule<U1, T, U2, R>,
-) : ModelConstructor(context), ContinuousProducerInterface<U2, R>, ContinuousConsumerInterface<U1, T> {
+) : ModelConstructor(context), ContinuousProducer<U2, R>, ContinuousConsumer<U1, T> {
 
     override val supplyRequest: LateBindDeviceState<PerSecond<U1, T>> =
         LateBindDeviceState(consumerAlgebra.zero.perSecond)

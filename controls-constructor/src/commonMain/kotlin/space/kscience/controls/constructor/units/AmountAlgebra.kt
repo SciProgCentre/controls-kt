@@ -25,6 +25,11 @@ public interface AmountAlgebra<U : UnitsOfMeasurement, T : Amount<U>> {
     }
 }
 
+context(algebra: AmountAlgebra<U, T>)
+public fun <U : UnitsOfMeasurement, T : Amount<U>> T.coerceValueAtMost(max: Amount<U>): T = with(algebra) {
+    coerceValueIn(algebra.zero..max)
+}
+
 //bridge methods
 
 context(algebra: AmountAlgebra<U, T>)

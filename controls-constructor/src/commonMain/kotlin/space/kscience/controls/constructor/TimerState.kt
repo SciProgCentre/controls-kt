@@ -36,5 +36,5 @@ public class TimerState(
 
     override val value: Instant get() = time.value
 
-    override fun toString(): String = "TimerState(tick=$tick)"
+    override fun toString(): String = "TimerState(time=${time.value}, tick=$tick)"
 }

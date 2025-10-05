@@ -44,8 +44,9 @@ class ContinuousFlowTest {
 
         val consumer = ContinuousConsumer(Global, Kilograms, consumationCapacity)
 
-        val producer = ContinuousProducer.fromConsumer(consumer, productionCapacity)
-
+        val producer = ContinuousProducer(Global, Kilograms, productionCapacity).apply {
+            connectConsumer(consumer)
+        }
 
         assertEquals(1.0, producer.production.value.value)
         assertEquals(1.0, consumer.consumation.value.value)

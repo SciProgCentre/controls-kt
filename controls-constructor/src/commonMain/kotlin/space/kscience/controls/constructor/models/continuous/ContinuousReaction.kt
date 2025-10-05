@@ -75,7 +75,7 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val reaction: ReactionRule<U, T>,
-) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
+) : ModelConstructor(context), ContinuousProducer<U, T> {
 
     override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
     public val supplyRequest: Map<String, LateBindDeviceState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith {
@@ -161,14 +161,14 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
  * Creates a consumer instance for a specific supply key from a continuous mix instance.
  *
  * @param key The unique identifier of the supply for which the consumer is to be created.
- * @return A [ContinuousConsumer] instance associated with the specified key, capable of consuming material discrete
+ * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material discrete
  * based on its capacity and the corresponding supply request.
  * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
  */
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousReaction<U, T>.asConsumer(
     key: String
-): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input ->
-    object : ContinuousConsumerInterface<U, T> {
+): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
+    object : ContinuousConsumer<U, T> {
         override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
 
         override val consumation: DeviceState<PerSecond<U, T>> get() = individualConsumation[key]!!
@@ -180,7 +180,7 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousReaction<U, T>.asConsumer
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
-    producer: ContinuousProducerInterface<U, T>
+    producer: ContinuousProducer<U, T>
 ) {
     ContinuousFlowModel.connect(producer, this.asConsumer(key))
 }

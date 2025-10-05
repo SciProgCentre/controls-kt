@@ -13,8 +13,8 @@ public abstract class ContinuousFlowModel(
 
     public companion object {
         public fun <U : UnitsOfMatter, T : Amount<U>> connect(
-            producer: ContinuousProducerInterface<U, T>,
-            consumer: ContinuousConsumerInterface<U, T>,
+            producer: ContinuousProducer<U, T>,
+            consumer: ContinuousConsumer<U, T>,
         ) {
             producer.connectConsumer(consumer.consumationCapacity)
             consumer.connectProducer(producer.productionCapacity)

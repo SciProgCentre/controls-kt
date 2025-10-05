@@ -28,16 +28,16 @@ public fun <T> DeviceState<T>.delayedBy(
 
 /**
  * Delays the emission of values from the production and productionCapacity properties of a
- * [ContinuousProducerInterface] by a specified duration.
+ * [ContinuousProducer] by a specified duration.
  *
  * @param scope The [CoroutineScope] used to manage the asynchronous operation of delaying values.
  * @param delay The duration by which the values are delayed.
- * @return A new [ContinuousProducerInterface] with production and productionCapacity values delayed by the specified duration.
+ * @return A new [ContinuousProducer] with production and productionCapacity values delayed by the specified duration.
  */
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.delayed(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.delayed(
     scope: CoroutineScope,
     delay: Duration,
-): ContinuousProducerInterface<U, T> = object : ContinuousProducerInterface<U, T> {
+): ContinuousProducer<U, T> = object : ContinuousProducer<U, T> {
 
     override val producerAlgebra: AmountAlgebra<U, T> get() = this@delayed.producerAlgebra
 
@@ -56,10 +56,10 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.
     }
 }
 
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.delayedConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.delayedConsumer(
     scope: CoroutineScope,
     delay: Duration,
-): ContinuousConsumerInterface<U, T> = object : ContinuousConsumerInterface<U, T> {
+): ContinuousConsumer<U, T> = object : ContinuousConsumer<U, T> {
     override val consumerAlgebra: AmountAlgebra<U, T> get() = this@delayedConsumer.consumerAlgebra
 
     override val consumation: DeviceState<PerSecond<U, T>> = this@delayedConsumer.consumation
@@ -75,10 +75,10 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.
     }
 }
 
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.limited(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.limited(
     scope: CoroutineScope,
     productionLimit: DeviceState<AmountPerSecond<U>>
-): ContinuousProducerInterface<U, T> = object : ContinuousProducerInterface<U, T> {
+): ContinuousProducer<U, T> = object : ContinuousProducer<U, T> {
     override val producerAlgebra: AmountAlgebra<U, T> get() = this@limited.producerAlgebra
 
     override val production: DeviceState<PerSecond<U, T>> get() = this@limited.production
@@ -101,15 +101,15 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.
     }
 }
 
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducerInterface<U, T>.limited(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.limited(
     scope: CoroutineScope,
     productionLimit: AmountPerSecond<U>
-): ContinuousProducerInterface<U, T> = limited(scope, DeviceState(productionLimit))
+): ContinuousProducer<U, T> = limited(scope, DeviceState(productionLimit))
 
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.limitedConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.limitedConsumer(
     scope: CoroutineScope,
     consumationLimit: DeviceState<AmountPerSecond<U>>
-): ContinuousConsumerInterface<U, T> = object : ContinuousConsumerInterface<U, T> {
+): ContinuousConsumer<U, T> = object : ContinuousConsumer<U, T> {
     override val consumerAlgebra: AmountAlgebra<U, T> get() = this@limitedConsumer.consumerAlgebra
 
     override val consumation: DeviceState<PerSecond<U, T>> get() = this@limitedConsumer.consumation
@@ -138,10 +138,10 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.
     }
 }
 
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumerInterface<U, T>.limitedConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.limitedConsumer(
     scope: CoroutineScope,
     consumationLimit: AmountPerSecond<U>
-): ContinuousConsumerInterface<U, T> = limitedConsumer(scope, DeviceState(consumationLimit))
+): ContinuousConsumer<U, T> = limitedConsumer(scope, DeviceState(consumationLimit))
 
 /**
  * Collects an amount over a specified duration asynchronously by integrating a flow of [PerSecond] values in a
