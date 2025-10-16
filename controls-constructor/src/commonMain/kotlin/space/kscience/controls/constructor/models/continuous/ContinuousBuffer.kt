@@ -6,6 +6,7 @@ import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 /**
  * A simulation model that represents a continuous buffer for storing a quantity of a measurable unit.
@@ -93,12 +94,16 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
         writes = listOf(content)
     ) { prev, next ->
         with(consumerAlgebra) {
-            delay(timeStep)
+            //ignore the first step if it is infinite
+            if (prev == Instant.DISTANT_PAST) return@onTimer
+            //ignore if nothing changed
+            if (prev == next) return@onTimer
+            val duration = next - prev
 
             val delta = consumation.value - production.value
 
             _content.emit(
-                (_content.value + delta * timeStep)
+                (_content.value + delta * duration)
                     .coerceValueIn(NumericAmount.zero<U>()..bufferCapacity.value)
             )
         }
