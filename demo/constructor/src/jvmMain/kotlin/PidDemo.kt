@@ -66,7 +66,7 @@ class Modulator(
 ) : DeviceConstructor(context) {
     private val clockStart = clock.now()
 
-    private val modulation = onTimer(timeStep) { _, next ->
+    private val modulation = onTimer(timeStep) { next ->
         val timeFromStart = next - clockStart
         val t = timeFromStart.toDouble(DurationUnit.SECONDS)
         target.value = NumericAmount(

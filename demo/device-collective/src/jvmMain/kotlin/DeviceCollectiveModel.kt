@@ -142,10 +142,12 @@ internal class DeviceCollectiveModel(
         // TODO move to CollectiveDeviceState
         onTimer { prev, next ->
             val delta = (next - prev)
+            require(delta >= Duration.ZERO) { "Negative time change" }
+
             state.position.value = state.position.value.moveWith(state.velocity.value, delta)
         }
 
-        result.onTimer(1.seconds) { _, _ ->
+        result.onTimer(1.seconds) {
             val envelope = Envelope {
                 data {
                     writeString(

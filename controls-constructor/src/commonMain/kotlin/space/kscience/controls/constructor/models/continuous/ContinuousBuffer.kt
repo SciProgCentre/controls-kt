@@ -32,7 +32,7 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> = LateBindDeviceState(consumerAlgebra.zero.perSecond),
     override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(AmountPerSecond.zero()),
     initialLevel: T = consumerAlgebra.zero,
-    timeStep: Duration = 1.seconds
+    externalTimer: TimerState? = null,
 ) : ModelConstructor(context, bufferCapacity, supplyRequest, consumerRequest),
     ContinuousProducer<U, T>,
     ContinuousConsumer<U, T> {
@@ -88,17 +88,16 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
+    private val timer = externalTimer ?: timer(1.seconds)
+
     private val levelChange = onTimer(
-        tick = timeStep,
+        timer = timer,
         reads = listOf(production, consumation, bufferCapacity),
         writes = listOf(content)
     ) { prev, next ->
         with(consumerAlgebra) {
-            //ignore the first step if it is infinite
-            if (prev == Instant.DISTANT_PAST) return@onTimer
-            //ignore if nothing changed
-            if (prev == next) return@onTimer
             val duration = next - prev
+            require(duration >= Duration.ZERO) { "Negative time change" }
 
             val delta = consumation.value - production.value
 
@@ -134,13 +133,13 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(
     algebra: AmountAlgebra<U, T>,
     bufferCapacity: NumericAmount<U>,
     initialLevel: T = algebra.zero,
-    timeStep: Duration = 1.seconds
+    externalTimer: TimerState? = null,
 ): ContinuousBuffer<U, T> = model(
     ContinuousBuffer(
         context = context,
         consumerAlgebra = algebra,
         bufferCapacity = DeviceState(bufferCapacity),
         initialLevel = initialLevel,
-        timeStep = timeStep
+        externalTimer = externalTimer,
     )
 )

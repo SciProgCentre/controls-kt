@@ -4,6 +4,7 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import kotlin.math.pow
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 
@@ -26,7 +27,7 @@ public class MaterialPoint(
     private var currentForce = force.value
 
     private val movement = onTimer(
-        DefaultTimer.REALTIME,
+        5.milliseconds,
         reads = setOf(velocity, position),
         writes = setOf(velocity, position)
     ) { prev, next ->

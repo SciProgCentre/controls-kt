@@ -10,6 +10,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 /**
@@ -39,7 +40,7 @@ public class StepDrive(
     public val position: DeviceState<Long> by property(MetaConverter.long, position)
 
     //FIXME round to zero problem
-    private val ticker = onTimer(reads = setOf(target, position), writes = setOf(position)) { prev, next ->
+    private val ticker = onTimer(20.milliseconds, reads = setOf(target, position), writes = setOf(position)) { prev, next ->
         val tickSpeed = speed.value
         val timeDelta = (next - prev).toDouble(DurationUnit.SECONDS)
         val ticksDelta: Long = target.value - position.value

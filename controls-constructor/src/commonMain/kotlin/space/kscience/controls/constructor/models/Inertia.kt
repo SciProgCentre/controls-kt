@@ -4,6 +4,7 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import kotlin.math.pow
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 /**
@@ -24,7 +25,7 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
 
     private var currentForce = force.value
 
-    private val movement = onTimer(DefaultTimer.REALTIME) { prev, next ->
+    private val movement = onTimer(5.milliseconds) { prev, next ->
         val dtSeconds = (next - prev).toDouble(DurationUnit.SECONDS)
 
         // compute new value based on velocity and acceleration from the previous step

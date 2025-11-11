@@ -12,6 +12,7 @@ import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /**
@@ -126,34 +127,48 @@ public fun StateContainer.timer(tick: Duration): TimerState =
     registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick))
 
 /**
- * Register a new timer and perform [block] on its change
+ * Register operations that perform [block] on timer change.
+ */
+public fun StateContainer.onTimer(
+    timer: TimerState,
+    writes: Collection<DeviceState<*>> = emptySet(),
+    reads: Collection<DeviceState<*>> = emptySet(),
+    block: suspend (prev: Instant, next: Instant) -> Unit,
+): Job = timer.onChange(writes = writes, reads = reads) { prev, next ->
+    if (prev != Instant.DISTANT_PAST && next != Instant.DISTANT_FUTURE) {
+        block(prev, next)
+    }
+}
+
+/**
+ * Register a new timer and perform [block] on its change.
  */
 public fun StateContainer.onTimer(
     tick: Duration,
     writes: Collection<DeviceState<*>> = emptySet(),
     reads: Collection<DeviceState<*>> = emptySet(),
     block: suspend (prev: Instant, next: Instant) -> Unit,
-): Job = timer(tick).onChange(writes = writes, reads = reads, onChange = block)
-
-public enum class DefaultTimer(public val duration: Duration) {
-    REALTIME(5.milliseconds),
-    VERY_FAST(10.milliseconds),
-    FAST(20.milliseconds),
-    MEDIUM(50.milliseconds),
-    SLOW(100.milliseconds),
-    VERY_SLOW(500.milliseconds),
-}
+): Job = onTimer(timer(tick), writes = writes, reads = reads, block = block)
 
 /**
- * Perform an action on default timer
+ * Register operation that performs [block] on next timer tick.
  */
 public fun StateContainer.onTimer(
-    defaultTimer: DefaultTimer = DefaultTimer.FAST,
+    timer: TimerState,
     writes: Collection<DeviceState<*>> = emptySet(),
     reads: Collection<DeviceState<*>> = emptySet(),
-    block: suspend (prev: Instant, next: Instant) -> Unit,
-): Job = timer(defaultTimer.duration).onChange(writes = writes, reads = reads, onChange = block)
-//TODO implement timer pooling
+    block: suspend (next: Instant) -> Unit,
+): Job = timer.onNext(writes = writes, reads = reads, onChange = block)
+
+/**
+ * Register a new timer and perform [block] on next tick
+ */
+public fun StateContainer.onTimer(
+    tick: Duration,
+    writes: Collection<DeviceState<*>> = emptySet(),
+    reads: Collection<DeviceState<*>> = emptySet(),
+    block: suspend (next: Instant) -> Unit,
+): Job = timer(tick).onNext(writes = writes, reads = reads, onChange = block)
 
 public fun <T, R> StateContainer.mapState(
     origin: DeviceState<T>,
