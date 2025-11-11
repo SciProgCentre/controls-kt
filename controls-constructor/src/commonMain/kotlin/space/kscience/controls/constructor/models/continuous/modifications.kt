@@ -56,6 +56,24 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.delayed(
     }
 }
 
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.sample(
+    samplingInterval: Duration,
+): ContinuousProducer<U, T> = object : ContinuousProducer<U, T> {
+
+    override val producerAlgebra: AmountAlgebra<U, T> get() = this@sample.producerAlgebra
+
+    override val production: DeviceState<PerSecond<U, T>> = this@sample.production
+
+    override val productionCapacity: DeviceState<PerSecond<U, T>>
+        get() = this@sample.productionCapacity.sample(samplingInterval)
+
+    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
+
+    init {
+        this@sample.consumerRequest.bind(consumerRequest.sample(samplingInterval))
+    }
+}
+
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.delayedConsumer(
     scope: CoroutineScope,
     delay: Duration,
