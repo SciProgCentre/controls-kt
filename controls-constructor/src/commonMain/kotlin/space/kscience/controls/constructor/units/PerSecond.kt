@@ -15,6 +15,9 @@ public value class PerSecond<U : UnitsOfMeasurement, T : Amount<U>>(public val v
 
     public companion object {
         public fun <U : UnitsOfMeasurement> zero(): AmountPerSecond<U> = PerSecond(NumericAmount.zero())
+
+        public fun <U : UnitsOfMeasurement> positiveInfinity(): AmountPerSecond<U> =
+            PerSecond(NumericAmount(Double.POSITIVE_INFINITY))
     }
 }
 

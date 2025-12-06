@@ -12,6 +12,9 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 public value class NumericAmount<U : UnitsOfMeasurement>(override val value: Double) : Amount<U> {
+
+    override fun toString(): String  = value.toString()
+
     public companion object {
 
         private val zero: NumericAmount<Nothing> = NumericAmount(0.0)

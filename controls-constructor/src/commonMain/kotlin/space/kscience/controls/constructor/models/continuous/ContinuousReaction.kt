@@ -125,7 +125,7 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest: AmountPerSecond<U>, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
-            //compute expected amount of each supply
+            //compute the expected amount of each supply
             val forwardRequest = reaction.forward(supplyRequest)
             //limit forward request to consumer capacity
             val forward = forwardRequest.coerceIn(producerAlgebra.zero..consumerRequest)
