@@ -2,16 +2,14 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.simulationDispatcher
-import space.kscience.dataforge.names.Name
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 internal data class StateChange<T>(
-    val state: DeviceState<T>,
+    val state: ValueState<T>,
     val time: Instant,
     val value: T,
 )
@@ -34,7 +32,7 @@ public class SimulationReportBuilder(
         }
     }
 
-    public suspend fun <T> emit(state: DeviceState<T>, value: T = state.value, time: Instant = clock.now()) {
+    public suspend fun <T> emit(state: ValueState<T>, value: T = state.value, time: Instant = clock.now()) {
         channel.send(StateChange(state, time, value))
     }
 
@@ -46,14 +44,14 @@ public class SimulationReportBuilder(
 public class SimulationReport internal constructor(internal val data: List<StateChange<*>>)
 
 @Suppress("UNCHECKED_CAST")
-public fun <T> SimulationReport.forState(state: DeviceState<T>): List<ValueWithTime<T>> = data.filter {
+public fun <T> SimulationReport.forState(state: ValueState<T>): List<ValueWithTime<T>> = data.filter {
     it.state == state
 }.map {
     ValueWithTime(it.value as T, it.time)
 }
 
 public fun <T> SimulationReportBuilder.collectState(
-    state: DeviceState<T>
+    state: ValueState<T>
 ): Job = state.useValue(this) { value ->
     emit(state, value = value)
 }

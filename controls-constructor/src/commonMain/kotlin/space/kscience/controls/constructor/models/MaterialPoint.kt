@@ -13,10 +13,10 @@ import kotlin.time.DurationUnit
  */
 public class MaterialPoint(
     context: Context,
-    force: DeviceState<XYZ<Newtons>>,
+    force: ValueState<XYZ<Newtons>>,
     mass: NumericAmount<Kilograms>,
-    public val position: MutableDeviceState<XYZ<Meters>>,
-    public val velocity: MutableDeviceState<XYZ<MetersPerSecond>>,
+    public val position: MutableValueState<XYZ<Meters>>,
+    public val velocity: MutableValueState<XYZ<MetersPerSecond>>,
 ) : ModelConstructor(context) {
 
     init {

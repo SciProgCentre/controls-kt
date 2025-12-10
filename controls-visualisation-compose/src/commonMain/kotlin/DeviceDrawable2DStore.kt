@@ -13,7 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
-import space.kscience.controls.constructor.DeviceState
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.propertyFlow
 
@@ -42,10 +42,10 @@ public fun DeviceDrawable2DStore.observe(id: String, flow: Flow<DeviceDrawable2D
 }.launchIn(scope)
 
 /**
- * Observe single [DeviceState]
+ * Observe single [ValueState]
  */
 public fun <T> DeviceDrawable2DStore.observeState(
-    state: DeviceState<T>,
+    state: ValueState<T>,
     id: String = state.toString(),
     transform: suspend DeviceDrawable2DStore.(T) -> DeviceDrawable2D,
 ): Job = observe(id, state.subscribe().map { transform(this, it) })

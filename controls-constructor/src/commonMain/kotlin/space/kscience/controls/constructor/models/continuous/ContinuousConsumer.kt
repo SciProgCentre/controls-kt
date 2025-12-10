@@ -7,9 +7,9 @@ import space.kscience.dataforge.context.Context
 public interface ContinuousConsumer<U : UnitsOfMatter, T : Amount<U>> {
     public val consumerAlgebra: AmountAlgebra<U, T>
 
-    public val consumation: DeviceState<PerSecond<U, T>>
-    public val consumationCapacity: DeviceState<AmountPerSecond<U>>
-    public val supplyRequest: LateBindDeviceState<PerSecond<U, T>>
+    public val consumation: ValueState<PerSecond<U, T>>
+    public val consumationCapacity: ValueState<AmountPerSecond<U>>
+    public val supplyRequest: LateBindValueState<PerSecond<U, T>>
 
     public companion object
 }
@@ -20,13 +20,13 @@ public interface ContinuousConsumerWrapper<U : UnitsOfMatter, T : Amount<U>> : C
     override val consumerAlgebra: AmountAlgebra<U, T> get() = consumer.consumerAlgebra
 
 
-    override val consumation: DeviceState<PerSecond<U, T>> get() = consumer.consumation
-    override val consumationCapacity: DeviceState<AmountPerSecond<U>> get() = consumer.consumationCapacity
-    override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> get() = consumer.supplyRequest
+    override val consumation: ValueState<PerSecond<U, T>> get() = consumer.consumation
+    override val consumationCapacity: ValueState<AmountPerSecond<U>> get() = consumer.consumationCapacity
+    override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = consumer.supplyRequest
 }
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.connectProducer(
-    producerCapacity: DeviceState<PerSecond<U, T>>,
+    producerCapacity: ValueState<PerSecond<U, T>>,
 ) {
     supplyRequest.bind(producerCapacity)
 }
@@ -54,18 +54,18 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.connectPr
 private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
-    override val consumationCapacity: DeviceState<AmountPerSecond<U>>,
+    override val consumationCapacity: ValueState<AmountPerSecond<U>>,
 ) : ModelConstructor(context), ContinuousConsumer<U, T> {
 
-    override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> =
-        LateBindDeviceState(consumerAlgebra.zero.perSecond)
+    override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
+        LateBindValueState(consumerAlgebra.zero.perSecond)
 
     init {
         registerState(consumationCapacity)
         registerState(supplyRequest)
     }
 
-    override val consumation: DeviceState<PerSecond<U, T>> = combineState(
+    override val consumation: ValueState<PerSecond<U, T>> = combineState(
         supplyRequest,
         consumationCapacity
     ) { request, capacity ->
@@ -74,7 +74,7 @@ private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
-    public val efficiency: DeviceState<Double> = combineState(
+    public val efficiency: ValueState<Double> = combineState(
         supplyRequest,
         consumationCapacity
     ) { request, capacity ->
@@ -89,12 +89,12 @@ private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer(
     context: Context,
     consumerAlgebra: AmountAlgebra<U, T>,
-    consumationCapacity: DeviceState<AmountPerSecond<U>>,
+    consumationCapacity: ValueState<AmountPerSecond<U>>,
 ): ContinuousConsumer<U, T> = ContinuousConsumerImpl(context, consumerAlgebra, consumationCapacity)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
-    capacity: DeviceState<AmountPerSecond<U>>
+    capacity: ValueState<AmountPerSecond<U>>
 ): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, capacity))
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(

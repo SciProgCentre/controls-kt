@@ -15,13 +15,13 @@ public class LinearDrive(
     drive: Drive,
     start: LimitSwitch,
     end: LimitSwitch,
-    position: DeviceState<NumericAmount<Meters>>,
+    position: ValueState<NumericAmount<Meters>>,
     pidParameters: PidParameters,
     context: Context = drive.context,
     meta: Meta = Meta.EMPTY,
 ) : DeviceConstructor(context, meta) {
 
-    public val position: DeviceState<NumericAmount<Meters>> by property(MetaConverter.numeric(Meters), position)
+    public val position: ValueState<NumericAmount<Meters>> by property(MetaConverter.numeric(Meters), position)
 
     public val drive: Drive by device(drive)
     public val pid: PidRegulator<Meters, NewtonsMeters>  = model(

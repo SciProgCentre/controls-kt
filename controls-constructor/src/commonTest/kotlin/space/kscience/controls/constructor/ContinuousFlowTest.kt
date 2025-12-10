@@ -24,7 +24,7 @@ class ContinuousFlowTest {
         withVirtualTime(epoch)
     }
 
-    fun DeviceState<*>.printEach(scope: TestScope, stateName: String) {
+    fun ValueState<*>.printEach(scope: TestScope, stateName: String) {
         fun printOne(value: Any?) {
             println("$stateName: $value")
         }

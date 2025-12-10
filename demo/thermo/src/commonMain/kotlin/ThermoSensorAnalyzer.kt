@@ -44,11 +44,11 @@ class ThermoSensorAnalyzer(
 
     private val statusState = MutableDeviceState(ThermoSensorStatus.NotConnected)
 
-    val status: DeviceState<ThermoSensorStatus> by property(MetaConverter.enum<ThermoSensorStatus>(), statusState)
+    val status: ValueState<ThermoSensorStatus> by property(MetaConverter.enum<ThermoSensorStatus>(), statusState)
 
     private val averagedTemperatureState = MutableDeviceState(Double.NaN)
 
-    val averageTemperature: DeviceState<Double> by property(
+    val averageTemperature: ValueState<Double> by property(
         converter = MetaConverter.double,
         state = averagedTemperatureState,
         descriptorBuilder = {

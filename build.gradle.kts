@@ -12,6 +12,9 @@ allprojects {
     repositories{
         google()
     }
+    tasks.withType<AbstractTestTask>().configureEach {
+        failOnNoDiscoveredTests = false
+    }
 }
 
 ksciencePublish {

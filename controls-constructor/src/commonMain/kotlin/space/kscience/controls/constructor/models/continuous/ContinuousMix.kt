@@ -32,11 +32,11 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
 ) : ModelConstructor(context), ContinuousProducer<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
 
 
-    public val supplyRequest: Map<String, LateBindDeviceState<PerSecond<U, T>>> = supplyKeys.associateWith {
-        LateBindDeviceState(producerAlgebra.zero.perSecond)
+    public val supplyRequest: Map<String, LateBindValueState<PerSecond<U, T>>> = supplyKeys.associateWith {
+        LateBindValueState(producerAlgebra.zero.perSecond)
     }
 
 
@@ -47,11 +47,11 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
 
     // trick with casts is needed for reification to work
     @Suppress("UNCHECKED_CAST")
-    private val jointSupplyRequest: DeviceState<Map<String, PerSecond<U, T>>> =
+    private val jointSupplyRequest: ValueState<Map<String, PerSecond<U, T>>> =
         combineState(supplyRequest) { it }
 
 
-    public val consumation: DeviceState<Map<String, PerSecond<U, T>>> = combineState(
+    public val consumation: ValueState<Map<String, PerSecond<U, T>>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
 
@@ -92,19 +92,19 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     /**
      * Represents a mapping of individual consumptions keyed by a string representing the associated device or identifier.
      */
-    public val individualConsumation: Map<String, DeviceState<PerSecond<U, T>>> =
+    public val individualConsumation: Map<String, ValueState<PerSecond<U, T>>> =
         supplyRequest.keys.associateWith { key ->
             mapState(consumation) { it[key]!! }
         }
 
-    override val productionCapacity: DeviceState<PerSecond<U, T>> =
+    override val productionCapacity: ValueState<PerSecond<U, T>> =
         mapState(jointSupplyRequest) { supply: Map<String, PerSecond<U, T>> ->
             with(producerAlgebra) {
                 sum(supply.values)
             }
         }
 
-    override val production: DeviceState<PerSecond<U, T>> = mapState(consumation) { consume ->
+    override val production: ValueState<PerSecond<U, T>> = mapState(consumation) { consume ->
         with(producerAlgebra) {
             sum(consume.values)
         }
@@ -125,20 +125,20 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
  */
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
     key: String
-): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input: LateBindDeviceState<PerSecond<U, T>> ->
+): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input: LateBindValueState<PerSecond<U, T>> ->
     val consumation = individualConsumation[key]!!
 
     object : ContinuousConsumer<U, T> {
         override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
 
-        override val consumation: DeviceState<PerSecond<U, T>> get() = consumation
+        override val consumation: ValueState<PerSecond<U, T>> get() = consumation
 
-        override val consumationCapacity: DeviceState<AmountPerSecond<U>>
-            get() = DeviceState.map(consumation) {
+        override val consumationCapacity: ValueState<AmountPerSecond<U>>
+            get() = ValueState.map(consumation) {
                 AmountPerSecond<U>(consumation.value.value)
             }
 
-        override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> get() = input
+        override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
     }
 } ?: error("No supplier with key $key found")
 
@@ -152,7 +152,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProduce
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
     key: String,
-    producerCapacity: DeviceState<PerSecond<U, T>>
+    producerCapacity: ValueState<PerSecond<U, T>>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }

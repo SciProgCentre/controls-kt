@@ -7,9 +7,9 @@ import space.kscience.dataforge.context.Context
 public interface ContinuousProducer<U : UnitsOfMatter, T : Amount<U>> {
     public val producerAlgebra: AmountAlgebra<U, T>
 
-    public val production: DeviceState<PerSecond<U, T>>
-    public val productionCapacity: DeviceState<PerSecond<U, T>>
-    public val consumerRequest: LateBindDeviceState<AmountPerSecond<U>>
+    public val production: ValueState<PerSecond<U, T>>
+    public val productionCapacity: ValueState<PerSecond<U, T>>
+    public val consumerRequest: LateBindValueState<AmountPerSecond<U>>
 
     public companion object
 }
@@ -19,13 +19,13 @@ public interface ContinuousProducerWrapper<U : UnitsOfMatter, T : Amount<U>> : C
 
     override val producerAlgebra: AmountAlgebra<U, T> get() = producer.producerAlgebra
 
-    override val production: DeviceState<PerSecond<U, T>> get() = producer.production
-    override val productionCapacity: DeviceState<PerSecond<U, T>> get() = producer.productionCapacity
-    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> get() = producer.consumerRequest
+    override val production: ValueState<PerSecond<U, T>> get() = producer.production
+    override val productionCapacity: ValueState<PerSecond<U, T>> get() = producer.productionCapacity
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U>> get() = producer.consumerRequest
 }
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.connectConsumer(
-    consumerCapacity: DeviceState<AmountPerSecond<U>>,
+    consumerCapacity: ValueState<AmountPerSecond<U>>,
 ) {
     consumerRequest.bind(consumerCapacity)
 }
@@ -55,8 +55,8 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.connectCo
 private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
-    override val productionCapacity: DeviceState<PerSecond<U,T>>,
-    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero()),
+    override val productionCapacity: ValueState<PerSecond<U,T>>,
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero()),
 ) : ModelConstructor(context), ContinuousProducer<U, T> {
 
     init {
@@ -64,7 +64,7 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
         registerState(consumerRequest)
     }
 
-    override val production: DeviceState<PerSecond<U,T>> = combineState(
+    override val production: ValueState<PerSecond<U,T>> = combineState(
         first = consumerRequest,
         second = productionCapacity
     ) { request: AmountPerSecond<U>, capacity: PerSecond<U,T> ->
@@ -73,7 +73,7 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
-    public val efficiency: DeviceState<Double> = combineState(
+    public val efficiency: ValueState<Double> = combineState(
         consumerRequest,
         productionCapacity
     ) { request, capacity ->
@@ -88,13 +88,13 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer(
     context: Context,
     producerAlgebra: AmountAlgebra<U, T>,
-    productionCapacity: DeviceState<PerSecond<U,T>>,
-    consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
+    productionCapacity: ValueState<PerSecond<U,T>>,
+    consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
 ): ContinuousProducer<U, T> = ContinuousProducerImpl(context, producerAlgebra, productionCapacity, consumerRequest)
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: DeviceState<PerSecond<U,T>>
+    capacity: ValueState<PerSecond<U,T>>
 ): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, capacity))
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(

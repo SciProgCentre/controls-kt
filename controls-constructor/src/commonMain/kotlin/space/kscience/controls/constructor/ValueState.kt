@@ -9,15 +9,13 @@ import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.reflect.KProperty
 
 /**
- * An observable state of a device
+ * An observable value state
  */
-public interface DeviceState<out T> {
+public interface ValueState<out T> {
     public val value: T
 
     /**
-     * Subscribe on changes made to this [DeviceState]. The first value in a subscription is always the current value.
-     *
-     * Som implementation could
+     * Subscribe on changes made to this [ValueState]. The first value in a subscription is always the current value.
      */
     public fun subscribe(): Flow<T>
 
@@ -27,18 +25,18 @@ public interface DeviceState<out T> {
 }
 
 
-public operator fun <T> DeviceState<T>.getValue(thisRef: Any?, property: KProperty<*>): T = value
+public operator fun <T> ValueState<T>.getValue(thisRef: Any?, property: KProperty<*>): T = value
 
 /**
  * Use each value (including initial one) in a given [scope]
  */
-public fun <T> DeviceState<T>.useValue(scope: CoroutineScope, block: suspend (T) -> Unit): Job =
+public fun <T> ValueState<T>.useValue(scope: CoroutineScope, block: suspend (T) -> Unit): Job =
     subscribe().onEach(block).launchIn(scope)
 
 /**
  * A mutable state of a device
  */
-public interface MutableDeviceState<T> : DeviceState<T>, FlowCollector<T> {
+public interface MutableValueState<T> : ValueState<T>, FlowCollector<T> {
     override var value: T
 
     /**
@@ -47,33 +45,33 @@ public interface MutableDeviceState<T> : DeviceState<T>, FlowCollector<T> {
     override suspend fun emit(value: T)
 }
 
-public operator fun <T> MutableDeviceState<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+public operator fun <T> MutableValueState<T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) {
     this.value = value
 }
 
 /**
  * Device state with a value that depends on other device states
  */
-public interface DeviceStateWithDependencies<T> : DeviceState<T> {
-    public val dependencies: Collection<DeviceState<*>>
+public interface ValueStateWithDependencies<T> : ValueState<T> {
+    public val dependencies: Collection<ValueState<*>>
 }
 
-public fun <T> DeviceState<T>.withDependencies(
-    dependencies: Collection<DeviceState<*>>,
-): DeviceStateWithDependencies<T> = object : DeviceStateWithDependencies<T>, DeviceState<T> by this {
-    override val dependencies: Collection<DeviceState<*>> = dependencies
+public fun <T> ValueState<T>.withDependencies(
+    dependencies: Collection<ValueState<*>>,
+): ValueStateWithDependencies<T> = object : ValueStateWithDependencies<T>, ValueState<T> by this {
+    override val dependencies: Collection<ValueState<*>> = dependencies
 }
 
 /**
- * Create a new read-only [DeviceState] that mirrors receiver state by mapping the value with [mapper].
+ * Create a new read-only [ValueState] that mirrors receiver state by mapping the value with [mapper].
  *
  * This implementation is thread safe and "cold" meaning that it computes values and flows on-demand.
  * The same flow is shared with all subscribers, so it is user's responsibility to ensure that the source state allows multiple subscriptions.
  */
-public fun <T, R> DeviceState.Companion.map(
-    state: DeviceState<T>,
+public fun <T, R> ValueState.Companion.map(
+    state: ValueState<T>,
     mapper: (T) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = listOf(state)
 
     override val value: R get() = mapper(state.value)
@@ -83,19 +81,19 @@ public fun <T, R> DeviceState.Companion.map(
     override fun toString(): String = "DeviceState.map(state=${state.value}, value=$value)"
 }
 
-public fun <T, R> DeviceState<T>.map(mapper: (T) -> R): DeviceStateWithDependencies<R> =
-    DeviceState.map(this, mapper)
+public fun <T, R> ValueState<T>.map(mapper: (T) -> R): ValueStateWithDependencies<R> =
+    ValueState.map(this, mapper)
 
 /**
- * Create a new read-only [DeviceState] that mirrors receiver state by mapping the value with [mapper].
+ * Create a new read-only [ValueState] that mirrors receiver state by mapping the value with [mapper].
  *
  * This implementation
  */
-public fun <T, R> DeviceState.Companion.map(
+public fun <T, R> ValueState.Companion.map(
     scope: CoroutineScope,
-    state: DeviceState<T>,
+    state: ValueState<T>,
     mapper: (T) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = listOf(state)
 
     override val value: R get() = mapper(state.value)
@@ -108,20 +106,20 @@ public fun <T, R> DeviceState.Companion.map(
     override fun toString(): String = "DeviceState.map(state=${state.value}, value=$value)"
 }
 
-public fun <T, R> DeviceState<T>.map(scope: CoroutineScope, mapper: (T) -> R): DeviceStateWithDependencies<R> =
-    DeviceState.map(scope, this, mapper)
+public fun <T, R> ValueState<T>.map(scope: CoroutineScope, mapper: (T) -> R): ValueStateWithDependencies<R> =
+    ValueState.map(scope, this, mapper)
 
 
 /**
- * A hot variant of [DeviceState.map]. It allows suspended transformations
+ * A hot variant of [ValueState.map]. It allows suspended transformations
  */
-public fun <T, R> DeviceState.Companion.transform(
+public fun <T, R> ValueState.Companion.transform(
     scope: CoroutineScope,
-    state: DeviceState<T>,
+    state: ValueState<T>,
     initialValue: R,
     transform: suspend (T) -> R
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
-    override val dependencies: Collection<DeviceState<*>> = listOf(state)
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
+    override val dependencies: Collection<ValueState<*>> = listOf(state)
 
     private val valueFlow = MutableStateFlow<R>(initialValue)
 
@@ -139,10 +137,10 @@ public fun <T, R> DeviceState.Companion.transform(
     override fun toString(): String = "DeviceState.transform(state=${state.value}, value=$value)"
 }
 
-public suspend fun <T, R> DeviceState<T>.transform(
+public suspend fun <T, R> ValueState<T>.transform(
     scope: CoroutineScope,
     transform: suspend (T) -> R
-): DeviceStateWithDependencies<R> = DeviceState.transform(
+): ValueStateWithDependencies<R> = ValueState.transform(
     scope = scope,
     state = this,
     initialValue = transform(value),
@@ -150,14 +148,14 @@ public suspend fun <T, R> DeviceState<T>.transform(
 )
 
 /**
- * Combine two device states into one read-only [DeviceState]. Only the latest value of each state is used.
+ * Combine two device states into one read-only [ValueState]. Only the latest value of each state is used.
  */
-public fun <T1, T2, R> DeviceState.Companion.combine(
+public fun <T1, T2, R> ValueState.Companion.combine(
     scope: CoroutineScope,
-    state1: DeviceState<T1>,
-    state2: DeviceState<T2>,
+    state1: ValueState<T1>,
+    state2: ValueState<T2>,
     mapper: (T1, T2) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2)
 
     override val value: R get() = mapper(state1.value, state2.value)
@@ -180,13 +178,13 @@ public fun <T1, T2, R> DeviceState.Companion.combine(
  * @param mapper The mapping function that combines the values of the three states into a resulting value.
  * @return A new device state whose value depends on the combined values of the provided states.
  */
-public fun <T1, T2, T3, R> DeviceState.Companion.combine(
+public fun <T1, T2, T3, R> ValueState.Companion.combine(
     scope: CoroutineScope,
-    state1: DeviceState<T1>,
-    state2: DeviceState<T2>,
-    state3: DeviceState<T3>,
+    state1: ValueState<T1>,
+    state2: ValueState<T2>,
+    state3: ValueState<T3>,
     mapper: (T1, T2, T3) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2, state3)
 
     override val value: R get() = mapper(state1.value, state2.value, state3.value)
@@ -200,14 +198,14 @@ public fun <T1, T2, T3, R> DeviceState.Companion.combine(
         "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, state3=${state3.value}, value=$value)"
 }
 
-public fun <T1, T2, T3, T4, R> DeviceState.Companion.combine(
+public fun <T1, T2, T3, T4, R> ValueState.Companion.combine(
     scope: CoroutineScope,
-    state1: DeviceState<T1>,
-    state2: DeviceState<T2>,
-    state3: DeviceState<T3>,
-    state4: DeviceState<T4>,
+    state1: ValueState<T1>,
+    state2: ValueState<T2>,
+    state3: ValueState<T3>,
+    state4: ValueState<T4>,
     mapper: (T1, T2, T3, T4) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2, state3, state4)
 
     override val value: R get() = mapper(state1.value, state2.value, state3.value, state4.value)
@@ -227,20 +225,20 @@ public fun <T1, T2, T3, T4, R> DeviceState.Companion.combine(
 }
 
 /**
- * Combines multiple [DeviceState] instances into a single [DeviceStateWithDependencies].
+ * Combines multiple [ValueState] instances into a single [ValueStateWithDependencies].
  * The combined state value is derived by applying the provided [mapper] function to the collection of individual state values.
  *
  * @param T the type of the individual state values.
  * @param R the type of the combined state value.
- * @param states a collection of [DeviceState] instances whose values are to be combined.
+ * @param states a collection of [ValueState] instances whose values are to be combined.
  * @param mapper a function that takes a collection of state values and maps it to a combined value.
- * @return a [DeviceStateWithDependencies] representing the combined state, which has dependencies on the input [states].
+ * @return a [ValueStateWithDependencies] representing the combined state, which has dependencies on the input [states].
  */
-public fun <T, R> DeviceState.Companion.combine(
+public fun <T, R> ValueState.Companion.combine(
     scope: CoroutineScope,
-    states: Collection<DeviceState<T>>,
+    states: Collection<ValueState<T>>,
     mapper: (List<T>) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = states
 
     override val value: R get() = mapper(states.map { it.value })
@@ -275,11 +273,11 @@ public fun <T, R> DeviceState.Companion.combine(
  * @return a `DeviceStateWithDependencies` instance representing the combined state, with its value computed
  *         dynamically based on the input states and the `mapper` function.
  */
-public fun <T, K, R> DeviceState.Companion.combine(
+public fun <T, K, R> ValueState.Companion.combine(
     scope: CoroutineScope,
-    states: Map<K, DeviceState<T>>,
+    states: Map<K, ValueState<T>>,
     mapper: (Map<K, T>) -> R,
-): DeviceStateWithDependencies<R> = object : DeviceStateWithDependencies<R> {
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = states.values
 
     private val entries = states.entries.toList()
@@ -305,10 +303,10 @@ public fun <T, K, R> DeviceState.Companion.combine(
 }
 
 /**
- * Transforms a [DeviceState] containing a [Amount] with specific [UnitsOfMeasurement]
- * into a [DeviceState] containing a [Double] representing the underlying numerical value.
+ * Transforms a [ValueState] containing a [Amount] with specific [UnitsOfMeasurement]
+ * into a [ValueState] containing a [Double] representing the underlying numerical value.
  *
- * @return A new [DeviceState] object that provides the numerical value as a [Double].
+ * @return A new [ValueState] object that provides the numerical value as a [Double].
  */
-public fun DeviceState<Amount<out UnitsOfMeasurement>>.values(): DeviceState<Double> =
-    DeviceState.map(this) { it.value }
+public fun ValueState<Amount<out UnitsOfMeasurement>>.values(): ValueState<Double> =
+    ValueState.map(this) { it.value }

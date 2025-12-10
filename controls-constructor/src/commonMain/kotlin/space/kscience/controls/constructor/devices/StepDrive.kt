@@ -23,21 +23,21 @@ import kotlin.time.DurationUnit
 public class StepDrive(
     context: Context,
     ticksPerSecond: Double,
-    position: MutableDeviceState<Long> = MutableDeviceState(0),
+    position: MutableValueState<Long> = MutableDeviceState(0),
     private val writeTicks: suspend (ticks: Long, speed: Double) -> Unit = { _, _ -> },
 ) : DeviceConstructor(context) {
 
-    public val target: MutableDeviceState<Long> by property(
+    public val target: MutableValueState<Long> by property(
         MetaConverter.long,
         MutableDeviceState<Long>(position.value)
     )
 
-    public val speed: MutableDeviceState<Double> by property(
+    public val speed: MutableValueState<Double> by property(
         MetaConverter.double,
         MutableDeviceState<Double>(ticksPerSecond)
     )
 
-    public val position: DeviceState<Long> by property(MetaConverter.long, position)
+    public val position: ValueState<Long> by property(MetaConverter.long, position)
 
     //FIXME round to zero problem
     private val ticker = onTimer(20.milliseconds, reads = setOf(target, position), writes = setOf(position)) { prev, next ->
@@ -60,7 +60,7 @@ public class StepDrive(
 public fun StepDrive.angle(
     step: NumericAmount<Degrees>,
     zero: NumericAmount<Degrees> = NumericAmount(0),
-): DeviceState<NumericAmount<Degrees>> = position.map(this) {
+): ValueState<NumericAmount<Degrees>> = position.map(this) {
     zero + it * step
 }
 

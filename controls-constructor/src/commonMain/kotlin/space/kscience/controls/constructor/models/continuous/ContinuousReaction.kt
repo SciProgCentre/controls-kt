@@ -77,9 +77,9 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
     public val reaction: ReactionRule<U, T>,
 ) : ModelConstructor(context), ContinuousProducer<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(PerSecond.zero())
-    public val supplyRequest: Map<String, LateBindDeviceState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith {
-        LateBindDeviceState(producerAlgebra.zero.perSecond)
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
+    public val supplyRequest: Map<String, LateBindValueState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith {
+        LateBindValueState(producerAlgebra.zero.perSecond)
     }
 
 
@@ -89,14 +89,14 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
     }
 
     // trick with casts is needed for reification to work
-    private val jointSupplyRequest: DeviceState<Map<String, PerSecond<U, T>>> = combineState(supplyRequest) {
+    private val jointSupplyRequest: ValueState<Map<String, PerSecond<U, T>>> = combineState(supplyRequest) {
         it
     }
 
     /**
      * A state of consumation from all sources
      */
-    public val consumation: DeviceState<Map<String, PerSecond<U, T>>> = combineState(
+    public val consumation: ValueState<Map<String, PerSecond<U, T>>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
@@ -117,11 +117,11 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
     /**
      * Represents a mapping of individual consumptions keyed by a string representing the associated device or identifier.
      */
-    public val individualConsumation: Map<String, DeviceState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith { key ->
+    public val individualConsumation: Map<String, ValueState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith { key ->
         mapState(consumation) { it[key]!! }
     }
 
-    public val consumationCapacity: DeviceState<Map<String, AmountPerSecond<U>>> = combineState(
+    public val consumationCapacity: ValueState<Map<String, AmountPerSecond<U>>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest: AmountPerSecond<U>, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
@@ -134,17 +134,17 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
         }
     }
 
-    public val individualConsumationCapacity: Map<String, DeviceState<AmountPerSecond<U>>> =
+    public val individualConsumationCapacity: Map<String, ValueState<AmountPerSecond<U>>> =
         reaction.supplyKeys.associateWith { key ->
             mapState(consumationCapacity) { it[key] ?: PerSecond.zero() }
         }
 
 
-    override val productionCapacity: DeviceState<PerSecond<U, T>> = mapState(jointSupplyRequest) { supplyRequest ->
+    override val productionCapacity: ValueState<PerSecond<U, T>> = mapState(jointSupplyRequest) { supplyRequest ->
         reaction.forward(supplyRequest)
     }
 
-    override val production: DeviceState<PerSecond<U, T>> = combineState(
+    override val production: ValueState<PerSecond<U, T>> = combineState(
         consumerRequest, jointSupplyRequest
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
@@ -171,9 +171,9 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousReaction<U, T>.asConsumer
     object : ContinuousConsumer<U, T> {
         override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
 
-        override val consumation: DeviceState<PerSecond<U, T>> get() = individualConsumation[key]!!
-        override val consumationCapacity: DeviceState<AmountPerSecond<U>> get() = individualConsumationCapacity[key]!!
-        override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> get() = input
+        override val consumation: ValueState<PerSecond<U, T>> get() = individualConsumation[key]!!
+        override val consumationCapacity: ValueState<AmountPerSecond<U>> get() = individualConsumationCapacity[key]!!
+        override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
     }
 } ?: error("No supplier with key $key found")
 
@@ -187,7 +187,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectPr
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
-    producerCapacity: DeviceState<PerSecond<U, T>>
+    producerCapacity: ValueState<PerSecond<U, T>>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }

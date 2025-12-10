@@ -125,7 +125,7 @@ private class PlotterModel(
     private val yTransmission = Leadscrew(context, NumericAmount(0.01))
     val y = yTransmission.degreesToMeters(yDrive.angle(step)).coerceIn(yRange)
 
-    val xy: DeviceState<XY<Meters>> = combineState(x, y) { x, y -> XY(x, y) }
+    val xy: ValueState<XY<Meters>> = combineState(x, y) { x, y -> XY(x, y) }
 
     val plotter = Plotter(
         context = context,

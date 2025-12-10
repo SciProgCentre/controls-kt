@@ -2,6 +2,7 @@ package space.kscience.controls.constructor.devices
 
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.MutableDeviceState
+import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.property
 import space.kscience.controls.constructor.units.NewtonsMeters
 import space.kscience.controls.constructor.units.NumericAmount
@@ -13,7 +14,7 @@ import space.kscience.dataforge.meta.MetaConverter
 
 public class Drive(
     context: Context,
-    force: MutableDeviceState<NumericAmount<NewtonsMeters>> = MutableDeviceState(NumericAmount(0)),
+    force: MutableValueState<NumericAmount<NewtonsMeters>> = MutableDeviceState(NumericAmount(0)),
 ) : DeviceConstructor(context) {
-    public val force: MutableDeviceState<NumericAmount<NewtonsMeters>> by property(MetaConverter.numeric(NewtonsMeters), force)
+    public val force: MutableValueState<NumericAmount<NewtonsMeters>> by property(MetaConverter.numeric(NewtonsMeters), force)
 }

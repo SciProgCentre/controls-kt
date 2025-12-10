@@ -14,6 +14,7 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- `DeviceState` renamed to `ValueState`
 - Update logic of `DeviceState` to properly address subscriptions.
 - `getProperty` renamed to `getCachedProperty` for `CachingDevice`
 - Milo migrated to stable version

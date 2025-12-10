@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.sample
 import kotlin.time.Duration
 
 @OptIn(FlowPreview::class)
-public class SampleDeviceState<T>(
-    public val origin: DeviceState<T>,
+public class SampleValueState<T>(
+    public val origin: ValueState<T>,
     public val interval: Duration,
-) : DeviceState<T> {
+) : ValueState<T> {
     override val value: T by origin::value
 
     override fun subscribe(): Flow<T>  = origin.subscribe().sample(interval)
@@ -18,13 +18,13 @@ public class SampleDeviceState<T>(
 }
 
 
-public fun <T> DeviceState<T>.sample(interval: Duration): SampleDeviceState<T> = SampleDeviceState(this, interval)
+public fun <T> ValueState<T>.sample(interval: Duration): SampleValueState<T> = SampleValueState(this, interval)
 
 @OptIn(FlowPreview::class)
-public class MutableSampleDeviceState<T>(
-    public val origin: MutableDeviceState<T>,
+public class MutableSampleValueState<T>(
+    public val origin: MutableValueState<T>,
     public val interval: Duration,
-) : MutableDeviceState<T> {
+) : MutableValueState<T> {
     override var value: T by origin::value
 
     override suspend fun emit(value: T) {
@@ -36,4 +36,4 @@ public class MutableSampleDeviceState<T>(
     override fun toString(): String = "SampleDeviceState($value, interval=$interval)"
 }
 
-public fun <T> MutableDeviceState<T>.sample(interval: Duration): MutableSampleDeviceState<T> = MutableSampleDeviceState(this, interval)
+public fun <T> MutableValueState<T>.sample(interval: Duration): MutableSampleValueState<T> = MutableSampleValueState(this, interval)

@@ -44,20 +44,20 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
     public val rule: SeparationRule<U, T>,
 ) : ModelConstructor(context), ContinuousConsumer<U, T> {
 
-    override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> =
-        LateBindDeviceState(consumerAlgebra.zero.perSecond)
+    override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
+        LateBindValueState(consumerAlgebra.zero.perSecond)
 
-    public val consumationRequest: Map<String, LateBindDeviceState<AmountPerSecond<U>>> =
+    public val consumationRequest: Map<String, LateBindValueState<AmountPerSecond<U>>> =
         rule.productionKeys.associateWith {
-            LateBindDeviceState(PerSecond.zero())
+            LateBindValueState(PerSecond.zero())
         }
 
-    private val jointConsumationRequest: DeviceState<Map<String, AmountPerSecond<U>>> =
+    private val jointConsumationRequest: ValueState<Map<String, AmountPerSecond<U>>> =
         combineState(consumationRequest) {
             it
         }
 
-    private val balance: DeviceState<Pair<PerSecond<U, T>, Map<String, PerSecond<U, T>>>> = combineState(
+    private val balance: ValueState<Pair<PerSecond<U, T>, Map<String, PerSecond<U, T>>>> = combineState(
         first = supplyRequest,
         second = jointConsumationRequest
     ) { supply: PerSecond<U, T>, consumationReq: Map<String, AmountPerSecond<U>> ->
@@ -70,16 +70,16 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
-    public val production: DeviceState<Map<String, PerSecond<U, T>>> = mapState(balance) {
+    public val production: ValueState<Map<String, PerSecond<U, T>>> = mapState(balance) {
         it.second
     }
 
-    public val individualProduction: Map<String, DeviceState<PerSecond<U, T>>> =
+    public val individualProduction: Map<String, ValueState<PerSecond<U, T>>> =
         rule.productionKeys.associateWith { key ->
             mapState(production) { it[key] ?: consumerAlgebra.zero.perSecond }
         }
 
-    public val productionCapacity: DeviceState<Map<String, PerSecond<U, T>>> = combineState(
+    public val productionCapacity: ValueState<Map<String, PerSecond<U, T>>> = combineState(
         first = supplyRequest,
         second = jointConsumationRequest
     ) { supply: PerSecond<U, T>, consumation: Map<String, AmountPerSecond<U>> ->
@@ -90,14 +90,14 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
-    public val individualProductionCapacity: Map<String, DeviceState<PerSecond<U, T>>> =
+    public val individualProductionCapacity: Map<String, ValueState<PerSecond<U, T>>> =
         rule.productionKeys.associateWith { key ->
             mapState(productionCapacity) { it[key] ?: consumerAlgebra.zero.perSecond }
         }
 
-    override val consumation: DeviceState<PerSecond<U, T>> = mapState(balance) { it.first }
+    override val consumation: ValueState<PerSecond<U, T>> = mapState(balance) { it.first }
 
-    override val consumationCapacity: DeviceState<AmountPerSecond<U>> = mapState(jointConsumationRequest) {
+    override val consumationCapacity: ValueState<AmountPerSecond<U>> = mapState(jointConsumationRequest) {
         rule.backward(it)
     }
 
@@ -108,9 +108,9 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousSeparate<U, T>.asProducer
 ): ContinuousProducer<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
     object : ContinuousProducer<U, T> {
         override val producerAlgebra: AmountAlgebra<U, T> get() = this@asProducer.consumerAlgebra
-        override val production: DeviceState<PerSecond<U, T>> get() = individualProduction[key]!!
-        override val productionCapacity: DeviceState<PerSecond<U, T>> = individualProductionCapacity[key]!!
-        override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> get() = specificConsumationRequest
+        override val production: ValueState<PerSecond<U, T>> get() = individualProduction[key]!!
+        override val productionCapacity: ValueState<PerSecond<U, T>> = individualProductionCapacity[key]!!
+        override val consumerRequest: LateBindValueState<AmountPerSecond<U>> get() = specificConsumationRequest
     }
 } ?: error("No supplier with key $key found")
 

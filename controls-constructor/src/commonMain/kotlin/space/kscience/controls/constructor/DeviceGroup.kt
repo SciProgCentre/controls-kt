@@ -31,14 +31,14 @@ public open class DeviceGroup(
 ) : DeviceHub, CachingDevice {
 
     private class Property<T>(
-        val state: DeviceState<T>,
+        val state: ValueState<T>,
         val converter: MetaConverter<T>,
         val descriptor: PropertyDescriptor,
     ) {
         val valueAsMeta get() = converter.convert(state.value)
 
         fun setMeta(meta: Meta) {
-            check(state is MutableDeviceState) { "Can't write to read-only property" }
+            check(state is MutableValueState) { "Can't write to read-only property" }
 
             state.value = converter.read(meta)
         }
@@ -99,9 +99,9 @@ public open class DeviceGroup(
     private val properties: MutableMap<Name, Property<*>> = hashMapOf()
 
     /**
-     * Register a new property based on [DeviceState]. Properties could be modified dynamically
+     * Register a new property based on [ValueState]. Properties could be modified dynamically
      */
-    public open fun <T, S : DeviceState<T>> registerProperty(
+    public open fun <T, S : ValueState<T>> registerProperty(
         converter: MetaConverter<T>,
         descriptor: PropertyDescriptor,
         state: S,
@@ -204,7 +204,7 @@ public open class DeviceGroup(
     public companion object
 }
 
-public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<*, T>, state: DeviceState<T>) {
+public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<*, T>, state: ValueState<T>) {
     registerProperty(propertySpec.converter, propertySpec.descriptor, state)
 }
 
@@ -279,7 +279,7 @@ public fun DeviceGroup.registerDeviceGroup(name: String, block: DeviceGroup.() -
 public fun <T : Any> DeviceGroup.registerAsProperty(
     name: String,
     converter: MetaConverter<T>,
-    state: DeviceState<T>,
+    state: ValueState<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
 ) {
     registerProperty(
@@ -295,7 +295,7 @@ public fun <T : Any> DeviceGroup.registerAsProperty(
 public fun <T : Any> DeviceGroup.registerMutableProperty(
     name: String,
     converter: MetaConverter<T>,
-    state: MutableDeviceState<T>,
+    state: MutableValueState<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
 ) {
     registerProperty(
@@ -315,7 +315,7 @@ public fun <T : Any> DeviceGroup.registerVirtualProperty(
     initialValue: T,
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-): MutableDeviceState<T> {
+): MutableValueState<T> {
     val state = MutableDeviceState<T>(initialValue)
     registerMutableProperty(name, converter, state, descriptorBuilder)
     return state

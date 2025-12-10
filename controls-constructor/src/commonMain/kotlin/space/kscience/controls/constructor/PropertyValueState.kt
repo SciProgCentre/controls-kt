@@ -13,14 +13,14 @@ import space.kscience.dataforge.meta.MetaConverter
 
 
 /**
- * A copy-free [DeviceState] bound to a device property
+ * A copy-free [ValueState] bound to a device property
  */
-private open class PropertyDeviceState<T>(
+private open class PropertyValueState<T>(
     val converter: MetaConverter<T>,
     val device: Device,
     val propertyName: String,
     initialValue: T,
-) : DeviceState<T> {
+) : ValueState<T> {
 
     val valueFlow: StateFlow<T> = device.messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
         it.property == propertyName
@@ -39,15 +39,15 @@ public fun <T> Device.propertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
     initialValue: T,
-): DeviceState<T> = PropertyDeviceState(metaConverter, this, propertyName, initialValue)
+): ValueState<T> = PropertyValueState(metaConverter, this, propertyName, initialValue)
 
 /**
- * Bind a read-only [DeviceState] to a [Device] property
+ * Bind a read-only [ValueState] to a [Device] property
  */
 public suspend fun <T> Device.propertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
-): DeviceState<T> = propertyAsState(
+): ValueState<T> = propertyAsState(
     propertyName,
     metaConverter,
     metaConverter.readOrNull(readProperty(propertyName)) ?: error("Conversion of property failed")
@@ -55,20 +55,20 @@ public suspend fun <T> Device.propertyAsState(
 
 public suspend fun <D : Device, T> D.propertyAsState(
     propertySpec: DevicePropertySpec<D, T>,
-): DeviceState<T> = propertyAsState(propertySpec.name, propertySpec.converter)
+): ValueState<T> = propertyAsState(propertySpec.name, propertySpec.converter)
 
 public fun <D : Device, T> D.propertyAsState(
     propertySpec: DevicePropertySpec<D, T>,
     initialValue: T,
-): DeviceState<T> = propertyAsState(propertySpec.name, propertySpec.converter, initialValue)
+): ValueState<T> = propertyAsState(propertySpec.name, propertySpec.converter, initialValue)
 
 
-private class MutablePropertyDeviceState<T>(
+private class MutablePropertyValueState<T>(
     converter: MetaConverter<T>,
     device: Device,
     propertyName: String,
     initialValue: T,
-) : PropertyDeviceState<T>(converter, device, propertyName, initialValue), MutableDeviceState<T> {
+) : PropertyValueState<T>(converter, device, propertyName, initialValue), MutableValueState<T> {
 
     override var value: T
         get() = valueFlow.value
@@ -89,22 +89,22 @@ public fun <T> Device.mutablePropertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
     initialValue: T,
-): MutableDeviceState<T> = MutablePropertyDeviceState(metaConverter, this, propertyName, initialValue)
+): MutableValueState<T> = MutablePropertyValueState(metaConverter, this, propertyName, initialValue)
 
 public suspend fun <T> Device.mutablePropertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
-): MutableDeviceState<T> {
+): MutableValueState<T> {
     val initialValue = metaConverter.readOrNull(readProperty(propertyName)) ?: error("Conversion of property failed")
     return mutablePropertyAsState(propertyName, metaConverter, initialValue)
 }
 
 public suspend fun <D : Device, T> D.propertyAsState(
     propertySpec: MutableDevicePropertySpec<D, T>,
-): MutableDeviceState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter)
+): MutableValueState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter)
 
 public fun <D : Device, T> D.propertyAsState(
     propertySpec: MutableDevicePropertySpec<D, T>,
     initialValue: T,
-): MutableDeviceState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter, initialValue)
+): MutableValueState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter, initialValue)
 

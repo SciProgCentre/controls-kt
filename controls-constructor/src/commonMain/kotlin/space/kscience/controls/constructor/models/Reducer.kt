@@ -12,8 +12,8 @@ import space.kscience.dataforge.context.Context
 public class Reducer(
     context: Context,
     public val ratio: Double,
-    public val input: DeviceState<NumericAmount<Degrees>>,
-    public val output: MutableDeviceState<NumericAmount<Degrees>>,
+    public val input: ValueState<NumericAmount<Degrees>>,
+    public val output: MutableValueState<NumericAmount<Degrees>>,
 ) : ModelConstructor(context) {
     init {
         registerState(input)

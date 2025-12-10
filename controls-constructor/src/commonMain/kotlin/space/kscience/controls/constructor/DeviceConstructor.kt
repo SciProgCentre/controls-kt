@@ -32,7 +32,7 @@ public abstract class DeviceConstructor(
         _constructorElements.remove(constructorElement)
     }
 
-    override fun <T, S: DeviceState<T>> registerProperty(
+    override fun <T, S: ValueState<T>> registerProperty(
         converter: MetaConverter<T>,
         descriptor: PropertyDescriptor,
         state: S,
@@ -75,7 +75,7 @@ public fun <D : Device> DeviceConstructor.device(
 /**
  * Register a property and provide a direct reader for it
  */
-public fun <T, S : DeviceState<T>> DeviceConstructor.property(
+public fun <T, S : ValueState<T>> DeviceConstructor.property(
     converter: MetaConverter<T>,
     state: S,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
@@ -100,9 +100,9 @@ public fun <T : Any> DeviceConstructor.property(
     initialState: T,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
-): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, DeviceState<T>>> = property(
+): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<T>>> = property(
     metaConverter,
-    DeviceState.external(this, readInterval, initialState, reader),
+    ValueState.external(this, readInterval, initialState, reader),
     descriptorBuilder,
     nameOverride,
 )
@@ -118,9 +118,9 @@ public fun <T : Any> DeviceConstructor.mutableProperty(
     initialState: T,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
-): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableDeviceState<T>>> = property(
+): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
     metaConverter,
-    DeviceState.external(this, readInterval, initialState, reader, writer),
+    ValueState.external(this, readInterval, initialState, reader, writer),
     descriptorBuilder,
     nameOverride,
 )
@@ -133,14 +133,14 @@ public fun <T> DeviceConstructor.virtualProperty(
     initialState: T,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
-): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableDeviceState<T>>> = property(
+): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
     metaConverter,
     MutableDeviceState(initialState),
     descriptorBuilder,
     nameOverride,
 )
 
-public fun <T, S : DeviceState<T>> DeviceConstructor.registerAsProperty(
+public fun <T, S : ValueState<T>> DeviceConstructor.registerAsProperty(
     spec: DevicePropertySpec<*, T>,
     state: S,
 ): S {

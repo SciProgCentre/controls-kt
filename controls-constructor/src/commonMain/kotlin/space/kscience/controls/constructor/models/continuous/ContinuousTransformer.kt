@@ -43,24 +43,24 @@ public class ContinuousTransformer<U1 : UnitsOfMatter, T : Amount<U1>, U2 : Unit
     public val rule: ContinuousTransformationRule<U1, T, U2, R>,
 ) : ModelConstructor(context), ContinuousProducer<U2, R>, ContinuousConsumer<U1, T> {
 
-    override val supplyRequest: LateBindDeviceState<PerSecond<U1, T>> =
-        LateBindDeviceState(consumerAlgebra.zero.perSecond)
-    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U2>> = LateBindDeviceState(PerSecond.zero())
+    override val supplyRequest: LateBindValueState<PerSecond<U1, T>> =
+        LateBindValueState(consumerAlgebra.zero.perSecond)
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U2>> = LateBindValueState(PerSecond.zero())
 
-    override val consumation: DeviceState<PerSecond<U1, T>> =
+    override val consumation: ValueState<PerSecond<U1, T>> =
         combineState(supplyRequest, consumerRequest) { supply, consume ->
             with(consumerAlgebra) {
                 supply.coerceValueIn(consumerAlgebra.zero..rule.computeConsumption(consume))
             }
         }
 
-    override val consumationCapacity: DeviceState<AmountPerSecond<U1>> = mapState(consumerRequest) {
+    override val consumationCapacity: ValueState<AmountPerSecond<U1>> = mapState(consumerRequest) {
         rule.computeConsumption(it)
     }
 
-    override val production: DeviceState<PerSecond<U2, R>> = mapState(consumation) { rule.computeProduction(it) }
+    override val production: ValueState<PerSecond<U2, R>> = mapState(consumation) { rule.computeProduction(it) }
 
-    override val productionCapacity: DeviceState<PerSecond<U2, R>> = mapState(supplyRequest) {
+    override val productionCapacity: ValueState<PerSecond<U2, R>> = mapState(supplyRequest) {
         rule.computeProduction(it)
     }
 }

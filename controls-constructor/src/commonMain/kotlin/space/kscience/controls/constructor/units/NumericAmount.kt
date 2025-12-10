@@ -1,7 +1,7 @@
 package space.kscience.controls.constructor.units
 
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.DeviceStateWithDependencies
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.ValueStateWithDependencies
 import space.kscience.controls.constructor.map
 import space.kscience.dataforge.meta.*
 import kotlin.jvm.JvmInline
@@ -63,8 +63,8 @@ public operator fun <U : UnitsOfMeasurement> NumericAmount<U>.unaryMinus(): Nume
 
 public fun <U : UnitsOfMeasurement> Amount<U>.asNumeric(): NumericAmount<U> = this as? NumericAmount<U> ?: NumericAmount(value)
 
-public fun <U : UnitsOfMeasurement> DeviceState<Amount<U>>.asNumeric(): DeviceStateWithDependencies<NumericAmount<U>> =
-    DeviceState.map(this) { it.asNumeric() }
+public fun <U : UnitsOfMeasurement> ValueState<Amount<U>>.asNumeric(): ValueStateWithDependencies<NumericAmount<U>> =
+    ValueState.map(this) { it.asNumeric() }
 
 
 public fun <U : UnitsOfMeasurement> MetaConverter.Companion.numeric(
