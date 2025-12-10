@@ -17,7 +17,7 @@ import kotlin.time.Clock
 public abstract class ModelConstructor(
     final override val context: Context,
     vararg dependencies: ValueState<*>,
-) : Model, Named {
+) : Model, MutableStateContainer, Named {
 
     override val name: Name
         get() = NameToken("model", hashCode().toHexString()).asName()

@@ -150,9 +150,9 @@ class ContinuousFlowTest {
             }
         }.runSimulation {
 
-            buffer.content.subscribe().onEach {
-                println("content: $it (${clock.now() - epoch})")
-            }.launchIn(backgroundScope)
+//            buffer.content.subscribe().onEach {
+//                println("content: $it (${clock.now() - epoch})")
+//            }.launchIn(backgroundScope)
 
 
             assertEquals(2.0, producer.production.value.value)

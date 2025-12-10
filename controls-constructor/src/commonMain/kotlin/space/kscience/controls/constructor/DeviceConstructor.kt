@@ -20,7 +20,7 @@ import kotlin.time.Duration
 public abstract class DeviceConstructor(
     context: Context,
     meta: Meta = Meta.EMPTY,
-) : DeviceGroup(context, meta), StateContainer {
+) : DeviceGroup(context, meta), MutableStateContainer {
     private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf()
     override val constructorElements: Set<ConstructorElement> get() = _constructorElements
 

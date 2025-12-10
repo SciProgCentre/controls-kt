@@ -43,13 +43,16 @@ public class ModelConstructorElement(
     public val model: ModelConstructor,
 ) : ConstructorElement
 
+public interface StateContainer : ContextAware, CoroutineScope {
+    public val constructorElements: Set<ConstructorElement>
+}
+
 /**
  * Interface representing a container for managing state-based elements and interactions within a device context.
  * It extends [ContextAware] and [CoroutineScope], allowing it to work within a coroutine-based environment
  * while maintaining context awareness.
  */
-public interface StateContainer : ContextAware, CoroutineScope {
-    public val constructorElements: Set<ConstructorElement>
+public interface MutableStateContainer : StateContainer {
     public fun registerElement(constructorElement: ConstructorElement)
     public fun unregisterElement(constructorElement: ConstructorElement)
 
@@ -63,7 +66,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
         writes: Collection<ValueState<*>> = emptySet(),
         reads: Collection<ValueState<*>> = emptySet(),
         onChange: suspend (T) -> Unit,
-    ): Job = subscribe().onEach(onChange).launchIn(this@StateContainer).also {
+    ): Job = subscribe().onEach(onChange).launchIn(this@MutableStateContainer).also {
         registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 
@@ -77,7 +80,7 @@ public interface StateContainer : ContextAware, CoroutineScope {
         if (pair.first != pair.second) {
             onChange(pair.first, pair.second)
         }
-    }.launchIn(this@StateContainer).also {
+    }.launchIn(this@MutableStateContainer).also {
         registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 }
@@ -101,7 +104,7 @@ public val StateContainer.states: List<ValueState<Any?>>
 /**
  * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
  */
-public fun <T, D : ValueState<T>> StateContainer.registerState(state: D): D {
+public fun <T, D : ValueState<T>> MutableStateContainer.registerState(state: D): D {
     registerElement(StateConstructorElement(state))
     return state
 }
@@ -109,11 +112,11 @@ public fun <T, D : ValueState<T>> StateContainer.registerState(state: D): D {
 /**
  * Create a register a [MutableValueState]
  */
-public fun <T> StateContainer.stateOf(initialValue: T): MutableValueState<T> = registerState(
+public fun <T> MutableStateContainer.stateOf(initialValue: T): MutableValueState<T> = registerState(
     MutableDeviceState(initialValue)
 )
 
-public fun <T : ModelConstructor> StateContainer.model(model: T): T {
+public fun <T : ModelConstructor> MutableStateContainer.model(model: T): T {
     registerElement(ModelConstructorElement(model))
     return model
 }
@@ -121,13 +124,13 @@ public fun <T : ModelConstructor> StateContainer.model(model: T): T {
 /**
  * Create and register a timer state.
  */
-public fun StateContainer.timer(tick: Duration): TimerState =
+public fun MutableStateContainer.timer(tick: Duration): TimerState =
     registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick))
 
 /**
  * Register operations that perform [block] on timer change.
  */
-public fun StateContainer.onTimer(
+public fun MutableStateContainer.onTimer(
     timer: TimerState,
     writes: Collection<ValueState<*>> = emptySet(),
     reads: Collection<ValueState<*>> = emptySet(),
@@ -141,7 +144,7 @@ public fun StateContainer.onTimer(
 /**
  * Register a new timer and perform [block] on its change.
  */
-public fun StateContainer.onTimer(
+public fun MutableStateContainer.onTimer(
     tick: Duration,
     writes: Collection<ValueState<*>> = emptySet(),
     reads: Collection<ValueState<*>> = emptySet(),
@@ -151,7 +154,7 @@ public fun StateContainer.onTimer(
 /**
  * Register operation that performs [block] on next timer tick.
  */
-public fun StateContainer.onTimer(
+public fun MutableStateContainer.onTimer(
     timer: TimerState,
     writes: Collection<ValueState<*>> = emptySet(),
     reads: Collection<ValueState<*>> = emptySet(),
@@ -161,14 +164,14 @@ public fun StateContainer.onTimer(
 /**
  * Register a new timer and perform [block] on next tick
  */
-public fun StateContainer.onTimer(
+public fun MutableStateContainer.onTimer(
     tick: Duration,
     writes: Collection<ValueState<*>> = emptySet(),
     reads: Collection<ValueState<*>> = emptySet(),
     block: suspend (next: Instant) -> Unit,
 ): Job = timer(tick).onNext(writes = writes, reads = reads, onChange = block)
 
-public fun <T, R> StateContainer.mapState(
+public fun <T, R> MutableStateContainer.mapState(
     origin: ValueState<T>,
     transformation: (T) -> R,
 ): ValueStateWithDependencies<R> = registerState(ValueState.map(this, origin, transformation))
@@ -176,7 +179,7 @@ public fun <T, R> StateContainer.mapState(
 /**
  * Perform a complex transformation on state change
  */
-public fun <T, R> StateContainer.flowState(
+public fun <T, R> MutableStateContainer.flowState(
     origin: ValueState<T>,
     initialValue: R,
     transformation: suspend FlowCollector<R>.(T) -> Unit,
@@ -189,21 +192,21 @@ public fun <T, R> StateContainer.flowState(
 /**
  * Create a new state by combining two existing ones
  */
-public fun <T1, T2, R> StateContainer.combineState(
+public fun <T1, T2, R> MutableStateContainer.combineState(
     first: ValueState<T1>,
     second: ValueState<T2>,
     transformation: (T1, T2) -> R,
 ): ValueState<R> = registerState(ValueState.combine(this, first, second, transformation))
 
 
-public fun <T1, T2, T3, R> StateContainer.combineState(
+public fun <T1, T2, T3, R> MutableStateContainer.combineState(
     first: ValueState<T1>,
     second: ValueState<T2>,
     third: ValueState<T3>,
     transformation: (T1, T2, T3) -> R,
 ): ValueState<R> = registerState(ValueState.combine(this, first, second, third, transformation))
 
-public fun <T1, T2, T3, T4, R> StateContainer.combineState(
+public fun <T1, T2, T3, T4, R> MutableStateContainer.combineState(
     first: ValueState<T1>,
     second: ValueState<T2>,
     third: ValueState<T3>,
@@ -220,7 +223,7 @@ public fun <T1, T2, T3, T4, R> StateContainer.combineState(
  * @param transformation a function that takes an array of individual state values and maps it to a combined value.
  * @return a new [ValueState] representing the combined state, with the value computed by the transformation function.
  */
-public fun <T, R> StateContainer.combineState(
+public fun <T, R> MutableStateContainer.combineState(
     states: Collection<ValueState<T>>,
     transformation: (List<T>) -> R,
 ): ValueState<R> = registerState(ValueState.combine(this, states, transformation))
@@ -239,7 +242,7 @@ public fun <T, R> StateContainer.combineState(
  * @return a new `DeviceState` instance representing the combined state, with its value derived dynamically
  *         from the input states and the `transformation` function.
  */
-public fun <K, T, R> StateContainer.combineState(
+public fun <K, T, R> MutableStateContainer.combineState(
     states: Map<K, ValueState<T>>,
     transformation: (Map<K, T>) -> R,
 ): ValueState<R> = registerState(ValueState.combine(this, states, transformation))
@@ -250,7 +253,7 @@ public fun <K, T, R> StateContainer.combineState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T> StateContainer.bindState(sourceState: ValueState<T>, targetState: MutableValueState<T>): Job {
+public fun <T> MutableStateContainer.bindState(sourceState: ValueState<T>, targetState: MutableValueState<T>): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
 
@@ -272,7 +275,7 @@ public fun <T> StateContainer.bindState(sourceState: ValueState<T>, targetState:
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T, R> StateContainer.bindTransformedState(
+public fun <T, R> MutableStateContainer.bindTransformedState(
     sourceState: ValueState<T>,
     targetState: MutableValueState<R>,
     transformation: suspend (T) -> R,
@@ -297,7 +300,7 @@ public fun <T, R> StateContainer.bindTransformedState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T1, T2, R> StateContainer.bindCombinedState(
+public fun <T1, T2, R> MutableStateContainer.bindCombinedState(
     sourceState1: ValueState<T1>,
     sourceState2: ValueState<T2>,
     targetState: MutableValueState<R>,
@@ -323,7 +326,7 @@ public fun <T1, T2, R> StateContainer.bindCombinedState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public inline fun <reified T, R> StateContainer.bindCombinedState(
+public inline fun <reified T, R> MutableStateContainer.bindCombinedState(
     sourceStates: Collection<ValueState<T>>,
     targetState: MutableValueState<R>,
     noinline transformation: suspend (Array<T>) -> R,
