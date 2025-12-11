@@ -116,7 +116,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
     public var target: FlowCollector<DiscreteFlowPacket<U>>? = null
 ) : ModelConstructor(context, capacity), DiscreteActor<U> {
 
-    override val name: Name = NameToken("consumer", hashCode().toHexString()).asName()
+    override val modelType: Name = NameToken("consumer", hashCode().toHexString()).asName()
 
     private val channel = Channel<DiscreteFlowPacket<U>>()
 
@@ -124,7 +124,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         channel.send(value)
     }
 
-    private val _consumation = MutableDeviceState<Amount<U>>(NumericAmount(0.0))
+    private val _consumation = MutableValueState<Amount<U>>(NumericAmount(0.0))
 
     override val consumation: ValueState<Amount<U>> get() = _consumation
 
@@ -159,9 +159,9 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
     public var target: DiscreteActor<U>,
     private val packageInterval: Duration = 0.1.seconds,
 ) : ModelConstructor(context, capacity) {
-    override val name: Name = NameToken("producer", hashCode().toHexString()).asName()
+    override val modelType: Name = NameToken("producer", hashCode().toHexString()).asName()
 
-    private val _production = MutableDeviceState<Amount<U>>(NumericAmount(0.0))
+    private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0))
 
     public val production: ValueState<Amount<U>> get() = _production
 
@@ -175,7 +175,7 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
         while (true) {
             delay(packageInterval)
             val amountPerPackage = capacity.value * (packageInterval / 1.seconds)
-            emit(DiscreteFlowPacket(name, amountPerPackage, clock.now()))
+            emit(DiscreteFlowPacket(modelType, amountPerPackage, clock.now()))
         }
     }.onEach {
         target.emit(it)

@@ -37,7 +37,7 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
 
     override val producerAlgebra: AmountAlgebra<U, T> get() = consumerAlgebra
 
-    private val _content: MutableValueState<T> = MutableDeviceState(initialLevel)
+    private val _content: MutableValueState<T> = MutableValueState(initialLevel)
 
     public val content: ValueState<T> get() = _content
 
@@ -124,7 +124,7 @@ public fun <U : UnitsOfMatter> ContinuousBuffer(
 ): ContinuousBuffer<U, NumericAmount<U>> = ContinuousBuffer(
     context,
     NumericAmountAlgebra<U>(),
-    DeviceState(capacity)
+    ValueState(capacity)
 )
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(
@@ -136,7 +136,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(
     ContinuousBuffer(
         context = context,
         consumerAlgebra = algebra,
-        bufferCapacity = DeviceState(bufferCapacity),
+        bufferCapacity = ValueState(bufferCapacity),
         initialLevel = initialLevel,
         externalTimer = externalTimer,
     )

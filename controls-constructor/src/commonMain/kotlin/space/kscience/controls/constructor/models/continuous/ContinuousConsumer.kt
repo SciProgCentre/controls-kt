@@ -100,4 +100,4 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
     capacity: AmountPerSecond<U>
-): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, DeviceState(capacity)))
+): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, ValueState(capacity)))

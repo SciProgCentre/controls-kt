@@ -122,7 +122,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.limited(
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.limited(
     scope: CoroutineScope,
     productionLimit: AmountPerSecond<U>
-): ContinuousProducer<U, T> = limited(scope, DeviceState(productionLimit))
+): ContinuousProducer<U, T> = limited(scope, ValueState(productionLimit))
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.limitedConsumer(
     scope: CoroutineScope,
@@ -159,7 +159,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.limitedCo
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.limitedConsumer(
     scope: CoroutineScope,
     consumationLimit: AmountPerSecond<U>
-): ContinuousConsumer<U, T> = limitedConsumer(scope, DeviceState(consumationLimit))
+): ContinuousConsumer<U, T> = limitedConsumer(scope, ValueState(consumationLimit))
 
 /**
  * Collects an amount over a specified duration asynchronously by integrating a flow of [PerSecond] values in a
@@ -168,7 +168,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.limitedCo
  * @param duration The time duration over which the amount is collected.
  * @return A [Deferred] representing the total accumulated amount of type [T] after the specified duration.
  */
-context(container: StateContainer, algebra: AmountAlgebra<U, T>)
+context(container: Constructor, algebra: AmountAlgebra<U, T>)
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ValueState<PerSecond<U, T>>.collectAmountAsync(
     duration: Duration
 ): Deferred<T> = container.async {

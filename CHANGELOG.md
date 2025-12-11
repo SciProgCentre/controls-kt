@@ -14,6 +14,7 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- `StateContainer` renamed to `Constructor`
 - Separate StateContainer and MutableStateContainer
 - `DeviceState` renamed to `ValueState`
 - Update logic of `DeviceState` to properly address subscriptions.

@@ -316,7 +316,7 @@ public fun <T : Any> DeviceGroup.registerVirtualProperty(
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
 ): MutableValueState<T> {
-    val state = MutableDeviceState<T>(initialValue)
+    val state = MutableValueState<T>(initialValue)
     registerMutableProperty(name, converter, state, descriptorBuilder)
     return state
 }

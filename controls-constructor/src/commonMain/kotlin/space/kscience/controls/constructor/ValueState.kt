@@ -21,7 +21,9 @@ public interface ValueState<out T> {
 
     override fun toString(): String
 
-    public companion object
+    public companion object {
+        public const val TYPE: String = "state"
+    }
 }
 
 

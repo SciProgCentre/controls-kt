@@ -58,8 +58,8 @@ internal fun CollectiveDeviceState(
 ) = CollectiveDeviceState(
     id,
     CollectiveDeviceConfiguration(id).apply(configuration),
-    MutableDeviceState(position),
-    MutableDeviceState(GmcVelocity.zero)
+    MutableValueState(position),
+    MutableValueState(GmcVelocity.zero)
 )
 
 internal class DeviceCollectiveModel(
@@ -125,8 +125,8 @@ internal class DeviceCollectiveModel(
         val state = CollectiveDeviceState(
             id = id,
             configuration = CollectiveDeviceConfiguration(id),
-            position = MutableDeviceState(position),
-            velocity = MutableDeviceState(GmcVelocity.zero)
+            position = MutableValueState(position),
+            velocity = MutableValueState(GmcVelocity.zero)
         )
 
         val result = CollectiveDeviceConstructor(

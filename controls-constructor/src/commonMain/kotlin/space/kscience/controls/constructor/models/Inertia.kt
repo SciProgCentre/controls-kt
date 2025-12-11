@@ -45,7 +45,7 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
             force: ValueState<NumericAmount<Newtons>>,
             mass: NumericAmount<Kilograms>,
             position: MutableValueState<NumericAmount<Meters>>,
-            velocity: MutableValueState<NumericAmount<MetersPerSecond>> = MutableDeviceState(NumericAmount(0.0)),
+            velocity: MutableValueState<NumericAmount<MetersPerSecond>> = MutableValueState(NumericAmount(0.0)),
         ): Inertia<Meters, MetersPerSecond> = Inertia(
             context = context,
             force = force.values(),
@@ -59,7 +59,7 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
             force: ValueState<NumericAmount<NewtonsMeters>>,
             momentOfInertia: NumericAmount<KgM2>,
             position: MutableValueState<NumericAmount<Degrees>>,
-            velocity: MutableValueState<NumericAmount<DegreesPerSecond>> = MutableDeviceState(NumericAmount(0.0)),
+            velocity: MutableValueState<NumericAmount<DegreesPerSecond>> = MutableValueState(NumericAmount(0.0)),
         ): Inertia<Degrees, DegreesPerSecond> = Inertia(
             context = context,
             force = force.values(),

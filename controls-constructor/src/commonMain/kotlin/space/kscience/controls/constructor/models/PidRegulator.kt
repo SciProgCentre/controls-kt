@@ -33,7 +33,7 @@ public class PidRegulator<P : UnitsOfMeasurement, O : UnitsOfMeasurement>(
     context: Context,
     private val position: ValueState<NumericAmount<P>>,
     public var pidParameters: PidParameters, // TODO expose as property
-    output: MutableValueState<NumericAmount<O>> = MutableDeviceState(NumericAmount(0.0)),
+    output: MutableValueState<NumericAmount<O>> = MutableValueState(NumericAmount(0.0)),
     private val convertOutput: (NumericAmount<P>) -> NumericAmount<O> = { NumericAmount(it.value) },
 ) : ModelConstructor(context) {
 

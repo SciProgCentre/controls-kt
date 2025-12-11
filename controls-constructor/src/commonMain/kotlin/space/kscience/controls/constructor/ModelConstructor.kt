@@ -7,7 +7,6 @@ import kotlinx.coroutines.newCoroutineContext
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.misc.Named
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.names.asName
@@ -17,9 +16,9 @@ import kotlin.time.Clock
 public abstract class ModelConstructor(
     final override val context: Context,
     vararg dependencies: ValueState<*>,
-) : Model, MutableStateContainer, Named {
+) : Model, MutableConstructor {
 
-    override val name: Name
+    public open val modelType: Name
         get() = NameToken("model", hashCode().toHexString()).asName()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -27,7 +26,7 @@ public abstract class ModelConstructor(
         context.newCoroutineContext(
             Job(context.coroutineContext[Job]) +
                     context.simulationDispatcher +
-                    CoroutineName(name.toString())
+                    CoroutineName(modelType.toString())
         )
     }
 
@@ -49,4 +48,4 @@ public abstract class ModelConstructor(
     }
 }
 
-public val StateContainer.clock: Clock get() = context.clock
+public val Constructor.clock: Clock get() = context.clock

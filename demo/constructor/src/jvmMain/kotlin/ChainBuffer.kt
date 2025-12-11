@@ -33,7 +33,7 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
-import space.kscience.controls.constructor.MutableDeviceState
+import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.AmountPerSecond
 import space.kscience.controls.constructor.units.CubicMeters
@@ -52,7 +52,7 @@ import kotlin.time.Instant
 private class ChainBufferModel(
     context: Context
 ) : ContinuousFlowModel(context) {
-    val production = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+    val production = MutableValueState(AmountPerSecond<Kilograms>(1.0))
     val producer = producer(Kilograms, production).apply {
         debugState("Producer production", production)
     }
@@ -74,7 +74,7 @@ private class ChainBufferModel(
         debugState("Buffer 2", content)
     }
 
-    val consumation = MutableDeviceState(AmountPerSecond<CubicMeters>(2.0))
+    val consumation = MutableValueState(AmountPerSecond<CubicMeters>(2.0))
 
     val consumer = consumer(CubicMeters, consumation).apply {
         connectProducer(buffer2)

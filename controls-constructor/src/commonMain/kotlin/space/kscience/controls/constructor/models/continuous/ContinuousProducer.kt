@@ -100,4 +100,4 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
     capacity: PerSecond<U,T>
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, DeviceState(capacity)))
+): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, ValueState(capacity)))

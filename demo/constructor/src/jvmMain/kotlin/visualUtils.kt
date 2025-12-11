@@ -20,14 +20,14 @@ import space.kscience.controls.constructor.units.AmountPerSecond
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.time.Duration.Companion.seconds
 
-internal fun StateContainer.debugState(name: String, state: ValueState<Amount<*>>): Job =
+internal fun Constructor.debugState(name: String, state: ValueState<Amount<*>>): Job =
     state.useValue(this) { value ->
         println("(${clock.now()}) $name: ${value.value}")
     }
 
 
 @Composable
-fun <T> StateContainer.displayState(
+fun <T> Constructor.displayState(
     name: String,
     state: ValueState<T>,
     content: @Composable (T) -> Unit = {
@@ -47,7 +47,7 @@ fun <T> StateContainer.displayState(
 }
 
 @Composable
-fun <U: UnitsOfMeasurement> StateContainer.slider(
+fun <U: UnitsOfMeasurement> Constructor.slider(
     name: String,
     state: MutableValueState<AmountPerSecond<U>>,
     valueRange: ClosedFloatingPointRange<Float>

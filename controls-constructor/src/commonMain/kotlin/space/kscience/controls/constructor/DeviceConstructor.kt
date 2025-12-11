@@ -20,7 +20,7 @@ import kotlin.time.Duration
 public abstract class DeviceConstructor(
     context: Context,
     meta: Meta = Meta.EMPTY,
-) : DeviceGroup(context, meta), MutableStateContainer {
+) : DeviceGroup(context, meta), MutableConstructor {
     private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf()
     override val constructorElements: Set<ConstructorElement> get() = _constructorElements
 
@@ -135,7 +135,7 @@ public fun <T> DeviceConstructor.virtualProperty(
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
     metaConverter,
-    MutableDeviceState(initialState),
+    MutableValueState(initialState),
     descriptorBuilder,
     nameOverride,
 )

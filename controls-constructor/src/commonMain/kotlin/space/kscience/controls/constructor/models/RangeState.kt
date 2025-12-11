@@ -2,7 +2,6 @@ package space.kscience.controls.constructor.models
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import space.kscience.controls.constructor.MutableDeviceState
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
@@ -54,7 +53,7 @@ public class MutableRangeState<T : Comparable<T>>(
 public fun <T : Comparable<T>> MutableRangeState(
     initialValue: T,
     range: ClosedRange<T>,
-): MutableRangeState<T> = MutableRangeState<T>(MutableDeviceState(initialValue), range)
+): MutableRangeState<T> = MutableRangeState<T>(MutableValueState(initialValue), range)
 
 public fun <U : UnitsOfMeasurement> MutableRangeState(
     initialValue: Double,
