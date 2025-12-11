@@ -136,8 +136,8 @@ class ContinuousFlowTest {
         val model = object : ContinuousFlowModel(context) {
             val bufferCapacity = NumericAmount<Kilograms>(10.0)
 
-            val productionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
-            val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val productionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(0.0))
+            val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(0.0))
 
             val producer = producer(Kilograms, productionCapacity)
 
@@ -153,7 +153,8 @@ class ContinuousFlowTest {
 //            buffer.content.subscribe().onEach {
 //                println("content: $it (${clock.now() - epoch})")
 //            }.launchIn(backgroundScope)
-
+            productionCapacity.value = AmountPerSecond(2.0)
+            consumationCapacity.value = AmountPerSecond(1.0)
 
             assertEquals(2.0, producer.production.value.value)
             assertEquals(1.0, consumer.consumation.value.value)
