@@ -14,8 +14,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 
 public abstract class ModelConstructor(
-    final override val context: Context,
-    vararg dependencies: ValueState<*>,
+    final override val context: Context
 ) : Model, MutableConstructor {
 
     public open val modelType: Name
@@ -31,11 +30,7 @@ public abstract class ModelConstructor(
     }
 
 
-    private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf<ConstructorElement>().apply {
-        dependencies.forEach {
-            add(StateConstructorElement(it))
-        }
-    }
+    private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf<ConstructorElement>()
 
     override val constructorElements: Set<ConstructorElement> get() = _constructorElements
 

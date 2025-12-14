@@ -30,8 +30,7 @@ public data class DiscreteFlowPacket<U : UnitsOfMeasurement>(
 )
 
 @ExperimentalControlsApi
-public abstract class DiscreteFlowModel(context: Context, vararg dependencies: ValueState<*>) :
-    ModelConstructor(context, *dependencies)
+public abstract class DiscreteFlowModel(context: Context) : ModelConstructor(context)
 
 
 /**
@@ -114,7 +113,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: ValueState<NumericAmount<U>>,
     public var target: FlowCollector<DiscreteFlowPacket<U>>? = null
-) : ModelConstructor(context, capacity), DiscreteActor<U> {
+) : ModelConstructor(context), DiscreteActor<U> {
 
     override val modelType: Name = NameToken("consumer", hashCode().toHexString()).asName()
 
@@ -129,7 +128,8 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
     override val consumation: ValueState<Amount<U>> get() = _consumation
 
     init {
-        registerState(consumation)
+        registerState(consumation, "consumation".asName())
+        registerState(capacity, "capacity".asName())
     }
 
     private val clock: Clock = context.clock
@@ -158,7 +158,7 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
     public val capacity: ValueState<NumericAmount<U>>,
     public var target: DiscreteActor<U>,
     private val packageInterval: Duration = 0.1.seconds,
-) : ModelConstructor(context, capacity) {
+) : ModelConstructor(context) {
     override val modelType: Name = NameToken("producer", hashCode().toHexString()).asName()
 
     private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0))
@@ -166,7 +166,8 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
     public val production: ValueState<Amount<U>> get() = _production
 
     init {
-        registerState(production)
+        registerState(production, "production".asName())
+        registerState(capacity, "capacity".asName())
     }
 
     private val clock: Clock = context.clock

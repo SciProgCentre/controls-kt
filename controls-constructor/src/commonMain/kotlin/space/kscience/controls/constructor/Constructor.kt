@@ -30,8 +30,8 @@ public class PropertyConstructorElement<T>(
  * A binding for independent state like a timer or model state
  */
 public class StateConstructorElement<T>(
+    public val name: Name?,
     public val state: ValueState<T>,
-    public val name: Name? = null
 ) : ConstructorElement
 
 /**
@@ -57,8 +57,8 @@ public class ConnectionConstructorElement(
  * to the required context and state dependencies.
  */
 public class ModelConstructorElement(
+    public val name: Name?,
     public val model: Model,
-    public val name: Name? = null
 ) : ConstructorElement
 
 /**
@@ -120,24 +120,25 @@ public val Constructor.states: List<ValueState<Any?>>
 /**
  * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
  */
-public fun <T, D : ValueState<T>> MutableConstructor.registerState(state: D): D {
-    registerElement(StateConstructorElement(state))
+public fun <T, D : ValueState<T>> MutableConstructor.registerState(state: D, name: Name?): D {
+    registerElement(StateConstructorElement(name, state))
     return state
 }
 
 /**
  * Create a register a [MutableValueState]
  */
-public fun <T> MutableConstructor.stateOf(initialValue: T): MutableValueState<T> = registerState(
-    MutableValueState(initialValue)
+public fun <T> MutableConstructor.stateOf(initialValue: T, name: Name? = null): MutableValueState<T> = registerState(
+    state = MutableValueState(initialValue),
+    name = name
 )
 
 
 /**
  * Create and register a timer state.
  */
-public fun MutableConstructor.timer(tick: Duration): TimerState =
-    registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick))
+public fun MutableConstructor.timer(tick: Duration, name: Name? = null): TimerState =
+    registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick), name)
 
 /**
  * Register operations that perform [block] on timer change.
@@ -160,8 +161,9 @@ public fun MutableConstructor.onTimer(
     tick: Duration,
     writes: Collection<ValueState<*>> = emptySet(),
     reads: Collection<ValueState<*>> = emptySet(),
+    timerName: Name? = null,
     block: suspend (prev: Instant, next: Instant) -> Unit,
-): Job = onTimer(timer(tick), writes = writes, reads = reads, block = block)
+): Job = onTimer(timer(tick, timerName), writes = writes, reads = reads, block = block)
 
 /**
  * Register operation that performs [block] on next timer tick.
@@ -180,13 +182,15 @@ public fun MutableConstructor.onTimer(
     tick: Duration,
     writes: Collection<ValueState<*>> = emptySet(),
     reads: Collection<ValueState<*>> = emptySet(),
+    timerName: Name? = null,
     block: suspend (next: Instant) -> Unit,
-): Job = timer(tick).onNext(writes = writes, reads = reads, onChange = block)
+): Job = timer(tick, timerName).onNext(writes = writes, reads = reads, onChange = block)
 
 public fun <T, R> MutableConstructor.mapState(
     origin: ValueState<T>,
+    name: Name? = null,
     transformation: (T) -> R,
-): ValueStateWithDependencies<R> = registerState(ValueState.map(this, origin, transformation))
+): ValueStateWithDependencies<R> = registerState(ValueState.map(this, origin, transformation), name)
 
 /**
  * Perform a complex transformation on state change
@@ -194,11 +198,12 @@ public fun <T, R> MutableConstructor.mapState(
 public fun <T, R> MutableConstructor.flowState(
     origin: ValueState<T>,
     initialValue: R,
+    name: Name? = null,
     transformation: suspend FlowCollector<R>.(T) -> Unit,
 ): ValueStateWithDependencies<R> {
     val state = MutableValueState(initialValue)
     origin.subscribe().transform(transformation).onEach { state.value = it }.launchIn(this)
-    return registerState(state.withDependencies(setOf(origin)))
+    return registerState(state.withDependencies(setOf(origin)), name)
 }
 
 /**
@@ -207,24 +212,27 @@ public fun <T, R> MutableConstructor.flowState(
 public fun <T1, T2, R> MutableConstructor.combineState(
     first: ValueState<T1>,
     second: ValueState<T2>,
+    name: Name? = null,
     transformation: (T1, T2) -> R,
-): ValueState<R> = registerState(ValueState.combine(this, first, second, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, first, second, transformation), name)
 
 
 public fun <T1, T2, T3, R> MutableConstructor.combineState(
     first: ValueState<T1>,
     second: ValueState<T2>,
     third: ValueState<T3>,
+    name: Name? = null,
     transformation: (T1, T2, T3) -> R,
-): ValueState<R> = registerState(ValueState.combine(this, first, second, third, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, first, second, third, transformation), name)
 
 public fun <T1, T2, T3, T4, R> MutableConstructor.combineState(
     first: ValueState<T1>,
     second: ValueState<T2>,
     third: ValueState<T3>,
     forth: ValueState<T4>,
+    name: Name? = null,
     transformation: (T1, T2, T3, T4) -> R,
-): ValueState<R> = registerState(ValueState.combine(this, first, second, third, forth, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, first, second, third, forth, transformation), name)
 
 /**
  * Combines multiple device states into a single state by applying a transformation function.
@@ -237,8 +245,9 @@ public fun <T1, T2, T3, T4, R> MutableConstructor.combineState(
  */
 public fun <T, R> MutableConstructor.combineState(
     states: Collection<ValueState<T>>,
+    nama: Name? = null,
     transformation: (List<T>) -> R,
-): ValueState<R> = registerState(ValueState.combine(this, states, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, states, transformation), nama)
 
 /**
  * Combines multiple [ValueState] instances into a new combined [ValueState].
@@ -256,8 +265,9 @@ public fun <T, R> MutableConstructor.combineState(
  */
 public fun <K, T, R> MutableConstructor.combineState(
     states: Map<K, ValueState<T>>,
+    name: Name? = null,
     transformation: (Map<K, T>) -> R,
-): ValueState<R> = registerState(ValueState.combine(this, states, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, states, transformation),name)
 
 /**
  * Create and start binding between [sourceState] and [targetState]. Changes made to [sourceState] are automatically

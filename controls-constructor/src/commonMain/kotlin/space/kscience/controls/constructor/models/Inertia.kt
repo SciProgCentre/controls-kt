@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.models
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
 import kotlin.math.pow
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
@@ -19,8 +20,8 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
 ) : ModelConstructor(context) {
 
     init {
-        registerState(position)
-        registerState(velocity)
+        registerState(position, "position".asName())
+        registerState(velocity, "velocity".asName())
     }
 
     private var currentForce = force.value

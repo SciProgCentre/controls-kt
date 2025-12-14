@@ -3,6 +3,9 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
 public interface SeparationRule<U : UnitsOfMatter, T : Amount<U>> {
     public val productionKeys: Collection<String>
@@ -52,6 +55,13 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
             LateBindValueState(PerSecond.zero())
         }
 
+    init {
+        registerState(supplyRequest, "supply.request".parseAsName(true))
+        consumationRequest.forEach { (key, value) ->
+            registerState(value, "consumation[$key].request".parseAsName())
+        }
+    }
+
     private val jointConsumationRequest: ValueState<Map<String, AmountPerSecond<U>>> =
         combineState(consumationRequest) {
             it
@@ -70,18 +80,21 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
-    public val production: ValueState<Map<String, PerSecond<U, T>>> = mapState(balance) {
+    public val production: ValueState<Map<String, PerSecond<U, T>>> = mapState(
+        origin = balance,
+        name = "production".asName()
+    ) {
         it.second
     }
 
     public val individualProduction: Map<String, ValueState<PerSecond<U, T>>> =
         rule.productionKeys.associateWith { key ->
-            mapState(production) { it[key] ?: consumerAlgebra.zero.perSecond }
+            mapState(production, "production[$key]".parseAsName()) { it[key] ?: consumerAlgebra.zero.perSecond }
         }
 
     public val productionCapacity: ValueState<Map<String, PerSecond<U, T>>> = combineState(
         first = supplyRequest,
-        second = jointConsumationRequest
+        second = jointConsumationRequest,
     ) { supply: PerSecond<U, T>, consumation: Map<String, AmountPerSecond<U>> ->
         with(consumerAlgebra) {
             val productionLimit = rule.backward(consumation)
@@ -92,18 +105,23 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
 
     public val individualProductionCapacity: Map<String, ValueState<PerSecond<U, T>>> =
         rule.productionKeys.associateWith { key ->
-            mapState(productionCapacity) { it[key] ?: consumerAlgebra.zero.perSecond }
+            mapState(productionCapacity, "production.capacity[$key]".parseAsName()) {
+                it[key] ?: consumerAlgebra.zero.perSecond
+            }
         }
 
-    override val consumation: ValueState<PerSecond<U, T>> = mapState(balance) { it.first }
+    override val consumation: ValueState<PerSecond<U, T>> = mapState(balance, "consumation".asName()) { it.first }
 
-    override val consumationCapacity: ValueState<AmountPerSecond<U>> = mapState(jointConsumationRequest) {
+    override val consumationCapacity: ValueState<AmountPerSecond<U>> = mapState(
+        origin = jointConsumationRequest,
+        name = "consumation.capacity".parseAsName()
+    ) {
         rule.backward(it)
     }
 
 }
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousSeparate<U, T>.asProducer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousSeparate<U, T>.asProducer(
     key: String
 ): ContinuousProducer<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
     object : ContinuousProducer<U, T> {
@@ -117,5 +135,6 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousSeparate<U, T>.asProducer
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.separator(
     algebra: AmountAlgebra<U, T>,
-    separationRule: SeparationRule<U, T>
-): ContinuousSeparate<U, T> = model(ContinuousSeparate<U, T>(context, algebra, separationRule))
+    separationRule: SeparationRule<U, T>,
+    modelName: Name? = null
+): ContinuousSeparate<U, T> = model(ContinuousSeparate<U, T>(context, algebra, separationRule), modelName)

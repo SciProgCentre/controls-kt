@@ -3,6 +3,9 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
 public interface ContinuousConsumer<U : UnitsOfMatter, T : Amount<U>> {
     public val consumerAlgebra: AmountAlgebra<U, T>
@@ -61,13 +64,14 @@ private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
         LateBindValueState(consumerAlgebra.zero.perSecond)
 
     init {
-        registerState(consumationCapacity)
-        registerState(supplyRequest)
+        registerState(consumationCapacity, "consumation.capacity".parseAsName(true))
+        registerState(supplyRequest, "supply.request".parseAsName(true))
     }
 
     override val consumation: ValueState<PerSecond<U, T>> = combineState(
-        supplyRequest,
-        consumationCapacity
+        first = supplyRequest,
+        second = consumationCapacity,
+        name = "consumation".asName()
     ) { request, capacity ->
         with(consumerAlgebra) {
             request.coerceValueIn(NumericAmount.zero<U>()..capacity)
@@ -75,8 +79,9 @@ private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
     }
 
     public val efficiency: ValueState<Double> = combineState(
-        supplyRequest,
-        consumationCapacity
+        first = supplyRequest,
+        second = consumationCapacity,
+        name = "efficiency".asName()
     ) { request, capacity ->
         with(consumerAlgebra) {
             val consumation = request.coerceValueIn(NumericAmount.zero<U>()..capacity)
@@ -94,10 +99,12 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer(
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
-    capacity: ValueState<AmountPerSecond<U>>
-): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, capacity))
+    capacity: ValueState<AmountPerSecond<U>>,
+    modelName: Name? = null
+): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, capacity), modelName)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
-    capacity: AmountPerSecond<U>
-): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, ValueState(capacity)))
+    capacity: AmountPerSecond<U>,
+    modelName: Name? = null
+): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, ValueState(capacity)), modelName)

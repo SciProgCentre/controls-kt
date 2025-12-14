@@ -3,6 +3,9 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
 public interface ContinuousProducer<U : UnitsOfMatter, T : Amount<U>> {
     public val producerAlgebra: AmountAlgebra<U, T>
@@ -60,13 +63,14 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
 ) : ModelConstructor(context), ContinuousProducer<U, T> {
 
     init {
-        registerState(productionCapacity)
-        registerState(consumerRequest)
+        registerState(productionCapacity, "production.capacity".parseAsName(true))
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
     }
 
     override val production: ValueState<PerSecond<U,T>> = combineState(
         first = consumerRequest,
-        second = productionCapacity
+        second = productionCapacity,
+        name = "production".asName()
     ) { request: AmountPerSecond<U>, capacity: PerSecond<U,T> ->
         with(producerAlgebra) {
             capacity.coerceValueIn(NumericAmount.zero<U>()..request)
@@ -74,8 +78,9 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
     }
 
     public val efficiency: ValueState<Double> = combineState(
-        consumerRequest,
-        productionCapacity
+        first = consumerRequest,
+        second = productionCapacity,
+        name = "efficiency".asName()
     ) { request, capacity ->
         with(producerAlgebra) {
             val production = capacity.coerceValueIn(NumericAmount.zero<U>()..request)
@@ -94,10 +99,12 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer(
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: ValueState<PerSecond<U,T>>
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, capacity))
+    capacity: ValueState<PerSecond<U,T>>,
+    modelName: Name? = null
+): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, capacity), modelName)
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: PerSecond<U,T>
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, ValueState(capacity)))
+    capacity: PerSecond<U,T>,
+    modelName: Name? = null
+): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, ValueState(capacity)), modelName)

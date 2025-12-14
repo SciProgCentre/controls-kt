@@ -4,6 +4,9 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.models.continuous.ReactionRule.Companion.formula
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
 /**
  * Represents a reaction rule that models the transformation of input amounts into output amounts
@@ -29,7 +32,7 @@ public interface ReactionRule<U : UnitsOfMatter, T : Amount<U>> {
         /**
          * @param formula components needed to produce [production] of resulting substance
          */
-        public fun <U : UnitsOfMatter, T: Amount<U>> formula(
+        public fun <U : UnitsOfMatter, T : Amount<U>> formula(
             algebra: AmountAlgebra<U, T>,
             formula: Map<String, Number>,
             production: PerSecond<U, T>,
@@ -47,7 +50,7 @@ public interface ReactionRule<U : UnitsOfMatter, T : Amount<U>> {
                 val factor = formula.minOf { (key, formulaValue) ->
                     (input[key]?.value ?: 0.0) / formulaValue.toDouble()
                 }
-                return with(algebra) { production * factor}
+                return with(algebra) { production * factor }
             }
 
             override fun backward(output: Amount<U>): Map<String, AmountPerSecond<U>> = formula.mapValues {
@@ -71,7 +74,7 @@ public interface ReactionRule<U : UnitsOfMatter, T : Amount<U>> {
  * @param reaction The reaction rule defining consumption and production behavior
  *                 for given supply and product keys.
  */
-public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
+public class ContinuousReaction<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val reaction: ReactionRule<U, T>,
@@ -84,8 +87,10 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
 
 
     init {
-        registerState(consumerRequest)
-        supplyRequest.values.forEach(::registerState)
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
+        supplyRequest.forEach { (key, value) ->
+            registerState(value, "supply[$key].request".parseAsName())
+        }
     }
 
     // trick with casts is needed for reification to work
@@ -97,7 +102,9 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
      * A state of consumation from all sources
      */
     public val consumation: ValueState<Map<String, PerSecond<U, T>>> = combineState(
-        consumerRequest, jointSupplyRequest
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "consumation".asName()
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
             //compute expected amount of each supply
@@ -117,12 +124,15 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
     /**
      * Represents a mapping of individual consumptions keyed by a string representing the associated device or identifier.
      */
-    public val individualConsumation: Map<String, ValueState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith { key ->
-        mapState(consumation) { it[key]!! }
-    }
+    public val individualConsumation: Map<String, ValueState<PerSecond<U, T>>> =
+        reaction.supplyKeys.associateWith { key ->
+            mapState(consumation, "consumation[$key]".parseAsName()) { it[key]!! }
+        }
 
     public val consumationCapacity: ValueState<Map<String, AmountPerSecond<U>>> = combineState(
-        consumerRequest, jointSupplyRequest
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "consumation.capacity".parseAsName(true)
     ) { consumerRequest: AmountPerSecond<U>, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
             //compute the expected amount of each supply
@@ -136,16 +146,21 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
 
     public val individualConsumationCapacity: Map<String, ValueState<AmountPerSecond<U>>> =
         reaction.supplyKeys.associateWith { key ->
-            mapState(consumationCapacity) { it[key] ?: PerSecond.zero() }
+            mapState(consumationCapacity, "consumation[$key].capacity".parseAsName()) { it[key] ?: PerSecond.zero() }
         }
 
 
-    override val productionCapacity: ValueState<PerSecond<U, T>> = mapState(jointSupplyRequest) { supplyRequest ->
+    override val productionCapacity: ValueState<PerSecond<U, T>> = mapState(
+        origin = jointSupplyRequest,
+        name = "production.capacity".parseAsName(true)
+    ) { supplyRequest ->
         reaction.forward(supplyRequest)
     }
 
     override val production: ValueState<PerSecond<U, T>> = combineState(
-        consumerRequest, jointSupplyRequest
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "production".asName()
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
             reaction.forward(supplyRequest).coerceValueIn(PerSecond.zero<U>()..consumerRequest)
@@ -165,7 +180,7 @@ public class ContinuousReaction<U : UnitsOfMatter, T: Amount<U>>(
  * based on its capacity and the corresponding supply request.
  * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
  */
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousReaction<U, T>.asConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.asConsumer(
     key: String
 ): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
     object : ContinuousConsumer<U, T> {
@@ -185,23 +200,25 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectPr
     ContinuousFlowModel.connect(producer, this.asConsumer(key))
 }
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousReaction<U, T>.connectProducer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
     producerCapacity: ValueState<PerSecond<U, T>>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.reaction(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
     reaction: ReactionRule<U, T>,
-): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction))
+    modelName: Name? = null
+): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction), modelName)
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.reaction(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
     formula: Map<String, Number>,
     production: PerSecond<U, T>,
-    productKey: String = "@product"
+    productKey: String = "@product",
+    modelName: Name? = null
 ): ContinuousReaction<U, T> = model(
     ContinuousReaction(
         context, algebra,
@@ -211,5 +228,6 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.reaction(
             production = production,
             productKey = productKey
         )
-    )
+    ),
+    modelName
 )

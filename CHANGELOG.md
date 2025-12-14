@@ -14,6 +14,7 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- Add optional names to model states and submodels
 - `StateContainer` renamed to `Constructor`
 - Separate StateContainer and MutableStateContainer
 - `DeviceState` renamed to `ValueState`

@@ -3,6 +3,9 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
 
 public enum class JoinManagementStrategy {
@@ -41,8 +44,10 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
 
 
     init {
-        registerState(consumerRequest)
-        supplyRequest.values.forEach(::registerState)
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
+        supplyRequest.forEach { (key, value) ->
+            registerState(value, "supply[$key].request".parseAsName())
+        }
     }
 
     // trick with casts is needed for reification to work
@@ -52,7 +57,9 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
 
 
     public val consumation: ValueState<Map<String, PerSecond<U, T>>> = combineState(
-        consumerRequest, jointSupplyRequest
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "consumation".asName()
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
 
         with(producerAlgebra) {
@@ -94,17 +101,22 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
      */
     public val individualConsumation: Map<String, ValueState<PerSecond<U, T>>> =
         supplyRequest.keys.associateWith { key ->
-            mapState(consumation) { it[key]!! }
+            mapState(consumation, "consumation[$key]".parseAsName()) { it[key]!! }
         }
 
-    override val productionCapacity: ValueState<PerSecond<U, T>> =
-        mapState(jointSupplyRequest) { supply: Map<String, PerSecond<U, T>> ->
-            with(producerAlgebra) {
-                sum(supply.values)
-            }
+    override val productionCapacity: ValueState<PerSecond<U, T>> = mapState(
+        origin = jointSupplyRequest,
+        name = "production.capacity".parseAsName(true)
+    ) { supply: Map<String, PerSecond<U, T>> ->
+        with(producerAlgebra) {
+            sum(supply.values)
         }
+    }
 
-    override val production: ValueState<PerSecond<U, T>> = mapState(consumation) { consume ->
+    override val production: ValueState<PerSecond<U, T>> = mapState(
+        origin = consumation,
+        name = "production".asName()
+    ) { consume ->
         with(producerAlgebra) {
             sum(consume.values)
         }
@@ -157,7 +169,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProduce
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousMix(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix(
     context: Context,
     producers: Map<String, ContinuousProducer<U, T>>,
     consumer: ContinuousConsumer<U, T>,
@@ -173,8 +185,9 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousMix(
     }
 }
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.mix(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.mix(
     algebra: AmountAlgebra<U, T>,
     supplyKeys: Collection<String>,
+    modelName: Name? = null,
     joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-): ContinuousMix<U, T> = model(ContinuousMix(context, algebra, supplyKeys, joinManagementStrategy))
+): ContinuousMix<U, T> = model(ContinuousMix(context, algebra, supplyKeys, joinManagementStrategy), modelName)

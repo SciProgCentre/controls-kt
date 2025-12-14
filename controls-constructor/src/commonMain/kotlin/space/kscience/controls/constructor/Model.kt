@@ -53,7 +53,7 @@ public suspend fun <M : Model> M.runSimulation(
 }
 
 
-public fun <T : ModelConstructor> MutableConstructor.model(model: T): T {
-    registerElement(ModelConstructorElement(model))
+public fun <T : ModelConstructor> MutableConstructor.model(model: T, name: Name? = null): T {
+    registerElement(ModelConstructorElement(name, model))
     return model
 }
