@@ -20,6 +20,12 @@ public interface Model : Constructor, Provider {
             .filter { it.name != null }
             .associate { it.name!! to it.state }
 
+
+    override val defaultTarget: String get() = ValueState.TYPE
+
+
+    override val defaultChainTarget: String get() = TYPE
+
     override fun content(target: String): Map<Name, Any> {
         when (target) {
             TYPE -> models

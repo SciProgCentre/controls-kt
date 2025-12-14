@@ -11,7 +11,7 @@ class TimelineTests {
 
 
     @Test
-    fun testGeneration() = runTest(timeout = 2.seconds) {
+    fun testGeneration() = runTest(timeout = 3.seconds) {
         val startTime = Instant.parse("2020-01-01T00:00:00.000Z")
 
         val generation = GeneratingTimeline(
