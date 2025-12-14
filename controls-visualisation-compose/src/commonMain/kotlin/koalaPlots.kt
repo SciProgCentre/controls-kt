@@ -13,8 +13,8 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.propertyMessageFlow
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
@@ -175,7 +175,7 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
 @Composable
 public fun XYGraphScope<Instant, Double>.PlotNumberState(
     context: Context,
-    state: DeviceState<Number>,
+    state: ValueState<Number>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
@@ -203,7 +203,7 @@ public fun XYGraphScope<Instant, Double>.PlotNumberState(
 @Composable
 public fun XYGraphScope<Instant, Double>.PlotNumericState(
     context: Context,
-    state: DeviceState<Numeric<*>>,
+    state: ValueState<Amount<*>>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,

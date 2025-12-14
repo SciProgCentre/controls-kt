@@ -8,7 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.propertyMessageFlow
-import space.kscience.controls.constructor.DeviceState
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.controls.time.ValueWithTime
@@ -120,7 +120,7 @@ public fun Plot.plotDeviceProperty(
 
 private fun <T> Trace.updateFromState(
     context: Context,
-    state: DeviceState<T>,
+    state: ValueState<T>,
     extractValue: T.() -> Value,
     maxAge: Duration,
     maxPoints: Int,
@@ -139,7 +139,7 @@ private fun <T> Trace.updateFromState(
 
 public fun <T> Plot.plotDeviceState(
     context: Context,
-    state: DeviceState<T>,
+    state: ValueState<T>,
     extractValue: (T) -> Value = { Value.of(it) },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
@@ -153,7 +153,7 @@ public fun <T> Plot.plotDeviceState(
 
 public fun Plot.plotNumberState(
     context: Context,
-    state: DeviceState<Number>,
+    state: ValueState<Number>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
@@ -166,7 +166,7 @@ public fun Plot.plotNumberState(
 
 public fun Plot.plotBooleanState(
     context: Context,
-    state: DeviceState<Boolean>,
+    state: ValueState<Boolean>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,

@@ -3,7 +3,9 @@ package space.kscience.controls.constructor.models
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
 import kotlin.math.pow
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 /**
@@ -11,27 +13,27 @@ import kotlin.time.DurationUnit
  */
 public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
     context: Context,
-    force: DeviceState<Double>, //TODO add system unit sets
+    force: ValueState<Double>, //TODO add system unit sets
     inertia: Double,
-    public val position: MutableDeviceState<Numeric<U>>,
-    public val velocity: MutableDeviceState<Numeric<V>>,
+    public val position: MutableValueState<NumericAmount<U>>,
+    public val velocity: MutableValueState<NumericAmount<V>>,
 ) : ModelConstructor(context) {
 
     init {
-        registerState(position)
-        registerState(velocity)
+        registerState(position, "position".asName())
+        registerState(velocity, "velocity".asName())
     }
 
     private var currentForce = force.value
 
-    private val movement = onTimer(DefaultTimer.REALTIME) { prev, next ->
+    private val movement = onTimer(5.milliseconds) { prev, next ->
         val dtSeconds = (next - prev).toDouble(DurationUnit.SECONDS)
 
         // compute new value based on velocity and acceleration from the previous step
-        position.value += Numeric(velocity.value.value * dtSeconds + currentForce / inertia * dtSeconds.pow(2) / 2)
+        position.value += NumericAmount(velocity.value.value * dtSeconds + currentForce / inertia * dtSeconds.pow(2) / 2)
 
         // compute new velocity based on acceleration on the previous step
-        velocity.value += Numeric(currentForce / inertia * dtSeconds)
+        velocity.value += NumericAmount(currentForce / inertia * dtSeconds)
         currentForce = force.value
     }
 
@@ -41,10 +43,10 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
          */
         public fun linear(
             context: Context,
-            force: DeviceState<Numeric<Newtons>>,
-            mass: Numeric<Kilograms>,
-            position: MutableDeviceState<Numeric<Meters>>,
-            velocity: MutableDeviceState<Numeric<MetersPerSecond>> = MutableDeviceState(Numeric(0.0)),
+            force: ValueState<NumericAmount<Newtons>>,
+            mass: NumericAmount<Kilograms>,
+            position: MutableValueState<NumericAmount<Meters>>,
+            velocity: MutableValueState<NumericAmount<MetersPerSecond>> = MutableValueState(NumericAmount(0.0)),
         ): Inertia<Meters, MetersPerSecond> = Inertia(
             context = context,
             force = force.values(),
@@ -55,10 +57,10 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
 
         public fun circular(
             context: Context,
-            force: DeviceState<Numeric<NewtonsMeters>>,
-            momentOfInertia: Numeric<KgM2>,
-            position: MutableDeviceState<Numeric<Degrees>>,
-            velocity: MutableDeviceState<Numeric<DegreesPerSecond>> = MutableDeviceState(Numeric(0.0)),
+            force: ValueState<NumericAmount<NewtonsMeters>>,
+            momentOfInertia: NumericAmount<KgM2>,
+            position: MutableValueState<NumericAmount<Degrees>>,
+            velocity: MutableValueState<NumericAmount<DegreesPerSecond>> = MutableValueState(NumericAmount(0.0)),
         ): Inertia<Degrees, DegreesPerSecond> = Inertia(
             context = context,
             force = force.values(),

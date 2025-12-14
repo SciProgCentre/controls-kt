@@ -8,9 +8,12 @@ plugins {
 
 allprojects {
     group = "space.kscience"
-    version = "0.4.0-dev-8"
+    version = "0.4.0-dev-9"
     repositories{
         google()
+    }
+    tasks.withType<AbstractTestTask>().configureEach {
+        failOnNoDiscoveredTests = false
     }
 }
 

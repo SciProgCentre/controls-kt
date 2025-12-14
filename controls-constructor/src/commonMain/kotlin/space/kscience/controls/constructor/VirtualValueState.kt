@@ -6,13 +6,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 
 /**
- * A [MutableDeviceState] that does not correspond to a physical state
+ * A [MutableValueState] that does not correspond to a physical state
  *
- * @param callback a synchronous callback that could be used without a scope
  */
-private class VirtualDeviceState<T>(
+private class VirtualValueState<T>(
     initialValue: T,
-) : MutableDeviceState<T> {
+) : MutableValueState<T> {
 
     private val flow = MutableStateFlow(initialValue)
 
@@ -33,21 +32,20 @@ private class VirtualDeviceState<T>(
 
 
 /**
- * A [MutableDeviceState] that does not correspond to a physical state
+ * A [MutableValueState] that does not correspond to a physical state
  *
- * @param callback a synchronous callback that could be used without a scope
  */
-public fun <T> MutableDeviceState(
+public fun <T> MutableValueState(
     initialValue: T,
-): MutableDeviceState<T> = VirtualDeviceState(initialValue)
+): MutableValueState<T> = VirtualValueState(initialValue)
 
 
 /**
- * Create a [DeviceState] with constant value
+ * Create a [ValueState] with constant value
  */
-public fun <T> DeviceState(
+public fun <T> ValueState(
     value: T
-): DeviceState<T> = object : DeviceState<T> {
+): ValueState<T> = object : ValueState<T> {
     override val value: T get() = value
 
     override fun subscribe(): Flow<T> = flowOf(value)

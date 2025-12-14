@@ -16,20 +16,20 @@ import kotlinx.coroutines.Job
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.AmountPerSecond
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
 import kotlin.time.Duration.Companion.seconds
 
-internal fun StateContainer.debugState(name: String, state: DeviceState<Amount<*>>): Job =
+internal fun Constructor.debugState(name: String, state: ValueState<Amount<*>>): Job =
     state.useValue(this) { value ->
         println("(${clock.now()}) $name: ${value.value}")
     }
 
 
 @Composable
-fun <T> StateContainer.displayState(
+fun <T> Constructor.displayState(
     name: String,
-    state: DeviceState<T>,
+    state: ValueState<T>,
     content: @Composable (T) -> Unit = {
         Text(it.toString())
     }
@@ -47,13 +47,13 @@ fun <T> StateContainer.displayState(
 }
 
 @Composable
-fun <U: UnitsOfMeasurement> StateContainer.slider(
+fun <U: UnitsOfMeasurement> Constructor.slider(
     name: String,
-    state: MutableDeviceState<Numeric<U>>,
+    state: MutableValueState<AmountPerSecond<U>>,
     valueRange: ClosedFloatingPointRange<Float>
 ) {
 
-    val value: Numeric<U> by state.asComposeState(coroutineContext, 0.1.seconds)
+    val value: AmountPerSecond<U> by state.asComposeState(coroutineContext, 0.1.seconds)
 
     Row(
         modifier = Modifier.fillMaxWidth().border(2.dp, Color.Blue).padding(4.dp),
@@ -62,7 +62,7 @@ fun <U: UnitsOfMeasurement> StateContainer.slider(
         Text("$name: ")
         Slider(
             value = value.value.toFloat(),
-            onValueChange = { state.value = Numeric(it) },
+            onValueChange = { state.value = AmountPerSecond(it) },
             valueRange = valueRange,
             modifier = Modifier.weight(1f)
         )

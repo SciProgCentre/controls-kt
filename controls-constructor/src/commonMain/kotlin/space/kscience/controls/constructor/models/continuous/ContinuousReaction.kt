@@ -2,11 +2,11 @@ package space.kscience.controls.constructor.models.continuous
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.models.continuous.ReactionRule.Companion.formula
-import space.kscience.controls.constructor.units.Amount
-import space.kscience.controls.constructor.units.AmountAlgebra
-import space.kscience.controls.constructor.units.Numeric
-import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
 /**
  * Represents a reaction rule that models the transformation of input amounts into output amounts
@@ -16,14 +16,14 @@ import space.kscience.dataforge.context.Context
  * @param U The type of units of measurement associated with the amounts.
  * @param T The type of amount, parameterized by the unit type, used to represent quantities.
  */
-public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
+public interface ReactionRule<U : UnitsOfMatter, T : Amount<U>> {
     public val supplyKeys: Collection<String>
 
     public val productKey: String get() = DEFAULT_PRODUCT_KEY
 
-    public fun forward(input: Map<String, T>): T
+    public fun forward(input: Map<String, PerSecond<U, T>>): PerSecond<U, T>
 
-    public fun backward(output: Amount<U>): Map<String, Numeric<U>>
+    public fun backward(output: Amount<U>): Map<String, AmountPerSecond<U>>
 
     public companion object {
 
@@ -32,29 +32,29 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
         /**
          * @param formula components needed to produce [production] of resulting substance
          */
-        public fun <U : UnitsOfMeasurement, T : Amount<U>> formula(
+        public fun <U : UnitsOfMatter, T : Amount<U>> formula(
             algebra: AmountAlgebra<U, T>,
-            formula: Map<String, Numeric<U>>,
-            production: T = algebra.one,
+            formula: Map<String, Number>,
+            production: PerSecond<U, T>,
             productKey: String = DEFAULT_PRODUCT_KEY
         ): ReactionRule<U, T> = object : ReactionRule<U, T> {
 
             init {
-                formula.forEach { (key, value) -> require(value.value > 0.0) { "Formula value for $key must be positive, but was $value" } }
+                formula.forEach { (key, value) -> require(value.toDouble() > 0.0) { "Formula value for $key must be positive, but was $value" } }
             }
 
             override val supplyKeys: Collection<String> = formula.keys
             override val productKey: String = productKey
 
-            override fun forward(input: Map<String, T>): T {
+            override fun forward(input: Map<String, PerSecond<U, T>>): PerSecond<U, T> {
                 val factor = formula.minOf { (key, formulaValue) ->
-                    (input[key]?.value ?: 0.0) / formulaValue.value
+                    (input[key]?.value ?: 0.0) / formulaValue.toDouble()
                 }
-                return with(algebra) { factor * production }
+                return with(algebra) { production * factor }
             }
 
-            override fun backward(output: Amount<U>): Map<String, Numeric<U>> = formula.mapValues {
-                Numeric(output.value * it.value.value)
+            override fun backward(output: Amount<U>): Map<String, AmountPerSecond<U>> = formula.mapValues {
+                AmountPerSecond(output.value * it.value.toDouble())
             }
         }
     }
@@ -74,34 +74,38 @@ public interface ReactionRule<U : UnitsOfMeasurement, T : Amount<U>> {
  * @param reaction The reaction rule defining consumption and production behavior
  *                 for given supply and product keys.
  */
-public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
+public class ContinuousReaction<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val reaction: ReactionRule<U, T>,
-) : ModelConstructor(context), ContinuousProducerInterface<U, T> {
+) : ModelConstructor(context), ContinuousProducer<U, T> {
 
-    override val consumerRequest: LateBindDeviceState<Numeric<U>> = LateBindDeviceState(Numeric.zero())
-    public val supplyRequest: Map<String, LateBindDeviceState<T>> = reaction.supplyKeys.associateWith {
-        LateBindDeviceState(producerAlgebra.zero)
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
+    public val supplyRequest: Map<String, LateBindValueState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith {
+        LateBindValueState(producerAlgebra.zero.perSecond)
     }
 
 
     init {
-        registerState(consumerRequest)
-        supplyRequest.values.forEach(::registerState)
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
+        supplyRequest.forEach { (key, value) ->
+            registerState(value, "supply[$key].request".parseAsName())
+        }
     }
 
     // trick with casts is needed for reification to work
-    private val jointSupplyRequest: DeviceState<Map<String, T>> = combineState(supplyRequest) {
+    private val jointSupplyRequest: ValueState<Map<String, PerSecond<U, T>>> = combineState(supplyRequest) {
         it
     }
 
     /**
      * A state of consumation from all sources
      */
-    public val consumation: DeviceState<Map<String, T>> = combineState(
-        consumerRequest, jointSupplyRequest
-    ) { consumerRequest, supplyRequest: Map<String, T> ->
+    public val consumation: ValueState<Map<String, PerSecond<U, T>>> = combineState(
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "consumation".asName()
+    ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
             //compute expected amount of each supply
             val forwardRequest = reaction.forward(supplyRequest)
@@ -112,7 +116,7 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
 
             //limit consumation to actually consumed
             supplyRequest.mapValues { (key, value) ->
-                value.coerceValueIn(Numeric.zero<U>()..(backward[key] ?: Numeric.zero()))
+                value.coerceValueIn(PerSecond.zero<U>()..(backward[key] ?: PerSecond.zero()))
             }
         }
     }
@@ -120,15 +124,18 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
     /**
      * Represents a mapping of individual consumptions keyed by a string representing the associated device or identifier.
      */
-    public val individualConsumation: Map<String, DeviceState<T>> = reaction.supplyKeys.associateWith { key ->
-        mapState(consumation) { it[key]!! }
-    }
+    public val individualConsumation: Map<String, ValueState<PerSecond<U, T>>> =
+        reaction.supplyKeys.associateWith { key ->
+            mapState(consumation, "consumation[$key]".parseAsName()) { it[key]!! }
+        }
 
-    public val consumationCapacity: DeviceState<Map<String, Numeric<U>>> = combineState(
-        consumerRequest, jointSupplyRequest
-    ) { consumerRequest: Numeric<U>, supplyRequest: Map<String, T> ->
+    public val consumationCapacity: ValueState<Map<String, AmountPerSecond<U>>> = combineState(
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "consumation.capacity".parseAsName(true)
+    ) { consumerRequest: AmountPerSecond<U>, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
-            //compute expected amount of each supply
+            //compute the expected amount of each supply
             val forwardRequest = reaction.forward(supplyRequest)
             //limit forward request to consumer capacity
             val forward = forwardRequest.coerceIn(producerAlgebra.zero..consumerRequest)
@@ -137,21 +144,26 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
         }
     }
 
-    public val individualConsumationCapacity: Map<String, DeviceState<Numeric<U>>> =
+    public val individualConsumationCapacity: Map<String, ValueState<AmountPerSecond<U>>> =
         reaction.supplyKeys.associateWith { key ->
-            mapState(consumationCapacity) { it[key] ?: Numeric.zero() }
+            mapState(consumationCapacity, "consumation[$key].capacity".parseAsName()) { it[key] ?: PerSecond.zero() }
         }
 
 
-    override val productionCapacity: DeviceState<T> = mapState(jointSupplyRequest) { supplyRequest ->
+    override val productionCapacity: ValueState<PerSecond<U, T>> = mapState(
+        origin = jointSupplyRequest,
+        name = "production.capacity".parseAsName(true)
+    ) { supplyRequest ->
         reaction.forward(supplyRequest)
     }
 
-    override val production: DeviceState<T> = combineState(
-        consumerRequest, jointSupplyRequest
-    ) { consumerRequest, supplyRequest: Map<String, T> ->
+    override val production: ValueState<PerSecond<U, T>> = combineState(
+        first = consumerRequest,
+        second = jointSupplyRequest,
+        name = "production".asName()
+    ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
         with(producerAlgebra) {
-            reaction.forward(supplyRequest).coerceValueIn(Numeric.zero<U>()..consumerRequest)
+            reaction.forward(supplyRequest).coerceValueIn(PerSecond.zero<U>()..consumerRequest)
         }
     }
 
@@ -164,47 +176,49 @@ public class ContinuousReaction<U : UnitsOfMeasurement, T : Amount<U>>(
  * Creates a consumer instance for a specific supply key from a continuous mix instance.
  *
  * @param key The unique identifier of the supply for which the consumer is to be created.
- * @return A [ContinuousConsumer] instance associated with the specified key, capable of consuming material discrete
+ * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material discrete
  * based on its capacity and the corresponding supply request.
  * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
  */
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.asConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.asConsumer(
     key: String
-): ContinuousConsumerInterface<U, T> = supplyRequest[key]?.let { input ->
-    object : ContinuousConsumerInterface<U, T> {
+): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
+    object : ContinuousConsumer<U, T> {
         override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
 
-        override val consumation: DeviceState<T> get() = individualConsumation[key]!!
-        override val consumationCapacity: DeviceState<Numeric<U>> get() = individualConsumationCapacity[key]!!
-        override val supplyRequest: LateBindDeviceState<T> get() = input
+        override val consumation: ValueState<PerSecond<U, T>> get() = individualConsumation[key]!!
+        override val consumationCapacity: ValueState<AmountPerSecond<U>> get() = individualConsumationCapacity[key]!!
+        override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
     }
 } ?: error("No supplier with key $key found")
 
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
-    producer: ContinuousProducerInterface<U, T>
+    producer: ContinuousProducer<U, T>
 ) {
     ContinuousFlowModel.connect(producer, this.asConsumer(key))
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
-    producerCapacity: DeviceState<T>
+    producerCapacity: ValueState<PerSecond<U, T>>
 ) {
     supplyRequest[key]?.bind(producerCapacity) ?: error("No supplier with key $key found")
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
     reaction: ReactionRule<U, T>,
-): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction))
+    modelName: Name? = null
+): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction), modelName)
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
-    formula: Map<String, Numeric<U>>,
-    production: T = algebra.one,
-    productKey: String = "@product"
+    formula: Map<String, Number>,
+    production: PerSecond<U, T>,
+    productKey: String = "@product",
+    modelName: Name? = null
 ): ContinuousReaction<U, T> = model(
     ContinuousReaction(
         context, algebra,
@@ -214,5 +228,6 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.reaction(
             production = production,
             productKey = productKey
         )
-    )
+    ),
+    modelName
 )

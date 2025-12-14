@@ -2,7 +2,7 @@ package space.kscience.controls.constructor.devices
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.Degrees
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.plus
 import space.kscience.controls.constructor.units.times
 import space.kscience.dataforge.context.Context
@@ -10,6 +10,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 /**
@@ -22,24 +23,24 @@ import kotlin.time.DurationUnit
 public class StepDrive(
     context: Context,
     ticksPerSecond: Double,
-    position: MutableDeviceState<Long> = MutableDeviceState(0),
+    position: MutableValueState<Long> = MutableValueState(0),
     private val writeTicks: suspend (ticks: Long, speed: Double) -> Unit = { _, _ -> },
 ) : DeviceConstructor(context) {
 
-    public val target: MutableDeviceState<Long> by property(
+    public val target: MutableValueState<Long> by property(
         MetaConverter.long,
-        MutableDeviceState<Long>(position.value)
+        MutableValueState<Long>(position.value)
     )
 
-    public val speed: MutableDeviceState<Double> by property(
+    public val speed: MutableValueState<Double> by property(
         MetaConverter.double,
-        MutableDeviceState<Double>(ticksPerSecond)
+        MutableValueState<Double>(ticksPerSecond)
     )
 
-    public val position: DeviceState<Long> by property(MetaConverter.long, position)
+    public val position: ValueState<Long> by property(MetaConverter.long, position)
 
     //FIXME round to zero problem
-    private val ticker = onTimer(reads = setOf(target, position), writes = setOf(position)) { prev, next ->
+    private val ticker = onTimer(20.milliseconds, reads = setOf(target, position), writes = setOf(position)) { prev, next ->
         val tickSpeed = speed.value
         val timeDelta = (next - prev).toDouble(DurationUnit.SECONDS)
         val ticksDelta: Long = target.value - position.value
@@ -57,9 +58,9 @@ public class StepDrive(
  * Compute a state using given tick-to-angle transformation
  */
 public fun StepDrive.angle(
-    step: Numeric<Degrees>,
-    zero: Numeric<Degrees> = Numeric(0),
-): DeviceState<Numeric<Degrees>> = position.map(this) {
+    step: NumericAmount<Degrees>,
+    zero: NumericAmount<Degrees> = NumericAmount(0),
+): ValueState<NumericAmount<Degrees>> = position.map(this) {
     zero + it * step
 }
 

@@ -33,12 +33,10 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.MutableDeviceState
+import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.models.continuous.*
-import space.kscience.controls.constructor.units.CubicMeters
-import space.kscience.controls.constructor.units.Kilograms
-import space.kscience.controls.constructor.units.Numeric
+import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -53,41 +51,45 @@ class ChemicalFactory(
     context: Context
 ) : ContinuousFlowModel(context) {
 
-    val aProduction = MutableDeviceState(Numeric<Kilograms>(1.0))
-    val aProducer = producer(aProduction)
+    val aProduction = MutableValueState(AmountPerSecond<Kilograms>(1.0))
+    val aProducer = producer(Kilograms, aProduction)
 
-    val bProduction = MutableDeviceState(Numeric<Kilograms>(1.5))
-    val bProducer = producer(bProduction)
+    val bProduction = MutableValueState(AmountPerSecond<Kilograms>(1.5))
+    val bProducer = producer(Kilograms, bProduction)
 
     val mixer = mix(Kilograms, setOf("a", "b")).apply {
         connectProducer("a", aProducer)
         connectProducer("b", bProducer)
     }
 
-    val abBuffer = buffer(Kilograms, Numeric(10.0)).apply {
+    val abBuffer = buffer(Kilograms, NumericAmount(10.0)).apply {
         connectProducer(mixer)
         debugState("AB buffer", content)
     }
 
-    val cProduction = MutableDeviceState(Numeric<CubicMeters>(10.0))
-    val cProducer = producer(cProduction)
+    val cProduction = MutableValueState(AmountPerSecond<CubicMeters>(10.0))
+    val cProducer = producer(CubicMeters, cProduction)
 
-    val cBuffer = buffer(CubicMeters, Numeric(50.0)).apply {
+    val cBuffer = buffer(CubicMeters, NumericAmount(50.0)).apply {
         connectProducer(cProducer)
         debugState("C buffer", content)
     }
 
-    val converter = linearTransformer(CubicMeters, Kilograms, Numeric(0.2)).apply {
+    val converter = linearTransformer(CubicMeters, Kilograms, AmountPerSecond(0.2)).apply {
         connectProducer(cBuffer)
     }
 
-    val reactor = reaction(Kilograms, mapOf("ab" to Numeric(1.0), "c" to Numeric(1.0))).apply {
+    val reactor = reaction(
+        algebra = Kilograms,
+        formula = mapOf("ab" to 1.0, "c" to 1.0),
+        production = 1.kilograms.perSecond
+    ).apply {
         connectProducer("ab", abBuffer)
         connectProducer("c", converter)
     }
 
 
-    val consumer = consumer(Kilograms, DeviceState(Numeric(2.0))).apply {
+    val consumer = consumer(Kilograms, ValueState(AmountPerSecond(2.0))).apply {
         connectProducer(reactor)
 
         debugState("Consumer consumation", consumation)
@@ -119,9 +121,9 @@ fun main() {
                                 val checked by model.bProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.bProduction.value = Numeric(1.5)
+                                        model.bProduction.value = AmountPerSecond(1.5)
                                     } else {
-                                        model.bProduction.value = Numeric(0.0)
+                                        model.bProduction.value = AmountPerSecond(0.0)
                                     }
                                 })
                             }
@@ -131,9 +133,9 @@ fun main() {
                                 val checked by model.cProduction.subscribe().map { it.value > 0.0 }.collectAsState(true)
                                 Checkbox(checked, onCheckedChange = {
                                     if (it) {
-                                        model.cProduction.value = Numeric(10.0)
+                                        model.cProduction.value = AmountPerSecond(10.0)
                                     } else {
-                                        model.cProduction.value = Numeric(0.0)
+                                        model.cProduction.value = AmountPerSecond(0.0)
                                     }
                                 })
                             }

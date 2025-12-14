@@ -3,34 +3,39 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 
-public interface ContinuousConsumerInterface<U : UnitsOfMeasurement, T : Amount<U>> {
+public interface ContinuousConsumer<U : UnitsOfMatter, T : Amount<U>> {
     public val consumerAlgebra: AmountAlgebra<U, T>
 
-    public val consumation: DeviceState<T>
-    public val consumationCapacity: DeviceState<Numeric<U>>
-    public val supplyRequest: LateBindDeviceState<T>
+    public val consumation: ValueState<PerSecond<U, T>>
+    public val consumationCapacity: ValueState<AmountPerSecond<U>>
+    public val supplyRequest: LateBindValueState<PerSecond<U, T>>
+
+    public companion object
 }
 
-public interface ContinuousConsumerWrapper<U : UnitsOfMeasurement, T : Amount<U>> : ContinuousConsumerInterface<U, T> {
-    public val consumer: ContinuousConsumerInterface<U, T>
+public interface ContinuousConsumerWrapper<U : UnitsOfMatter, T : Amount<U>> : ContinuousConsumer<U, T> {
+    public val consumer: ContinuousConsumer<U, T>
 
     override val consumerAlgebra: AmountAlgebra<U, T> get() = consumer.consumerAlgebra
 
 
-    override val consumation: DeviceState<T> get() = consumer.consumation
-    override val consumationCapacity: DeviceState<Numeric<U>> get() = consumer.consumationCapacity
-    override val supplyRequest: LateBindDeviceState<T> get() = consumer.supplyRequest
+    override val consumation: ValueState<PerSecond<U, T>> get() = consumer.consumation
+    override val consumationCapacity: ValueState<AmountPerSecond<U>> get() = consumer.consumationCapacity
+    override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = consumer.supplyRequest
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.connectProducer(
-    producerCapacity: DeviceState<T>,
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.connectProducer(
+    producerCapacity: ValueState<PerSecond<U, T>>,
 ) {
     supplyRequest.bind(producerCapacity)
 }
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U, T>.connectProducer(
-    producerInterface: ContinuousProducerInterface<U, T>
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.connectProducer(
+    producerInterface: ContinuousProducer<U, T>
 ) {
     ContinuousFlowModel.connect(producerInterface, this)
 }
@@ -49,62 +54,57 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousConsumerInterface<U
  * @property efficiency A device state representing the efficiency of the consumer, calculated
  * as the ratio of the actual consumption to the capacity.
  */
-public class ContinuousConsumer<U : UnitsOfMeasurement, T : Amount<U>>(
+private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
-    override val consumationCapacity: DeviceState<Numeric<U>>,
-) : ModelConstructor(context), ContinuousConsumerInterface<U, T> {
+    override val consumationCapacity: ValueState<AmountPerSecond<U>>,
+) : ModelConstructor(context), ContinuousConsumer<U, T> {
 
-    override val supplyRequest: LateBindDeviceState<T> = LateBindDeviceState(consumerAlgebra.zero)
+    override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
+        LateBindValueState(consumerAlgebra.zero.perSecond)
 
     init {
-        registerState(consumationCapacity)
-        registerState(supplyRequest)
+        registerState(consumationCapacity, "consumation.capacity".parseAsName(true))
+        registerState(supplyRequest, "supply.request".parseAsName(true))
     }
 
-    override val consumation: DeviceState<T> = combineState(
-        supplyRequest,
-        consumationCapacity
+    override val consumation: ValueState<PerSecond<U, T>> = combineState(
+        first = supplyRequest,
+        second = consumationCapacity,
+        name = "consumation".asName()
     ) { request, capacity ->
         with(consumerAlgebra) {
-            request.coerceValueIn(Numeric.zero<U>()..capacity)
+            request.coerceValueIn(NumericAmount.zero<U>()..capacity)
         }
     }
 
-    public val efficiency: DeviceState<Double> = combineState(
-        supplyRequest,
-        consumationCapacity
+    public val efficiency: ValueState<Double> = combineState(
+        first = supplyRequest,
+        second = consumationCapacity,
+        name = "efficiency".asName()
     ) { request, capacity ->
         with(consumerAlgebra) {
-            val consumation = request.coerceValueIn(Numeric.zero<U>()..capacity)
+            val consumation = request.coerceValueIn(NumericAmount.zero<U>()..capacity)
             consumation.value / capacity.value
         }
     }
 
-    public companion object
 }
 
-/**
- * Creates an instance of a [ContinuousConsumer] for managing material discrete consumption based on its capacity
- * and a supply request.
- *
- * @param U The type of units of measurement for the material discrete.
- * @param context The execution context used for state management and operations.
- * @param capacity A device state representing the maximum capacity for material discrete consumption.
- * @param supplyRequest An optional late-bound device state representing the requested material discrete to be supplied.
- * Defaults to a state with an initial value of zero.
- * @return An instance of ContinuousConsumer configured with the supplied parameters.
- */
-public fun <U : UnitsOfMeasurement> ContinuousConsumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer(
     context: Context,
-    capacity: DeviceState<Numeric<U>>
-): ContinuousConsumer<U, Numeric<U>> = ContinuousConsumer(context, NumericAmountAlgebra<U>(), capacity)
+    consumerAlgebra: AmountAlgebra<U, T>,
+    consumationCapacity: ValueState<AmountPerSecond<U>>,
+): ContinuousConsumer<U, T> = ContinuousConsumerImpl(context, consumerAlgebra, consumationCapacity)
 
-public fun <U : UnitsOfMeasurement, T : Amount<U>> ContinuousFlowModel.consumer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
-    capacity: DeviceState<Numeric<U>>
-): ContinuousConsumer<U, T> = model(ContinuousConsumer(context, algebra, capacity))
+    capacity: ValueState<AmountPerSecond<U>>,
+    modelName: Name? = null
+): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, capacity), modelName)
 
-public fun <U : UnitsOfMeasurement> ContinuousFlowModel.consumer(
-    capacity: DeviceState<Numeric<U>>
-): ContinuousConsumer<U, Numeric<U>> = model(ContinuousConsumer(context, capacity))
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
+    algebra: AmountAlgebra<U, T>,
+    capacity: AmountPerSecond<U>,
+    modelName: Name? = null
+): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, ValueState(capacity)), modelName)

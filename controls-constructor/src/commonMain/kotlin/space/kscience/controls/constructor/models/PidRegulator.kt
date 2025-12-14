@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
@@ -31,19 +32,19 @@ public data class PidParameters(
  */
 public class PidRegulator<P : UnitsOfMeasurement, O : UnitsOfMeasurement>(
     context: Context,
-    private val position: DeviceState<Numeric<P>>,
+    private val position: ValueState<NumericAmount<P>>,
     public var pidParameters: PidParameters, // TODO expose as property
-    output: MutableDeviceState<Numeric<O>> = MutableDeviceState(Numeric(0.0)),
-    private val convertOutput: (Numeric<P>) -> Numeric<O> = { Numeric(it.value) },
+    output: MutableValueState<NumericAmount<O>> = MutableValueState(NumericAmount(0.0)),
+    private val convertOutput: (NumericAmount<P>) -> NumericAmount<O> = { NumericAmount(it.value) },
 ) : ModelConstructor(context) {
 
-    public val target: MutableDeviceState<Numeric<P>> = stateOf(Numeric(0.0))
-    public val output: MutableDeviceState<Numeric<O>> = registerState(output)
+    public val target: MutableValueState<NumericAmount<P>> = stateOf(NumericAmount(0.0), "target".asName())
+    public val output: MutableValueState<NumericAmount<O>> = registerState(output,"output".asName())
 
     private val updateJob = launch {
-        var lastPosition: Numeric<P> = target.value
+        var lastPosition: NumericAmount<P> = target.value
 
-        var integral: Numeric<P> = Numeric(0.0)
+        var integral: NumericAmount<P> = NumericAmount(0.0)
 
         val mutex = Mutex()
 
@@ -53,7 +54,7 @@ public class PidRegulator<P : UnitsOfMeasurement, O : UnitsOfMeasurement>(
             delay(pidParameters.timeStep)
             mutex.withLock {
                 val realTime = clock.now()
-                val delta: Numeric<P> = target.value - position.value
+                val delta: NumericAmount<P> = target.value - position.value
                 val dtSeconds = (realTime - lastTime).toDouble(DurationUnit.SECONDS)
                 integral += delta * dtSeconds
                 val derivative = (position.value - lastPosition) / dtSeconds
