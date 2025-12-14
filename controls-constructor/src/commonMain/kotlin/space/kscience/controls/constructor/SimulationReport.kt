@@ -2,20 +2,26 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.api.ExperimentalControlsApi
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.simulationDispatcher
-import space.kscience.dataforge.names.Name
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 import kotlin.time.Instant
 
+/**
+ * A change event for a specific state
+ */
 internal data class StateChange<T>(
-    val state: DeviceState<T>,
+    val state: ValueState<T>,
     val time: Instant,
     val value: T,
 )
 
+/**
+ * A builder for simulation report
+ */
+@ExperimentalControlsApi
 public class SimulationReportBuilder(
     parentScope: CoroutineScope,
     public val clock: Clock
@@ -34,7 +40,7 @@ public class SimulationReportBuilder(
         }
     }
 
-    public suspend fun <T> emit(state: DeviceState<T>, value: T = state.value, time: Instant = clock.now()) {
+    public suspend fun <T> emit(state: ValueState<T>, value: T = state.value, time: Instant = clock.now()) {
         channel.send(StateChange(state, time, value))
     }
 
@@ -43,17 +49,31 @@ public class SimulationReportBuilder(
     }
 }
 
+/**
+ * A history of state changes collected for simulation in real or virtual time.
+ *
+ * The size of the object depends on simulation length and number of monitored properties.
+ */
+@ExperimentalControlsApi
 public class SimulationReport internal constructor(internal val data: List<StateChange<*>>)
 
+/**
+ * View all changes for specific [state]
+ */
+@ExperimentalControlsApi
 @Suppress("UNCHECKED_CAST")
-public fun <T> SimulationReport.forState(state: DeviceState<T>): List<ValueWithTime<T>> = data.filter {
+public fun <T> SimulationReport.forState(state: ValueState<T>): List<ValueWithTime<T>> = data.filter {
     it.state == state
 }.map {
     ValueWithTime(it.value as T, it.time)
 }
 
+/**
+ * Collect state changes for specific [state] into the report
+ */
+@ExperimentalControlsApi
 public fun <T> SimulationReportBuilder.collectState(
-    state: DeviceState<T>
+    state: ValueState<T>
 ): Job = state.useValue(this) { value ->
     emit(state, value = value)
 }
@@ -61,6 +81,7 @@ public fun <T> SimulationReportBuilder.collectState(
 /**
  * Run simulation using context simulation dispatcher
  */
+@ExperimentalControlsApi
 public suspend fun <M : Model> M.runSimulationWithReport(
     block: suspend M.(reportBuilder: SimulationReportBuilder) -> Unit
 ): SimulationReport = withContext(context.simulationDispatcher) {

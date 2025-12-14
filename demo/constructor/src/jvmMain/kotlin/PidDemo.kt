@@ -29,7 +29,7 @@ import space.kscience.controls.compose.NumberTextField
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
 import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.MutableDeviceState
+import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.devices.Drive
 import space.kscience.controls.constructor.devices.LimitSwitch
 import space.kscience.controls.constructor.devices.LinearDrive
@@ -60,7 +60,7 @@ import kotlin.time.Instant
 
 class Modulator(
     context: Context,
-    target: MutableDeviceState<NumericAmount<Meters>>,
+    target: MutableValueState<NumericAmount<Meters>>,
     var timeStep: Duration = 5.milliseconds,
     var freq: Double = 0.1,
 ) : DeviceConstructor(context) {

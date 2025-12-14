@@ -11,12 +11,12 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration
 
 
-private open class ExternalDeviceState<T>(
+private open class ExternalValueState<T>(
     val scope: CoroutineScope,
     val readInterval: Duration,
     initialValue: T,
     val reader: suspend () -> T,
-) : DeviceState<T> {
+) : ValueState<T> {
 
     protected val flow: StateFlow<T> = flow {
         while (true) {
@@ -33,22 +33,22 @@ private open class ExternalDeviceState<T>(
 }
 
 /**
- * Create a [DeviceState] which is constructed by regularly reading external value
+ * Create a [ValueState] which is constructed by regularly reading external value
  */
-public fun <T> DeviceState.Companion.external(
+public fun <T> ValueState.Companion.external(
     scope: CoroutineScope,
     readInterval: Duration,
     initialValue: T,
     reader: suspend () -> T,
-): DeviceState<T> = ExternalDeviceState(scope, readInterval, initialValue, reader)
+): ValueState<T> = ExternalValueState(scope, readInterval, initialValue, reader)
 
-private class MutableExternalDeviceState<T>(
+private class MutableExternalValueState<T>(
     scope: CoroutineScope,
     readInterval: Duration,
     initialValue: T,
     reader: suspend () -> T,
     val writer: suspend (T) -> Unit,
-) : ExternalDeviceState<T>(scope, readInterval, initialValue, reader), MutableDeviceState<T> {
+) : ExternalValueState<T>(scope, readInterval, initialValue, reader), MutableValueState<T> {
     override var value: T
         get() = super.value
         set(value) {
@@ -65,12 +65,12 @@ private class MutableExternalDeviceState<T>(
 }
 
 /**
- * Create a [MutableDeviceState] which is constructed by regularly reading external value and allows writing
+ * Create a [MutableValueState] which is constructed by regularly reading external value and allows writing
  */
-public fun <T> DeviceState.Companion.external(
+public fun <T> ValueState.Companion.external(
     scope: CoroutineScope,
     readInterval: Duration,
     initialValue: T,
     reader: suspend () -> T,
     writer: suspend (T) -> Unit,
-): MutableDeviceState<T> = MutableExternalDeviceState(scope, readInterval, initialValue, reader, writer)
+): MutableValueState<T> = MutableExternalValueState(scope, readInterval, initialValue, reader, writer)

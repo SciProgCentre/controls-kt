@@ -4,15 +4,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import space.kscience.controls.api.Device
 import space.kscience.controls.time.ClockManager
-import space.kscience.controls.time.simulationDispatcher
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
+import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /**
@@ -26,52 +23,84 @@ public sealed interface ConstructorElement
 public class PropertyConstructorElement<T>(
     public val device: Device,
     public val propertyName: String,
-    public val state: DeviceState<T>,
+    public val state: ValueState<T>,
 ) : ConstructorElement
 
 /**
- * A binding for independent state like a timer
+ * A binding for independent state like a timer or model state
  */
 public class StateConstructorElement<T>(
-    public val state: DeviceState<T>,
+    public val name: Name?,
+    public val state: ValueState<T>,
 ) : ConstructorElement
 
+/**
+ * Represents a constructor element that defines a connection between states.
+ *
+ * This class specifies the states that are read and written as part of the connection.
+ *
+ * @property reads A collection of [ValueState] instances that represent the states being read by this connection.
+ * @property writes A collection of [ValueState] instances that represent the states being written by this connection.
+ */
 public class ConnectionConstructorElement(
-    public val reads: Collection<DeviceState<*>>,
-    public val writes: Collection<DeviceState<*>>,
+    public val reads: Collection<ValueState<*>>,
+    public val writes: Collection<ValueState<*>>,
 ) : ConstructorElement
 
+/**
+ * A class representing a constructor element that is associated with a specific model instance.
+ *
+ * This element serves as a binding between the construction process and the model it represents.
+ * The model instance is provided during the initialization of this element.
+ *
+ * @property model The model instance associated with this constructor element. It provides access
+ * to the required context and state dependencies.
+ */
 public class ModelConstructorElement(
-    public val model: ModelConstructor,
+    public val name: Name?,
+    public val model: Model,
 ) : ConstructorElement
+
+/**
+ * Represents a container for managing system or devices states.
+ * This interface enables interaction with context-awareness and coroutine-based operations.
+ *
+ * The `StateContainer` serves as a central abstraction for maintaining and manipulating
+ * states through components described by [ConstructorElement].
+ *
+ * @property constructorElements A collection of [ConstructorElement] instances
+ * representing the elements used to construct and describe the current state configuration.
+ */
+public interface Constructor : ContextAware, CoroutineScope {
+    public val constructorElements: Set<ConstructorElement>
+}
 
 /**
  * Interface representing a container for managing state-based elements and interactions within a device context.
  * It extends [ContextAware] and [CoroutineScope], allowing it to work within a coroutine-based environment
  * while maintaining context awareness.
  */
-public interface StateContainer : ContextAware, CoroutineScope {
-    public val constructorElements: Set<ConstructorElement>
+public interface MutableConstructor : Constructor {
     public fun registerElement(constructorElement: ConstructorElement)
     public fun unregisterElement(constructorElement: ConstructorElement)
 
 
     /**
-     * Bind an action to a [DeviceState]. [onChange] block is performed on each state change
+     * Bind an action to a [ValueState]. [onChange] block is performed on each state change
      *
      * Optionally provide [writes] - a set of states that this change affects.
      */
-    public fun <T> DeviceState<T>.onNext(
-        writes: Collection<DeviceState<*>> = emptySet(),
-        reads: Collection<DeviceState<*>> = emptySet(),
+    public fun <T> ValueState<T>.onNext(
+        writes: Collection<ValueState<*>> = emptySet(),
+        reads: Collection<ValueState<*>> = emptySet(),
         onChange: suspend (T) -> Unit,
-    ): Job = subscribe().onEach(onChange).launchIn(this@StateContainer).also {
+    ): Job = subscribe().onEach(onChange).launchIn(this@MutableConstructor).also {
         registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 
-    public fun <T> DeviceState<T>.onChange(
-        writes: Collection<DeviceState<*>> = emptySet(),
-        reads: Collection<DeviceState<*>> = emptySet(),
+    public fun <T> ValueState<T>.onChange(
+        writes: Collection<ValueState<*>> = emptySet(),
+        reads: Collection<ValueState<*>> = emptySet(),
         onChange: suspend (prev: T, next: T) -> Unit,
     ): Job = subscribe().runningFold(Pair(value, value)) { pair, next ->
         Pair(pair.second, next)
@@ -79,60 +108,45 @@ public interface StateContainer : ContextAware, CoroutineScope {
         if (pair.first != pair.second) {
             onChange(pair.first, pair.second)
         }
-    }.launchIn(this@StateContainer).also {
+    }.launchIn(this@MutableConstructor).also {
         registerElement(ConnectionConstructorElement(reads + this, writes))
     }
 }
 
-public interface Model : StateContainer
 
-/**
- * Run simulation using context simulation dispatcher
- */
-public suspend fun <M : Model> M.runSimulation(
-    block: suspend M.() -> Unit
-) {
-    withContext(context.simulationDispatcher) {
-        block()
-    }
-}
-
-public val StateContainer.states: List<DeviceState<Any?>>
+public val Constructor.states: List<ValueState<Any?>>
     get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
 
 /**
  * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
  */
-public fun <T, D : DeviceState<T>> StateContainer.registerState(state: D): D {
-    registerElement(StateConstructorElement(state))
+public fun <T, D : ValueState<T>> MutableConstructor.registerState(state: D, name: Name?): D {
+    registerElement(StateConstructorElement(name, state))
     return state
 }
 
 /**
- * Create a register a [MutableDeviceState]
+ * Create a register a [MutableValueState]
  */
-public fun <T> StateContainer.stateOf(initialValue: T): MutableDeviceState<T> = registerState(
-    MutableDeviceState(initialValue)
+public fun <T> MutableConstructor.stateOf(initialValue: T, name: Name? = null): MutableValueState<T> = registerState(
+    state = MutableValueState(initialValue),
+    name = name
 )
 
-public fun <T : ModelConstructor> StateContainer.model(model: T): T {
-    registerElement(ModelConstructorElement(model))
-    return model
-}
 
 /**
  * Create and register a timer state.
  */
-public fun StateContainer.timer(tick: Duration): TimerState =
-    registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick))
+public fun MutableConstructor.timer(tick: Duration, name: Name? = null): TimerState =
+    registerState(TimerState(context.plugins[ClockManager] ?: context.request(ClockManager), tick), name)
 
 /**
  * Register operations that perform [block] on timer change.
  */
-public fun StateContainer.onTimer(
+public fun MutableConstructor.onTimer(
     timer: TimerState,
-    writes: Collection<DeviceState<*>> = emptySet(),
-    reads: Collection<DeviceState<*>> = emptySet(),
+    writes: Collection<ValueState<*>> = emptySet(),
+    reads: Collection<ValueState<*>> = emptySet(),
     block: suspend (prev: Instant, next: Instant) -> Unit,
 ): Job = timer.onChange(writes = writes, reads = reads) { prev, next ->
     if (prev != Instant.DISTANT_PAST && next != Instant.DISTANT_FUTURE) {
@@ -143,92 +157,100 @@ public fun StateContainer.onTimer(
 /**
  * Register a new timer and perform [block] on its change.
  */
-public fun StateContainer.onTimer(
+public fun MutableConstructor.onTimer(
     tick: Duration,
-    writes: Collection<DeviceState<*>> = emptySet(),
-    reads: Collection<DeviceState<*>> = emptySet(),
+    writes: Collection<ValueState<*>> = emptySet(),
+    reads: Collection<ValueState<*>> = emptySet(),
+    timerName: Name? = null,
     block: suspend (prev: Instant, next: Instant) -> Unit,
-): Job = onTimer(timer(tick), writes = writes, reads = reads, block = block)
+): Job = onTimer(timer(tick, timerName), writes = writes, reads = reads, block = block)
 
 /**
  * Register operation that performs [block] on next timer tick.
  */
-public fun StateContainer.onTimer(
+public fun MutableConstructor.onTimer(
     timer: TimerState,
-    writes: Collection<DeviceState<*>> = emptySet(),
-    reads: Collection<DeviceState<*>> = emptySet(),
+    writes: Collection<ValueState<*>> = emptySet(),
+    reads: Collection<ValueState<*>> = emptySet(),
     block: suspend (next: Instant) -> Unit,
 ): Job = timer.onNext(writes = writes, reads = reads, onChange = block)
 
 /**
  * Register a new timer and perform [block] on next tick
  */
-public fun StateContainer.onTimer(
+public fun MutableConstructor.onTimer(
     tick: Duration,
-    writes: Collection<DeviceState<*>> = emptySet(),
-    reads: Collection<DeviceState<*>> = emptySet(),
+    writes: Collection<ValueState<*>> = emptySet(),
+    reads: Collection<ValueState<*>> = emptySet(),
+    timerName: Name? = null,
     block: suspend (next: Instant) -> Unit,
-): Job = timer(tick).onNext(writes = writes, reads = reads, onChange = block)
+): Job = timer(tick, timerName).onNext(writes = writes, reads = reads, onChange = block)
 
-public fun <T, R> StateContainer.mapState(
-    origin: DeviceState<T>,
+public fun <T, R> MutableConstructor.mapState(
+    origin: ValueState<T>,
+    name: Name? = null,
     transformation: (T) -> R,
-): DeviceStateWithDependencies<R> = registerState(DeviceState.map(this, origin, transformation))
+): ValueStateWithDependencies<R> = registerState(ValueState.map(this, origin, transformation), name)
 
 /**
  * Perform a complex transformation on state change
  */
-public fun <T, R> StateContainer.flowState(
-    origin: DeviceState<T>,
+public fun <T, R> MutableConstructor.flowState(
+    origin: ValueState<T>,
     initialValue: R,
+    name: Name? = null,
     transformation: suspend FlowCollector<R>.(T) -> Unit,
-): DeviceStateWithDependencies<R> {
-    val state = MutableDeviceState(initialValue)
+): ValueStateWithDependencies<R> {
+    val state = MutableValueState(initialValue)
     origin.subscribe().transform(transformation).onEach { state.value = it }.launchIn(this)
-    return registerState(state.withDependencies(setOf(origin)))
+    return registerState(state.withDependencies(setOf(origin)), name)
 }
 
 /**
  * Create a new state by combining two existing ones
  */
-public fun <T1, T2, R> StateContainer.combineState(
-    first: DeviceState<T1>,
-    second: DeviceState<T2>,
+public fun <T1, T2, R> MutableConstructor.combineState(
+    first: ValueState<T1>,
+    second: ValueState<T2>,
+    name: Name? = null,
     transformation: (T1, T2) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(this, first, second, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, first, second, transformation), name)
 
 
-public fun <T1, T2, T3, R> StateContainer.combineState(
-    first: DeviceState<T1>,
-    second: DeviceState<T2>,
-    third: DeviceState<T3>,
+public fun <T1, T2, T3, R> MutableConstructor.combineState(
+    first: ValueState<T1>,
+    second: ValueState<T2>,
+    third: ValueState<T3>,
+    name: Name? = null,
     transformation: (T1, T2, T3) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(this, first, second, third, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, first, second, third, transformation), name)
 
-public fun <T1, T2, T3, T4, R> StateContainer.combineState(
-    first: DeviceState<T1>,
-    second: DeviceState<T2>,
-    third: DeviceState<T3>,
-    forth: DeviceState<T4>,
+public fun <T1, T2, T3, T4, R> MutableConstructor.combineState(
+    first: ValueState<T1>,
+    second: ValueState<T2>,
+    third: ValueState<T3>,
+    forth: ValueState<T4>,
+    name: Name? = null,
     transformation: (T1, T2, T3, T4) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(this, first, second, third, forth, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, first, second, third, forth, transformation), name)
 
 /**
  * Combines multiple device states into a single state by applying a transformation function.
  *
  * @param T the type of the individual state values.
  * @param R the type of the combined state value.
- * @param states a collection of [DeviceState] instances to be combined.
+ * @param states a collection of [ValueState] instances to be combined.
  * @param transformation a function that takes an array of individual state values and maps it to a combined value.
- * @return a new [DeviceState] representing the combined state, with the value computed by the transformation function.
+ * @return a new [ValueState] representing the combined state, with the value computed by the transformation function.
  */
-public fun <T, R> StateContainer.combineState(
-    states: Collection<DeviceState<T>>,
+public fun <T, R> MutableConstructor.combineState(
+    states: Collection<ValueState<T>>,
+    nama: Name? = null,
     transformation: (List<T>) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(this, states, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, states, transformation), nama)
 
 /**
- * Combines multiple [DeviceState] instances into a new combined [DeviceState].
+ * Combines multiple [ValueState] instances into a new combined [ValueState].
  * The combined state is created by applying the specified transformation function to the current values
  * of the input states.
  *
@@ -241,10 +263,11 @@ public fun <T, R> StateContainer.combineState(
  * @return a new `DeviceState` instance representing the combined state, with its value derived dynamically
  *         from the input states and the `transformation` function.
  */
-public fun <K, T, R> StateContainer.combineState(
-    states: Map<K, DeviceState<T>>,
+public fun <K, T, R> MutableConstructor.combineState(
+    states: Map<K, ValueState<T>>,
+    name: Name? = null,
     transformation: (Map<K, T>) -> R,
-): DeviceState<R> = registerState(DeviceState.combine(this, states, transformation))
+): ValueState<R> = registerState(ValueState.combine(this, states, transformation),name)
 
 /**
  * Create and start binding between [sourceState] and [targetState]. Changes made to [sourceState] are automatically
@@ -252,7 +275,7 @@ public fun <K, T, R> StateContainer.combineState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T> StateContainer.bindState(sourceState: DeviceState<T>, targetState: MutableDeviceState<T>): Job {
+public fun <T> MutableConstructor.bindState(sourceState: ValueState<T>, targetState: MutableValueState<T>): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
     registerElement(descriptor)
 
@@ -274,9 +297,9 @@ public fun <T> StateContainer.bindState(sourceState: DeviceState<T>, targetState
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T, R> StateContainer.bindTransformedState(
-    sourceState: DeviceState<T>,
-    targetState: MutableDeviceState<R>,
+public fun <T, R> MutableConstructor.bindTransformedState(
+    sourceState: ValueState<T>,
+    targetState: MutableValueState<R>,
     transformation: suspend (T) -> R,
 ): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState), setOf(targetState))
@@ -299,10 +322,10 @@ public fun <T, R> StateContainer.bindTransformedState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public fun <T1, T2, R> StateContainer.bindCombinedState(
-    sourceState1: DeviceState<T1>,
-    sourceState2: DeviceState<T2>,
-    targetState: MutableDeviceState<R>,
+public fun <T1, T2, R> MutableConstructor.bindCombinedState(
+    sourceState1: ValueState<T1>,
+    sourceState2: ValueState<T2>,
+    targetState: MutableValueState<R>,
     transformation: suspend (T1, T2) -> R,
 ): Job {
     val descriptor = ConnectionConstructorElement(setOf(sourceState1, sourceState2), setOf(targetState))
@@ -325,9 +348,9 @@ public fun <T1, T2, R> StateContainer.bindCombinedState(
  *
  * On resulting [Job] cancel the binding is unregistered
  */
-public inline fun <reified T, R> StateContainer.bindCombinedState(
-    sourceStates: Collection<DeviceState<T>>,
-    targetState: MutableDeviceState<R>,
+public inline fun <reified T, R> MutableConstructor.bindCombinedState(
+    sourceStates: Collection<ValueState<T>>,
+    targetState: MutableValueState<R>,
     noinline transformation: suspend (Array<T>) -> R,
 ): Job {
     val descriptor = ConnectionConstructorElement(sourceStates, setOf(targetState))

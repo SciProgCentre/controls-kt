@@ -24,7 +24,7 @@ class ContinuousFlowTest {
         withVirtualTime(epoch)
     }
 
-    fun DeviceState<*>.printEach(scope: TestScope, stateName: String) {
+    fun ValueState<*>.printEach(scope: TestScope, stateName: String) {
         fun printOne(value: Any?) {
             println("$stateName: $value")
         }
@@ -39,8 +39,8 @@ class ContinuousFlowTest {
     @Test
     fun producerConsumer() = runTest {
 
-        val productionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(4.0))
-        val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+        val productionCapacity = MutableValueState(AmountPerSecond<Kilograms>(4.0))
+        val consumationCapacity = MutableValueState(AmountPerSecond<Kilograms>(1.0))
 
         val consumer = ContinuousConsumer(Global, Kilograms, consumationCapacity)
 
@@ -74,16 +74,16 @@ class ContinuousFlowTest {
     fun mix() = runTest {
 
         val model = object : ContinuousFlowModel(context) {
-            val aProduction = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val aProduction = MutableValueState(AmountPerSecond<Kilograms>(1.0))
             val aProducer = producer(Kilograms, aProduction)
 
-            val bProduction = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val bProduction = MutableValueState(AmountPerSecond<Kilograms>(2.0))
             val bProducer = producer(Kilograms, bProduction)
 
-            val cProduction = MutableDeviceState(AmountPerSecond<Kilograms>(3.0))
+            val cProduction = MutableValueState(AmountPerSecond<Kilograms>(3.0))
             val cProducer = producer(Kilograms, cProduction)
 
-            val abcConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(8.0))
+            val abcConsumation = MutableValueState(AmountPerSecond<Kilograms>(8.0))
             val consumer = consumer(Kilograms, abcConsumation)
 
             val joinAB = ContinuousMix(context = Global, Kilograms, listOf("a", "b"))
@@ -136,8 +136,8 @@ class ContinuousFlowTest {
         val model = object : ContinuousFlowModel(context) {
             val bufferCapacity = NumericAmount<Kilograms>(10.0)
 
-            val productionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
-            val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val productionCapacity = MutableValueState(AmountPerSecond<Kilograms>(0.0))
+            val consumationCapacity = MutableValueState(AmountPerSecond<Kilograms>(0.0))
 
             val producer = producer(Kilograms, productionCapacity)
 
@@ -150,10 +150,11 @@ class ContinuousFlowTest {
             }
         }.runSimulation {
 
-            buffer.content.subscribe().onEach {
-                println("content: $it (${clock.now() - epoch})")
-            }.launchIn(backgroundScope)
-
+//            buffer.content.subscribe().onEach {
+//                println("content: $it (${clock.now() - epoch})")
+//            }.launchIn(backgroundScope)
+            productionCapacity.value = AmountPerSecond(2.0)
+            consumationCapacity.value = AmountPerSecond(1.0)
 
             assertEquals(2.0, producer.production.value.value)
             assertEquals(1.0, consumer.consumation.value.value)
@@ -180,9 +181,9 @@ class ContinuousFlowTest {
     fun reaction() = runTest {
         val model = object : ContinuousFlowModel(context) {
 
-            val aProductionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(6.0))
-            val bProductionCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
-            val consumationCapacity = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val aProductionCapacity = MutableValueState(AmountPerSecond<Kilograms>(6.0))
+            val bProductionCapacity = MutableValueState(AmountPerSecond<Kilograms>(1.0))
+            val consumationCapacity = MutableValueState(AmountPerSecond<Kilograms>(1.0))
 
             val aProducer = producer(Kilograms, aProductionCapacity)
             val bProducer = producer(Kilograms, bProductionCapacity)
@@ -216,8 +217,8 @@ class ContinuousFlowTest {
     @Test
     fun transformation() = runTest {
         val model = object : ContinuousFlowModel(context) {
-            val output = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
-            val input = MutableDeviceState(AmountPerSecond<CubicMeters>(1.0))
+            val output = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+            val input = MutableValueState(AmountPerSecond<CubicMeters>(1.0))
 
             val producer = producer(CubicMeters, input)
             val consumer = consumer(Kilograms, output)
@@ -249,10 +250,10 @@ class ContinuousFlowTest {
     @Test
     fun separation() = runTest {
         val model = object : ContinuousFlowModel(context) {
-            val production = MutableDeviceState(AmountPerSecond<Kilograms>(4.0))
-            val aConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
-            val bConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
-            val cConsumation = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+            val production = MutableValueState(AmountPerSecond<Kilograms>(4.0))
+            val aConsumation = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+            val bConsumation = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+            val cConsumation = MutableValueState(AmountPerSecond<Kilograms>(1.0))
 
             val producer = producer(Kilograms, production)
 

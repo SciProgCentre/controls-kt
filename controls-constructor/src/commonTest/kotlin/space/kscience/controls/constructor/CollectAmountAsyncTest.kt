@@ -25,7 +25,7 @@ class CollectAmountAsyncTest {
     fun collectsConstantFlow() = runTest {
 
         model.runSimulation {
-            val flow = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val flow = MutableValueState(AmountPerSecond<Kilograms>(2.0))
 
             val deferred = with(Kilograms) {
                 flow.collectAmountAsync(5.seconds)
@@ -44,7 +44,7 @@ class CollectAmountAsyncTest {
     fun collectsWhenFlowChanges() = runTest {
 
         model.runSimulation {
-            val flow = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+            val flow = MutableValueState(AmountPerSecond<Kilograms>(2.0))
 
             val deferred = with(Kilograms) {
                 flow.collectAmountAsync(5.seconds)

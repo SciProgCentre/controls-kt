@@ -74,8 +74,8 @@ interface CollectiveDevice : Device {
 class CollectiveDeviceConstructor(
     context: Context,
     val configuration: CollectiveDeviceConfiguration,
-    position: MutableDeviceState<Gmc>,
-    velocity: MutableDeviceState<GmcVelocity>,
+    position: MutableValueState<Gmc>,
+    velocity: MutableValueState<GmcVelocity>,
     override val peerConnection: PeerConnection,
     private val observation: suspend () -> Map<CollectiveDeviceId, GmcCurve>,
 ) : DeviceConstructor(context, configuration.meta), CollectiveDevice {
@@ -92,11 +92,11 @@ class CollectiveDeviceConstructor(
         velocity.sample(configuration.reportInterval.milliseconds)
     )
 
-    private val _visibleNeighbors: MutableDeviceState<Collection<CollectiveDeviceId>> = stateOf(emptyList())
+    private val _visibleNeighbors: MutableValueState<Collection<CollectiveDeviceId>> = stateOf(emptyList())
 
     val visibleNeighbors = registerAsProperty(
         CollectiveDevice.visibleNeighbors,
-        DeviceState.map(_visibleNeighbors){ it.toList() }
+        ValueState.map(_visibleNeighbors){ it.toList() }
     )
 
     init {

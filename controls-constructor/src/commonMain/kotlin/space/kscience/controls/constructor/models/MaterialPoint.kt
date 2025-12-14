@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.models
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
 import kotlin.math.pow
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
@@ -13,15 +14,15 @@ import kotlin.time.DurationUnit
  */
 public class MaterialPoint(
     context: Context,
-    force: DeviceState<XYZ<Newtons>>,
+    force: ValueState<XYZ<Newtons>>,
     mass: NumericAmount<Kilograms>,
-    public val position: MutableDeviceState<XYZ<Meters>>,
-    public val velocity: MutableDeviceState<XYZ<MetersPerSecond>>,
+    public val position: MutableValueState<XYZ<Meters>>,
+    public val velocity: MutableValueState<XYZ<MetersPerSecond>>,
 ) : ModelConstructor(context) {
 
     init {
-        registerState(position)
-        registerState(velocity)
+        registerState(position, "position".asName())
+        registerState(velocity, "velocity".asName())
     }
 
     private var currentForce = force.value

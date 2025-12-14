@@ -1,7 +1,7 @@
 package space.kscience.controls.constructor.models
 
-import space.kscience.controls.constructor.DeviceState
 import space.kscience.controls.constructor.ModelConstructor
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
@@ -16,15 +16,15 @@ public class Leadscrew(
 ) : ModelConstructor(context) {
 
     public fun torqueToForce(
-        stateOfTorque: DeviceState<NumericAmount<NewtonsMeters>>,
-    ): DeviceState<NumericAmount<Newtons>> = DeviceState.map(this,stateOfTorque) { torque ->
+        stateOfTorque: ValueState<NumericAmount<NewtonsMeters>>,
+    ): ValueState<NumericAmount<Newtons>> = ValueState.map(this,stateOfTorque) { torque ->
         NumericAmount(torque.value / leverage.value )
     }
 
     public fun degreesToMeters(
-        stateOfAngle: DeviceState<NumericAmount<Degrees>>,
+        stateOfAngle: ValueState<NumericAmount<Degrees>>,
         offset: NumericAmount<Meters> = NumericAmount(0),
-    ): DeviceState<NumericAmount<Meters>> = DeviceState.map(this, stateOfAngle) { degrees ->
+    ): ValueState<NumericAmount<Meters>> = ValueState.map(this, stateOfAngle) { degrees ->
         offset + NumericAmount(degrees.value * 2 * PI / 360 * leverage.value )
     }
 

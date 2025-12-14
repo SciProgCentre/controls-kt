@@ -25,8 +25,8 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.PlotNumericState
 import space.kscience.controls.compose.TimeAxisModel
-import space.kscience.controls.constructor.DeviceState
-import space.kscience.controls.constructor.MutableDeviceState
+import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.*
@@ -47,7 +47,7 @@ private class EnrichmentFacility(
 
     val mixture = MixtureAlgebra(Kilograms)
 
-    val productionValue = MutableDeviceState(AmountPerSecond<Kilograms>(1.0))
+    val productionValue = MutableValueState(AmountPerSecond<Kilograms>(1.0))
 
     val production = productionValue.map {
         with(mixture) {
@@ -113,11 +113,11 @@ private class EnrichmentFacility(
         mixer.connectProducer(feedbackKey, asProducer(feedbackKey).delayed(this, 200.milliseconds))
     }
 
-    val discard = consumer(mixture, DeviceState(AmountPerSecond(2.0))).apply {
+    val discard = consumer(mixture, ValueState(AmountPerSecond(2.0))).apply {
         connectProducer(separator.asProducer(discardKey))
     }
 
-    val consumption = MutableDeviceState(AmountPerSecond<Kilograms>(2.0))
+    val consumption = MutableValueState(AmountPerSecond<Kilograms>(2.0))
     val consumer = consumer(mixture, consumption).apply {
         connectProducer(separator.asProducer(productionKey))
     }

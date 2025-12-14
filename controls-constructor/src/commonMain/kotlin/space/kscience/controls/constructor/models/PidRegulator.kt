@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
@@ -31,14 +32,14 @@ public data class PidParameters(
  */
 public class PidRegulator<P : UnitsOfMeasurement, O : UnitsOfMeasurement>(
     context: Context,
-    private val position: DeviceState<NumericAmount<P>>,
+    private val position: ValueState<NumericAmount<P>>,
     public var pidParameters: PidParameters, // TODO expose as property
-    output: MutableDeviceState<NumericAmount<O>> = MutableDeviceState(NumericAmount(0.0)),
+    output: MutableValueState<NumericAmount<O>> = MutableValueState(NumericAmount(0.0)),
     private val convertOutput: (NumericAmount<P>) -> NumericAmount<O> = { NumericAmount(it.value) },
 ) : ModelConstructor(context) {
 
-    public val target: MutableDeviceState<NumericAmount<P>> = stateOf(NumericAmount(0.0))
-    public val output: MutableDeviceState<NumericAmount<O>> = registerState(output)
+    public val target: MutableValueState<NumericAmount<P>> = stateOf(NumericAmount(0.0), "target".asName())
+    public val output: MutableValueState<NumericAmount<O>> = registerState(output,"output".asName())
 
     private val updateJob = launch {
         var lastPosition: NumericAmount<P> = target.value

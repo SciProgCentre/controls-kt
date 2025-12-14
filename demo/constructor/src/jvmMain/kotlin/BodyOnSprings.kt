@@ -22,14 +22,14 @@ private class Spring(
     context: Context,
     val k: Double,
     val l0: NumericAmount<Meters>,
-    val begin: DeviceState<XYZ<Meters>>,
-    val end: DeviceState<XYZ<Meters>>,
+    val begin: ValueState<XYZ<Meters>>,
+    val end: ValueState<XYZ<Meters>>,
 ) : ModelConstructor(context) {
 
     /**
      * Tension at the beginning point
      */
-    val tension: DeviceState<XYZ<Newtons>> = combineState(begin, end) { begin: XYZ<Meters>, end: XYZ<Meters> ->
+    val tension: ValueState<XYZ<Newtons>> = combineState(begin, end) { begin: XYZ<Meters>, end: XYZ<Meters> ->
         val delta = end - begin
         val l = delta.length.value
         ((delta / l) * k * (l - l0.value)).cast(Newtons)
@@ -52,22 +52,22 @@ private class BodyOnSprings(
     val width = xRight - xLeft
     val height = yTop - yBottom
 
-    val position: MutableDeviceState<XYZ<Meters>> = stateOf(startPosition)
-    val velocity: MutableDeviceState<XYZ<MetersPerSecond>> = stateOf(XYZ(0, 0, 0))
+    val position: MutableValueState<XYZ<Meters>> = stateOf(startPosition)
+    val velocity: MutableValueState<XYZ<MetersPerSecond>> = stateOf(XYZ(0, 0, 0))
 
-    private val leftAnchor: MutableDeviceState<XYZ<Meters>> = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
+    private val leftAnchor: MutableValueState<XYZ<Meters>> = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
 
     val leftSpring = model(
         Spring(context, k, l0, leftAnchor, position)
     )
 
-    private val rightAnchor: MutableDeviceState<XYZ<Meters>> = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
+    private val rightAnchor: MutableValueState<XYZ<Meters>> = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
 
     val rightSpring = model(
         Spring(context, k, l0, rightAnchor, position)
     )
 
-    val force: DeviceState<XYZ<Newtons>> = combineState(
+    val force: ValueState<XYZ<Newtons>> = combineState(
         first = leftSpring.tension,
         second = rightSpring.tension
     ) { left: XYZ<Newtons>, right ->

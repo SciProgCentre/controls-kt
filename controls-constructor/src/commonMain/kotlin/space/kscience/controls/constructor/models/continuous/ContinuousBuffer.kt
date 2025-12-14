@@ -1,12 +1,13 @@
 package space.kscience.controls.constructor.models.continuous
 
-import kotlinx.coroutines.delay
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Instant
 
 /**
  * A simulation model that represents a continuous buffer for storing a quantity of a measurable unit.
@@ -20,7 +21,7 @@ import kotlin.time.Instant
  * @param supplyRequest A device state representing the amount requested to be added to the buffer.
  * @param consumerRequest A device state representing the amount requested to be consumed from the buffer.
  * @param initialLevel The initial quantity stored in the buffer.
- * @param timeStep The simulation time step for updating the buffer's state.
+ * @param externalTimer An optional timer to be used for dynamic level change calculations.
  *
  * The model tracks the current level of stored content, calculates remaining buffer space, and manages production and consumption dynamics.
  * It ensures the buffer's level stays within the bounds defined by its capacity.
@@ -28,38 +29,43 @@ import kotlin.time.Instant
 public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
-    public val bufferCapacity: DeviceState<NumericAmount<U>>,
-    override val supplyRequest: LateBindDeviceState<PerSecond<U, T>> = LateBindDeviceState(consumerAlgebra.zero.perSecond),
-    override val consumerRequest: LateBindDeviceState<AmountPerSecond<U>> = LateBindDeviceState(AmountPerSecond.zero()),
+    public val bufferCapacity: ValueState<NumericAmount<U>>,
+    override val supplyRequest: LateBindValueState<PerSecond<U, T>> = LateBindValueState(consumerAlgebra.zero.perSecond),
+    override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(AmountPerSecond.zero()),
     initialLevel: T = consumerAlgebra.zero,
     externalTimer: TimerState? = null,
-) : ModelConstructor(context, bufferCapacity, supplyRequest, consumerRequest),
+) : ModelConstructor(context),
     ContinuousProducer<U, T>,
     ContinuousConsumer<U, T> {
 
     override val producerAlgebra: AmountAlgebra<U, T> get() = consumerAlgebra
 
-    private val _content: MutableDeviceState<T> = MutableDeviceState(initialLevel)
+    private val _content: MutableValueState<T> = MutableValueState(initialLevel)
 
-    public val content: DeviceState<T> get() = _content
+    public val content: ValueState<T> get() = _content
 
     init {
-        registerState(content)
+        registerState(content, "content".asName())
+        registerState(bufferCapacity, "bufferCapacity".asName())
+        registerState(supplyRequest, "supply.request".parseAsName(true))
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
     }
 
-    override val productionCapacity: DeviceState<PerSecond<U, T>> = combineState(
-        supplyRequest,
-        content
+    override val productionCapacity: ValueState<PerSecond<U, T>> = combineState(
+        first = supplyRequest,
+        second = content,
+        name = "production.capacity".parseAsName(true)
     ) { supplyRequest: PerSecond<U, T>, content: T ->
         with(consumerAlgebra) {
             supplyRequest + content.perSecond
         }
     }
 
-    override val production: DeviceState<PerSecond<U, T>> = combineState(
-        supplyRequest,
-        content,
-        consumerRequest
+    override val production: ValueState<PerSecond<U, T>> = combineState(
+        first = supplyRequest,
+        second = content,
+        third = consumerRequest,
+        name = "production".asName()
     ) { supplyRequest, content, consumeRequest ->
         with(consumerAlgebra) {
             val productionCapacity = supplyRequest + content.perSecond
@@ -67,19 +73,21 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
-    override val consumationCapacity: DeviceState<AmountPerSecond<U>> = combineState(
-        bufferCapacity,
-        content,
-        consumerRequest,
+    override val consumationCapacity: ValueState<AmountPerSecond<U>> = combineState(
+        first = bufferCapacity,
+        second = content,
+        third = consumerRequest,
+        name = "consumation.capacity".parseAsName(true)
     ) { bufferSize: NumericAmount<U>, content: T, consumationRequest: AmountPerSecond<U> ->
         AmountPerSecond(consumationRequest.value + bufferSize.value - content.value)
     }
 
-    override val consumation: DeviceState<PerSecond<U, T>> = combineState(
-        supplyRequest,
-        bufferCapacity,
-        content,
-        consumerRequest
+    override val consumation: ValueState<PerSecond<U, T>> = combineState(
+        first = supplyRequest,
+        second = bufferCapacity,
+        third = content,
+        forth = consumerRequest,
+        name = "consumation".asName()
     ) { supplyRequest: PerSecond<U, T>, bufferCapacity: NumericAmount<U>, content: T, consumationRequest ->
         with(consumerAlgebra) {
             val remainingSpace = bufferCapacity - NumericAmount<U>(content.value)
@@ -116,8 +124,6 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
  *
  * @param context The simulation context in which the buffer operates.
  * @param capacity The maximum capacity of the buffer, represented as a [PerSecond] value.
- * @param supplyRequest A device state representing the amount requested to be supplied
- *        to the buffer. Defaults to a [LateBindDeviceState] with a value of zero.
  * @return A [ContinuousBuffer] instance configured with the specified parameters.
  */
 public fun <U : UnitsOfMatter> ContinuousBuffer(
@@ -126,7 +132,7 @@ public fun <U : UnitsOfMatter> ContinuousBuffer(
 ): ContinuousBuffer<U, NumericAmount<U>> = ContinuousBuffer(
     context,
     NumericAmountAlgebra<U>(),
-    DeviceState(capacity)
+    ValueState(capacity)
 )
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(
@@ -134,12 +140,14 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(
     bufferCapacity: NumericAmount<U>,
     initialLevel: T = algebra.zero,
     externalTimer: TimerState? = null,
+    modelName: Name? = null
 ): ContinuousBuffer<U, T> = model(
     ContinuousBuffer(
         context = context,
         consumerAlgebra = algebra,
-        bufferCapacity = DeviceState(bufferCapacity),
+        bufferCapacity = ValueState(bufferCapacity),
         initialLevel = initialLevel,
         externalTimer = externalTimer,
-    )
+    ),
+    modelName
 )

@@ -10,7 +10,7 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 
 /**
- * A dedicated [DeviceState] that operates with time.
+ * A dedicated [ValueState] that operates with time.
  * The state changes with [tick] interval and always shows the time of the last update.
  *
  * Both [tick] and current time are computed by [clockManager] enabling time manipulation.
@@ -21,7 +21,7 @@ public class TimerState(
     public val clockManager: ClockManager,
     public val tick: Duration,
     initialValue: Instant = Instant.DISTANT_PAST,
-) : DeviceState<Instant> {
+) : ValueState<Instant> {
 
     private val time = MutableStateFlow(initialValue)
 

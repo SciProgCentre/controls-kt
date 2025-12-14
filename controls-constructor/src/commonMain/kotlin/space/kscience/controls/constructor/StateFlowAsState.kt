@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 private class StateFlowAsState<T>(
     val flow: MutableStateFlow<T>,
-) : MutableDeviceState<T> {
+) : MutableValueState<T> {
     override var value: T by flow::value
 
     override suspend fun emit(value: T) {
@@ -19,7 +19,7 @@ private class StateFlowAsState<T>(
 }
 
 /**
- * Create a read-only [DeviceState] that wraps [MutableStateFlow].
+ * Create a read-only [ValueState] that wraps [MutableStateFlow].
  * No data copy is performed.
  */
-public fun <T> MutableStateFlow<T>.asDeviceState(): MutableDeviceState<T> = StateFlowAsState(this)
+public fun <T> MutableStateFlow<T>.asDeviceState(): MutableValueState<T> = StateFlowAsState(this)

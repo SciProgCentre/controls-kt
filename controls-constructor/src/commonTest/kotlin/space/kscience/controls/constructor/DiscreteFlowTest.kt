@@ -32,11 +32,11 @@ class DiscreteFlowTest {
     @Test
     fun pipe() = runTest {
 
-        val production = MutableDeviceState(NumericAmount<Kilograms>(4.0))
-        val consumation = MutableDeviceState(NumericAmount<Kilograms>(1.0))
+        val production = MutableValueState(NumericAmount<Kilograms>(4.0))
+        val consumation = MutableValueState(NumericAmount<Kilograms>(1.0))
 
         object : DiscreteFlowModel(context) {
-            override val name: Name = "test".asName()
+            override val modelType: Name = "test".asName()
 
             val consumer = registerConsumer(consumation)
 
@@ -81,11 +81,11 @@ class DiscreteFlowTest {
     @Ignore
     fun join() = runTest {
 
-        val a = MutableDeviceState(NumericAmount<Kilograms>(1.0))
-        val b = MutableDeviceState(NumericAmount<Kilograms>(2.0))
-        val c = MutableDeviceState(NumericAmount<Kilograms>(3.0))
-        val ab = MutableDeviceState(NumericAmount<Kilograms>(Double.POSITIVE_INFINITY))
-        val abc = MutableDeviceState(NumericAmount<Kilograms>(8.0))
+        val a = MutableValueState(NumericAmount<Kilograms>(1.0))
+        val b = MutableValueState(NumericAmount<Kilograms>(2.0))
+        val c = MutableValueState(NumericAmount<Kilograms>(3.0))
+        val ab = MutableValueState(NumericAmount<Kilograms>(Double.POSITIVE_INFINITY))
+        val abc = MutableValueState(NumericAmount<Kilograms>(8.0))
 
         val model = object : DiscreteFlowModel(context) {
             val joinABC = registerConsumer(abc) {

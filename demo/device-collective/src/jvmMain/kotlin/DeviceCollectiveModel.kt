@@ -47,8 +47,8 @@ private val json = Json {
 internal data class CollectiveDeviceState(
     val id: CollectiveDeviceId,
     val configuration: CollectiveDeviceConfiguration,
-    val position: MutableDeviceState<Gmc>,
-    val velocity: MutableDeviceState<GmcVelocity>,
+    val position: MutableValueState<Gmc>,
+    val velocity: MutableValueState<GmcVelocity>,
 )
 
 internal fun CollectiveDeviceState(
@@ -58,8 +58,8 @@ internal fun CollectiveDeviceState(
 ) = CollectiveDeviceState(
     id,
     CollectiveDeviceConfiguration(id).apply(configuration),
-    MutableDeviceState(position),
-    MutableDeviceState(GmcVelocity.zero)
+    MutableValueState(position),
+    MutableValueState(GmcVelocity.zero)
 )
 
 internal class DeviceCollectiveModel(
@@ -72,7 +72,7 @@ internal class DeviceCollectiveModel(
     /**
      * Propagate movement
      */
-    private val movement = onTimer { prev, next ->
+    private val movement = onTimer(200.milliseconds) { prev, next ->
         val delta = (next - prev)
         deviceStates.forEach { state ->
             state.position.value = state.position.value.moveWith(state.velocity.value, delta)
@@ -91,7 +91,7 @@ internal class DeviceCollectiveModel(
         return allCurves.filterValues { it.distance in 0.kilometers..visibilityRange }
     }
 
-    inner class RadioPeerConnectionModel(private val position: DeviceState<Gmc>) : PeerConnection {
+    inner class RadioPeerConnectionModel(private val position: ValueState<Gmc>) : PeerConnection {
         override suspend fun receive(address: String, contentId: String, requestMeta: Meta): Envelope? = null
 
         override suspend fun send(address: String, envelope: Envelope, requestMeta: Meta) {
@@ -125,8 +125,8 @@ internal class DeviceCollectiveModel(
         val state = CollectiveDeviceState(
             id = id,
             configuration = CollectiveDeviceConfiguration(id),
-            position = MutableDeviceState(position),
-            velocity = MutableDeviceState(GmcVelocity.zero)
+            position = MutableValueState(position),
+            velocity = MutableValueState(GmcVelocity.zero)
         )
 
         val result = CollectiveDeviceConstructor(
@@ -140,7 +140,7 @@ internal class DeviceCollectiveModel(
         }
 
         // TODO move to CollectiveDeviceState
-        onTimer { prev, next ->
+        onTimer(200.milliseconds) { prev, next ->
             val delta = (next - prev)
             require(delta >= Duration.ZERO) { "Negative time change" }
 
