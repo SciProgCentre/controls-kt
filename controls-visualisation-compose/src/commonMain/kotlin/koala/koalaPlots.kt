@@ -1,8 +1,9 @@
 @file:OptIn(FlowPreview::class)
 
-package space.kscience.controls.compose
+package space.kscience.controls.compose.koala
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import io.github.koalaplot.core.line.LinePlot
 import io.github.koalaplot.core.style.LineStyle
@@ -105,7 +106,7 @@ internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     }
 }
 
-private val defaultLineStyle: LineStyle = LineStyle(SolidColor(androidx.compose.ui.graphics.Color.Black))
+private val defaultLineStyle: LineStyle = LineStyle(SolidColor(Color.Black))
 
 
 @Composable
@@ -160,7 +161,7 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
-    lineStyle: LineStyle = LineStyle(SolidColor(androidx.compose.ui.graphics.Color.Black)),
+    lineStyle: LineStyle = LineStyle(SolidColor(Color.Black)),
 ): Unit = PlotDeviceProperty(
     device = device,
     propertyName = property.name,

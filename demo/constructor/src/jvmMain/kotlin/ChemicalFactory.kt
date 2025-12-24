@@ -31,8 +31,8 @@ import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
 import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
-import space.kscience.controls.compose.PlotNumericState
-import space.kscience.controls.compose.TimeAxisModel
+import space.kscience.controls.compose.koala.PlotNumericState
+import space.kscience.controls.compose.koala.TimeAxisModel
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.models.continuous.*

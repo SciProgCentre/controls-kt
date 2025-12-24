@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
  * A single 2D drawable
  */
 @Immutable
-public sealed interface DeviceDrawable2D {
+public sealed interface ControlsDrawable2D {
 
     public fun DrawScope.draw()
 
@@ -19,14 +19,14 @@ public sealed interface DeviceDrawable2D {
 }
 
 @Immutable
-public data class CircleDrawable2D(val position: Offset, val radius: Float, val color: Color) : DeviceDrawable2D {
+public data class CircleDrawable2D(val position: Offset, val radius: Float, val color: Color) : ControlsDrawable2D {
     override fun DrawScope.draw() {
         drawCircle(color, radius = radius, center = position)
     }
 }
 
 @Drawable2DBuilder
-public fun DeviceDrawable2DStore.circle(id: String, position: Offset, radius: Float, color: Color) {
+public fun ControlsDrawable2DStore.circle(id: String, position: Offset, radius: Float, color: Color) {
     emit(id, CircleDrawable2D(position, radius, color))
 }
 
@@ -36,7 +36,7 @@ public data class RectangleDrawable2D(
     val rectangleSize: Size,
     val color: Color,
     val rotateDegrees: Float = 0f,
-) : DeviceDrawable2D {
+) : ControlsDrawable2D {
     override fun DrawScope.draw() {
         rotate(rotateDegrees) {
             drawRect(
@@ -52,7 +52,7 @@ public data class RectangleDrawable2D(
 }
 
 @Drawable2DBuilder
-public fun DeviceDrawable2DStore.rectangle(
+public fun ControlsDrawable2DStore.rectangle(
     id: String,
     position: Offset,
     rectangleSize: Size,

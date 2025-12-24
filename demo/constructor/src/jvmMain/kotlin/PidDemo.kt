@@ -26,8 +26,8 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.compose.NumberTextField
-import space.kscience.controls.compose.PlotNumericState
-import space.kscience.controls.compose.TimeAxisModel
+import space.kscience.controls.compose.koala.PlotNumericState
+import space.kscience.controls.compose.koala.TimeAxisModel
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.devices.Drive

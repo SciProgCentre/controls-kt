@@ -198,7 +198,7 @@ suspend fun main() = application {
 
                 }
                 second {
-                    Device2DCanvas(modifier = Modifier.fillMaxSize()) {
+                    Controls2DCanvas(modifier = Modifier.fillMaxSize()) {
                         fun xToPx(x: NumericAmount<Meters>): Float =
                             ((x - xRange.start) / (xRange.endInclusive - xRange.start) * size.width).toFloat()
 

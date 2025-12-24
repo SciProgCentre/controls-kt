@@ -1,4 +1,4 @@
-package space.kscience.controls.compose
+package space.kscience.controls.compose.koala
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
