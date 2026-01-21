@@ -64,6 +64,7 @@ include(
     ":controls-server",
     ":controls-opcua",
     ":controls-modbus",
+    ":controls-proto",
     ":controls-plc4x",
 //    ":controls-mongo",
     ":controls-storage",
@@ -94,5 +95,6 @@ include(
     ":demo:constructor",
     ":demo:device-collective",
     ":demo:thermo",
+    ":demo:protoMeta",
 //    ":demo:thermo:thermo-desktop"
 )

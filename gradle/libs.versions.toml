@@ -34,6 +34,7 @@ testcontainers = "1.21.0"
 [libraries]
 
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
+dataforge-io-proto = { module = "space.kscience:dataforge-io-proto", version.ref = "dataforge" }
 dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "dataforge" }
 
 uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }

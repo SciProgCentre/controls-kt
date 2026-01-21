@@ -1,0 +1,35 @@
+syntax = "proto3";
+package space.kscience.dataforge.io.proto;
+
+message ProtoMeta {
+  message ProtoValue {
+    oneof value {
+      string stringValue = 2;
+      bool booleanValue = 3;
+      double doubleValue = 4;
+      float floatValue = 5;
+      int32 int32Value = 6;
+      int64 int64Value = 7;
+      bytes bytesValue = 8;
+      ProtoValueList listValue = 9;
+      Float64List float64ListValue = 10;
+    }
+  }
+
+  message ProtoValueList{
+    repeated ProtoValue values = 1;
+  }
+
+  message Float64List{
+    repeated double values = 1 [packed=true];
+  }
+
+  ProtoValue protoValue = 1;
+
+  map<string, ProtoMeta> items = 2;
+}
+
+message ProtoEnvelope{
+  ProtoMeta meta = 1;
+  bytes dataBytes = 2;
+}
