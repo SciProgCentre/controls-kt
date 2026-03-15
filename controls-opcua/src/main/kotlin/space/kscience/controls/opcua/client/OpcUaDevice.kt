@@ -8,11 +8,15 @@ import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.*
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.Device
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaSerializer
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlin.time.toKotlinInstant
 
 
 /**
@@ -25,6 +29,28 @@ public interface OpcUaDevice : Device {
     public val client: OpcUaClient
 }
 
+public suspend inline fun <reified T : Any> OpcUaClient.readValueWithTime(
+    nodeId: NodeId,
+    converter: MetaConverter<T>,
+    maxAge: Double = 500.0,
+    clock: Clock = Clock.System
+): ValueWithTime<T> {
+    val data: DataValue = readValuesAsync(maxAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
+    val time: Instant = data.serverTime?.javaInstant?.toKotlinInstant() ?: clock.now()
+    val meta: Meta = when (val content = data.value.value) {
+        is T -> return ValueWithTime(content, time)
+        is Meta -> content
+        is ExtensionObject -> content.decode(dynamicEncodingContext) as Meta
+        is String -> Json.decodeFromString(MetaSerializer, content)
+        is Number -> Meta(content)
+        is Boolean -> Meta(content)
+        else -> error("Incompatible OPC property value $content")
+    }
+
+    val res: T = converter.read(meta)
+    return ValueWithTime(res, time)
+}
+
 /**
  * Read OPC-UA value with timestamp
  * @param T the type of property to read. The value is coerced to it.
@@ -32,45 +58,17 @@ public interface OpcUaDevice : Device {
 public suspend inline fun <reified T : Any> OpcUaDevice.readOpcWithTime(
     nodeId: NodeId,
     converter: MetaConverter<T>,
-    magAge: Double = 500.0
-): Pair<T, DateTime> {
-    val data: DataValue = client.readValuesAsync(magAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
-    val time = data.serverTime ?: error("No server time provided")
-    val meta: Meta = when (val content = data.value.value) {
-        is T -> return content to time
-        is Meta -> content
-        is ExtensionObject -> content.decode(client.dynamicEncodingContext) as Meta
-        else -> error("Incompatible OPC property value $content")
-    }
-
-    val res: T = converter.read(meta)
-    return res to time
-}
+    maxAge: Double = 500.0
+): ValueWithTime<T> = client.readValueWithTime(nodeId, converter, maxAge)
 
 /**
  * Read and coerce value from OPC-UA
  */
-public suspend inline fun <reified T> OpcUaDevice.readOpc(
+public suspend inline fun <reified T : Any> OpcUaDevice.readOpc(
     nodeId: NodeId,
     converter: MetaConverter<T>,
-    magAge: Double = 500.0
-): T {
-    val data: DataValue = client.readValuesAsync(magAge, TimestampsToReturn.Neither, listOf(nodeId)).await().first()
-
-    val content = data.value.value
-    if (content is T) return content
-    val meta: Meta = when (content) {
-        is Meta -> content
-        //Always decode string as Json meta
-        is String -> Json.decodeFromString(MetaSerializer, content)
-        is Number -> Meta(content)
-        is Boolean -> Meta(content)
-        //content is ExtensionObject -> (content as ExtensionObject).decode(client.dynamicSerializationContext) as Meta
-        else -> error("Incompatible OPC property value $content")
-    }
-
-    return converter.readOrNull(meta) ?: error("Meta $meta could not be converted to ${T::class}")
-}
+    maxAge: Double = 500.0
+): T = client.readValueWithTime(nodeId, converter, maxAge).value
 
 public suspend inline fun <reified T> OpcUaDevice.writeOpc(
     nodeId: NodeId,
@@ -78,6 +76,7 @@ public suspend inline fun <reified T> OpcUaDevice.writeOpc(
     value: T
 ): StatusCode {
     val meta = converter.convert(value)
+    //TODO convert Meta to proper variants
     return client.writeValuesAsync(listOf(nodeId), listOf(DataValue(Variant(meta)))).await().first()
 }
 
@@ -85,7 +84,7 @@ public suspend inline fun <reified T> OpcUaDevice.writeOpc(
 /**
  * A device-bound OPC-UA property. Does not trigger device properties change.
  */
-public inline fun <reified T> OpcUaDevice.opc(
+public inline fun <reified T : Any> OpcUaDevice.opc(
     nodeId: NodeId,
     converter: MetaConverter<T>,
     magAge: Double = 500.0
