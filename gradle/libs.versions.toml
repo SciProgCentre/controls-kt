@@ -6,28 +6,30 @@ xodus = "2.0.1"
 
 uuid = "0.8.0"
 
-fazecast = "2.10.3"
+jSerialComm = "2.11.4"
 
 tornadofx = "1.7.20"
 
 logback = "1.2.11"
 
-hivemq = "1.3.1"
+hivemq = "1.3.12"
 
 rabbitmq = "5.14.2"
 
 kmongo = "4.5.1"
 
-j2mod = "3.2.1"
+j2mod = "3.3.0"
 
-milo = "1.0.2"
+milo = "1.1.1"
 
-pi4j = "2.3.0"
-pi4j-ktx = "2.4.0"
+pi4j = "4.0.0"
+#pi4j-ktx = "4.0.0"
 
-plc4j = "0.12.0"
+plc4j = "0.13.1"
 
 visionforge = "0.5.0"
+
+kmath = "0.5.0"
 
 testcontainers = "1.21.0"
 
@@ -46,7 +48,7 @@ rsocket-ktor-client = { module = "io.rsocket.kotlin:ktor-client-rsocket", versio
 rsocket-ktor-server = { module = "io.rsocket.kotlin:ktor-server-rsocket", version.ref = "rsocket" }
 rsocket-transport-ktor-tcp = { module = "io.rsocket.kotlin:rsocket-transport-ktor-tcp", version.ref = "rsocket" }
 
-jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "fazecast" }
+jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "jSerialComm" }
 
 tornadofx = { module = "no.tornado:tornadofx", version.ref = "tornadofx" }
 
@@ -69,7 +71,7 @@ milo-sdk-core = { module = "org.eclipse.milo:milo-sdk-core", version.ref = "milo
 milo-dtd-core = { module = "org.eclipse.milo:milo-dtd-core", version.ref = "milo" }
 milo-server = { module = "org.eclipse.milo:milo-sdk-server", version.ref = "milo" }
 
-pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
+#pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
 pi4j-core = { module = "com.pi4j:pi4j-core", version.ref = "pi4j" }
 pi4j-plugin-raspberrypi = { module = "com.pi4j:pi4j-plugin-raspberrypi", version.ref = "pi4j" }
 pi4j-plugin-pigpio = { module = "com.pi4j:pi4j-plugin-pigpio", version.ref = "pi4j" }
@@ -84,6 +86,9 @@ visionforge-compose-html = { module = "space.kscience:visionforge-compose-html",
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
 koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.9.0" }
+
+kmath-core = { module = "space.kscience:kmath-core", version.ref = "kmath" }
+kmath-stat = { module = "space.kscience:kmath-stat", version.ref = "kmath" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
