@@ -12,6 +12,7 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.meta.asValue
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 import kotlin.time.Clock
@@ -44,6 +45,8 @@ public suspend inline fun <reified T : Any> OpcUaClient.readValueWithTime(
         is String -> Json.decodeFromString(MetaSerializer, content)
         is Number -> Meta(content)
         is Boolean -> Meta(content)
+        is DoubleArray -> Meta(content.asValue())
+        is IntArray -> Meta(content.asValue())
         else -> error("Incompatible OPC property value $content")
     }
 
@@ -75,9 +78,22 @@ public suspend inline fun <reified T> OpcUaDevice.writeOpc(
     converter: MetaConverter<T>,
     value: T
 ): StatusCode {
-    val meta = converter.convert(value)
+
+    val variant: Variant = when (value) {
+        is Number -> Variant(value)
+        is Boolean -> Variant(value)
+        is DoubleArray -> Variant(value)
+        is IntArray -> Variant(value)
+        else -> {
+            val meta = converter.convert(value)
+            Variant.ofString(Json.encodeToString(MetaSerializer, meta))
+        }
+    }
+
+
     //TODO convert Meta to proper variants
-    return client.writeValuesAsync(listOf(nodeId), listOf(DataValue(Variant(meta)))).await().first()
+
+    return client.writeValuesAsync(listOf(nodeId), listOf(DataValue(variant))).await().first()
 }
 
 

@@ -3,10 +3,8 @@ package space.kscience.controls.opcua.client
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
-import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
-import org.eclipse.milo.opcua.stack.core.types.builtin.Variant
 import org.junit.jupiter.api.Test
 import space.kscience.controls.api.Device
 import space.kscience.controls.manager.DeviceManager
@@ -55,7 +53,11 @@ class OpcUaClientTest {
         )
 
         override suspend fun writeRandomDouble(value: Double): Unit {
-            client.writeValues(listOf(NodeId(2, "root/randomDouble")), listOf(DataValue(Variant(value))))
+            writeOpc(
+                nodeId = NodeId(2, "root/randomDouble"),
+                converter = MetaConverter.double,
+                value = value
+            )
         }
 
         companion object : DeviceSpec<DemoOpcUaDevice>() {
