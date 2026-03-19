@@ -149,7 +149,7 @@ public object UdpPort : Factory<AsynchronousPort> {
                 //bind the channel to a local port to receive messages
                 localPort?.let { bind(InetSocketAddress(localHost ?: "localhost", it)) }
                 //connect to remote port to send messages
-                connect(InetSocketAddress(remoteHost, remotePort.toInt()))
+                connect(InetSocketAddress(remoteHost, remotePort))
                 context.logger.info { "Connected to UDP $remotePort on $remoteHost" }
             }
         }

@@ -22,7 +22,7 @@ public class PlcException(public val codes: Map<String, PlcResponseCode>) : Exce
         }
 }
 
-private fun PlcTagResponse.throwOnFail() {
+public fun PlcTagResponse.throwOnFail() {
     val codes = responseCodes
     if (!codes.isOK) throw PlcException(codes)
 }

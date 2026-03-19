@@ -1,5 +1,6 @@
 package space.kscience.controls.spec
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import space.kscience.controls.api.*
 import space.kscience.dataforge.meta.Meta
@@ -98,9 +99,9 @@ public abstract class DeviceSpec<D : Device> {
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? =
-                    withContext(device.coroutineContext) { device.read(propertyName) }
+                    withContext(device.coroutineContext.minusKey(Job)) { device.read(propertyName) }
 
-                override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext) {
+                override suspend fun write(device: D, value: T): Unit = withContext(device.coroutineContext.minusKey(Job)) {
                     device.write(propertyName, value)
                 }
             }

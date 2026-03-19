@@ -13,7 +13,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 /**
- * An interface for device property history.
+ * An interface for a device property history.
  */
 public interface PropertyHistory<T> {
     /**
@@ -35,9 +35,9 @@ public interface PropertyHistory<T> {
 public class CollectedPropertyHistory<T>(
     public val scope: CoroutineScope,
     eventFlow: Flow<DeviceMessage>,
-    public val deviceName: Name,
     public val propertyName: String,
     public val converter: MetaConverter<T>,
+    public val deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
 ) : PropertyHistory<T> {
 
@@ -56,15 +56,15 @@ public class CollectedPropertyHistory<T>(
  */
 public fun <T> Device.collectPropertyHistory(
     scope: CoroutineScope = this,
-    deviceName: Name,
     propertyName: String,
     converter: MetaConverter<T>,
+    deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
-): PropertyHistory<T> = CollectedPropertyHistory(scope, messageFlow, deviceName, propertyName, converter, maxSize)
+): PropertyHistory<T> = CollectedPropertyHistory(scope, messageFlow, propertyName, converter, deviceName, maxSize)
 
 public fun <D : Device, T> D.collectPropertyHistory(
     scope: CoroutineScope = this,
-    deviceName: Name,
     spec: DevicePropertySpec<D, T>,
+    deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
-): PropertyHistory<T> = collectPropertyHistory(scope, deviceName, spec.name, spec.converter, maxSize)
+): PropertyHistory<T> = collectPropertyHistory(scope, spec.name, spec.converter, deviceName, maxSize)

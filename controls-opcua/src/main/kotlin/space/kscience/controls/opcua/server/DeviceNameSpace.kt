@@ -22,6 +22,7 @@ import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
+import space.kscience.dataforge.names.asName
 import kotlin.time.toJavaInstant
 
 
@@ -229,6 +230,14 @@ public class DeviceNameSpace(
 
 public fun OpcUaServer.serveDevices(scope: CoroutineScope, deviceHub: DeviceHub): DeviceNameSpace =
     DeviceNameSpace(scope, this, deviceHub).apply { startup() }
+
+
+/**
+ * Serve single device as OPC-UA
+ */
+public fun OpcUaServer.serveDevice(scope: CoroutineScope, device: Device): DeviceNameSpace {
+    return serveDevices(scope, DeviceHub(mapOf("root".asName() to device)))
+}
 
 /**
  *  Serve devices from [deviceManager] as OPC-UA

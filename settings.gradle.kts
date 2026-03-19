@@ -72,6 +72,7 @@ include(
     ":controls-visualisation-compose",
     ":controls-vision",
     ":controls-jupyter",
+    ":controls-data-platform",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-utils",

@@ -21,6 +21,7 @@ dependencies {
     api(libs.milo.server)
 
     testImplementation(spclibs.kotlinx.coroutines.test)
+    testImplementation(spclibs.logback.classic)
 }
 
 readme {

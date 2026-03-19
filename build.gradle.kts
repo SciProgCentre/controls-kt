@@ -17,13 +17,13 @@ allprojects {
     }
 }
 
-ksciencePublish {
+kscienceProject {
     pom("https://github.com/SciProgCentre/controls-kt") {
         useApache2Licence()
         useSPCTeam()
     }
-    repository("spc","https://maven.sciprog.center/kscience")
-    central()
+    publishTo("spc","https://maven.sciprog.center/kscience")
+    publishToCentral()
 }
 
 readme.readmeTemplate = file("docs/templates/README-TEMPLATE.md")

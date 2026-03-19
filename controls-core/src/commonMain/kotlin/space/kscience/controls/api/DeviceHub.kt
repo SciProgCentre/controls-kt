@@ -28,8 +28,7 @@ public interface DeviceHub : Provider {
 }
 
 public fun DeviceHub(deviceMap: Map<Name, Device>): DeviceHub = object : DeviceHub {
-    override val devices: Map<Name, Device>
-        get() = deviceMap
+    override val devices: Map<Name, Device> get() = deviceMap
 }
 
 /**
