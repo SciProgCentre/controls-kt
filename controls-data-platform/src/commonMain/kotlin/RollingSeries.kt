@@ -1,4 +1,4 @@
-package space.kscience.controls.timeseries
+package space.kscience.controls.dataplatform
 
 import space.kscience.kmath.operations.Group
 import space.kscience.kmath.series.Series

@@ -1,4 +1,4 @@
-package space.kscience.controls.timeseries
+package space.kscience.controls.dataplatform
 
 import space.kscience.controls.spec.DeviceBySpec
 import space.kscience.controls.spec.DeviceSpec

@@ -1,4 +1,4 @@
-package space.kscience.controls.timeseries
+package space.kscience.controls.dataplatform
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
