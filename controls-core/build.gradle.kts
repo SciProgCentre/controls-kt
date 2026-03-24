@@ -2,7 +2,6 @@ import space.kscience.gradle.Maturity
 
 plugins {
     id("space.kscience.gradle.mpp")
-    id("org.jetbrains.kotlinx.atomicfu") version "0.29.0"
     `maven-publish`
 }
 

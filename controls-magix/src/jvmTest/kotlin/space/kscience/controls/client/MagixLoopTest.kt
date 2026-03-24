@@ -61,8 +61,6 @@ class MagixLoopTest {
 
         assertEquals(10, remoteHub.devices.size)
 
-        clientEndpoint.close()
-        deviceEndpoint.close()
-        server.stop()
+        context.close()
     }
 }

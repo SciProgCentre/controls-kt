@@ -19,6 +19,7 @@ kscience {
         api(projects.controlsOpcua)
         api(projects.controlsModbus)
         api(libs.kmath.stat)
+        api(libs.tables.kt)
     }
 
     commonTest {

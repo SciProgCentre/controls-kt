@@ -95,5 +95,6 @@ include(
     ":demo:constructor",
     ":demo:device-collective",
     ":demo:thermo",
+    ":demo:data-platform-demo",
 //    ":demo:thermo:thermo-desktop"
 )

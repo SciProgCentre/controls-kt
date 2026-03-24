@@ -1,6 +1,6 @@
 [versions]
 
-dataforge = "0.10.1"
+dataforge = "0.10.3"
 rsocket = "0.20.0"
 xodus = "2.0.1"
 
@@ -37,6 +37,7 @@ testcontainers = "1.21.0"
 
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
 dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "dataforge" }
+tables-kt = {module = "space.kscience:tables-kt", version.ref = "dataforge"}
 
 uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }
 

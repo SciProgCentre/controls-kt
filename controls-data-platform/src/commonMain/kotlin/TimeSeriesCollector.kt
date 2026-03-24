@@ -73,4 +73,6 @@ public class TimeSeriesCollector(
             }.launchIn(scope)
         }
     }
+
+//    fun asTable(): Table
 }
