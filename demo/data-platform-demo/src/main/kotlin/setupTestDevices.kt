@@ -2,7 +2,6 @@ package space.kscience.controls.demo
 
 import com.ghgande.j2mod.modbus.slave.ModbusSlaveFactory
 import kotlinx.coroutines.*
-import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyDescriptor
@@ -11,7 +10,6 @@ import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.DeviceGroup
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.dataplatform.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.modbus.ModbusRegistryMap
@@ -47,7 +45,7 @@ class TestDevice(context: Context, val values: Map<Name, ValueState<Double>>) : 
     }
 }
 
-private class TestDeviceRegistryMap(names: List<Name>) : ModbusRegistryMap() {
+internal class TestDeviceRegistryMap(names: List<Name>) : ModbusRegistryMap() {
     val keys = names.mapIndexed { index, name ->
         name to input(address = index * 4, count = 4, reader = DoubleIOFormat)
     }.toMap()
@@ -149,20 +147,17 @@ private fun DeviceManager.setupModbusDevices(
 }
 
 
-fun DeviceManager.setupTestDevices(
-    propertiesPerDevice: Int = 4,
-    numberOfOpcDevices: Int = 4,
-    numberOfModbusDevices: Int = 2,
+internal fun DeviceManager.setupTestDevices(
+    propertiesPerDevice: Int,
+    numberOfOpcDevices: Int,
+    numberOfModbusDevices: Int,
+    registryMap: TestDeviceRegistryMap,
     scope: CoroutineScope = context
 ): Job = scope.launch {
     val values = mutableMapOf<Name, MutableValueState<Double>>()
 
 
     setupOpcTestDevices(numberOfOpcDevices, propertiesPerDevice, values)
-
-    val registryMap = TestDeviceRegistryMap(
-        List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
-    )
 
     setupModbusDevices(numberOfModbusDevices, registryMap, values)
 
@@ -175,60 +170,4 @@ fun DeviceManager.setupTestDevices(
             delay(1.seconds)
         }
     }
-
-    val opcSourceName = "opc".asName()
-    val modbusSourceName = "modbus".asName()
-
-    val sources = mapOf(
-        opcSourceName to OpcUaConfig("opc.tcp://localhost:9091"),
-        modbusSourceName to ModbusTcpConfig("localhost", 9093)
-    )
-
-    val timerName = "default".asName()
-
-    val timers = mapOf(timerName to FixedRateTimer(1.seconds))
-
-    val platformProperties = buildMap<Name, PlatformProperty> {
-        repeat(numberOfOpcDevices) { opcDeviceNum ->
-            repeat(propertiesPerDevice) { propertyNum ->
-                put(
-                    key = "opc[${opcDeviceNum}].property[${propertyNum}]".parseAsName(),
-                    value = OpcPlatformProperty(
-                        source = opcSourceName,
-                        timer = timerName,
-                        nodeId = "ns=2;s=opc/device[$opcDeviceNum]/property[$propertyNum]"
-                    )
-                )
-            }
-        }
-
-        repeat(numberOfModbusDevices) { modbusDeviceNum ->
-
-            registryMap.keys.forEach { (name, key) ->
-                put(
-                    key = "modbus[${modbusDeviceNum}]".parseAsName() + name,
-                    value = ModbusPlatformProperty(
-                        source = modbusSourceName,
-                        timer = timerName,
-                        reader = ModbusDoubleReader,
-                        address = key.address,
-                        unitId = modbusDeviceNum + 1
-                    )
-                )
-            }
-        }
-    }
-
-    val configuration = DataPlatformConfiguration(
-        sources = sources,
-        timers = timers,
-        properties = platformProperties
-    )
-
-    println(Json { prettyPrint = true }.encodeToString(DataPlatformConfiguration.serializer(), configuration))
-
-    val platformDevice = DataPlatformDevice(context, configuration)
-
-    install("platform", platformDevice)
-
 }
