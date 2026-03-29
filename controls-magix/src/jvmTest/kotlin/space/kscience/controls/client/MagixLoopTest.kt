@@ -39,7 +39,7 @@ class MagixLoopTest {
             repeat(10) {
                 deviceManager.install("test[$it]", TestDevice)
             }
-        }
+        }.join()
 
         val clientEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
@@ -58,6 +58,8 @@ class MagixLoopTest {
         if(remoteHub.devices.isEmpty()) {
             clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device")).first()
         }
+
+
 
         assertEquals(10, remoteHub.devices.size)
 

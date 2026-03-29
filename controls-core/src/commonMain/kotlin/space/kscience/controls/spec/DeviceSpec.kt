@@ -66,7 +66,7 @@ public abstract class DeviceSpec<D : Device> {
                 override val converter: MetaConverter<T> = converter
 
                 override suspend fun read(device: D): T? =
-                    withContext(device.coroutineContext) { device.read(propertyName) }
+                    withContext(device.coroutineContext.minusKey(Job)) { device.read(propertyName) }
             }
             registerProperty(deviceProperty)
             ReadOnlyProperty<DeviceSpec<D>, DevicePropertySpec<D, T>> { _, _ ->
@@ -148,7 +148,7 @@ public abstract class DeviceSpec<D : Device> {
                 override val inputConverter: MetaConverter<I> = inputConverter
                 override val outputConverter: MetaConverter<O> = outputConverter
 
-                override suspend fun execute(device: D, input: I): O = withContext(device.coroutineContext) {
+                override suspend fun execute(device: D, input: I): O = withContext(device.coroutineContext.minusKey(Job)) {
                     device.execute(input)
                 }
             }
@@ -168,8 +168,8 @@ public fun <D : Device> DeviceSpec<D>.unitAction(
     execute: suspend D.() -> Unit,
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Unit, Unit>>> =
     action(
-        MetaConverter.Companion.unit,
-        MetaConverter.Companion.unit,
+        MetaConverter.unit,
+        MetaConverter.unit,
         descriptorBuilder,
         name
     ) {
@@ -185,8 +185,8 @@ public fun <D : Device> DeviceSpec<D>.metaAction(
     execute: suspend D.(Meta) -> Meta,
 ): PropertyDelegateProvider<DeviceSpec<D>, ReadOnlyProperty<DeviceSpec<D>, DeviceActionSpec<D, Meta, Meta>>> =
     action(
-        MetaConverter.Companion.meta,
-        MetaConverter.Companion.meta,
+        MetaConverter.meta,
+        MetaConverter.meta,
         descriptorBuilder,
         name
     ) {

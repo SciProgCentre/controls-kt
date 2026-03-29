@@ -10,8 +10,6 @@ import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import space.kscience.controls.constructor.TimerState
-import space.kscience.controls.modbus.ModbusRegistryKey
-import space.kscience.controls.modbus.read
 import space.kscience.controls.opcua.client.readValueWithTime
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
@@ -83,26 +81,6 @@ public sealed interface PlatformProperty {
 
 
 @Serializable
-@SerialName("modbus")
-public class ModbusPlatformProperty<T>(
-    override val source: Name,
-    override val timer: Name,
-    public val key: ModbusRegistryKey<T>,
-    public val converter: MetaConverter<T>,
-    public val unitId: Int = 1,
-) : PlatformProperty {
-    override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val client = platform.resolveModbusClient(source) ?: error("No Modbus client found for $source")
-
-        val value = client.read(unitId, key)
-
-        val meta = converter.convert(value)
-        return ValueWithTime(meta, platform.clock.now())
-    }
-}
-
-
-@Serializable
 @SerialName("opc")
 public class OpcPlatformProperty(
     override val source: Name,
@@ -110,7 +88,7 @@ public class OpcPlatformProperty(
     public val nodeId: String
 ) : PlatformProperty {
     override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val client = platform.resolveOpcClient(source) ?: error("No OPC client found for $source")
+        val client = platform.resolveOpcClient(source)
         return client.readValueWithTime(NodeId.parse(nodeId), MetaConverter.meta)
     }
 }
@@ -125,7 +103,7 @@ public class PlcPlatformProperty(
     public val name: String = "@default",
 ) : PlatformProperty {
     override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val connection = platform.resolvePlcClient(source) ?: error("No PLC client found")
+        val connection = platform.resolvePlcClient(source)
 
         require(connection.metadata.isReadSupported) { "Read actions are not supported on connections" }
 
