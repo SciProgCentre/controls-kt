@@ -68,6 +68,7 @@ include(
 //    ":controls-mongo",
     ":controls-storage",
     ":controls-storage:controls-xodus",
+    ":controls-storage:controls-exposed",
     ":controls-constructor",
     ":controls-visualisation-compose",
     ":controls-vision",

@@ -3,7 +3,6 @@ package space.kscience.controls.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.descriptors.serialDescriptor
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.dataforge.names.Name
 import kotlin.time.Instant
@@ -34,14 +33,14 @@ public interface DeviceMessageStorage {
 }
 
 /**
- * Query all messages of given type
+ * Query all messages of a given type
  */
 @OptIn(ExperimentalSerializationApi::class)
 public inline fun <reified T : DeviceMessage> DeviceMessageStorage.read(
     range: ClosedRange<Instant>? = null,
     sourceDevice: Name? = null,
     targetDevice: Name? = null,
-): Flow<T> = read(serialDescriptor<T>().serialName, range, sourceDevice, targetDevice).map {
+): Flow<T> = read(DeviceMessage.serialNameFor<T>(), range, sourceDevice, targetDevice).map {
     //Check that all types are correct
     it as T
 }

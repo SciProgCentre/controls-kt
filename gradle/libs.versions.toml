@@ -16,6 +16,8 @@ hivemq = "1.3.12"
 
 rabbitmq = "5.14.2"
 
+exposed = "1.1.1"
+
 kmongo = "4.5.1"
 
 j2mod = "3.3.0"
@@ -37,7 +39,7 @@ testcontainers = "1.21.0"
 
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
 dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "dataforge" }
-tables-kt = {module = "space.kscience:tables-kt", version.ref = "dataforge"}
+tables-kt = { module = "space.kscience:tables-kt", version.ref = "dataforge" }
 
 uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }
 
@@ -64,6 +66,13 @@ hivemq-mqtt-client = { module = "com.hivemq:hivemq-mqtt-client", version.ref = "
 rabbitmq-amqp-client = { module = "com.rabbitmq:amqp-client", version.ref = "rabbitmq" }
 
 j2mod = { module = "com.ghgande:j2mod", version.ref = "j2mod" }
+
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
+
+h2 = "com.h2database:h2:2.3.232"
 
 kmongo-coroutine-serialization = { module = "org.litote.kmongo:kmongo-coroutine-serialization", version.ref = "kmongo" }
 

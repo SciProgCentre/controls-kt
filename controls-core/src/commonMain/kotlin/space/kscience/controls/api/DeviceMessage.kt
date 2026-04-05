@@ -2,9 +2,7 @@
 
 package space.kscience.controls.api
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
@@ -43,6 +41,25 @@ public sealed class DeviceMessage {
         )
 
         public fun fromMeta(meta: Meta): DeviceMessage = Json.decodeFromJsonElement(meta.toJson())
+
+        @OptIn(InternalSerializationApi::class)
+        public fun serialNameFor(message: DeviceMessage): String = when (message) {
+            is ActionExecuteMessage -> message::class.serializer().descriptor.serialName
+            is ActionResultMessage -> message::class.serializer().descriptor.serialName
+            is BinaryNotificationMessage -> message::class.serializer().descriptor.serialName
+            is DescriptionMessage -> message::class.serializer().descriptor.serialName
+            is DeviceErrorMessage -> message::class.serializer().descriptor.serialName
+            is DeviceLifeCycleMessage -> message::class.serializer().descriptor.serialName
+            is DeviceLogMessage -> message::class.serializer().descriptor.serialName
+            is EmptyDeviceMessage -> message::class.serializer().descriptor.serialName
+            is GetDescriptionMessage -> message::class.serializer().descriptor.serialName
+            is PropertyChangedMessage -> message::class.serializer().descriptor.serialName
+            is PropertyGetMessage -> message::class.serializer().descriptor.serialName
+            is PropertySetMessage -> message::class.serializer().descriptor.serialName
+        }
+
+        @OptIn(InternalSerializationApi::class)
+        public inline fun <reified T : DeviceMessage> serialNameFor(): String = T::class.serializer().descriptor.serialName
     }
 }
 
