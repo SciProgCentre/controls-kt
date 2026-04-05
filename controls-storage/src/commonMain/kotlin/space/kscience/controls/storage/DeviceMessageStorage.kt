@@ -11,7 +11,15 @@ import kotlin.time.Instant
  * A storage for Controls-kt [DeviceMessage]
  */
 public interface DeviceMessageStorage {
+    /**
+     * Write a single message to the storage
+     */
     public suspend fun write(event: DeviceMessage)
+
+    /**
+     * Write several messages in the same transaction to the database
+     */
+    public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
 
     /**
      * Return all messages in a storage as a discrete

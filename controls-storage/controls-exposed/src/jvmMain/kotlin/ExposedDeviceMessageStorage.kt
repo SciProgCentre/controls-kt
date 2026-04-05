@@ -23,11 +23,11 @@ import kotlin.time.Instant
  * data streaming.
  *
  * @param database The Exposed [Database] instance used to interact with the underlying database.
- * @param batchSize The number of records fetched in a single batch during flow-based querying. Defaults to 1000.
+ * @param pageSize The number of records fetched in a single batch during flow-based querying. Defaults to 1000.
  */
 public class ExposedDeviceMessageStorage(
     public val database: Database,
-    private val batchSize: Int = 1000,
+    private val pageSize: Int = 1000,
 ) : DeviceMessageStorage {
 
     private val stringFormat: StringFormat = Json
@@ -46,14 +46,27 @@ public class ExposedDeviceMessageStorage(
         }
     }
 
+    override suspend fun writeAll(events: Iterable<DeviceMessage>) {
+        suspendTransaction(database) {
+            DeviceMessages.batchInsert(events) {event->
+                this[DeviceMessages.type] = DeviceMessage.serialNameFor(event)
+                this[DeviceMessages.time] = event.time
+                this[DeviceMessages.sourceDevice] = event.sourceDevice.toString()
+                this[DeviceMessages.targetDevice] = event.targetDevice?.toString()
+                this[DeviceMessages.content] = stringFormat.encodeToString(DeviceMessage.serializer(), event)
+            }
+
+        }
+    }
+
     override suspend fun write(event: DeviceMessage) {
         suspendTransaction(database) {
             DeviceMessages.insert {
-                it[type] = DeviceMessage.serialNameFor(event)
-                it[time] = event.time
-                it[sourceDevice] = event.sourceDevice.toString()
-                it[targetDevice] = event.targetDevice?.toString()
-                it[content] = stringFormat.encodeToString(DeviceMessage.serializer(), event)
+                it[DeviceMessages.type] = DeviceMessage.serialNameFor(event)
+                it[DeviceMessages.time] = event.time
+                it[DeviceMessages.sourceDevice] = event.sourceDevice.toString()
+                it[DeviceMessages.targetDevice] = event.targetDevice?.toString()
+                it[DeviceMessages.content] = stringFormat.encodeToString(DeviceMessage.serializer(), event)
             }
         }
     }
@@ -69,7 +82,7 @@ public class ExposedDeviceMessageStorage(
 
         while (true) {
             val page = suspendTransaction(db = database, readOnly = true) {
-                queryBase.copy().orderBy(DeviceMessages.time, SortOrder.DESC).limit(batchSize).apply {
+                queryBase.copy().orderBy(DeviceMessages.time, SortOrder.DESC).limit(pageSize).apply {
                     lastpageBottomTime?.let {
                         andWhere { DeviceMessages.time less it }
                     }
@@ -80,7 +93,7 @@ public class ExposedDeviceMessageStorage(
                 emit(it)
             }
 
-            if (page.size < batchSize) {
+            if (page.size < pageSize) {
                 break
             } else {
                 lastpageBottomTime = page.last().time

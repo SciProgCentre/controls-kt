@@ -17,6 +17,7 @@ kscience {
         implementation(libs.exposed.kotlin.datetime)
     }
     jvmTest {
+        implementation(spclibs.logback.classic)
         implementation(spclibs.kotlinx.coroutines.test)
         implementation(libs.h2)
     }

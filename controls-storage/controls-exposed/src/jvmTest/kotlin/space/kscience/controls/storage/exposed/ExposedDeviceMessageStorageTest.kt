@@ -97,7 +97,7 @@ class ExposedDeviceMessageStorageTest {
 
     @Test
     fun testLargeBatch() = runTest {
-        val storage = ExposedDeviceMessageStorage(database, batchSize = 1000)
+        val storage = ExposedDeviceMessageStorage(database, pageSize = 1000)
         val count = 9500
         val messages = List(count) { i ->
             PropertyChangedMessage(
