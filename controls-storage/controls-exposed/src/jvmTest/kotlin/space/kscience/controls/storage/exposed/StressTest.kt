@@ -18,7 +18,9 @@ class StressTest {
     @Test
     public fun testReadWrite(): Unit = runBlocking(Dispatchers.IO) {
 
-        val database = Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", "org.h2.Driver")
+        val database = Database.connect(
+            url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;"
+        )
 
         val storage = ExposedDeviceMessageStorage(database)
 
