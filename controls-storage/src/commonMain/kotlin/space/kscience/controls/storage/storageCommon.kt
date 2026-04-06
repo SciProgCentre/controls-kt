@@ -39,8 +39,8 @@ public fun <T> Flow<T>.timeWindowed(duration: Duration): Flow<List<T>> = channel
     }
     launch {
         while (isActive) {
+            delay(duration)
             mutex.withLock {
-                delay(duration)
                 if (collector.isNotEmpty()) {
                     send(collector.toList())
                 }
