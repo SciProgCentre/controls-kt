@@ -19,9 +19,10 @@ public class ModbusPlatformProperty(
     public val reader: ModbusPropertyReader,
     public val address: Int,
     public val unitId: Int = 1,
+    override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty {
     override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val client = platform.resolveModbusClient(source) ?: error("No Modbus client found for $source")
+        val client = platform.resolveModbusClient(source)
 
         val meta = reader.read(client, unitId, address)
 

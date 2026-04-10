@@ -1,12 +1,7 @@
 package space.kscience.controls.dataplatform
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
@@ -16,9 +11,11 @@ import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
-import space.kscience.dataforge.names.toStringUnescaped
+import space.kscience.tables.*
 import kotlin.coroutines.CoroutineContext
+import kotlin.reflect.typeOf
 import kotlin.time.Clock
+import kotlin.time.Duration
 
 /**
  * A device that exposes property values in a data platform
@@ -28,7 +25,8 @@ public class DataPlatformDevice(
     public val configuration: DataPlatformConfiguration
 ) : Device {
 
-    override val coroutineContext: CoroutineContext = context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
+    override val coroutineContext: CoroutineContext =
+        context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
 
     private val clockManager = context.request(ClockManager)
 
@@ -52,7 +50,7 @@ public class DataPlatformDevice(
                     _messageFlow.emit(
                         PropertyChangedMessage(
                             time = value.time,
-                            property = propertyName.toStringUnescaped(),
+                            property = propertyName.toString(),
                             value = value.value,
                         )
                     )
@@ -69,8 +67,12 @@ public class DataPlatformDevice(
 
     override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 
-    override suspend fun readProperty(propertyName: String): Meta =
-        values[propertyName.parseAsName(true)] ?: error("Property $propertyName not found")
+    private val propertyNames = configuration.properties.keys.map { it.toString() }
+
+    override suspend fun readProperty(propertyName: String): Meta {
+        if (propertyName !in propertyNames) error("Property $propertyName not found")
+        return values[propertyName.parseAsName(true)] ?: Meta.EMPTY
+    }
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         error("Write is not supported")
@@ -79,9 +81,7 @@ public class DataPlatformDevice(
     override suspend fun execute(
         actionName: String,
         argument: Meta?
-    ): Meta? {
-        TODO("Not yet implemented")
-    }
+    ): Meta? = null
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
@@ -107,6 +107,53 @@ public class DataPlatformDevice(
     final override suspend fun stop() {
         setLifecycleState(LifecycleState.STOPPED)
         super.stop()
+    }
+
+    private val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("time") {
+        title = "Time"
+    }
+
+    private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.properties.map { (name, property) ->
+        SimpleColumnHeader(name.toString(), typeOf<Meta>(), property.meta)
+    }
+
+    private val tableHeaders: TableHeader<Meta> = buildList {
+        add(timeColumnHeader)
+        addAll(propertyColumnHeaders)
+    }
+
+    /**
+     * Starts generating a flow of rows for the current data platform with a specified interval.
+     *
+     * @param interval the interval between row generation.
+     * @param skipUnchangedRows if true, skip rows that are identical to the previous one.
+     */
+    public fun asRows(
+        interval: Duration,
+        skipUnchangedRows: Boolean = true,
+        scope: CoroutineScope = this
+    ): AsyncRows<Meta> = object : AsyncRows<Meta> {
+        override val headers: TableHeader<Meta> get() = tableHeaders
+
+        private val rowFlow: SharedFlow<Row<Meta>> = flow {
+            var previousValues: Map<String, Meta>? = null
+            while (true) {
+                val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
+                val valueMap = values + (timeColumnHeader.name to Meta(clock.now().toString()))
+                if (skipUnchangedRows) {
+                    if (values == previousValues) {
+                        continue
+                    } else {
+                        previousValues = values
+                    }
+                }
+                emit(MapRow(valueMap))
+                delay(interval)
+            }
+        }.shareIn(scope, SharingStarted.WhileSubscribed())
+
+        override fun rowFlow(): SharedFlow<Row<Meta>> = rowFlow
+
     }
 
 }

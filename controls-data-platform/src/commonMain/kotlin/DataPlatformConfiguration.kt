@@ -76,6 +76,11 @@ public sealed interface PlatformProperty {
      */
     public val timer: Name
 
+    /**
+     * Metadata of the property
+     */
+    public val meta: Meta
+
     public suspend fun read(platform: DataPlatform): ValueWithTime<Meta>
 }
 
@@ -85,7 +90,8 @@ public sealed interface PlatformProperty {
 public class OpcPlatformProperty(
     override val source: Name,
     override val timer: Name,
-    public val nodeId: String
+    public val nodeId: String,
+    override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty {
     override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
         val client = platform.resolveOpcClient(source)
@@ -101,6 +107,7 @@ public class PlcPlatformProperty(
     public val address: String,
     public val plcValueType: PlcValueType,
     public val name: String = "@default",
+    override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty {
     override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
         val connection = platform.resolvePlcClient(source)
