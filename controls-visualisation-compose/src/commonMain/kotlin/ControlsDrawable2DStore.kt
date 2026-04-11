@@ -26,13 +26,14 @@ public annotation class Drawable2DBuilder
 
 public typealias ControlsDrawable2DElements = Map<Name, ControlsDrawable2D>
 
-public interface ControlsDrawable2DBuilder: FlowCollector<ControlsDrawable2DElements>{
+public interface ControlsDrawable2DBuilder : FlowCollector<ControlsDrawable2DElements> {
     public val scope: CoroutineScope
     public val size: Size
 }
 
 @Drawable2DBuilder
-public class ControlsDrawable2DStore(override val scope: CoroutineScope, override val size: Size): ControlsDrawable2DBuilder {
+public class ControlsDrawable2DStore(override val scope: CoroutineScope, override val size: Size) :
+    ControlsDrawable2DBuilder {
     public val content: MutableStateFlow<ControlsDrawable2DElements> = MutableStateFlow(emptyMap())
 
     override suspend fun emit(value: ControlsDrawable2DElements) {
@@ -43,33 +44,41 @@ public class ControlsDrawable2DStore(override val scope: CoroutineScope, overrid
 /**
  * Emit single drawable element
  */
-public fun ControlsDrawable2DStore.emit(id: String, drawable2D: ControlsDrawable2D) {
-    content.value += (id.parseAsName() to drawable2D)
+public suspend fun ControlsDrawable2DBuilder.emit(id: Name, drawable2D: ControlsDrawable2D) {
+    emit(mapOf(id to drawable2D))
+}
+
+
+/**
+ * Emit single drawable element
+ */
+public suspend fun ControlsDrawable2DBuilder.emit(id: String, drawable2D: ControlsDrawable2D) {
+    emit(mapOf(id.parseAsName() to drawable2D))
 }
 
 /**
  * Emit multiple drawable elements
  */
-public fun ControlsDrawable2DStore.emitAll(drawables: ControlsDrawable2DElements) {
-    content.value += drawables
+public suspend fun ControlsDrawable2DBuilder.emitAll(drawables: ControlsDrawable2DElements) {
+    emit(drawables)
 }
 
 /**
  * Fill drawables from a flow of drawable states
  */
-public fun ControlsDrawable2DStore.updateById(
+public fun ControlsDrawable2DBuilder.updateById(
     id: Name,
     flow: Flow<ControlsDrawable2D>
 ): Job {
     return flow.onEach {
-        content.value += (id to it)
+        emit(id, it)
     }.launchIn(scope)
 }
 
 /**
  * Fill drawables from a flow of drawable states
  */
-public fun ControlsDrawable2DStore.updateById(
+public fun ControlsDrawable2DBuilder.updateById(
     id: String,
     flow: Flow<ControlsDrawable2D>
 ): Job = updateById(id.parseAsName(), flow)
@@ -77,11 +86,17 @@ public fun ControlsDrawable2DStore.updateById(
 /**
  * Observe single [ValueState] and change content on its change
  */
-public fun <T> ControlsDrawable2DStore.observeState(
+public fun <T> ControlsDrawable2DBuilder.observeState(
     state: ValueState<T>,
-    id: Name = NameToken("@state",state.hashCode().toHexString()).asName(),
+    id: Name = NameToken("@state", state.hashCode().toHexString()).asName(),
     transform: suspend ControlsDrawable2DBuilder.(T) -> ControlsDrawable2D,
 ): Job = updateById(id, state.subscribe().map { transform(this, it) })
+
+public fun <T> ControlsDrawable2DBuilder.observeState(
+    state: ValueState<T>,
+    id: String,
+    transform: suspend ControlsDrawable2DBuilder.(T) -> ControlsDrawable2D,
+): Job = observeState(state, id.parseAsName(), transform)
 
 /**
  * Observe a single [Device] property
