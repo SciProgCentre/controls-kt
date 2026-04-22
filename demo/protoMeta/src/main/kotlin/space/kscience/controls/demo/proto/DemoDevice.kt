@@ -10,7 +10,8 @@ import space.kscience.dataforge.meta.*
 
 class DemoDevice(context: Context, meta: Meta) : ProtoDevice(context, meta) {
     companion object : DeviceSpec<DemoDevice>(), Factory<DemoDevice> {
-        
+        private var stabilizationProfileState = StabilizationProfile()
+
         val voltage by mutableDoubleProperty(
             read = { 0.0 },
             write = { _, _ -> }
@@ -42,6 +43,19 @@ class DemoDevice(context: Context, meta: Meta) : ProtoDevice(context, meta) {
             },
             read = { 0 },
             write = { _, _ -> }
+        )
+
+        val stabilizationProfile by mutableProperty(
+            converter = StabilizationProfile,
+            descriptorBuilder = {
+                metaDescriptor {
+                    attributes {
+                        "rust_type" put "meta"
+                    }
+                }
+            },
+            read = { stabilizationProfileState },
+            write = { _, value -> stabilizationProfileState = value }
         )
 
         override fun build(context: Context, meta: Meta): DemoDevice = DemoDevice(context, meta)

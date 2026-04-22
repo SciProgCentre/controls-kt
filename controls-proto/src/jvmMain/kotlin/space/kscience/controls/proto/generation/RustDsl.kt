@@ -1,13 +1,13 @@
 package space.kscience.controls.proto.generation
 
-interface RustElement {
-    fun render(builder: StringBuilder, indent: String = "")
+public interface RustElement {
+    public fun render(builder: StringBuilder, indent: String = "")
 }
 
-class RustStruct(private val name: String) : RustElement {
+public class RustStruct(private val name: String) : RustElement {
     private val fields = mutableMapOf<String, String>()
 
-    fun field(name: String, type: String) {
+    public fun field(name: String, type: String) {
         fields[name] = type
     }
 
@@ -21,10 +21,10 @@ class RustStruct(private val name: String) : RustElement {
     }
 }
 
-class RustImpl(private val structName: String) : RustElement {
+public class RustImpl(private val structName: String) : RustElement {
     private val methods = mutableListOf<RustFunction>()
 
-    fun fn(name: String, args: String = "", returnType: String? = null, modifiers: String = "", init: RustFunction.() -> Unit) {
+    public fun fn(name: String, args: String = "", returnType: String? = null, modifiers: String = "", init: RustFunction.() -> Unit) {
         val f = RustFunction(name, args, returnType, modifiers)
         f.init()
         methods.add(f)
@@ -37,7 +37,7 @@ class RustImpl(private val structName: String) : RustElement {
     }
 }
 
-class RustFunction(
+public class RustFunction(
     private val name: String,
     private val args: String = "",
     private val returnType: String? = null,
@@ -45,8 +45,55 @@ class RustFunction(
 ) : RustElement {
     private val bodyLines = mutableListOf<String>()
 
-    operator fun String.unaryPlus() {
+    public fun line(code: String) {
+        bodyLines.add(code)
+    }
+
+    public operator fun String.unaryPlus() {
         bodyLines.add(this)
+    }
+
+    public fun block(header: String, init: RustFunction.() -> Unit) {
+        bodyLines.add("$header {")
+        val nested = RustFunction("_nested")
+        nested.init()
+        nested.bodyLines.forEach { line ->
+            bodyLines.add("    $line")
+        }
+        bodyLines.add("}")
+    }
+
+    public fun ifBlock(condition: String, init: RustFunction.() -> Unit) {
+        block("if $condition", init)
+    }
+
+    public fun ifElseBlock(
+        condition: String,
+        ifInit: RustFunction.() -> Unit,
+        elseInit: RustFunction.() -> Unit,
+    ) {
+        block("if $condition", ifInit)
+        bodyLines.add("else {")
+        val nestedElse = RustFunction("_nested_else")
+        nestedElse.elseInit()
+        nestedElse.bodyLines.forEach { line ->
+            bodyLines.add("    $line")
+        }
+        bodyLines.add("}")
+    }
+
+    public fun matchBlock(expression: String, init: RustFunction.() -> Unit) {
+        block("match $expression", init)
+    }
+
+    public fun arm(pattern: String, init: RustFunction.() -> Unit) {
+        bodyLines.add("$pattern => {")
+        val nested = RustFunction("_nested_arm")
+        nested.init()
+        nested.bodyLines.forEach { line ->
+            bodyLines.add("    $line")
+        }
+        bodyLines.add("},")
     }
 
     override fun render(builder: StringBuilder, indent: String) {
@@ -60,10 +107,10 @@ class RustFunction(
     }
 }
 
-class RustFile : RustElement {
+public class RustFile : RustElement {
     private val elements = mutableListOf<RustElement>()
 
-    fun use(crate: String) {
+    public fun use(crate: String) {
         elements.add(object : RustElement {
             override fun render(builder: StringBuilder, indent: String) {
                 builder.append("${indent}use $crate;\n")
@@ -71,7 +118,7 @@ class RustFile : RustElement {
         })
     }
     
-    fun custom(content: String) {
+    public fun custom(content: String) {
         elements.add(object : RustElement {
             override fun render(builder: StringBuilder, indent: String) {
                 content.lines().forEach { builder.append("$indent$it\n") }
@@ -80,7 +127,7 @@ class RustFile : RustElement {
         })
     }
 
-    operator fun String.unaryPlus() {
+    public operator fun String.unaryPlus() {
         elements.add(object : RustElement {
             override fun render(builder: StringBuilder, indent: String) {
                 this@unaryPlus.lines().forEach { 
@@ -91,19 +138,19 @@ class RustFile : RustElement {
         })
     }
     
-    fun struct(name: String, init: RustStruct.() -> Unit) {
+    public fun struct(name: String, init: RustStruct.() -> Unit) {
         val s = RustStruct(name)
         s.init()
         elements.add(s)
     }
 
-    fun impl(structName: String, init: RustImpl.() -> Unit) {
+    public fun impl(structName: String, init: RustImpl.() -> Unit) {
         val i = RustImpl(structName)
         i.init()
         elements.add(i)
     }
 
-    fun fn(name: String, args: String = "", returnType: String? = null, modifiers: String = "", init: RustFunction.() -> Unit) {
+    public fun fn(name: String, args: String = "", returnType: String? = null, modifiers: String = "", init: RustFunction.() -> Unit) {
         val f = RustFunction(name, args, returnType, modifiers)
         f.init()
         elements.add(f)
@@ -120,7 +167,7 @@ class RustFile : RustElement {
     }
 }
 
-fun rustFile(init: RustFile.() -> Unit): RustFile {
+public fun rustFile(init: RustFile.() -> Unit): RustFile {
     val file = RustFile()
     file.init()
     return file

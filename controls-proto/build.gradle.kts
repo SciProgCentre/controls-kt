@@ -18,3 +18,11 @@ kscience {
 readme{
     maturity = Maturity.PROTOTYPE
 }
+
+kotlin {
+    jvm {
+        mainRun {
+            mainClass = "space.kscience.controls.proto.generation.MetaRustGenerator"
+        }
+    }
+}

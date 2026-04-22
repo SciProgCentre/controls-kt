@@ -7,7 +7,8 @@ class GeneratorTest {
     @Test
     fun generateAndSave() {
         val code = MetaRustGenerator.generateRust()
-        val file = java.io.File("meta_decoder.rs")
+        val file = kotlin.io.path.createTempFile(prefix = "meta_decoder_", suffix = ".rs").toFile()
+        file.deleteOnExit()
         file.writeText(code)
         println("Saved generated Rust code to ${file.absolutePath}")
     }
@@ -15,15 +16,16 @@ class GeneratorTest {
     @Test
     fun testRustGeneration() {
         val code = MetaRustGenerator.generateRust()
-        
-        // Check for presence of new types in Visitor trait
-        assertTrue(code.contains("fn on_float"), "Should contain on_float")
-        assertTrue(code.contains("fn on_int64"), "Should contain on_int64")
-        assertTrue(code.contains("fn on_bytes"), "Should contain on_bytes")
-        
-        // Check for handling of list logic (checking for iteration loop)
-        assertTrue(code.contains("for (i, v) in l.values.iter().enumerate()"), "Should handle list iteration")
-        assertTrue(code.contains("for (i, v) in l.values.iter().enumerate()"), "Should handle Float64List iteration")
+
+        assertTrue(code.contains("use micropb::{MessageDecode, MessageEncode, PbDecoder, PbEncoder}"), "Should import micropb codecs")
+        assertTrue(code.contains("fn insert_meta_value"), "Should contain meta insert helper")
+        assertTrue(code.contains("fn build_response_message"), "Should contain response builder helper")
+        assertTrue(code.contains("envelope.r#dataBytes = Vec::new();"), "Response data field should stay empty")
+        assertTrue(code.contains("fn handle_message"), "Should contain main message handler")
+        assertTrue(code.contains("Option<Vec<u8>>"), "Handler should return optional response packet")
+        assertTrue(code.contains("let mut envelope: ProtoEnvelope"), "Should decode protobuf envelope")
+        assertTrue(code.contains("match method"), "Should dispatch by request method")
+        assertTrue(code.contains("POST request has no known fields to apply") || code.contains("meta.items.get("), "Should include POST meta-based handling path")
         
         println("Generated code snippet:\n${code.take(500)}...")
     }
