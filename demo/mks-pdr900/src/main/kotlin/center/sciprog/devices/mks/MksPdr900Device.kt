@@ -1,108 +1,79 @@
 package center.sciprog.devices.mks
 
 import kotlinx.coroutines.withTimeoutOrNull
+import space.kscience.controls.api.Device
 import space.kscience.controls.ports.Ports
 import space.kscience.controls.ports.SynchronousPort
 import space.kscience.controls.ports.respondStringWithDelimiter
 import space.kscience.controls.spec.*
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.int
+import kotlin.time.Duration.Companion.milliseconds
 
+public object MksPdr900Device : DeviceFactory<SynchronousPort>() {
 
-//TODO this device is not tested
-class MksPdr900Device(context: Context, meta: Meta) : DeviceBySpec<MksPdr900Device>(MksPdr900Device, context, meta) {
+    public val address: DevicePropertySpec<Int> by property(MetaConverter.int, name = "address") { 253 }
 
-    private val address by meta.int(253)
-
-    private val portDelegate = lazy {
-        val ports = context.request(Ports)
-        ports.buildSynchronousPort(meta["port"] ?: error("Port is not defined in device configuration"))
+    private suspend fun SynchronousPort.talk(address: Int, requestContent: String): String {
+        val responsePattern = ("@${address}ACK(.*);FF").toRegex()
+        return withTimeoutOrNull(5000.milliseconds) {
+            val answer = respondStringWithDelimiter(String.format("@%s%s;FF", address, requestContent), ";FF")
+            responsePattern.matchEntire(answer)?.groups?.get(1)?.value
+                ?: error("Message $answer does not match $responsePattern")
+        } ?: error("Timeout waiting for response to $requestContent")
     }
 
-    private val port: SynchronousPort by portDelegate
-
-    private val responsePattern: Regex by lazy {
-        ("@${address}ACK(.*);FF").toRegex()
-    }
-
-    private suspend fun talk(requestContent: String): String? = withTimeoutOrNull(5000) {
-        val answer = port.respondStringWithDelimiter(String.format("@%s%s;FF", address, requestContent), ";FF")
-        responsePattern.matchEntire(answer)?.groups?.get(1)?.value
-            ?: error("Message $answer does not match $responsePattern")
-    }
-
-    public suspend fun readPowerOn(): Boolean = when (val answer = talk("FP?")) {
-        "ON" -> true
-        "OFF" -> false
-        else -> error("Unknown answer for 'FP?': $answer")
-    }
-
-
-    public suspend fun writePowerOn(powerOnValue: Boolean) {
-        invalidate(error)
-        if (powerOnValue) {
-            val ans = talk("FP!ON")
-            if (ans == "ON") {
-                propertyChanged(powerOn, true)
-            } else {
-                propertyChanged(error, "Failed to set power state")
+    public val powerOn by mutableBooleanProperty(
+        read = {
+            val addressValue = (this as Device).getOrRead(address)
+            when (val answer = talk(addressValue, "FP?")) {
+                "ON" -> true
+                "OFF" -> false
+                else -> error("Unknown answer for 'FP?': $answer")
             }
-        } else {
-            val ans = talk("FP!OFF")
-            if (ans == "OFF") {
-                propertyChanged(powerOn, false)
-            } else {
-                propertyChanged(error, "Failed to set power state")
+        },
+        write = { value ->
+            val device = this as Device
+            val addressValue = device.getOrRead(address)
+            val expected = if (value) "ON" else "OFF"
+            val ans = talk(addressValue, "FP!$expected")
+            if (ans != expected) {
+                device.writeProperty("error", MetaConverter.string.convert("Failed to set power state"))
             }
         }
-    }
+    )
 
-    public suspend fun readChannelData(channel: Int): Double? {
-        val answer: String? = talk("PR$channel?")
-        invalidate(error)
-        return if (answer.isNullOrEmpty()) {
-            //            updateState(PortSensor.CONNECTED_STATE, false)
-            propertyChanged(error, "No connection")
-            null
+    public val channel by property(MetaConverter.int) { 5 }
+
+    public val value by doubleProperty {
+        val device = this as Device
+        val addressValue = device.getOrRead(address)
+        val ch = device.getOrRead(channel)
+        val answer = talk(addressValue, "PR$ch?")
+        if (answer.isEmpty()) {
+            device.writeProperty("error", MetaConverter.string.convert("No connection"))
+            error("No connection")
         } else {
             val res = answer.toDouble()
             if (res <= 0) {
-                propertyChanged(powerOn, false)
-                propertyChanged(error, "No power")
-                null
+                device.writeProperty("powerOn", MetaConverter.boolean.convert(false))
+                device.writeProperty("error", MetaConverter.string.convert("No power"))
+                error("No power")
             } else {
                 res
             }
         }
     }
 
+    public val error by logicalProperty(MetaConverter.string, "")
 
-    companion object : DeviceSpec<MksPdr900Device>(), Factory<MksPdr900Device> {
+    override suspend fun DeviceBase.createState(): SynchronousPort {
+        val ports = context.request(Ports)
+        return ports.buildSynchronousPort(meta["port"] ?: error("Port is not defined in device configuration"))
+    }
 
-        const val DEFAULT_CHANNEL: Int = 5
-
-        override fun build(context: Context, meta: Meta): MksPdr900Device = MksPdr900Device(context, meta)
-
-        val powerOn by mutableBooleanProperty(read = { readPowerOn() }, write = { _, value -> writePowerOn(value) })
-
-        val channel by property(MetaConverter.int)
-
-        val value by doubleProperty(read = {
-            readChannelData(getOrRead(channel))
-        })
-
-        val error by property(MetaConverter.string)
-
-
-        override suspend fun MksPdr900Device.onClose() {
-            if (portDelegate.isInitialized()) {
-                port.stop()
-            }
-        }
+    override suspend fun DeviceBase.destroyState(state: SynchronousPort) {
+        state.stop()
     }
 }

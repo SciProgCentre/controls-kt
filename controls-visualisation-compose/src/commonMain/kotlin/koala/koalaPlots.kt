@@ -56,7 +56,7 @@ private fun <T> Flow<T>.repeatOrSample(clockManager: ClockManager, interval: Dur
 
         while (isActive) {
             current?.let {
-                if(!flag) {
+                if (!flag) {
                     emit(ValueWithTime(it, clock.now()))
                 }
             }
@@ -156,7 +156,7 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
 @Composable
 public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     device: Device,
-    property: DevicePropertySpec<*, out Number>,
+    property: DevicePropertySpec<out Number>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,

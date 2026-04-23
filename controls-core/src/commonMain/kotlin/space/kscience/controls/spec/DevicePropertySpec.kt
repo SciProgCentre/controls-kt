@@ -8,6 +8,7 @@ import space.kscience.controls.api.*
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import kotlin.jvm.JvmName
 
 
 /**
@@ -79,6 +80,10 @@ public val DeviceActionSpec<*, *>.name: String get() = descriptor.name
 public suspend fun <T> Device.read(propertySpec: DevicePropertySpec<T>): T =
     propertySpec.converter.readOrNull(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
+@JvmName("readWithContext")
+context(device: Device)
+public suspend fun <T> read(propertySpec: DevicePropertySpec<T>): T = device.read(propertySpec)
+
 /**
  * Read typed value and update/push event if needed.
  * Return null if property read is not successful or property is undefined.
@@ -88,10 +93,18 @@ public suspend fun <T> DeviceBase.readOrNull(propertySpec: DevicePropertySpec<T>
     return readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::readOrNull)
 }
 
+@JvmName("readOrNullWithContext")
+context(device: DeviceBase)
+public suspend fun <T> readOrNull(propertySpec: DevicePropertySpec<T>): T? = device.readOrNull(propertySpec)
+
 public suspend fun <T> Device.getOrRead(propertySpec: DevicePropertySpec<T>): T {
     check(propertySpec.isReadable) { "Property ${propertySpec.name} is not readable" }
     return propertySpec.converter.read(getOrReadProperty(propertySpec.name))
 }
+
+@JvmName("getOrReadWithContext")
+context(device: Device)
+public suspend fun <T> getOrRead(propertySpec: DevicePropertySpec<T>): T = device.getOrRead(propertySpec)
 
 /**
  * Write typed property state and invalidate logical state
@@ -100,6 +113,10 @@ public suspend fun <T> Device.write(propertySpec: DevicePropertySpec<T>, value: 
     check(propertySpec.isMutable) { "Property ${propertySpec.name} is not mutable" }
     writeProperty(propertySpec.name, propertySpec.converter.convert(value))
 }
+
+@JvmName("writeWithContext")
+context(device: Device)
+public suspend fun <T> write(propertySpec: DevicePropertySpec<T>, value: T): Unit = device.write(propertySpec, value)
 
 /**
  * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope

@@ -178,15 +178,15 @@ public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
             }
         }
 
-    private val actionFunctions: MutableMap<DeviceActionSpec<*, *>, suspend S.(Any?) -> Any?> = hashMapOf()
+    private val actionFunctions: MutableMap<DeviceActionSpec<*, *>, suspend context(DeviceBase) S.(Any?) -> Any?> = hashMapOf()
 
     public fun <I, O> registerAction(
         spec: DeviceActionSpec<I, O>,
-        execute: suspend S.(I) -> O
+        execute: suspend context(DeviceBase) S.(I) -> O
     ): DeviceActionSpec<I, O> {
         _actions[spec.name] = spec
         @Suppress("UNCHECKED_CAST")
-        actionFunctions[spec] = execute as suspend S.(Any?) -> Any?
+        actionFunctions[spec] = execute as suspend context(DeviceBase) S.(Any?) -> Any?
 
         return spec
     }
@@ -196,7 +196,7 @@ public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
         outputConverter: MetaConverter<O>,
         descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
-        execute: suspend S.(I) -> O
+        execute: suspend context(DeviceBase) S.(I) -> O
     ): PropertyDelegateProvider<DeviceSpec, ReadOnlyProperty<DeviceSpec, DeviceActionSpec<I, O>>> =
         PropertyDelegateProvider { _: DeviceSpec, property: KProperty<*> ->
             val actionName = name ?: property.name

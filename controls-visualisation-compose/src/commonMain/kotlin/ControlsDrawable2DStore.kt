@@ -101,9 +101,9 @@ public fun <T> ControlsDrawable2DBuilder.observeState(
 /**
  * Observe a single [Device] property
  */
-public fun <T, D : Device, P : DevicePropertySpec<D, T>> ControlsDrawable2DStore.observeProperty(
-    device: D,
-    devicePropertySpec: DevicePropertySpec<D, T>,
+public fun <T, P : DevicePropertySpec<T>> ControlsDrawable2DStore.observeProperty(
+    device: Device,
+    devicePropertySpec: DevicePropertySpec<T>,
     id: String = devicePropertySpec.toString(),
     transform: suspend ControlsDrawable2DBuilder.(T) -> ControlsDrawable2D,
 ): Job = updateById(id, device.propertyFlow(devicePropertySpec).map { transform(this, it) })

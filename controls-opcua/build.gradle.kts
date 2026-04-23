@@ -23,6 +23,10 @@ dependencies {
     testImplementation(spclibs.kotlinx.coroutines.test)
 }
 
+kscience{
+    useContextParameters()
+}
+
 readme {
     maturity = Maturity.EXPERIMENTAL
 
