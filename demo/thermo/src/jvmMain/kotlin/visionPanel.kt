@@ -86,7 +86,7 @@ suspend fun main(): Unit = coroutineScope {
         config.sensors.filter { it.value.showPlot }.forEach { (sensorName, sensorConfig) ->
             plotDeviceProperty(
                 thermoHub.sensors.getValue(sensorName).sensor,
-                ThermoSensor.temperature,
+                ThermoSensorSpec.temperature,
                 config.plot.period.seconds
             ) {
                 name = sensorName

@@ -19,36 +19,13 @@ import space.kscience.dataforge.meta.int
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 
-/**
- * Write a meta [item] to [device]
- */
-@OptIn(InternalDeviceAPI::class)
-private suspend fun <D : Device, T> MutableDevicePropertySpec<D, T>.writeMeta(device: D, item: Meta) {
-    write(device, converter.readOrNull(item) ?: error("Meta $item could not be read with $converter"))
-}
 
-/**
- * Read Meta item from the [device]
- */
-@OptIn(InternalDeviceAPI::class)
-private suspend fun <D : Device, T> DevicePropertySpec<D, T>.readMeta(device: D): Meta? =
-    read(device)?.let(converter::convert)
-
-
-private suspend fun <D : Device, I, O> DeviceActionSpec<D, I, O>.executeWithMeta(
-    device: D,
-    item: Meta,
-): Meta? {
-    val arg: I = inputConverter.readOrNull(item) ?: error("Failed to convert $item with $inputConverter")
-    val res = execute(device, arg)
-    return res?.let { outputConverter.convert(res) }
-}
 
 
 /**
- * A base abstractions for [Device], introducing specifications for properties
+ * A base abstraction for [Device], introducing specifications for properties
  */
-public abstract class DeviceBase<D : Device>(
+public abstract class DeviceBase(
     final override val context: Context,
     final override val meta: Meta = Meta.EMPTY,
 ) : CachingDevice {
@@ -56,15 +33,17 @@ public abstract class DeviceBase<D : Device>(
     /**
      * Collection of property specifications
      */
-    public abstract val properties: Map<String, DevicePropertySpec<D, *>>
+    protected abstract val readers: Map<String, PropertyReader<*>>
+
+    protected abstract val writers: Map<String, PropertyWriter<*>>
 
     /**
      * Collection of action specifications
      */
-    public abstract val actions: Map<String, DeviceActionSpec<D, *, *>>
+    protected abstract val actions: Map<String, ActionExecutor<*, *>>
 
     override val propertyDescriptors: Collection<PropertyDescriptor>
-        get() = properties.values.map { it.descriptor }
+        get() = readers.values.map { it.descriptor }
 
     override val actionDescriptors: Collection<ActionDescriptor>
         get() = actions.values.map { it.descriptor }
@@ -103,10 +82,6 @@ public abstract class DeviceBase<D : Device>(
 
     public override val messageFlow: SharedFlow<DeviceMessage> get() = sharedMessageFlow
 
-    @Suppress("UNCHECKED_CAST")
-    internal val self: D
-        get() = this as D
-
     private val stateLock = Mutex()
 
     /**
@@ -126,7 +101,7 @@ public abstract class DeviceBase<D : Device>(
     /**
      * Notify the device that a property with [spec] value is changed
      */
-    protected suspend fun <T> propertyChanged(spec: DevicePropertySpec<D, T>, value: T) {
+    protected suspend fun <T> propertyChanged(spec: DevicePropertySpec<T>, value: T) {
         propertyChanged(spec.name, spec.converter.convert(value))
     }
 
@@ -135,8 +110,8 @@ public abstract class DeviceBase<D : Device>(
      * The logical state is updated after read
      */
     override suspend fun readProperty(propertyName: String): Meta {
-        val spec = properties[propertyName] ?: error("Property with name $propertyName not found")
-        val meta = spec.readMeta(self) ?: error("Failed to read property $propertyName")
+        val spec = readers[propertyName] ?: error("Property with name $propertyName not found")
+        val meta = spec.readMeta()
         propertyChanged(propertyName, meta)
         return meta
     }
@@ -145,8 +120,8 @@ public abstract class DeviceBase<D : Device>(
      * Read property if it exists and read correctly. Return null otherwise.
      */
     public suspend fun readPropertyOrNull(propertyName: String): Meta? {
-        val spec = properties[propertyName] ?: return null
-        val meta = spec.readMeta(self) ?: return null
+        val reader = readers[propertyName] ?: return null
+        val meta = reader.readMeta()
         propertyChanged(propertyName, meta)
         return meta
     }
@@ -174,32 +149,31 @@ public abstract class DeviceBase<D : Device>(
             logger.debug { "Skipping setting $propertyName to $value because value is already set" }
             return
         }
-        when (val property = properties[propertyName]) {
+        when (val property = writers[propertyName]) {
             null -> {
                 //If there are no registered physical properties with given name, write a logical one.
                 propertyChanged(propertyName, value)
             }
 
-            is MutableDevicePropertySpec -> {
+           else ->  {
                 //if there is a writeable property with a given name, invalidate logical and write physical
                 invalidate(propertyName)
-                property.writeMeta(self, value)
+                property.writeMeta( value)
                 // perform read after writing if the writer did not set the value and the value is still in invalid state
                 if (logicalState[propertyName] == null) {
-                    val meta = property.readMeta(self)
-                    propertyChanged(propertyName, meta)
+                    readers[propertyName]?.let { reader ->
+                        val meta = reader.readMeta()
+                        propertyChanged(propertyName, meta)
+                    }
                 }
             }
 
-            else -> {
-                error("Property $property is not writeable")
-            }
         }
     }
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val spec = actions[actionName] ?: error("Action with name $actionName not found")
-        return spec.executeWithMeta(self, argument ?: Meta.EMPTY)
+        return spec.executeWithMeta( argument ?: Meta.EMPTY)
     }
 
     final override var lifecycleState: LifecycleState = LifecycleState.STOPPED

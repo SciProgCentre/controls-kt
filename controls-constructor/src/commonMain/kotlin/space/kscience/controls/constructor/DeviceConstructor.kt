@@ -141,7 +141,7 @@ public fun <T> DeviceConstructor.virtualProperty(
 )
 
 public fun <T, S : ValueState<T>> DeviceConstructor.registerAsProperty(
-    spec: DevicePropertySpec<*, T>,
+    spec: DevicePropertySpec<T>,
     state: S,
 ): S {
     registerProperty(spec.converter, spec.descriptor, state)

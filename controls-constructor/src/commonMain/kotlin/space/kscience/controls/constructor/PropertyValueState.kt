@@ -1,5 +1,6 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -7,7 +8,6 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.id
 import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.controls.spec.MutableDevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.dataforge.meta.MetaConverter
 
@@ -53,12 +53,12 @@ public suspend fun <T> Device.propertyAsState(
     metaConverter.readOrNull(readProperty(propertyName)) ?: error("Conversion of property failed")
 )
 
-public suspend fun <D : Device, T> D.propertyAsState(
-    propertySpec: DevicePropertySpec<D, T>,
+public suspend fun <T> Device.propertyAsState(
+    propertySpec: DevicePropertySpec<T>,
 ): ValueState<T> = propertyAsState(propertySpec.name, propertySpec.converter)
 
-public fun <D : Device, T> D.propertyAsState(
-    propertySpec: DevicePropertySpec<D, T>,
+public fun <T> Device.propertyAsState(
+    propertySpec: DevicePropertySpec<T>,
     initialValue: T,
 ): ValueState<T> = propertyAsState(propertySpec.name, propertySpec.converter, initialValue)
 
@@ -79,7 +79,7 @@ private class MutablePropertyValueState<T>(
         }
 
     override suspend fun emit(value: T) {
-        withContext(device.coroutineContext) {
+        withContext(device.coroutineContext.minusKey(Job)) {
             device.writeProperty(propertyName, converter.convert(value))
         }
     }
@@ -99,12 +99,12 @@ public suspend fun <T> Device.mutablePropertyAsState(
     return mutablePropertyAsState(propertyName, metaConverter, initialValue)
 }
 
-public suspend fun <D : Device, T> D.propertyAsState(
-    propertySpec: MutableDevicePropertySpec<D, T>,
+public suspend fun <T> Device.mutablePropertyAsState(
+    propertySpec: DevicePropertySpec<T>,
 ): MutableValueState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter)
 
-public fun <D : Device, T> D.propertyAsState(
-    propertySpec: MutableDevicePropertySpec<D, T>,
+public fun <T> Device.mutablePropertyAsState(
+    propertySpec: DevicePropertySpec<T>,
     initialValue: T,
 ): MutableValueState<T> = mutablePropertyAsState(propertySpec.name, propertySpec.converter, initialValue)
 

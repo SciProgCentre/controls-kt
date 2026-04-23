@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 
 
@@ -18,11 +19,7 @@ public annotation class InternalDeviceAPI
 /**
  * Specification for a device read-only property
  */
-public interface DevicePropertySpec<in D, T> {
-    /**
-     * Property descriptor
-     */
-    public val descriptor: PropertyDescriptor
+public interface DevicePropertySpec<T> {
 
     /**
      * Meta item converter for the resulting type
@@ -30,28 +27,30 @@ public interface DevicePropertySpec<in D, T> {
     public val converter: MetaConverter<T>
 
     /**
-     * Read physical value from the given [device]
+     * Property descriptor
      */
-    @InternalDeviceAPI
-    public suspend fun read(device: D): T?
+    public val descriptor: PropertyDescriptor
+}
+
+public val DevicePropertySpec<*>.isReadable: Boolean get() = descriptor.readable
+
+public val DevicePropertySpec<*>.isMutable: Boolean get() = descriptor.mutable
+
+public fun <T> DevicePropertySpec(
+    converter: MetaConverter<T>,
+    descriptor: PropertyDescriptor
+): DevicePropertySpec<T> = object : DevicePropertySpec<T> {
+    override val converter: MetaConverter<T> = converter
+    override val descriptor: PropertyDescriptor = descriptor
 }
 
 /**
  * Property name should be unique in a device
  */
-public val DevicePropertySpec<*, *>.name: String get() = descriptor.name
+public val DevicePropertySpec<*>.name: String get() = descriptor.name
 
 
-public interface MutableDevicePropertySpec<in D : Device, T> : DevicePropertySpec<D, T> {
-    /**
-     * Write physical value to a device
-     */
-    @InternalDeviceAPI
-    public suspend fun write(device: D, value: T)
-
-}
-
-public interface DeviceActionSpec<in D, I, O> {
+public interface DeviceActionSpec<I, O> {
     /**
      * Action descriptor
      */
@@ -60,49 +59,59 @@ public interface DeviceActionSpec<in D, I, O> {
     public val inputConverter: MetaConverter<I>
 
     public val outputConverter: MetaConverter<O>
+}
 
-    /**
-     * Execute action on a device
-     */
-    public suspend fun execute(device: D, input: I): O
+public fun <I, O> DeviceActionSpec(
+    inputConverter: MetaConverter<I>,
+    outputConverter: MetaConverter<O>,
+    descriptor: ActionDescriptor,
+): DeviceActionSpec<I, O> = object : DeviceActionSpec<I, O> {
+    override val descriptor: ActionDescriptor = descriptor
+    override val inputConverter: MetaConverter<I> = inputConverter
+    override val outputConverter: MetaConverter<O> = outputConverter
 }
 
 /**
  * Action name. Should be unique in the device
  */
-public val DeviceActionSpec<*, *, *>.name: String get() = descriptor.name
+public val DeviceActionSpec<*, *>.name: String get() = descriptor.name
 
-public suspend fun <T, D : Device> D.read(propertySpec: DevicePropertySpec<D, T>): T =
+public suspend fun <T> Device.read(propertySpec: DevicePropertySpec<T>): T =
     propertySpec.converter.readOrNull(readProperty(propertySpec.name)) ?: error("Property read result is not valid")
 
 /**
  * Read typed value and update/push event if needed.
  * Return null if property read is not successful or property is undefined.
  */
-public suspend fun <T, D : DeviceBase<D>> D.readOrNull(propertySpec: DevicePropertySpec<D, T>): T? =
-    readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::readOrNull)
+public suspend fun <T> DeviceBase.readOrNull(propertySpec: DevicePropertySpec<T>): T? {
+    check(propertySpec.isReadable) { "Property ${propertySpec.name} is not readable" }
+    return readPropertyOrNull(propertySpec.name)?.let(propertySpec.converter::readOrNull)
+}
 
-public suspend fun <T, D : Device> D.getOrRead(propertySpec: DevicePropertySpec<D, T>): T =
-    propertySpec.converter.read(getOrReadProperty(propertySpec.name))
+public suspend fun <T> Device.getOrRead(propertySpec: DevicePropertySpec<T>): T {
+    check(propertySpec.isReadable) { "Property ${propertySpec.name} is not readable" }
+    return propertySpec.converter.read(getOrReadProperty(propertySpec.name))
+}
 
 /**
  * Write typed property state and invalidate logical state
  */
-public suspend fun <T, D : Device> D.write(propertySpec: MutableDevicePropertySpec<D, T>, value: T) {
+public suspend fun <T> Device.write(propertySpec: DevicePropertySpec<T>, value: T) {
+    check(propertySpec.isMutable) { "Property ${propertySpec.name} is not mutable" }
     writeProperty(propertySpec.name, propertySpec.converter.convert(value))
 }
 
 /**
  * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope
  */
-public fun <T, D : Device> D.writeAsync(propertySpec: MutableDevicePropertySpec<D, T>, value: T): Job = launch {
+public fun <T> Device.writeAsync(propertySpec: DevicePropertySpec<T>, value: T): Job = launch {
     write(propertySpec, value)
 }
 
 /**
  * A type safe discrete of property changes for given property
  */
-public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<T> = messageFlow
+public fun <T> Device.propertyFlow(spec: DevicePropertySpec<T>): Flow<T> = messageFlow
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
     .mapNotNull { spec.converter.read(it.value) }
@@ -110,8 +119,8 @@ public fun <D : Device, T> D.propertyFlow(spec: DevicePropertySpec<D, T>): Flow<
 /**
  * A type safe property change listener. Uses the device [CoroutineScope].
  */
-public fun <D : Device, T> D.onPropertyChange(
-    spec: DevicePropertySpec<D, T>,
+public fun <T> Device.onPropertyChange(
+    spec: DevicePropertySpec<T>,
     scope: CoroutineScope = this,
     callback: suspend PropertyChangedMessage.(T) -> Unit,
 ): Job = messageFlow
@@ -127,8 +136,8 @@ public fun <D : Device, T> D.onPropertyChange(
 /**
  * Call [callback] on initial property value and each value change
  */
-public fun <D : Device, T> D.useProperty(
-    spec: DevicePropertySpec<D, T>,
+public fun <T> Device.useProperty(
+    spec: DevicePropertySpec<T>,
     scope: CoroutineScope = this,
     callback: suspend (T) -> Unit,
 ): Job = scope.launch {
@@ -157,8 +166,8 @@ public fun <D : Device, T> D.useProperty(
  * @return A Job representing the coroutine monitoring the property changes. The job can
  *         be canceled to stop listening for updates.
  */
-public fun <D : Device, T> D.usePropertyWithTime(
-    spec: DevicePropertySpec<D, T>,
+public fun <T> Device.usePropertyWithTime(
+    spec: DevicePropertySpec<T>,
     scope: CoroutineScope = this,
     callback: suspend (ValueWithTime<T>) -> Unit,
 ): Job = scope.launch {
@@ -178,15 +187,22 @@ public fun <D : Device, T> D.usePropertyWithTime(
 /**
  * Reset the logical state of a property
  */
-public suspend fun <D : CachingDevice> D.invalidate(propertySpec: DevicePropertySpec<D, *>) {
+public suspend fun CachingDevice.invalidate(propertySpec: DevicePropertySpec<*>) {
     invalidate(propertySpec.name)
 }
 
 /**
  * Execute the action with name according to [actionSpec]
  */
-public suspend fun <I, O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, I, O>, input: I): O =
-    actionSpec.execute(this, input)
+public suspend fun <I, O> Device.execute(
+    actionSpec: DeviceActionSpec<I, O>,
+    input: I
+): O? = execute(actionSpec.name, actionSpec.inputConverter.convert(input))?.let {
+    actionSpec.outputConverter.read(it)
+}
 
-public suspend fun <O, D : Device> D.execute(actionSpec: DeviceActionSpec<D, Unit, O>): O =
-    actionSpec.execute(this, Unit)
+
+public suspend fun <O> Device.execute(actionSpec: DeviceActionSpec<Unit, O>): O? =
+    execute(actionSpec.name, Meta.EMPTY)?.let {
+        actionSpec.outputConverter.read(it)
+    }

@@ -204,7 +204,7 @@ public open class DeviceGroup(
     public companion object
 }
 
-public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<*, T>, state: ValueState<T>) {
+public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<T>, state: ValueState<T>) {
     registerProperty(propertySpec.converter, propertySpec.descriptor, state)
 }
 

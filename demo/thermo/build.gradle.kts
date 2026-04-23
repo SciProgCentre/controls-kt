@@ -31,6 +31,8 @@ kscience {
 //        development = true
     )
 
+    useContextParameters()
+
     useSerialization {
         json()
     }

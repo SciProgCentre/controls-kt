@@ -4,11 +4,8 @@ import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.sdk.client.OpcUaClientConfigBuilder
 import org.eclipse.milo.opcua.sdk.client.identity.UsernameProvider
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
-import space.kscience.controls.api.Device
-import space.kscience.controls.spec.DeviceBySpec
-import space.kscience.controls.spec.DeviceSpec
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Global
+import space.kscience.controls.spec.DeviceBase
+import space.kscience.controls.spec.DeviceFactory
 import space.kscience.dataforge.meta.*
 
 
@@ -44,17 +41,10 @@ public class MiloConfiguration : Scheme() {
     public companion object : SchemeSpec<MiloConfiguration>(::MiloConfiguration)
 }
 
-/**
- * A variant of [DeviceBySpec] that includes OPC-UA client
- */
-public open class OpcUaDeviceBySpec<D : Device>(
-    spec: DeviceSpec<D>,
-    config: MiloConfiguration,
-    context: Context = Global,
-) : OpcUaDevice, DeviceBySpec<D>(spec, context, config.meta) {
-
-    override val client: OpcUaClient by lazy {
-        context.createOpcUaClient(
+public abstract class OpcUaDeviceFactory : DeviceFactory<OpcUaClient>() {
+    override suspend fun DeviceBase.createState(): OpcUaClient {
+        val config = MiloConfiguration.read(meta)
+        return context.createOpcUaClient(
             config.endpointUrl,
             securityPolicy = config.securityPolicy,
             opcClientConfig = { config.configureClient(this) }
@@ -63,7 +53,7 @@ public open class OpcUaDeviceBySpec<D : Device>(
         }
     }
 
-    override suspend fun onStop() {
-        client.disconnect()
+    override suspend fun DeviceBase.destroyState(state: OpcUaClient) {
+        state.disconnect()
     }
 }
