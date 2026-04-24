@@ -2,10 +2,9 @@
 
 package space.kscience.controls.demo.collective
 
-import space.kscience.controls.api.Device
 import space.kscience.controls.constructor.*
 import space.kscience.controls.peer.PeerConnection
-import space.kscience.controls.spec.DeviceSpec
+import space.kscience.controls.spec.AbstractDeviceSpec
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.Scheme
@@ -31,56 +30,17 @@ class CollectiveDeviceConfiguration(deviceId: CollectiveDeviceId) : Scheme() {
 
 typealias CollectiveDeviceRoster = Map<CollectiveDeviceId, CollectiveDeviceConfiguration>
 
-interface CollectiveDevice : Device {
 
-    public val id: CollectiveDeviceId
-
-    public val peerConnection: PeerConnection
-
-    suspend fun getPosition(): Gmc
-
-    suspend fun getVelocity(): GmcVelocity
-
-    suspend fun setVelocity(value: GmcVelocity)
-
-    suspend fun listVisible(): Collection<CollectiveDeviceId>
-
-    companion object : DeviceSpec<CollectiveDevice>() {
-        val position by property<Gmc>(
-            converter = MetaConverter.serializable(),
-            read = { getPosition() }
-        )
-
-        val velocity by mutableProperty<GmcVelocity>(
-            converter = MetaConverter.serializable(),
-            read = { getVelocity() },
-            write = { _, value -> setVelocity(value) }
-        )
-
-        val visibleNeighbors by property(
-            MetaConverter.stringList,
-            read = {
-                listVisible().toList()
-            }
-        )
-
-//        val listVisible by action(MetaConverter.unit, MetaConverter.valueList<String> { it.string }) {
-//            listVisible().toList()
-//        }
-    }
-}
-
-
-class CollectiveDeviceConstructor(
+class CollectiveDevice(
     context: Context,
     val configuration: CollectiveDeviceConfiguration,
     position: MutableValueState<Gmc>,
     velocity: MutableValueState<GmcVelocity>,
-    override val peerConnection: PeerConnection,
+    val peerConnection: PeerConnection,
     private val observation: suspend () -> Map<CollectiveDeviceId, GmcCurve>,
-) : DeviceConstructor(context, configuration.meta), CollectiveDevice {
+) : DeviceConstructor(context, configuration.meta) {
 
-    override val id: CollectiveDeviceId get() = configuration.deviceId
+    val id: CollectiveDeviceId get() = configuration.deviceId
 
     val position = registerAsProperty(
         CollectiveDevice.position,
@@ -96,7 +56,7 @@ class CollectiveDeviceConstructor(
 
     val visibleNeighbors = registerAsProperty(
         CollectiveDevice.visibleNeighbors,
-        ValueState.map(_visibleNeighbors){ it.toList() }
+        ValueState.map(_visibleNeighbors) { it.toList() }
     )
 
     init {
@@ -105,13 +65,17 @@ class CollectiveDeviceConstructor(
         }
     }
 
-    override suspend fun getPosition(): Gmc = position.value
+    companion object : AbstractDeviceSpec() {
+        val position by property<Gmc>(
+            converter = MetaConverter.serializable()
+        )
 
-    override suspend fun getVelocity(): GmcVelocity = velocity.value
+        val velocity by mutableProperty<GmcVelocity>(
+            converter = MetaConverter.serializable(),
+        )
 
-    override suspend fun setVelocity(value: GmcVelocity) {
-        velocity.value = value
+        val visibleNeighbors by property(
+            MetaConverter.stringList,
+        )
     }
-
-    override suspend fun listVisible(): Collection<CollectiveDeviceId> = observation.invoke().keys
 }

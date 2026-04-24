@@ -1,11 +1,9 @@
 package space.kscience.controls.demo
 
 import kotlinx.coroutines.launch
-import space.kscience.controls.api.Device
 import space.kscience.controls.api.metaDescriptor
 import space.kscience.controls.spec.*
 import space.kscience.controls.unit
-import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
@@ -95,6 +93,4 @@ object DemoDevice : DeviceFactory<DemoDeviceState>() {
             read(coordinates)
         }
     }
-
-    override fun build(context: Context, meta: Meta): Device = super.build(context, meta)
 }
