@@ -43,6 +43,8 @@ kscience {
         implementation(projects.controlsVision)
         implementation(compose.runtime)
 
+        api(project.dependencies.platform(spclibs.ktor.bom))
+
         implementation(libs.plotlykt.core)
     }
 
@@ -54,7 +56,6 @@ kscience {
 
         implementation(libs.visionforge.server)
         implementation("org.jetbrains.kotlin-wrappers:kotlin-css")
-        implementation(spclibs.ktor.server.cio)
 
         implementation(spclibs.logback.classic)
     }
