@@ -24,7 +24,7 @@ fun Context.launchPiDebugServer(port: Int, axes: List<String>): Job = launch(exc
 
         while (isActive) {
             val socket = server.accept()
-            launch(SupervisorJob(coroutineContext[Job])) {
+            supervisorScope {
                 println("Socket accepted: ${socket.remoteAddress}")
                 val input = socket.openReadChannel()
                 val output = socket.openWriteChannel()

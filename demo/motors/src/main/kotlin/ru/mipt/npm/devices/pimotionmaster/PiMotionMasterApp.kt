@@ -19,11 +19,14 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.Device
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installing
+import space.kscience.controls.spec.execute
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
+import space.kscience.dataforge.meta.Meta
 
 //class PiMotionMasterApp : App(PiMotionMasterView::class)
 //
@@ -43,19 +46,19 @@ import space.kscience.dataforge.context.request
 @Composable
 fun ColumnScope.piMotionMasterAxis(
     axisName: String,
-    axis: PiMotionMasterDevice.Axis,
+    axis: Device,
 ) {
     var min by remember { mutableStateOf(0f) }
     var max by remember { mutableStateOf(1f) }
     var targetPosition by remember { mutableStateOf(0f) }
-    val position: Double by axis.composeState(PiMotionMasterDevice.Axis.position, 0.0)
+    val position: Double by axis.composeState(AxisSpec.position, 0.0)
 
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(axis) {
-        min = axis.read(PiMotionMasterDevice.Axis.minPosition).toFloat()
-        max = axis.read(PiMotionMasterDevice.Axis.maxPosition).toFloat()
-        targetPosition = axis.read(PiMotionMasterDevice.Axis.position).toFloat()
+        min = axis.read(AxisSpec.minPosition).toFloat()
+        max = axis.read(AxisSpec.maxPosition).toFloat()
+        targetPosition = axis.read(AxisSpec.position).toFloat()
     }
 
 
@@ -74,7 +77,7 @@ fun ColumnScope.piMotionMasterAxis(
                 onValueChange = { newPosition ->
                     targetPosition = newPosition
                     scope.launch {
-                        axis.move(newPosition.toDouble())
+                        axis.execute(AxisSpec.move, Meta(newPosition))
                     }
                 },
                 valueRange = min..max
@@ -85,7 +88,7 @@ fun ColumnScope.piMotionMasterAxis(
 }
 
 @Composable
-fun AxisPane(axes: Map<String, PiMotionMasterDevice.Axis>) {
+fun AxisPane(axes: Map<String, Device>) {
     Column {
         axes.forEach { (name, axis) ->
             this.piMotionMasterAxis(name, axis)
@@ -100,7 +103,7 @@ fun PiMotionMasterApp(device: PiMotionMasterDevice) {
 //    val scope = rememberCoroutineScope()
     val connected by device.composeState(PiMotionMasterDevice.connected, false)
     var debugServerJob by remember { mutableStateOf<Job?>(null) }
-    var axes by remember { mutableStateOf<Map<String, PiMotionMasterDevice.Axis>?>(null) }
+    var axes by remember { mutableStateOf<Map<String, Axis>?>(null) }
     //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
     var host by remember { mutableStateOf("127.0.0.1") }
     var port by remember { mutableStateOf(10024) }

@@ -63,11 +63,12 @@ internal class RemoteDeviceConnect {
 
     object TestDevice : DeviceFactory<Random>() {
 
-        override suspend fun DeviceBase.createState(): Random {
-            doRecurring((meta["delay"].int ?: 10).milliseconds) {
-                read(value)
+        context(base: DeviceBase)
+        override suspend fun createState(): Random {
+            base.doRecurring((base.meta["delay"].int ?: 10).milliseconds) {
+                base.read(value)
             }
-            return Random(meta["seed"].int ?: 0)
+            return Random(base.meta["seed"].int ?: 0)
         }
 
         val value by doubleProperty { nextDouble() }

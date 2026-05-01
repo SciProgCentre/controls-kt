@@ -1,7 +1,6 @@
 package space.kscience.controls.spec
 
 import space.kscience.controls.api.ActionDescriptor
-import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.metaDescriptor
 import space.kscience.controls.unit
@@ -47,8 +46,8 @@ public abstract class AbstractDeviceSpec : DeviceSpec {
 
     public fun <T> property(
         converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
         name: String? = null,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     ): PropertyDelegateProvider<DeviceSpec, ReadOnlyProperty<DeviceSpec, DevicePropertySpec<T>>> =
         PropertyDelegateProvider { _: DeviceSpec, property ->
             val propertyName = name ?: property.name
@@ -76,8 +75,8 @@ public abstract class AbstractDeviceSpec : DeviceSpec {
 
     public fun <T> mutableProperty(
         converter: MetaConverter<T>,
-        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
         name: String? = null,
+        descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     ): PropertyDelegateProvider<DeviceSpec, ReadOnlyProperty<DeviceSpec, DevicePropertySpec<T>>> =
         PropertyDelegateProvider { _: DeviceSpec, property: KProperty<*> ->
             val propertyName = name ?: property.name
@@ -114,8 +113,8 @@ public abstract class AbstractDeviceSpec : DeviceSpec {
     public fun <I, O> action(
         inputConverter: MetaConverter<I>,
         outputConverter: MetaConverter<O>,
-        descriptorBuilder: ActionDescriptor.() -> Unit = {},
         name: String? = null,
+        descriptorBuilder: ActionDescriptor.() -> Unit = {},
     ): PropertyDelegateProvider<DeviceSpec, ReadOnlyProperty<DeviceSpec, DeviceActionSpec<I, O>>> =
         PropertyDelegateProvider { _: DeviceSpec, property: KProperty<*> ->
             val actionName = name ?: property.name
@@ -156,25 +155,25 @@ public abstract class AbstractDeviceSpec : DeviceSpec {
 /**
  * An action that takes no parameters and returns no values
  */
-public fun <D : Device> AbstractDeviceSpec.unitAction(
-    descriptorBuilder: ActionDescriptor.() -> Unit = {},
+public fun AbstractDeviceSpec.unitAction(
     name: String? = null,
+    descriptorBuilder: ActionDescriptor.() -> Unit = {},
 ): PropertyDelegateProvider<DeviceSpec, ReadOnlyProperty<DeviceSpec, DeviceActionSpec<Unit, Unit>>> = action(
     MetaConverter.unit,
     MetaConverter.unit,
-    descriptorBuilder,
-    name
+    name,
+    descriptorBuilder
 )
 
 /**
  * An action that takes [Meta] and returns [Meta]. No conversions are done
  */
-public fun <D : Device> AbstractDeviceSpec.metaAction(
-    descriptorBuilder: ActionDescriptor.() -> Unit = {},
+public fun AbstractDeviceSpec.metaAction(
     name: String? = null,
+    descriptorBuilder: ActionDescriptor.() -> Unit = {},
 ): PropertyDelegateProvider<DeviceSpec, ReadOnlyProperty<DeviceSpec, DeviceActionSpec<Meta, Meta>>> = action(
     MetaConverter.meta,
     MetaConverter.meta,
-    descriptorBuilder,
-    name
+    name,
+    descriptorBuilder
 )

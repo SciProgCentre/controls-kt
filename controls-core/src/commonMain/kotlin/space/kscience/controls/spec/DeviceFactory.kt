@@ -19,17 +19,9 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
 
 /**
- * A device specification that provides a builder for device instance that adheres to this specification
- *
- * @param S the type of device state
+ * A builder for a device with a given state of type [S]
  */
-public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
-
-    public abstract suspend fun DeviceBase.createState(): S
-
-    public open suspend fun DeviceBase.destroyState(state: S): Unit {
-
-    }
+public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
 
     //initializing the metadata property for everyone
     private val _properties = hashMapOf<String, DevicePropertySpec<*>>(
@@ -38,11 +30,12 @@ public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
     override val properties: Map<String, DevicePropertySpec<*>> get() = _properties
 
 
-    private val readers: MutableMap<DevicePropertySpec<*>, suspend context(DeviceBase) S.() -> Any?> = mutableMapOf()
+    protected val readers: MutableMap<DevicePropertySpec<*>, suspend context(DeviceBase) S.() -> Any?> = mutableMapOf()
 
-    private val writers: MutableMap<DevicePropertySpec<*>, suspend context(DeviceBase) S.(Any?) -> Unit> = mutableMapOf()
+    protected val writers: MutableMap<DevicePropertySpec<*>, suspend context(DeviceBase) S.(Any?) -> Unit> =
+        mutableMapOf()
 
-    private val logical: MutableSet<DevicePropertySpecWithDefault<*>> = mutableSetOf()
+    protected val logical: MutableSet<DevicePropertySpecWithDefault<*>> = mutableSetOf()
 
     private val _actions = HashMap<String, DeviceActionSpec<*, *>>()
     override val actions: Map<String, DeviceActionSpec<*, *>> get() = _actions
@@ -178,7 +171,8 @@ public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
             }
         }
 
-    private val actionFunctions: MutableMap<DeviceActionSpec<*, *>, suspend context(DeviceBase) S.(Any?) -> Any?> = hashMapOf()
+    protected val actionFunctions: MutableMap<DeviceActionSpec<*, *>, suspend context(DeviceBase) S.(Any?) -> Any?> =
+        hashMapOf()
 
     public fun <I, O> registerAction(
         spec: DeviceActionSpec<I, O>,
@@ -233,13 +227,15 @@ public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
             }
         }
 
-
     /**
-     * Create an instance of a device that adheres to this specification.
-     *
-     * The instance incapsulates the state [S], which is created and destroyed on device start and stop.
+     * Build a device with the given context and meta, using the provided state creation and destruction functions.
      */
-    override fun build(context: Context, meta: Meta): Device = Device(context, meta) {
+    public fun build(
+        context: Context,
+        meta: Meta,
+        destroyState: suspend context(DeviceBase) (S) -> Unit = {},
+        createState: suspend context(DeviceBase) () -> S
+    ): Device = Device(context, meta) {
         val state = CompletableDeferred<S>()
 
         readers.forEach { (property, reader) ->
@@ -282,13 +278,44 @@ public abstract class DeviceFactory<S : Any> : DeviceSpec, Factory<Device> {
 
 
 /**
+ * A device specification that provides a builder for device instance that adheres to this specification
+ *
+ * @param S the type of device state
+ */
+public abstract class DeviceFactory<S : Any> : DeviceWithStateBuilder<S>(), Factory<Device> {
+
+    context(device: DeviceBase)
+    public abstract suspend fun createState(): S
+
+    context(device: DeviceBase)
+    public open suspend fun destroyState(state: S): Unit {
+
+    }
+
+    /**
+     * Create an instance of a device that adheres to this specification.
+     *
+     * The instance incapsulates the state [S], which is created and destroyed on device start and stop.
+     */
+    override fun build(context: Context, meta: Meta): Device = build(
+        context = context,
+        meta = meta,
+        destroyState = { destroyState(it) },
+        createState = { createState() }
+    )
+
+
+}
+
+
+/**
  * A read-only device property that delegates reading to a device [KProperty1]
  */
-public fun <T, S : Any> DeviceFactory<S>.property(
+public fun <T, S : Any> DeviceWithStateBuilder<S>.property(
     converter: MetaConverter<T>,
     readOnlyProperty: KProperty1<S, T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<T>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<T>>> =
     property(
         converter,
         descriptorBuilder,
@@ -299,11 +326,11 @@ public fun <T, S : Any> DeviceFactory<S>.property(
 /**
  * Mutable property that delegates reading and writing to a device [KMutableProperty1]
  */
-public fun <T, S : Any> DeviceFactory<S>.mutableProperty(
+public fun <T, S : Any> DeviceWithStateBuilder<S>.mutableProperty(
     converter: MetaConverter<T>,
     readWriteProperty: KMutableProperty1<S, T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<T>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<T>>> =
     mutableProperty(
         converter,
         descriptorBuilder,
@@ -315,11 +342,11 @@ public fun <T, S : Any> DeviceFactory<S>.mutableProperty(
 //read only delegates
 
 
-public fun <S : Any> DeviceFactory<S>.booleanProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.booleanProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Boolean
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Boolean>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Boolean>>> =
     property(
         MetaConverter.boolean,
         {
@@ -341,11 +368,11 @@ private inline fun numberDescriptor(
     descriptorBuilder()
 }
 
-public fun <S : Any> DeviceFactory<S>.numberProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.numberProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Number
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Number>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Number>>> =
     property(
         MetaConverter.number,
         numberDescriptor(descriptorBuilder),
@@ -353,11 +380,11 @@ public fun <S : Any> DeviceFactory<S>.numberProperty(
         read
     )
 
-public fun <S : Any> DeviceFactory<S>.doubleProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.doubleProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Double
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Double>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Double>>> =
     property(
         MetaConverter.double,
         numberDescriptor(descriptorBuilder),
@@ -365,11 +392,11 @@ public fun <S : Any> DeviceFactory<S>.doubleProperty(
         read
     )
 
-public fun <S : Any> DeviceFactory<S>.stringProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.stringProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> String
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<String>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<String>>> =
     property(
         MetaConverter.string,
         {
@@ -382,11 +409,11 @@ public fun <S : Any> DeviceFactory<S>.stringProperty(
         read
     )
 
-public fun <S : Any> DeviceFactory<S>.metaProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.metaProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Meta
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Meta>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Meta>>> =
     property(
         MetaConverter.meta,
         {
@@ -402,12 +429,12 @@ public fun <S : Any> DeviceFactory<S>.metaProperty(
 //read-write delegates
 
 
-public fun <S : Any> DeviceFactory<S>.mutableBooleanProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.mutableBooleanProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Boolean,
     write: suspend context(DeviceBase) S.(value: Boolean) -> Unit
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Boolean>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Boolean>>> =
     mutableProperty(
         MetaConverter.boolean,
         {
@@ -422,36 +449,36 @@ public fun <S : Any> DeviceFactory<S>.mutableBooleanProperty(
     )
 
 
-public fun <S : Any> DeviceFactory<S>.mutableNumberProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.mutableNumberProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Number,
     write: suspend context(DeviceBase) S.(value: Number) -> Unit
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Number>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Number>>> =
     mutableProperty(MetaConverter.number, numberDescriptor(descriptorBuilder), name, read, write)
 
-public fun <S : Any> DeviceFactory<S>.mutableDoubleProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.mutableDoubleProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Double,
     write: suspend context(DeviceBase) S.(value: Double) -> Unit
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Double>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Double>>> =
     mutableProperty(MetaConverter.double, numberDescriptor(descriptorBuilder), name, read, write)
 
-public fun <S : Any> DeviceFactory<S>.mutableStringProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.mutableStringProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> String,
     write: suspend context(DeviceBase) S.(value: String) -> Unit
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<String>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<String>>> =
     mutableProperty(MetaConverter.string, descriptorBuilder, name, read, write)
 
-public fun <S : Any> DeviceFactory<S>.mutableMetaProperty(
+public fun <S : Any> DeviceWithStateBuilder<S>.mutableMetaProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     name: String? = null,
     read: suspend context(DeviceBase) S.() -> Meta,
     write: suspend context(DeviceBase) S.(value: Meta) -> Unit
-): PropertyDelegateProvider<DeviceFactory<S>, ReadOnlyProperty<DeviceFactory<S>, DevicePropertySpec<Meta>>> =
+): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Meta>>> =
     mutableProperty(MetaConverter.meta, descriptorBuilder, name, read, write)
 
 
@@ -460,12 +487,16 @@ public fun <S : Any> DeviceFactory<S>.mutableMetaProperty(
  *
  */
 public abstract class MetaDeviceFactory : DeviceFactory<MutableMeta>() {
-    override suspend fun DeviceBase.createState(): MutableMeta = MutableMeta()
+    context(device: DeviceBase)
+    override suspend fun createState(): MutableMeta = MutableMeta {
+        "@device" put device.meta
+    }
 }
 
 /**
  *  A device specification base that uses [Unit] as device state.
  */
 public abstract class StatelessDeviceFactory : DeviceFactory<Unit>() {
-    override suspend fun DeviceBase.createState(): Unit = Unit
+    context(device: DeviceBase)
+    override suspend fun createState(): Unit = Unit
 }

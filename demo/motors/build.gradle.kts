@@ -4,15 +4,20 @@ plugins {
     alias(spclibs.plugins.compose.jb)
 }
 
-kotlin{
+kotlin {
     explicitApi = null
 }
 
 val ktorVersion: String by rootProject.extra
 val dataforgeVersion: String by extra
 
+kscience {
+    useContextParameters()
+}
+
 dependencies {
-    implementation(project(":controls-ports-ktor"))
+    implementation(projects.controlsPortsKtor)
+    implementation(projects.controlsConstructor)
     implementation(projects.controlsMagix)
 
     implementation(compose.runtime)
@@ -21,9 +26,9 @@ dependencies {
     implementation(spclibs.logback.classic)
 }
 
-compose{
-    desktop{
-        application{
+compose {
+    desktop {
+        application {
             mainClass = "ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt"
         }
     }

@@ -68,12 +68,14 @@ public object MksPdr900Device : DeviceFactory<SynchronousPort>() {
 
     public val error by logicalProperty(MetaConverter.string, "")
 
-    override suspend fun DeviceBase.createState(): SynchronousPort {
-        val ports = context.request(Ports)
-        return ports.buildSynchronousPort(meta["port"] ?: error("Port is not defined in device configuration"))
+    context(base: DeviceBase)
+    override suspend fun createState(): SynchronousPort {
+        val ports = base.context.request(Ports)
+        return ports.buildSynchronousPort(base.meta["port"] ?: error("Port is not defined in device configuration"))
     }
 
-    override suspend fun DeviceBase.destroyState(state: SynchronousPort) {
+    context(base: DeviceBase)
+    override suspend fun destroyState(state: SynchronousPort) {
         state.stop()
     }
 }

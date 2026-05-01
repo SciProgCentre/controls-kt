@@ -167,8 +167,11 @@ public fun <T> DeviceBuilder.logical(
 public fun Device(
     context: Context,
     meta: Meta = Meta.EMPTY,
+    spec: DeviceSpec? = null,
     builder: DeviceBuilder.() -> Unit
-): Device = DeviceBuilder().apply(builder).build(context, meta)
+): Device = DeviceBuilder().apply(builder).also {
+    if (spec != null) it.validateFor(spec)
+}.build(context, meta)
 
 
 public fun <T> DeviceBuilder.reader(spec: DevicePropertySpec<T>, read: suspend context(DeviceBase) () -> T) {
