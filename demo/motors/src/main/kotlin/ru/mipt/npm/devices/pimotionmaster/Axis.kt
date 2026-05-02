@@ -12,7 +12,7 @@ import space.kscience.dataforge.meta.get
 import kotlin.time.Duration.Companion.milliseconds
 
 
-object AxisSpec : AbstractDeviceSpec() {
+object Axis : AbstractDeviceSpec() {
 
     val enabled by property(MetaConverter.boolean) {
         description = "Motor enable state."
@@ -62,120 +62,122 @@ object AxisSpec : AbstractDeviceSpec() {
     }
 
     val move by action(MetaConverter.meta, MetaConverter.unit)
-}
 
+    fun builder(
+        port: PiMotionMasterConnector,
+        axisId: String,
+    ) = DeviceBuilder(Axis){
 
-@Suppress("FunctionName")
-fun Axis(
-    context: Context,
-    port: PiMotionMasterConnector,
-    axisId: String,
-    meta: Meta
-): Device = Device(context, meta, AxisSpec) {
+        suspend fun readAxisBoolean(axisId: String, command: String): Boolean =
+            (port.requestAndParse(command, axisId)[axisId]?.toIntOrNull()
+                ?: error("Malformed $command response. Should include integer value for $axisId")) != 0
 
-    suspend fun readAxisBoolean(axisId: String, command: String): Boolean =
-        (port.requestAndParse(command, axisId)[axisId]?.toIntOrNull()
-            ?: error("Malformed $command response. Should include integer value for $axisId")) != 0
-
-    suspend fun writeAxisBoolean(axisId: String, command: String, value: Boolean): Boolean {
-        val boolean = if (value) {
-            "1"
-        } else {
-            "0"
-        }
-        port.send(command, axisId, boolean)
-        port.failIfError()
-        return value
-    }
-
-
-    fun axisNumberProperty(
-        spec: DevicePropertySpec<Double>,
-        command: String,
-    ) {
-        reader(spec) {
-            port.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
-                ?: error("Malformed $command response. Should include float value for $axisId")
-        }
-
-        writer(spec) { newValue ->
-            port.send(command, axisId, newValue.toString())
+        suspend fun writeAxisBoolean(axisId: String, command: String, value: Boolean): Boolean {
+            val boolean = if (value) {
+                "1"
+            } else {
+                "0"
+            }
+            port.send(command, axisId, boolean)
             port.failIfError()
+            return value
+        }
 
+
+        fun axisNumberProperty(
+            spec: DevicePropertySpec<Double>,
+            command: String,
+        ) {
+            reader(spec) {
+                port.requestAndParse("$command?", axisId)[axisId]?.toDoubleOrNull()
+                    ?: error("Malformed $command response. Should include float value for $axisId")
+            }
+
+            writer(spec) { newValue ->
+                port.send(command, axisId, newValue.toString())
+                port.failIfError()
+
+            }
+        }
+
+        fun axisBooleanProperty(
+            spec: DevicePropertySpec<Boolean>,
+            command: String
+        ) {
+            reader(spec) {
+                readAxisBoolean(axisId, command)
+            }
+
+            writer(spec) { newValue ->
+                writeAxisBoolean(axisId, command, newValue)
+            }
+        }
+
+        reader(Axis.enabled) {
+            readAxisBoolean(axisId, "EAX")
+        }
+
+        action(Axis.halt) {
+            port.send("HLT", axisId)
+        }
+
+        axisNumberProperty(Axis.targetPosition, "MOV")
+
+        reader(Axis.onTarget) {
+            readAxisBoolean(axisId, "ONT?")
+        }
+
+        reader(Axis.reference) {
+            readAxisBoolean(axisId, "FRF?")
+        }
+
+        action(Axis.moveToReference) {
+            port.send("FRF", axisId)
+        }
+
+        reader(Axis.minPosition) {
+            port.requestAndParse("TMN?", axisId)[axisId]?.toDoubleOrNull()
+                ?: error("Malformed `TMN?` response. Should include float value for $axisId")
+
+        }
+
+        reader(Axis.maxPosition) {
+            port.requestAndParse("TMX?", axisId)[axisId]?.toDoubleOrNull()
+                ?: error("Malformed `TMX?` response. Should include float value for $axisId")
+        }
+
+        reader(Axis.position) {
+            port.requestAndParse("POS?", axisId)[axisId]?.toDoubleOrNull()
+                ?: error("Malformed `POS?` response. Should include float value for $axisId")
+        }
+
+        axisNumberProperty(Axis.openLoopTarget, "OMA")
+
+        axisBooleanProperty(Axis.closedLoop, "SVO")
+
+        axisNumberProperty(Axis.velocity, "VEL")
+
+        action(Axis.move) { it ->
+            val target = it.double ?: it["target"].double ?: error("Unacceptable target value $it")
+            write(Axis.closedLoop, true)
+            //optionally set velocity
+            it["velocity"].double?.let { v ->
+                write(Axis.velocity, v)
+            }
+            write(Axis.targetPosition, target)
+            //read `onTarget` and `position` properties in a cycle until movement is complete
+            while (!read(Axis.onTarget)) {
+                read(Axis.position)
+                delay(200.milliseconds)
+            }
         }
     }
 
-    fun axisBooleanProperty(
-        spec: DevicePropertySpec<Boolean>,
-        command: String
-    ) {
-        reader(spec) {
-            readAxisBoolean(axisId, command)
-        }
-
-        writer(spec) { newValue ->
-            writeAxisBoolean(axisId, command, newValue)
-        }
-    }
-
-    reader(AxisSpec.enabled) {
-        readAxisBoolean(axisId, "EAX")
-    }
-
-    action(AxisSpec.halt) {
-        port.send("HLT", axisId)
-    }
-
-    axisNumberProperty(AxisSpec.targetPosition, "MOV")
-
-    reader(AxisSpec.onTarget) {
-        readAxisBoolean(axisId, "ONT?")
-    }
-
-    reader(AxisSpec.reference) {
-        readAxisBoolean(axisId, "FRF?")
-    }
-
-    action(AxisSpec.moveToReference) {
-        port.send("FRF", axisId)
-    }
-
-    reader(AxisSpec.minPosition) {
-        port.requestAndParse("TMN?", axisId)[axisId]?.toDoubleOrNull()
-            ?: error("Malformed `TMN?` response. Should include float value for $axisId")
-
-    }
-
-    reader(AxisSpec.maxPosition) {
-        port.requestAndParse("TMX?", axisId)[axisId]?.toDoubleOrNull()
-            ?: error("Malformed `TMX?` response. Should include float value for $axisId")
-    }
-
-    reader(AxisSpec.position) {
-        port.requestAndParse("POS?", axisId)[axisId]?.toDoubleOrNull()
-            ?: error("Malformed `POS?` response. Should include float value for $axisId")
-    }
-
-    axisNumberProperty(AxisSpec.openLoopTarget, "OMA")
-
-    axisBooleanProperty(AxisSpec.closedLoop, "SVO")
-
-    axisNumberProperty(AxisSpec.velocity, "VEL")
-
-    action(AxisSpec.move) { it ->
-        val target = it.double ?: it["target"].double ?: error("Unacceptable target value $it")
-        write(AxisSpec.closedLoop, true)
-        //optionally set velocity
-        it["velocity"].double?.let { v ->
-            write(AxisSpec.velocity, v)
-        }
-        write(AxisSpec.targetPosition, target)
-        //read `onTarget` and `position` properties in a cycle until movement is complete
-        while (!read(AxisSpec.onTarget)) {
-            read(AxisSpec.position)
-            delay(200.milliseconds)
-        }
-    }
-
+    fun build(
+        context: Context,
+        meta: Meta,
+        port: PiMotionMasterConnector,
+        axisId: String,
+    ): Device = builder(port, axisId).build(context, meta)
 
 }

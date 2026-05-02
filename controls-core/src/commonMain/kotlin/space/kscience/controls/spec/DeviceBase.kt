@@ -87,7 +87,7 @@ public abstract class DeviceBase(
     /**
      * Update logical property state and notify listeners
      */
-    protected suspend fun propertyChanged(propertyName: String, value: Meta?) {
+    public suspend fun propertyChanged(propertyName: String, value: Meta?) {
         if (value != logicalState[propertyName]) {
             stateLock.withLock {
                 logicalState[propertyName] = value
@@ -101,7 +101,7 @@ public abstract class DeviceBase(
     /**
      * Notify the device that a property with [spec] value is changed
      */
-    protected suspend fun <T> propertyChanged(spec: DevicePropertySpec<T>, value: T) {
+    public suspend fun <T> propertyChanged(spec: DevicePropertySpec<T>, value: T) {
         propertyChanged(spec.name, spec.converter.convert(value))
     }
 

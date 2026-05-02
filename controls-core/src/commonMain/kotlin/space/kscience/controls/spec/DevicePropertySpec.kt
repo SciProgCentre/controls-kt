@@ -209,6 +209,13 @@ public suspend fun CachingDevice.invalidate(propertySpec: DevicePropertySpec<*>)
 }
 
 /**
+ * Bridge method
+ */
+@JvmName("invalidateWithContext")
+context(device: CachingDevice)
+public suspend fun invalidate(propertySpec: DevicePropertySpec<*>): Unit = device.invalidate(propertySpec)
+
+/**
  * Execute the action with name according to [actionSpec]
  */
 public suspend fun <I, O> Device.execute(
@@ -218,8 +225,23 @@ public suspend fun <I, O> Device.execute(
     actionSpec.outputConverter.read(it)
 }
 
+/**
+ * Bridge method
+ */
+@JvmName("executeWithContext")
+context(device: Device)
+public suspend fun <I, O> execute(
+    actionSpec: DeviceActionSpec<I, O>,
+    input: I
+): O? = device.execute(actionSpec, input)
+
 
 public suspend fun <O> Device.execute(actionSpec: DeviceActionSpec<Unit, O>): O? =
     execute(actionSpec.name, Meta.EMPTY)?.let {
         actionSpec.outputConverter.read(it)
     }
+
+
+@JvmName("executeUnitWithContext")
+context(device: Device)
+public suspend fun <O> execute(actionSpec: DeviceActionSpec<Unit, O>): O? = device.execute(actionSpec)

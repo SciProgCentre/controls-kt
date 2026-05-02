@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import space.kscience.controls.api.Device
+import space.kscience.controls.api.ParentDevice
 import space.kscience.controls.duration
 import space.kscience.controls.ports.AsynchronousPort
 import space.kscience.controls.ports.KtorTcpPort
@@ -17,7 +19,9 @@ import space.kscience.controls.ports.withStringDelimiter
 import space.kscience.controls.spec.*
 import space.kscience.controls.unit
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.asValue
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Duration
@@ -103,7 +107,7 @@ public class PiMotionMasterConnector(
 }
 
 
-object PiMotionMasterSpec : AbstractDeviceSpec() {
+object PiMotionMaster : AbstractDeviceSpec(), Factory<ParentDevice> {
     val connected by property(MetaConverter.boolean) {
         description = "True if the connection address is defined and the device is initialized"
     }
@@ -130,102 +134,89 @@ object PiMotionMasterSpec : AbstractDeviceSpec() {
     val timeout by mutableProperty(MetaConverter.duration) {
         description = "Timeout"
     }
-}
 
-fun PiMotionMasterDevice(
-    context: Context,
-    meta: Meta = Meta.EMPTY,
-    portFactory: Factory<AsynchronousPort> = KtorTcpPort,
-)  = Device(context, meta, PiMotionMasterSpec) {
-
-    val port: AsynchronousPort = portFactory.build(context, meta)
+    override fun build(
+        context: Context,
+        meta: Meta
+    ): ParentDevice {
 
 
+        var connector: PiMotionMasterConnector? = null
 
+        var axes: Map<Name, Device> = emptyMap()
 
-    /**
-     * Name-friendly accessor for axis
-     */
-    var axes: Map<String, Axis> = emptyMap()
-        private set
+        val rootDevice = Device(context, meta, PiMotionMaster) {
 
-    override val devices: Map<Name, Axis> = axes.mapKeys { (key, _) -> key.parseAsName() }
+            logical(PiMotionMaster.timeout, 200.milliseconds)
 
+            action(PiMotionMaster.disconnect) {
+                connector?.let {
+                    execute(PiMotionMaster.stop)
+                    it.port.stop()
+                }
+                connector = null
+                contextOf<DeviceBase>().propertyChanged(PiMotionMaster.connected, false)
+            }
 
-    suspend fun connect(host: String, port: Int) {
-        execute(connect, Meta {
-            "host" put host
-            "port" put port
-        })
-    }
+            action(PiMotionMaster.connect) { portSpec ->
+                //Clear current actions if present
+                if (connector != null) {
+                    execute(PiMotionMaster.disconnect)
+                }
 
-    val connected by booleanProperty(descriptorBuilder = {
-        description = "True if the connection address is defined and the device is initialized"
-    }) {
-        port != null
-    }
+                //Update port
+                //address = portSpec.node
+                val port = KtorTcpPort(portSpec, context).apply { start() }
 
+                connector = PiMotionMasterConnector(context, port).apply {
 
-    val initialize by unitAction() {
-        send("INI")
-    }
-
-    val identity by stringProperty {
-        request("*IDN?").first()
-    }
-
-    val firmwareVersion by stringProperty {
-        request("VER?").first()
-    }
-
-    val stop by unitAction({
-        send("STP")
-    }) {
-        description = "Stop all axis"
-    }
-
-    val connect by action(MetaConverter.meta, MetaConverter.unit, descriptorBuilder = {
-        description = "Connect to specific port and initialize axis"
-    }) { portSpec ->
-        //Clear current actions if present
-        if (port != null) {
-            disconnect()
-        }
-        //Update port
-        //address = portSpec.node
-        port = portFactory(portSpec, context).apply { start() }
 //        connector.open()
-        //Initialize axes
-        val idn = read(identity)
-        failIfError { "Can't connect to $portSpec. Error code: $it" }
-        propertyChanged(connected, true)
-        logger.info { "Connected to $idn on $portSpec" }
-        val ids = request("SAI?").map { it.trim() }
-        if (ids != axes.keys.toList()) {
-            //re-define axes if needed
-            axes = ids.associateWith { Axis(this, it) }
+                    //Initialize axes
+                    val idn = read(PiMotionMaster.identity)
+                    failIfError { "Can't connect to $portSpec. Error code: $it" }
+                    contextOf<DeviceBase>().propertyChanged(PiMotionMaster.connected, true)
+                    logger.info { "Connected to $idn on $portSpec" }
+                    val ids = request("SAI?").map { it.trim() }
+                    if (ids != axes.keys.toList()) {
+                        //re-define axes if needed
+                        axes = ids.associate { it.parseAsName() to Axis.build(context, meta, this, it) }
+                    }
+                    Meta(ids.map { it.asValue() }.asValue())
+                    execute(PiMotionMaster.initialize)
+                    failIfError()
+                }
+            }
+
+
+            fun getConnector() = connector ?: error("Not connected to the device")
+
+            reader(PiMotionMaster.connected) {
+                connector != null
+            }
+
+            action(PiMotionMaster.initialize) {
+                getConnector().send("INI")
+            }
+
+            reader(PiMotionMaster.identity) {
+                getConnector().request("*IDN?").first()
+            }
+
+
+            reader(PiMotionMaster.firmwareVersion) {
+                getConnector().request("VER?").first()
+            }
+
+            action(PiMotionMaster.stop) {
+                getConnector().send("STP")
+            }
+
+
         }
-        Meta(ids.map { it.asValue() }.asValue())
-        execute(initialize)
-        failIfError()
+
+
+        return ParentDevice(rootDevice, axes)
     }
-
-    val disconnect by unitAction({
-        port?.let {
-            execute(stop)
-            it.stop()
-        }
-        port = null
-        propertyChanged(connected, false)
-    }) {
-        description = "Disconnect the program from the device if it is connected"
-    }
-
-
-    val timeout by mutableProperty(MetaConverter.duration, PiMotionMasterDevice::timeoutValue) {
-        description = "Timeout"
-    }
-
-
 }
+
 

@@ -27,9 +27,47 @@ public interface DeviceHub : Provider {
     public companion object
 }
 
+/**
+ * Create a device hub from a map of devices
+ */
 public fun DeviceHub(deviceMap: Map<Name, Device>): DeviceHub = object : DeviceHub {
     override val devices: Map<Name, Device> get() = deviceMap
 }
+
+/**
+ * A device that is also a device hub
+ */
+public interface ParentDevice : Device, DeviceHub{
+    override suspend fun start() {
+        super.start()
+        devices.values.forEach { it.start() }
+    }
+
+    override suspend fun stop() {
+        devices.values.forEach { it.stop() }
+        super.stop()
+    }
+}
+
+/**
+ * Create a device hub that is also a device itself by providing a device mapping and root device.
+ *
+ * Children devices are started automatically when the parent device is started and stopped before the parent is stopped.
+ */
+public fun ParentDevice(rootDevice: Device, children: Map<Name, Device>): ParentDevice = object : ParentDevice, Device by rootDevice {
+    override val devices: Map<Name, Device> get() = children
+
+    override suspend fun start() {
+        rootDevice.start()
+        devices.values.forEach { it.start() }
+    }
+
+    override suspend fun stop() {
+        devices.values.forEach { it.stop() }
+        rootDevice.stop()
+    }
+}
+
 
 /**
  * List all devices, including sub-devices

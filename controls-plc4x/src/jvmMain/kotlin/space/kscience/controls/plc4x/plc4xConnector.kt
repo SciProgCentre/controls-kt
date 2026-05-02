@@ -55,6 +55,7 @@ internal fun PlcValue.toMeta(): Meta = Meta {
     }
 }
 
+@Suppress("REDUNDANT_CALL_OF_CONVERSION_METHOD")
 private fun Value.toPlcValue(): PlcValue = when (type) {
     ValueType.NUMBER -> when (val number = number) {
         is Short -> PlcINT(number.toShort())

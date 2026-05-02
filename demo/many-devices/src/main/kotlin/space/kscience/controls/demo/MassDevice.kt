@@ -59,10 +59,10 @@ object MassDevice : DeviceFactory<MassDeviceState>() {
 
     val value by doubleProperty { incrementValue }
 
-    context(base: DeviceBase)
-    override suspend fun createState(): MassDeviceState = MassDeviceState(base.meta["seed"].int ?: 0).also {
-        base.doRecurring((base.meta["delay"].int ?: 5).milliseconds) {
-            base.read(value)
+    context(device: DeviceBase)
+    override suspend fun createState(): MassDeviceState = MassDeviceState(device.meta["seed"].int ?: 0).also {
+        device.doRecurring((device.meta["delay"].int ?: 5).milliseconds) {
+            device.read(value)
         }
     }
 }

@@ -162,6 +162,12 @@ public fun <T> DeviceBuilder.logical(
 ): Unit = logical(DevicePropertySpecWithDefault(converter, descriptor, defaultValue))
 
 /**
+ * Create a device builder with given [builder]
+ */
+public fun DeviceBuilder(spec: DeviceSpec? = null, builder: DeviceBuilder.() -> Unit): DeviceBuilder =
+    DeviceBuilder().apply(builder).also { if (spec != null) it.validateFor(spec) }
+
+/**
  * Create a device with given [builder]
  */
 public fun Device(

@@ -81,17 +81,17 @@ object DemoDevice : DeviceFactory<DemoDeviceState>() {
         write(DemoDevice.sinScale, value)
     }
 
-    context(base: DeviceBase)
+    context(device: DeviceBase)
     override suspend fun createState(): DemoDeviceState = DemoDeviceState().also {
-        base.launch {
-            base.read(sinScale)
-            base.read(cosScale)
-            base.read(timeScale)
+        device.launch {
+            device.read(sinScale)
+            device.read(cosScale)
+            device.read(timeScale)
         }
-        base.doRecurring(50.milliseconds) {
-            base.read(sin)
-            base.read(cos)
-            base.read(coordinates)
+        device.doRecurring(50.milliseconds) {
+            device.read(sin)
+            device.read(cos)
+            device.read(coordinates)
         }
     }
 }

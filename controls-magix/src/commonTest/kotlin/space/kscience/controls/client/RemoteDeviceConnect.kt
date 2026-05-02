@@ -63,12 +63,12 @@ internal class RemoteDeviceConnect {
 
     object TestDevice : DeviceFactory<Random>() {
 
-        context(base: DeviceBase)
+        context(device: DeviceBase)
         override suspend fun createState(): Random {
-            base.doRecurring((base.meta["delay"].int ?: 10).milliseconds) {
-                base.read(value)
+            device.doRecurring((device.meta["delay"].int ?: 10).milliseconds) {
+                device.read(value)
             }
-            return Random(base.meta["seed"].int ?: 0)
+            return Random(device.meta["seed"].int ?: 0)
         }
 
         val value by doubleProperty { nextDouble() }
@@ -111,7 +111,7 @@ internal class RemoteDeviceConnect {
 
         assertEquals(0, remoteHub.devices.size)
 
-        delay(60)
+        delay(60.milliseconds)
         //switch context to use actual delay
         withContext(Dispatchers.Default) {
             virtualMagixEndpoint.requestDeviceUpdate("client", "device")

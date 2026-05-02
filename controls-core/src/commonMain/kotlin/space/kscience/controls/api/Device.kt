@@ -68,7 +68,9 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
      * Initialize the device. This function suspends until the device is finished initialization.
      * Does nothing if the device is started or is starting
      */
-    override suspend fun start(): Unit = Unit
+    override suspend fun start(): Unit {
+        logger.info { "Device $this is started" }
+    }
 
     /**
      * Clock associated with this device
@@ -80,7 +82,7 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
      */
     override suspend fun stop() {
         coroutineContext[Job]?.cancel("The device is closed")
-        logger.info { "Device $this is closed" }
+        logger.info { "Device $this is stopped" }
     }
 
     public companion object {

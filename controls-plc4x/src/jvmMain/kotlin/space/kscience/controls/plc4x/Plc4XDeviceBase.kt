@@ -18,13 +18,13 @@ public class Plc4XConfig : Scheme() {
 
 public abstract class Plc4XDeviceFactory : DeviceFactory<PlcConnection>() {
 
-    context(base: DeviceBase)
+    context(device: DeviceBase)
     override suspend fun createState(): PlcConnection {
-        val config = Plc4XConfig.read(base.meta)
+        val config = Plc4XConfig.read(device.meta)
         return PlcDriverManager.getDefault().connectionManager.getConnection(config.endpointUrl)
     }
 
-    context(base: DeviceBase)
+    context(device: DeviceBase)
     override suspend fun destroyState(state: PlcConnection) {
         state.close()
     }
