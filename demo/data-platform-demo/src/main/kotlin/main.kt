@@ -24,7 +24,7 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
 
-fun main() {
+suspend fun main() {
     val context = Context {
         plugin(DeviceManager)
     }
@@ -48,7 +48,7 @@ fun main() {
         scope = context
     )
 
-    Thread.sleep(1000)
+    delay(1.seconds)
 
     val opcSourceName = "opc".asName()
     val modbusSourceName = "modbus".asName()
