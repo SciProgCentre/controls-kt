@@ -3,8 +3,10 @@ package space.kscience.controls.dataplatform.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
-import space.kscience.controls.dataplatform.AsyncRows
 import space.kscience.controls.dataplatform.DataPlatformDevice.Companion.timeColumnHeader
+import space.kscience.controls.dataplatform.TimeSeriesRows
+import space.kscience.controls.dataplatform.TimeSeriesValues
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaRepr
 import space.kscience.dataforge.meta.double
@@ -67,33 +69,34 @@ private fun Row<Meta>.toMap(header: TableHeader<Meta>): Map<String, Meta?> = if 
  * @return A new instance of `AsyncRows` where row-level compression has been applied
  * based on the given configuration.
  */
-public fun AsyncRows<Meta>.compress(configuration: RowsCompression): AsyncRows<Meta> {
+public fun TimeSeriesRows<Meta>.compress(configuration: RowsCompression): TimeSeriesRows<Meta> {
     if (!configuration.hasCompression) return this
 
     // compute column configurations with defaults
     val columnConfigurations = headers.minus(timeColumnHeader).associate {
-        it.name to (configuration.columns[it.name] ?: ColumnCompression(configuration.skipUnchangedValues, configuration.numericDelta))
+        it.name to (configuration.columns[it.name] ?: ColumnCompression(
+            configuration.skipUnchangedValues,
+            configuration.numericDelta
+        ))
     }
 
-    return object : AsyncRows<Meta> {
+    return object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> = this@compress.headers
 
-        override fun rowFlow(): Flow<Row<Meta>> = flow {
+        override fun rowFlow(): Flow<TimeSeriesValues<Meta>> = flow {
             var previousValues: Map<String, Meta?>? = null
 
-            this@compress.rowFlow().collect { row: Row<Meta> ->
+            this@compress.rowFlow().collect { row: TimeSeriesValues<Meta> ->
                 //values except time value
-                val values = row.toMap(headers).minus(timeColumnHeader.name)
-                val time = row[timeColumnHeader.name]
 
                 when {
-                    configuration.skipUnchangedRows && values == previousValues -> {
+                    configuration.skipUnchangedRows && row.value == previousValues -> {
                         return@collect
                     }
 
                     configuration.skipUnchangedValues || configuration.columns.isNotEmpty() -> {
 
-                        val changedValues = values.filter { (key, value) ->
+                        val changedValues = row.value.filter { (key, value) ->
                             //if the field is unknown, skip it just in case
                             val config = columnConfigurations[key] ?: return@filter true
                             //if value is the same, keep it only if filtering is off
@@ -103,7 +106,7 @@ public fun AsyncRows<Meta>.compress(configuration: RowsCompression): AsyncRows<M
                             if (config.numericDelta != null) {
                                 // if current or previous value does not exist, skip
                                 val previousNumeric = previousValues?.get(key)?.double ?: return@filter true
-                                val numeric = value?.double ?: return@filter true
+                                val numeric = value.double ?: return@filter true
                                 abs(numeric - previousNumeric) > config.numericDelta
                             } else {
                                 true
@@ -112,12 +115,12 @@ public fun AsyncRows<Meta>.compress(configuration: RowsCompression): AsyncRows<M
 
                         previousValues = (previousValues ?: emptyMap()) + changedValues
 
-                        emit(MapRow(changedValues + (timeColumnHeader.name to time)))
+                        emit(ValueWithTime(changedValues, row.time))
                     }
 
                     else -> {
                         emit(row)
-                        previousValues = values
+                        previousValues = row.value
                     }
                 }
             }

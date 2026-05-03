@@ -7,13 +7,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.dataplatform.DataPlatformDevice
-import space.kscience.controls.dataplatform.DataPlatformDevice.Companion.timeColumnHeader
+import space.kscience.controls.dataplatform.TimeSeriesValues
+import space.kscience.controls.dataplatform.toRow
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
-import space.kscience.tables.Row
 import space.kscience.tables.RowTable
-import space.kscience.tables.get
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -45,7 +44,7 @@ public fun DataPlatformDevice.flowBinaryData(
     val rows = if (compression == null) asRows(readInterval) else asRows(readInterval).compress(compression)
 
     return channelFlow {
-        val rowBuffer = mutableListOf<Row<Meta>>()
+        val rowBuffer = mutableListOf<TimeSeriesValues<Meta>>()
         var lastCollectionTime: Instant = clock.now()
         var lastRowTime: Instant? = null
         val mutex = Mutex()
@@ -53,11 +52,11 @@ public fun DataPlatformDevice.flowBinaryData(
         suspend fun collect() {
             //ignore if rows are empty
             if (rowBuffer.isEmpty()) return
-            val table = RowTable(rows.headers, rowBuffer)
+            val table = RowTable(rows.headers, rowBuffer.map { it.toRow() })
             val envelope = converter.writeRows(table, Meta {
                 "time" put clock.now().toString()
-                "startTime" put rowBuffer.first()[timeColumnHeader]
-                "endTime" put rowBuffer.last()[timeColumnHeader]
+                "startTime" put rowBuffer.first().time.toString()
+                "endTime" put rowBuffer.last().time.toString()
                 "numberOfRows" put rowBuffer.size
                 "readInterval" put readInterval.toString()
                 "maxRows" put maxRows

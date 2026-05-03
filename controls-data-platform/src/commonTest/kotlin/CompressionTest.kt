@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
-import space.kscience.controls.dataplatform.AsyncRows
 import space.kscience.controls.dataplatform.DataPlatformDevice
+import space.kscience.controls.dataplatform.TimeSeriesRows
 import space.kscience.dataforge.meta.Meta
 import space.kscience.tables.*
 import kotlin.reflect.typeOf
@@ -21,7 +21,7 @@ class CompressionTest {
         SimpleColumnHeader("v2", typeOf<Meta>(), Meta.EMPTY)
     )
 
-    private fun createAsyncRows(rows: List<Row<Meta>>): AsyncRows<Meta> = object : AsyncRows<Meta> {
+    private fun createAsyncRows(rows: List<Row<Meta>>): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> = testHeaders
         override fun rowFlow(): Flow<Row<Meta>> = rows.asFlow()
     }

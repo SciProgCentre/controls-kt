@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.logger
@@ -14,7 +15,9 @@ import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
-import space.kscience.tables.*
+import space.kscience.tables.ColumnHeader
+import space.kscience.tables.SimpleColumnHeader
+import space.kscience.tables.TableHeader
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.typeOf
 import kotlin.time.Clock
@@ -128,23 +131,22 @@ public class DataPlatformDevice(
      */
     public fun asRows(
         interval: Duration,
-    ): AsyncRows<Meta> = object : AsyncRows<Meta> {
+    ): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> get() = tableHeaders
 
-        private val rowFlow: Flow<Row<Meta>> = flow {
+        private val rowFlow: Flow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
-                val valueMap = values + (timeColumnHeader.name to Meta(clock.now().toString()))
-                emit(MapRow(valueMap))
+                emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
         }
 
-        override fun rowFlow(): Flow<Row<Meta>> = rowFlow
+        override fun rowFlow() = rowFlow
 
     }
 
-    public companion object{
+    public companion object {
         internal val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
             title = "Time"
         }
