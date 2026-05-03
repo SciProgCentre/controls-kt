@@ -31,12 +31,12 @@ import kotlinx.serialization.json.put
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyGetMessage
 import space.kscience.controls.api.PropertySetMessage
+import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.respondHubMessage
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
-import space.kscience.dataforge.names.get
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
@@ -78,7 +78,7 @@ public val WEB_SERVER_TARGET: Name = "@webServer".asName()
 public fun Application.deviceManagerModule(
     manager: DeviceManager,
     vararg plugins: MagixFlowPlugin,
-    deviceNames: Collection<String> = manager.devices.keys.map { it.toString() },
+    deviceNames: Collection<Name> = manager.devices.keys,
     route: String = "/",
     buffer: Int = 100,
 ) {
@@ -103,12 +103,11 @@ public fun Application.deviceManagerModule(
                         h1 {
                             +"Device server dashboard"
                         }
-                        deviceNames.forEach { deviceName: String ->
-                            val device = manager.devices[deviceName]
-                                ?: error("The device with name $deviceName not found in $manager")
+                        deviceNames.forEach { deviceName: Name ->
+                            val device = manager.resolveDevice(deviceName)
                             div {
-                                id = deviceName
-                                h2 { +deviceName }
+                                id = deviceName.toString()
+                                h2 { +deviceName.toString() }
                                 h3 { +"Properties" }
                                 ul {
                                     device.propertyDescriptors.forEach { property ->

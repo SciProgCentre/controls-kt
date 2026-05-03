@@ -3,16 +3,18 @@ package space.kscience.controls.constructor.expressions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.DeviceHub
-import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.combine
-import space.kscience.controls.constructor.map
-import space.kscience.controls.constructor.propertyAsState
+import space.kscience.controls.api.resolveDevice
+import space.kscience.controls.constructor.*
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.isEmpty
 import kotlin.math.*
+import kotlin.properties.PropertyDelegateProvider
+import kotlin.properties.ReadOnlyProperty
 
 /**
  * A tree of expressions that can be evaluated to a value
@@ -65,6 +67,9 @@ public sealed interface StateExpression {
     }
 }
 
+/**
+ * A context for evaluating [StateExpression]
+ */
 public class StateExpressionContext(
     public val hub: DeviceHub,
     public val scope: CoroutineScope
@@ -128,7 +133,7 @@ public class StateExpressionContext(
         }
 
         is StateExpression.Property -> {
-            val device = hub.devices[expression.deviceName] ?: error("No device ${expression.deviceName} found")
+            val device = hub.resolveDevice(expression.deviceName)
 
             if (expression.path.isEmpty()) {
                 device.propertyAsState(expression.propertyName, MetaConverter.double, Double.NaN)
@@ -141,3 +146,9 @@ public class StateExpressionContext(
     }
 }
 
+public fun DeviceConstructor.expression(
+    expression: StateExpression
+): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double>>> = property(
+    MetaConverter.double,
+    StateExpressionContext(context.request(DeviceManager), this).computeState(expression)
+)

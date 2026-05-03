@@ -6,11 +6,12 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.getOrReadProperty
+import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.get
+import space.kscience.dataforge.names.parseAsName
 import space.kscience.magix.api.*
 
 public const val TANGO_MAGIX_FORMAT: String = "tango"
@@ -88,7 +89,7 @@ public fun DeviceManager.launchTangoMagix(
     return context.launch {
         endpoint.subscribe(tangoMagixFormat).onEach { (request, payload) ->
             try {
-                val device = devices[payload.device] ?: error("Device ${payload.device} not found")
+                val device = resolveDevice(payload.device.parseAsName())
                 when (payload.action) {
                     TangoAction.read -> {
                         val value = device.getOrReadProperty(payload.name)

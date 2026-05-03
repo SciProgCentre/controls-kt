@@ -82,7 +82,7 @@ public open class DeviceGroup(
 
     private val _devices = hashMapOf<Name, Device>()
 
-    override val devices: Map<Name, Device> = _devices
+    override val devices: Map<Name, Device> get() = _devices
 
     /**
      * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group

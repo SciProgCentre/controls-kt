@@ -2,6 +2,7 @@ package space.kscience.controls.api
 
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.isEmpty
 import space.kscience.dataforge.provider.Path
 import space.kscience.dataforge.provider.Provider
 import space.kscience.dataforge.provider.asPath
@@ -37,7 +38,7 @@ public fun DeviceHub(deviceMap: Map<Name, Device>): DeviceHub = object : DeviceH
 /**
  * A device that is also a device hub
  */
-public interface ParentDevice : Device, DeviceHub{
+public interface ParentDevice : Device, DeviceHub {
     override suspend fun start() {
         super.start()
         devices.values.forEach { it.start() }
@@ -50,23 +51,36 @@ public interface ParentDevice : Device, DeviceHub{
 }
 
 /**
+ * Resolve a device by its name. Throw an exception if the device is not found.
+ */
+public fun ParentDevice.resolveDevice(name: Name): Device =
+    if (name.isEmpty()) this else devices[name] ?: error("Device $name not found in $this")
+
+/**
+ * Resolve a device by its name. Throw an exception if the device is not found.
+ */
+public fun DeviceHub.resolveDevice(name: Name): Device =
+    if (name.isEmpty()) (this as Device) else devices[name] ?: error("Device $name not found in $this")
+
+/**
  * Create a device hub that is also a device itself by providing a device mapping and root device.
  *
  * Children devices are started automatically when the parent device is started and stopped before the parent is stopped.
  */
-public fun ParentDevice(rootDevice: Device, children: Map<Name, Device>): ParentDevice = object : ParentDevice, Device by rootDevice {
-    override val devices: Map<Name, Device> get() = children
+public fun ParentDevice(rootDevice: Device, children: Map<Name, Device>): ParentDevice =
+    object : ParentDevice, Device by rootDevice {
+        override val devices: Map<Name, Device> get() = children
 
-    override suspend fun start() {
-        rootDevice.start()
-        devices.values.forEach { it.start() }
-    }
+        override suspend fun start() {
+            rootDevice.start()
+            devices.values.forEach { it.start() }
+        }
 
-    override suspend fun stop() {
-        devices.values.forEach { it.stop() }
-        rootDevice.stop()
+        override suspend fun stop() {
+            devices.values.forEach { it.stop() }
+            rootDevice.stop()
+        }
     }
-}
 
 
 /**
@@ -89,11 +103,11 @@ public fun DeviceHub.provideAllDevices(): Map<Path, Device> = buildMap {
 }
 
 public suspend fun DeviceHub.readProperty(deviceName: Name, propertyName: String): Meta =
-    (devices[deviceName] ?: error("Device with name $deviceName not found in $this")).readProperty(propertyName)
+    resolveDevice(deviceName).readProperty(propertyName)
 
 public suspend fun DeviceHub.writeProperty(deviceName: Name, propertyName: String, value: Meta) {
-    (devices[deviceName] ?: error("Device with name $deviceName not found in $this")).writeProperty(propertyName, value)
+    resolveDevice(deviceName).writeProperty(propertyName, value)
 }
 
 public suspend fun DeviceHub.execute(deviceName: Name, command: String, argument: Meta?): Meta? =
-    (devices[deviceName] ?: error("Device with name $deviceName not found in $this")).execute(command, argument)
+    resolveDevice(deviceName).execute(command, argument)

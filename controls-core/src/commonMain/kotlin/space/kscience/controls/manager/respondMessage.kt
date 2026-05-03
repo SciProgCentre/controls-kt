@@ -87,7 +87,7 @@ public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<Dev
                 it.value.respondMessage(it.key, request)
             }
         } else {
-            val device = devices[targetName] ?: error("The device with name $targetName not found in $this")
+            val device = resolveDevice(targetName) ?: error("The device with name $targetName not found in $this")
             listOfNotNull(device.respondMessage(targetName, request))
         }
     } catch (ex: Exception) {
