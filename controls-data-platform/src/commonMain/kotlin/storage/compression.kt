@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 import space.kscience.controls.dataplatform.AsyncRows
 import space.kscience.controls.dataplatform.DataPlatformDevice.Companion.timeColumnHeader
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaRepr
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.set
 import space.kscience.tables.MapRow
 import space.kscience.tables.Row
 import space.kscience.tables.TableHeader
@@ -18,16 +20,33 @@ import kotlin.math.abs
 public data class ColumnCompression(
     val skipUnchangedValues: Boolean = true,
     val numericDelta: Double? = null
-)
+) : MetaRepr {
+
+    override fun toMeta(): Meta = Meta {
+        "skipUnchangedValues" put skipUnchangedValues
+        numericDelta?.let { "numericDelta" put numericDelta }
+    }
+}
 
 @Serializable
 public data class RowsCompression(
     val skipUnchangedRows: Boolean = true,
     val skipUnchangedValues: Boolean = false,
+    val numericDelta: Double? = null,
     val columns: Map<String, ColumnCompression> = emptyMap(),
-)
+) : MetaRepr {
 
-public val RowsCompression.hasCompression: Boolean get() = skipUnchangedRows || skipUnchangedValues || columns.isNotEmpty()
+    override fun toMeta(): Meta = Meta {
+        "skipUnchangedRows" put skipUnchangedRows
+        "skipUnchangedValues" put skipUnchangedValues
+        numericDelta?.let { "numericDelta" put numericDelta }
+        columns.forEach { (column, compression) ->
+            set("column[$column]", compression.toMeta())
+        }
+    }
+}
+
+public val RowsCompression.hasCompression: Boolean get() = skipUnchangedRows || skipUnchangedValues || numericDelta != null || columns.isNotEmpty()
 
 
 private fun Row<Meta>.toMap(header: TableHeader<Meta>): Map<String, Meta?> = if (this is MapRow) {
@@ -53,7 +72,7 @@ public fun AsyncRows<Meta>.compress(configuration: RowsCompression): AsyncRows<M
 
     // compute column configurations with defaults
     val columnConfigurations = headers.minus(timeColumnHeader).associate {
-        it.name to (configuration.columns[it.name] ?: ColumnCompression(configuration.skipUnchangedValues))
+        it.name to (configuration.columns[it.name] ?: ColumnCompression(configuration.skipUnchangedValues, configuration.numericDelta))
     }
 
     return object : AsyncRows<Meta> {

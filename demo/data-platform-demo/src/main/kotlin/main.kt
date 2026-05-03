@@ -10,6 +10,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.dataplatform.*
+import space.kscience.controls.dataplatform.storage.RowsCompression
+import space.kscience.controls.dataplatform.storage.launchStorageProcess
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
@@ -18,6 +20,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.*
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
 
@@ -27,11 +30,11 @@ fun main() {
     }
     val deviceManager = context.request(DeviceManager)
 
-    val numberOfOpcDevices = 4
+    val numberOfOpcDevices = 6
 
-    val numberOfModbusDevices = 2
+    val numberOfModbusDevices = 4
 
-    val propertiesPerDevice = 4
+    val propertiesPerDevice = 300
 
     val registryMap = TestDeviceRegistryMap(
         List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
@@ -105,6 +108,17 @@ fun main() {
     deviceManager.install("platform", platformDevice)
 
 //    val allDescriptors = platformDevice.propertyDescriptors
+
+    val dataDirectory = Path("data").also {
+        it.createDirectories()
+    }
+
+    val storageJob = platformDevice.launchStorageProcess(
+        directory = dataDirectory,
+        readInterval = 1.seconds,
+        maxDuration = 30.seconds,
+        compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05)
+    )
 
     context.launch {
 

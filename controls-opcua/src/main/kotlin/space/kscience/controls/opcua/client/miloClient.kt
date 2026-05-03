@@ -19,6 +19,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaSerializer
+import space.kscience.dataforge.meta.Value
 import java.util.*
 import kotlin.time.toKotlinInstant
 
@@ -85,6 +86,10 @@ public suspend inline fun <reified T : Any> OpcUaClient.readOpcWithTime(
     val time = data.serverTime ?: error("No server time provided")
     val meta: Meta = when (val content = data.value.value) {
         is T -> return ValueWithTime( content, time.javaInstant.toKotlinInstant())
+        is Number -> Meta(content)
+        is Boolean -> Meta(content)
+        is String -> Meta(content)
+        is Value -> Meta(content)
         is Meta -> content
         is ExtensionObject -> content.decode(dynamicEncodingContext) as Meta
         else -> error("Incompatible OPC property value $content")

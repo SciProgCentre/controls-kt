@@ -1,0 +1,93 @@
+package space.kscience.controls.dataplatform.storage
+
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.dataplatform.DataPlatformDevice
+import space.kscience.controls.dataplatform.DataPlatformDevice.Companion.timeColumnHeader
+import space.kscience.controls.time.clock
+import space.kscience.dataforge.io.Envelope
+import space.kscience.dataforge.meta.Meta
+import space.kscience.tables.Row
+import space.kscience.tables.RowTable
+import space.kscience.tables.get
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Instant
+
+/**
+ * Streams binary data as a flow of envelopes by periodically collecting rows of data from the platform.
+ *
+ * If [maxPause] is not null, envelopes are automatically collected when [maxPause] time passes since the last row.
+ *
+ * @param readInterval the interval between the generation of each row.
+ * @param converter the converter used to transform rows into envelopes.
+ * @param maxRows the number of rows to include in each envelope, default is 10000.
+ * @param maxDuration the maximum duration of a single envelope collection, default is 3 hours.
+ * @param maxPause the maximum delay between rows for them to be put in the same envelope, default is null.
+ * @param compression optional compression settings for rows.
+ * @param clock the clock used to measure time.
+ * @return a flow of envelopes generated from the rows.
+ */
+public fun DataPlatformDevice.flowBinaryData(
+    readInterval: Duration,
+    converter: RowsEnvelopeConverter<Meta>,
+    maxRows: Int = 10000,
+    maxDuration: Duration = 3.hours,
+    maxPause: Duration? = null,
+    compression: RowsCompression? = null,
+    clock: Clock = context.clock,
+): Flow<Envelope> {
+    val rows = if (compression == null) asRows(readInterval) else asRows(readInterval).compress(compression)
+
+    return channelFlow {
+        val rowBuffer = mutableListOf<Row<Meta>>()
+        var lastCollectionTime: Instant = clock.now()
+        var lastRowTime: Instant? = null
+        val mutex = Mutex()
+
+        suspend fun collect() {
+            //ignore if rows are empty
+            if (rowBuffer.isEmpty()) return
+            val table = RowTable(rows.headers, rowBuffer)
+            val envelope = converter.writeRows(table, Meta {
+                "time" put clock.now().toString()
+                "startTime" put rowBuffer.first()[timeColumnHeader]
+                "endTime" put rowBuffer.last()[timeColumnHeader]
+                "numberOfRows" put rowBuffer.size
+                "readInterval" put readInterval.toString()
+                "maxRows" put maxRows
+                "maxDuration" put maxDuration.toString()
+                compression?.let { "timeSerriesCompression" put compression.toMeta() }
+            })
+            send(envelope)
+            rowBuffer.clear()
+            lastCollectionTime = clock.now()
+        }
+
+        //collect envelope if more than [maxDelay] time passed since last row
+        if (maxPause != null) {
+            launch {
+                delay(maxPause)
+                lastRowTime?.let {
+                    if (clock.now() - it > maxPause) mutex.withLock { collect() }
+                }
+            }
+        }
+
+        rows.rowFlow().collect {
+            mutex.withLock {
+                val now = clock.now()
+                // if max duration is exceeded, collect and then add
+                if (now - lastCollectionTime > maxDuration) collect()
+                rowBuffer.add(it)
+                lastRowTime = now
+                if (rowBuffer.size >= maxRows) collect()
+            }
+        }
+    }
+}
