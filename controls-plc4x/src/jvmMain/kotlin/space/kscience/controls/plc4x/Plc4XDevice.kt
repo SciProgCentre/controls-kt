@@ -7,7 +7,6 @@ import org.apache.plc4x.java.api.messages.PlcTagResponse
 import org.apache.plc4x.java.api.messages.PlcWriteRequest
 import org.apache.plc4x.java.api.messages.PlcWriteResponse
 import org.apache.plc4x.java.api.types.PlcResponseCode
-import space.kscience.controls.api.Device
 import space.kscience.dataforge.meta.Meta
 
 private val PlcTagResponse.responseCodes: Map<String, PlcResponseCode>
@@ -28,22 +27,17 @@ public fun PlcTagResponse.throwOnFail() {
 }
 
 
-public interface Plc4XDevice : Device {
-    public val connection: PlcConnection
-}
-
+/**
+ * Send a ping request and suspend until it comes back
+ */
+public suspend fun PlcConnection.pingPong(): PlcResponseCode = ping().await().responseCode
 
 /**
- * Send ping request and suspend until it comes back
+ * Send a browse request to list available tags
  */
-public suspend fun Plc4XDevice.ping(): PlcResponseCode = connection.ping().await().responseCode
-
-/**
- * Send browse request to list available tags
- */
-public suspend fun Plc4XDevice.browse(): Map<String, MutableList<PlcBrowseItem>> {
-    require(connection.metadata.isBrowseSupported){"Browse actions are not supported on connection"}
-    val request = connection.browseRequestBuilder().build()
+public suspend fun PlcConnection.browse(): Map<String, MutableList<PlcBrowseItem>> {
+    require(metadata.isBrowseSupported){"Browse actions are not supported on connection"}
+    val request = browseRequestBuilder().build()
     val response = request.execute().await()
 
     return response.queryNames.associateWith { response.getValues(it) }
@@ -54,9 +48,9 @@ public suspend fun Plc4XDevice.browse(): Map<String, MutableList<PlcBrowseItem>>
  *
  * @throws PlcException
  */
-public suspend fun Plc4XDevice.read(plc4xProperty: Plc4xProperty): Meta = with(plc4xProperty) {
-    require(connection.metadata.isReadSupported) {"Read actions are not supported on connections"}
-    val request = connection.readRequestBuilder().request().build()
+public suspend fun PlcConnection.read(plc4xProperty: Plc4xProperty): Meta = with(plc4xProperty) {
+    require(metadata.isReadSupported) {"Read actions are not supported on connections"}
+    val request = readRequestBuilder().request().build()
     val response = request.execute().await()
     response.throwOnFail()
     response.readProperty()
@@ -68,9 +62,9 @@ public suspend fun Plc4XDevice.read(plc4xProperty: Plc4xProperty): Meta = with(p
  *
  * @throws PlcException
  */
-public suspend fun Plc4XDevice.write(plc4xProperty: Plc4xProperty, value: Meta): Unit = with(plc4xProperty) {
-    require(connection.metadata.isWriteSupported){"Write actions are not supported on connection"}
-    val request: PlcWriteRequest = connection.writeRequestBuilder().writeProperty(value).build()
+public suspend fun PlcConnection.write(plc4xProperty: Plc4xProperty, value: Meta): Unit = with(plc4xProperty) {
+    require(metadata.isWriteSupported){"Write actions are not supported on connection"}
+    val request: PlcWriteRequest = writeRequestBuilder().writeProperty(value).build()
     val response: PlcWriteResponse = request.execute().await()
     response.throwOnFail()
 }

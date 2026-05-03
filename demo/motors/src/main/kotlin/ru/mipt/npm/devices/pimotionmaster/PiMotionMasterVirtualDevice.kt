@@ -13,6 +13,7 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import kotlin.math.abs
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 abstract class VirtualDevice(val scope: CoroutineScope) : AsynchronousSocket<ByteArray> {
 
@@ -106,7 +107,7 @@ class PiMotionMasterVirtualDevice(
             movementJob?.cancel()
             movementJob = scope.launch {
                 while (!onTarget()) {
-                    delay(100)
+                    delay(100.milliseconds)
                     val proposedStep = velocity / 10
                     val distance = targetPosition - position
                     when {

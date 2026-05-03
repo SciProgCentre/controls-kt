@@ -254,7 +254,7 @@ public suspend fun MagixEndpoint.requestDeviceUpdate(
 public fun <T> MagixEndpoint.controlsPropertyFlow(
     endpointName: String,
     deviceName: Name,
-    propertySpec: DevicePropertySpec<*, T>,
+    propertySpec: DevicePropertySpec<T>,
 ): Flow<T> {
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
 
@@ -270,7 +270,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
     sourceEndpointName: String,
     targetEndpointName: String,
     deviceName: Name,
-    propertySpec: DevicePropertySpec<*, T>,
+    propertySpec: DevicePropertySpec<T>,
     value: T,
 ) {
     val message = PropertySetMessage(
@@ -288,7 +288,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
 public fun <T> MagixEndpoint.controlsPropertyMessageFlow(
     endpointName: String,
     deviceName: Name,
-    propertySpec: DevicePropertySpec<*, T>,
+    propertySpec: DevicePropertySpec<T>,
 ): Flow<Pair<PropertyChangedMessage, T>> {
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
 

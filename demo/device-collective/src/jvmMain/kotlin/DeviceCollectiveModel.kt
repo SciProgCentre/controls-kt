@@ -109,7 +109,7 @@ internal class DeviceCollectiveModel(
     }
 
     val devices = deviceStates.associate { state ->
-        val device = CollectiveDeviceConstructor(
+        val device = CollectiveDevice(
             context = context,
             configuration = state.configuration,
             position = state.position,
@@ -121,7 +121,7 @@ internal class DeviceCollectiveModel(
         state.id to device
     }
 
-    internal fun createTrawler(position: Gmc, id: CollectiveDeviceId = "trawler"): CollectiveDeviceConstructor {
+    internal fun createTrawler(position: Gmc, id: CollectiveDeviceId = "trawler"): CollectiveDevice {
         val state = CollectiveDeviceState(
             id = id,
             configuration = CollectiveDeviceConfiguration(id),
@@ -129,7 +129,7 @@ internal class DeviceCollectiveModel(
             velocity = MutableValueState(GmcVelocity.zero)
         )
 
-        val result = CollectiveDeviceConstructor(
+        val result = CollectiveDevice(
             context = context,
             configuration = state.configuration,
             position = state.position,
@@ -232,14 +232,14 @@ fun DeviceClient.moveInCircles(scope: CoroutineScope = this): Job = scope.launch
     var bearing = Random.nextDouble(-PI, PI).radians
     write(CollectiveDevice.velocity, GmcVelocity(bearing, deviceVelocity))
     while (isActive) {
-        delay(500)
+        delay(500.milliseconds)
         bearing += 5.degrees
         write(CollectiveDevice.velocity, GmcVelocity(bearing, deviceVelocity))
     }
 }
 
 
-internal fun CollectiveDeviceConstructor.moveTo(
+internal fun CollectiveDevice.moveTo(
     targetPosition: Gmc,
     speedLimit: Distance = deviceVelocity,
     scope: CoroutineScope = this,

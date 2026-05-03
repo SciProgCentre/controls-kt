@@ -64,7 +64,7 @@ public fun <T> Device.collectPropertyHistory(
 
 public fun <D : Device, T> D.collectPropertyHistory(
     scope: CoroutineScope = this,
-    spec: DevicePropertySpec<D, T>,
+    spec: DevicePropertySpec<T>,
     deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
 ): PropertyHistory<T> = collectPropertyHistory(scope, spec.name, spec.converter, deviceName, maxSize)

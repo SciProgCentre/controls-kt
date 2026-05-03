@@ -2,6 +2,8 @@ import space.kscience.gradle.Maturity
 
 plugins {
     id("space.kscience.gradle.mpp")
+    alias(spclibs.plugins.atomicfu)
+
     `maven-publish`
 }
 

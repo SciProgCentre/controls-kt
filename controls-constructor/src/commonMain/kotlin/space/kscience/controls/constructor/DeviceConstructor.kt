@@ -91,7 +91,7 @@ public fun <T, S : ValueState<T>> DeviceConstructor.property(
     }
 
 /**
- * Register external state as a property
+ * Register an external state as a property
  */
 public fun <T : Any> DeviceConstructor.property(
     metaConverter: MetaConverter<T>,
@@ -141,7 +141,7 @@ public fun <T> DeviceConstructor.virtualProperty(
 )
 
 public fun <T, S : ValueState<T>> DeviceConstructor.registerAsProperty(
-    spec: DevicePropertySpec<*, T>,
+    spec: DevicePropertySpec<T>,
     state: S,
 ): S {
     registerProperty(spec.converter, spec.descriptor, state)

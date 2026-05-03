@@ -1,6 +1,3 @@
-import space.kscience.gradle.useApache2Licence
-import space.kscience.gradle.useSPCTeam
-
 plugins {
     id("space.kscience.gradle.project")
     alias(libs.plugins.versions)
@@ -8,7 +5,7 @@ plugins {
 
 allprojects {
     group = "space.kscience"
-    version = "0.4.0-dev-9"
+    version = "0.4.0-dev-10"
     repositories{
         google()
     }

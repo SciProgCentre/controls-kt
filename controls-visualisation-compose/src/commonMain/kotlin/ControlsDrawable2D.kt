@@ -25,8 +25,7 @@ public data class CircleDrawable2D(val position: Offset, val radius: Float, val 
     }
 }
 
-@Drawable2DBuilder
-public fun ControlsDrawable2DStore.circle(id: String, position: Offset, radius: Float, color: Color) {
+public suspend fun ControlsDrawable2DBuilder.circle(id: String, position: Offset, radius: Float, color: Color) {
     emit(id, CircleDrawable2D(position, radius, color))
 }
 
@@ -51,8 +50,8 @@ public data class RectangleDrawable2D(
     }
 }
 
-@Drawable2DBuilder
-public fun ControlsDrawable2DStore.rectangle(
+
+public suspend fun ControlsDrawable2DBuilder.rectangle(
     id: String,
     position: Offset,
     rectangleSize: Size,

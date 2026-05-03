@@ -1,6 +1,7 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,7 +59,7 @@ private class MutableExternalValueState<T>(
         }
 
     override suspend fun emit(value: T) {
-        withContext(scope.coroutineContext) {
+        withContext(scope.coroutineContext.minusKey(Job)) {
             writer(value)
         }
     }

@@ -6,6 +6,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
+import space.kscience.controls.api.Device
 import space.kscience.controls.api.valueType
 import space.kscience.controls.constructor.*
 import space.kscience.controls.time.ValueWithTime
@@ -27,7 +28,7 @@ enum class ThermoSensorStatus {
 }
 
 class ThermoSensorAnalyzer(
-    val sensor: ThermoSensor,
+    val sensor: Device,
     val analyzerConfig: ThermoSensorAnalyzerConfig
 ) : DeviceConstructor(sensor.context, analyzerConfig.meta) {
     init {
@@ -36,7 +37,7 @@ class ThermoSensorAnalyzer(
 
     val temperature by property(
         converter = MetaConverter.Companion.double,
-        state = sensor.propertyAsState(ThermoSensor.temperature, Double.NaN),
+        state = sensor.propertyAsState(ThermoSensorSpec.temperature, Double.NaN),
         descriptorBuilder = {
             valueType(ValueType.NUMBER)
         }

@@ -113,7 +113,7 @@ fun App() {
 
     var movementProgram: Job? by remember { mutableStateOf(null) }
 
-    val trawler: CollectiveDeviceConstructor = remember {
+    val trawler: CollectiveDevice = remember {
         collectiveModel.createTrawler(Gmc.ofDegrees(55.925, 37.50))
     }
 

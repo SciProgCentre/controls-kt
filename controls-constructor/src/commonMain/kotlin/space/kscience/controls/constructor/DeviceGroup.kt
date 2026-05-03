@@ -28,7 +28,7 @@ import kotlin.time.Clock
 public open class DeviceGroup(
     final override val context: Context,
     override val meta: Meta,
-) : DeviceHub, CachingDevice {
+) : ParentDevice, CachingDevice {
 
     private class Property<T>(
         val state: ValueState<T>,
@@ -183,8 +183,8 @@ public open class DeviceGroup(
 
 
     override suspend fun start() {
+        super<CachingDevice>.start()
         setLifecycleState(STARTING)
-        super.start()
         devices.values.forEach {
             it.start()
         }
@@ -196,7 +196,7 @@ public open class DeviceGroup(
             it.stop()
         }
         setLifecycleState(STOPPED)
-        super.stop()
+        super<CachingDevice>.stop()
     }
 
     override val clock: Clock = context.clock
@@ -204,7 +204,7 @@ public open class DeviceGroup(
     public companion object
 }
 
-public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<*, T>, state: ValueState<T>) {
+public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<T>, state: ValueState<T>) {
     registerProperty(propertySpec.converter, propertySpec.descriptor, state)
 }
 

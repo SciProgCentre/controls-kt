@@ -18,9 +18,7 @@ import space.kscience.controls.manager.install
 import space.kscience.controls.manager.respondHubMessage
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.names.asName
@@ -63,23 +61,17 @@ class VirtualMagixEndpoint(val hub: DeviceHub) : MagixEndpoint {
 
 internal class RemoteDeviceConnect {
 
-    class TestDevice(context: Context, meta: Meta) : DeviceBySpec<TestDevice>(TestDevice, context, meta) {
-        private val rng = Random(meta["seed"].int ?: 0)
+    object TestDevice : DeviceFactory<Random>() {
 
-        private val randomValue get() = rng.nextDouble()
-
-        companion object : DeviceSpec<TestDevice>(), Factory<TestDevice> {
-
-            override fun build(context: Context, meta: Meta): TestDevice = TestDevice(context, meta)
-
-            val value by doubleProperty { randomValue }
-
-            override suspend fun TestDevice.onOpen() {
-                doRecurring((meta["delay"].int ?: 10).milliseconds) {
-                    read(value)
-                }
+        context(device: DeviceBase)
+        override suspend fun createState(): Random {
+            device.doRecurring((device.meta["delay"].int ?: 10).milliseconds) {
+                device.read(value)
             }
+            return Random(device.meta["seed"].int ?: 0)
         }
+
+        val value by doubleProperty { nextDouble() }
     }
 
     @Test
@@ -107,7 +99,7 @@ internal class RemoteDeviceConnect {
         val deviceManager = context.request(DeviceManager)
 
         launch {
-            delay(50)
+            delay(50.milliseconds)
             repeat(10) {
                 deviceManager.install("test[$it]", TestDevice)
             }
@@ -119,11 +111,11 @@ internal class RemoteDeviceConnect {
 
         assertEquals(0, remoteHub.devices.size)
 
-        delay(60)
+        delay(60.milliseconds)
         //switch context to use actual delay
         withContext(Dispatchers.Default) {
             virtualMagixEndpoint.requestDeviceUpdate("client", "device")
-            delay(30)
+            delay(30.milliseconds)
             assertEquals(10, remoteHub.devices.size)
         }
     }
