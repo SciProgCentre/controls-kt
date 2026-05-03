@@ -15,9 +15,11 @@ kscience {
     commonMain {
         api(projects.controlsCore)
         api(projects.controlsConstructor)
+
         api(projects.controlsPlc4x)
         api(projects.controlsOpcua)
         api(projects.controlsModbus)
+
         api(libs.kmath.stat)
         api(libs.tables.kt)
     }

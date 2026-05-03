@@ -27,7 +27,7 @@ private class VirtualValueState<T>(
         flow.emit(value)
     }
 
-    override fun toString(): String = "VirtualDeviceState($value)"
+    override fun toString(): String = "ValueState.Virtual($value)"
 }
 
 
@@ -50,6 +50,6 @@ public fun <T> ValueState(
 
     override fun subscribe(): Flow<T> = flowOf(value)
 
-    override fun toString(): String = "ConstDeviceState($value)"
+    override fun toString(): String = "ValueState.Const($value)"
 
 }

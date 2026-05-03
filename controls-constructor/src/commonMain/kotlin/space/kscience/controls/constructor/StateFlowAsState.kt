@@ -22,4 +22,4 @@ private class StateFlowAsState<T>(
  * Create a read-only [ValueState] that wraps [MutableStateFlow].
  * No data copy is performed.
  */
-public fun <T> MutableStateFlow<T>.asDeviceState(): MutableValueState<T> = StateFlowAsState(this)
+public fun <T> MutableStateFlow<T>.asValueState(): MutableValueState<T> = StateFlowAsState(this)
