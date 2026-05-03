@@ -127,22 +127,27 @@ public class DataPlatformDevice(
     }
 
     /**
+     * Read current values of all properties
+     */
+    public suspend fun readValues(): Map<Name, Meta> = values
+
+    /**
      * Starts generating a flow of rows for the current data platform with a specified interval.
      *
      * @param interval the interval between row generation.
      */
-    public fun asRows(
+    public fun readTimeSeries(
         interval: Duration,
     ): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> get() = tableHeaders
 
-        private val rowFlow: Flow<TimeSeriesValues<Meta>> = flow {
+        private val rowFlow: StateFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
-        }
+        }.stateIn(this@DataPlatformDevice, SharingStarted.Eagerly, ValueWithTime(emptyMap(), clock.now()))
 
         override fun subscribe() = rowFlow
 

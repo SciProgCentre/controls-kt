@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.hours
  * @param clock the clock instance used to timestamp the collected data. Defaults to the device's default clock.
  * @param envelopeFormat the format used for encoding the data envelope. Defaults to `TaggedEnvelopeFormat`.
  *
- * @return a `Job` representing the lifecycle of the data collection and storage process. This job can be canceled to stop the operation.
+ * @return a [Job] representing the lifecycle of the data collection and storage process. This job can be canceled to stop the operation.
  */
 public fun DataPlatformDevice.launchStorageProcess(
     directory: Path,

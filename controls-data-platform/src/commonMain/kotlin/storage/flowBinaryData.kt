@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.dataplatform.DataPlatformDevice
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.dataplatform.timeseries.toRow
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
@@ -41,7 +42,8 @@ public fun DataPlatformDevice.flowBinaryData(
     compression: RowsCompression? = null,
     clock: Clock = context.clock,
 ): Flow<Envelope> {
-    val rows = if (compression == null) asRows(readInterval) else asRows(readInterval).compress(compression)
+    val rows =
+        if (compression == null) readTimeSeries(readInterval) else readTimeSeries(readInterval).compress(compression)
 
     return channelFlow {
         val rowBuffer = mutableListOf<TimeSeriesValues<Meta>>()
@@ -52,9 +54,11 @@ public fun DataPlatformDevice.flowBinaryData(
         suspend fun collect() {
             //ignore if rows are empty
             if (rowBuffer.isEmpty()) return
+            val now = clock.now()
+            
             val table = RowTable(rows.headers, rowBuffer.map { it.toRow() })
             val envelope = converter.writeRows(table, Meta {
-                "time" put clock.now().toString()
+                "time" put now.toString()
                 "startTime" put rowBuffer.first().time.toString()
                 "endTime" put rowBuffer.last().time.toString()
                 "numberOfRows" put rowBuffer.size
@@ -65,7 +69,13 @@ public fun DataPlatformDevice.flowBinaryData(
             })
             send(envelope)
             rowBuffer.clear()
-            lastCollectionTime = clock.now()
+
+            // put a line with all values at the beginning of each block to avoid having unknown start values in binary blocks
+            if (compression != null) {
+                rowBuffer.add(ValueWithTime(readValues().mapKeys { it.key.toString() }, now))
+            }
+
+            lastCollectionTime = now
         }
 
         //collect envelope if more than [maxDelay] time passed since last row
