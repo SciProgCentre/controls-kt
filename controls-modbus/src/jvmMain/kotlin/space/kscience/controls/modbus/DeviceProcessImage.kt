@@ -17,7 +17,6 @@ import space.kscience.controls.spec.useProperty
 import space.kscience.controls.spec.write
 import space.kscience.controls.spec.writeAsync
 import space.kscience.dataforge.io.Binary
-import kotlin.time.Duration.Companion.milliseconds
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaReader
 import kotlin.time.Duration.Companion.milliseconds
@@ -189,7 +188,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
             }.launchIn(device)
     }
 
-    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: MutableDevicePropertySpec<D, T>) {
+    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: DevicePropertySpec<T>) {
         val registers = List(key.count) {
             ObservableRegister()
         }

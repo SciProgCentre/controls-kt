@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import space.kscience.controls.constructor.TimerState
-import space.kscience.controls.opcua.client.readValueWithTime
+import space.kscience.controls.opcua.client.readOpcWithTime
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.time.ClockManager
@@ -95,7 +95,7 @@ public class OpcPlatformProperty(
 ) : PlatformProperty {
     override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
         val client = platform.resolveOpcClient(source)
-        return client.readValueWithTime(NodeId.parse(nodeId), MetaConverter.meta)
+        return client.readOpcWithTime(NodeId.parse(nodeId), MetaConverter.meta)
     }
 }
 

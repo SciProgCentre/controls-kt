@@ -20,7 +20,7 @@ internal fun Array<out InputRegister>.toByteBuffer(): ByteBuffer {
 }
 
 /**
- * Convert array of input registers to a kotlinx-io buffer
+ * Convert the array of input registers to a kotlinx-io buffer
  */
 internal fun Array<out InputRegister>.toBuffer(): Buffer = Buffer {
     forEach { value ->
@@ -41,7 +41,7 @@ public fun AbstractModbusMaster.readInputRegister(unitId: Int, key: ModbusRegist
 public fun <T> AbstractModbusMaster.readInputRegisters(unitId: Int, key: ModbusRegistryKey.InputRange<T>): T =
     readInputRegisters(unitId, key.address, key.count).toBuffer().let(key.format::readFrom)
 
-public fun AbstractModbusMaster.readHoldingRegister(unitId: Int,key: ModbusRegistryKey.HoldingRegister): Short =
+public fun AbstractModbusMaster.readHoldingRegister(unitId: Int, key: ModbusRegistryKey.HoldingRegister): Short =
     readMultipleRegisters(unitId, key.address, 1).first().toShort()
 
 public fun <T> AbstractModbusMaster.readHoldingRegisters(unitId: Int, key: ModbusRegistryKey.HoldingRange<T>): T =

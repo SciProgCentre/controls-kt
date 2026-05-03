@@ -19,9 +19,6 @@ kotlin {
 val ktorVersion: String by rootProject.extra
 val dataforgeVersion: String by extra
 
-kscience {
-    useContextParameters()
-}
 
 dependencies {
     implementation(projects.controlsPortsKtor)

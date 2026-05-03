@@ -47,5 +47,5 @@ public class DeviceTimeSeriesSource<T>(
  */
 public fun <T, D: Device> DeviceTimeSeriesSource(
     device: D,
-    propertySpec: DevicePropertySpec<D,T>
+    propertySpec: DevicePropertySpec<T>
 ): DeviceTimeSeriesSource<T> = DeviceTimeSeriesSource(device, propertySpec.name, propertySpec.converter)

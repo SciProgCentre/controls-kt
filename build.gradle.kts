@@ -1,3 +1,6 @@
+import space.kscience.gradle.useApache2Licence
+import space.kscience.gradle.useSPCTeam
+
 plugins {
     id("space.kscience.gradle.project")
     alias(libs.plugins.versions)

@@ -1,6 +1,5 @@
 package space.kscience.controls.spec
 
-import kotlinx.coroutines.Job
 import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.metaDescriptor
@@ -68,9 +67,6 @@ public abstract class AbstractDeviceSpec : DeviceSpec {
                 descriptor = descriptor,
             )
 
-                override suspend fun read(device: D): T? =
-                    withContext(device.coroutineContext.minusKey(Job)) { device.read(propertyName) }
-            }
             registerProperty(deviceProperty)
             ReadOnlyProperty<DeviceSpec, DevicePropertySpec<T>> { _, _ ->
                 deviceProperty

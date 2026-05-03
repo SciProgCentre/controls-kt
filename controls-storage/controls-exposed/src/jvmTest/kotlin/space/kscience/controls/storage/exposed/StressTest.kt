@@ -19,7 +19,7 @@ class StressTest {
     public fun testReadWrite(): Unit = runBlocking(Dispatchers.IO) {
 
         val database = Database.connect(
-            url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;"
+            url = "jdbc:h2:mem:stresstest;DB_CLOSE_DELAY=-1;"
         )
 
         val storage = ExposedDeviceMessageStorage(database)

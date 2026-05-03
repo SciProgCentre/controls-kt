@@ -26,7 +26,7 @@ class ExposedDeviceMessageStorageTest {
         @BeforeAll
         @JvmStatic
         fun setup() {
-            database = Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", "org.h2.Driver")
+            database = Database.connect("jdbc:h2:mem:messages;DB_CLOSE_DELAY=-1;", "org.h2.Driver")
         }
 
         @AfterAll

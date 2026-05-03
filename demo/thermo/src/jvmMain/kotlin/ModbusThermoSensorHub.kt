@@ -4,6 +4,7 @@ import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
+import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.names.asName
@@ -35,7 +36,9 @@ class ModbusThermoSensorHub(
                 context = context,
                 master = master,
                 unitId = modbusConfig.unitId ?: 0,
-                address = modbusConfig.address ?: error("Modbus address is not defined for thermo sensor $name."),
+                key = ModbusRegistryKey.InputRegister(
+                    modbusConfig.address ?: error("Modbus address is not defined for thermo sensor $name.")
+                ),
                 meta = sensorConfig.meta
             ),
             analyzerConfig = ThermoSensorAnalyzerConfig.combine(sensorConfig.analyzer, configuration.analyzerDefault)
