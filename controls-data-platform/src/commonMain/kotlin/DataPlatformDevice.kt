@@ -141,13 +141,13 @@ public class DataPlatformDevice(
     ): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> get() = tableHeaders
 
-        private val rowFlow: StateFlow<TimeSeriesValues<Meta>> = flow {
+        private val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
-        }.stateIn(this@DataPlatformDevice, SharingStarted.Eagerly, ValueWithTime(emptyMap(), clock.now()))
+        }.shareIn(this@DataPlatformDevice, SharingStarted.WhileSubscribed())
 
         override fun subscribe() = rowFlow
 
