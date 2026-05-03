@@ -6,6 +6,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
@@ -142,7 +144,7 @@ public class DataPlatformDevice(
             }
         }
 
-        override fun rowFlow() = rowFlow
+        override fun subscribe() = rowFlow
 
     }
 

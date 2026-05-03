@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
 import space.kscience.controls.dataplatform.DataPlatformDevice
-import space.kscience.controls.dataplatform.TimeSeriesRows
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.dataforge.meta.Meta
 import space.kscience.tables.*
 import kotlin.reflect.typeOf
@@ -23,7 +23,7 @@ class CompressionTest {
 
     private fun createAsyncRows(rows: List<Row<Meta>>): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> = testHeaders
-        override fun rowFlow(): Flow<Row<Meta>> = rows.asFlow()
+        override fun subscribe(): Flow<Row<Meta>> = rows.asFlow()
     }
 
     @Test
@@ -53,7 +53,7 @@ class CompressionTest {
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(RowsCompression(skipUnchangedRows = true))
-        val result = compressed.rowFlow().toList()
+        val result = compressed.subscribe().toList()
 
         assertEquals(2, result.size)
         assertEquals(10.0.asMeta(), result[0]["v1"])
@@ -87,7 +87,7 @@ class CompressionTest {
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(RowsCompression(skipUnchangedRows = false, skipUnchangedValues = true))
-        val result = compressed.rowFlow().toList()
+        val result = compressed.subscribe().toList()
 
         assertEquals(3, result.size)
 
@@ -128,7 +128,7 @@ class CompressionTest {
                 columns = mapOf("v1" to ColumnCompression(numericDelta = 1.0))
             )
         )
-        val result = compressed.rowFlow().toList()
+        val result = compressed.subscribe().toList()
 
         assertEquals(3, result.size)
         assertEquals(10.0.asMeta(), result[0]["v1"])
@@ -167,7 +167,7 @@ class CompressionTest {
                 skipUnchangedValues = true
             )
         )
-        val result = compressed.rowFlow().toList()
+        val result = compressed.subscribe().toList()
 
         assertEquals(2, result.size)
         // Row 1: all present

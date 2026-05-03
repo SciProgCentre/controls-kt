@@ -4,8 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import space.kscience.controls.dataplatform.DataPlatformDevice.Companion.timeColumnHeader
-import space.kscience.controls.dataplatform.TimeSeriesRows
-import space.kscience.controls.dataplatform.TimeSeriesValues
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaRepr
@@ -83,10 +83,10 @@ public fun TimeSeriesRows<Meta>.compress(configuration: RowsCompression): TimeSe
     return object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> = this@compress.headers
 
-        override fun rowFlow(): Flow<TimeSeriesValues<Meta>> = flow {
+        override fun subscribe(): Flow<TimeSeriesValues<Meta>> = flow {
             var previousValues: Map<String, Meta?>? = null
 
-            this@compress.rowFlow().collect { row: TimeSeriesValues<Meta> ->
+            this@compress.subscribe().collect { row: TimeSeriesValues<Meta> ->
                 //values except time value
 
                 when {

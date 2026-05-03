@@ -7,8 +7,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.dataplatform.DataPlatformDevice
-import space.kscience.controls.dataplatform.TimeSeriesValues
-import space.kscience.controls.dataplatform.toRow
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
+import space.kscience.controls.dataplatform.timeseries.toRow
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
@@ -78,7 +78,7 @@ public fun DataPlatformDevice.flowBinaryData(
             }
         }
 
-        rows.rowFlow().collect {
+        rows.subscribe().collect {
             mutex.withLock {
                 val now = clock.now()
                 // if max duration is exceeded, collect and then add

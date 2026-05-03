@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.dataplatform.timeseries
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,14 +26,14 @@ public interface TimeSeriesRows<T> {
     /**
      * A dynamic flow of rows
      */
-    public fun rowFlow(): Flow<TimeSeriesValues<T>>
+    public fun subscribe(): Flow<TimeSeriesValues<T>>
 }
 
 /**
  * Collect [rowNum] rows from the source and represent them as a table
  */
 public suspend fun <T> TimeSeriesRows<T>.collectTable(rowNum: Int): RowTable<T> {
-    val rows = rowFlow().map {
+    val rows = subscribe().map {
         it.toRow()
     }.take(rowNum).toList()
 
@@ -56,7 +56,7 @@ public fun <T> TimeSeriesRows<Meta>.readWith(
         SimpleColumnHeader(it.name, valueType.kType, it.meta)
     }
 
-    override fun rowFlow(): Flow<TimeSeriesValues<T>> = this@readWith.rowFlow().map { row ->
+    override fun subscribe(): Flow<TimeSeriesValues<T>> = this@readWith.subscribe().map { row ->
         ValueWithTime(
             row.value.mapValues { entry -> reader.read(entry.value) },
             row.time
