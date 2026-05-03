@@ -1,0 +1,107 @@
+package space.kscience.controls.dataplatform.storage
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.Serializable
+import space.kscience.controls.dataplatform.AsyncRows
+import space.kscience.controls.dataplatform.DataPlatformDevice.Companion.timeColumnHeader
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.double
+import space.kscience.tables.MapRow
+import space.kscience.tables.Row
+import space.kscience.tables.TableHeader
+import space.kscience.tables.get
+import kotlin.math.abs
+
+
+@Serializable
+public data class ColumnCompression(
+    val skipUnchangedValues: Boolean = true,
+    val numericDelta: Double? = null
+)
+
+@Serializable
+public data class RowsCompression(
+    val skipUnchangedRows: Boolean = true,
+    val skipUnchangedValues: Boolean = false,
+    val columns: Map<String, ColumnCompression> = emptyMap(),
+)
+
+public val RowsCompression.hasCompression: Boolean get() = skipUnchangedRows || skipUnchangedValues || columns.isNotEmpty()
+
+
+private fun Row<Meta>.toMap(header: TableHeader<Meta>): Map<String, Meta?> = if (this is MapRow) {
+    this.values
+} else {
+    header.associate { it.name to get(it) }
+}
+
+/**
+ * Compresses the rows of the current asynchronous dataset based on the provided configuration.
+ *
+ * This method applies row-level compression to reduce redundancy in the dataset. For instance,
+ * if `skipUnchangedRows` in the configuration is enabled, consecutive rows with identical
+ * data are omitted from the emitted flow.
+ *
+ * @param configuration Configuration that specifies compression behavior, including options
+ * such as skipping unchanged rows.
+ * @return A new instance of `AsyncRows` where row-level compression has been applied
+ * based on the given configuration.
+ */
+public fun AsyncRows<Meta>.compress(configuration: RowsCompression): AsyncRows<Meta> {
+    if (!configuration.hasCompression) return this
+
+    // compute column configurations with defaults
+    val columnConfigurations = headers.minus(timeColumnHeader).associate {
+        it.name to (configuration.columns[it.name] ?: ColumnCompression(configuration.skipUnchangedValues))
+    }
+
+    return object : AsyncRows<Meta> {
+        override val headers: TableHeader<Meta> = this@compress.headers
+
+        override fun rowFlow(): Flow<Row<Meta>> = flow {
+            var previousValues: Map<String, Meta?>? = null
+
+            this@compress.rowFlow().collect { row: Row<Meta> ->
+                //values except time value
+                val values = row.toMap(headers).minus(timeColumnHeader.name)
+                val time = row[timeColumnHeader.name]
+
+                when {
+                    configuration.skipUnchangedRows && values == previousValues -> {
+                        return@collect
+                    }
+
+                    configuration.skipUnchangedValues || configuration.columns.isNotEmpty() -> {
+
+                        val changedValues = values.filter { (key, value) ->
+                            //if the field is unknown, skip it just in case
+                            val config = columnConfigurations[key] ?: return@filter true
+                            //if value is the same, keep it only if filtering is off
+                            if (value == previousValues?.get(key)) return@filter !config.skipUnchangedValues
+
+                            //if numeric delta is specified, check it
+                            if (config.numericDelta != null) {
+                                // if current or previous value does not exist, skip
+                                val previousNumeric = previousValues?.get(key)?.double ?: return@filter true
+                                val numeric = value?.double ?: return@filter true
+                                abs(numeric - previousNumeric) > config.numericDelta
+                            } else {
+                                true
+                            }
+                        }
+
+                        previousValues = (previousValues ?: emptyMap()) + changedValues
+
+                        emit(MapRow(changedValues + (timeColumnHeader.name to time)))
+                    }
+
+                    else -> {
+                        emit(row)
+                        previousValues = values
+                    }
+                }
+            }
+        }
+    }
+}

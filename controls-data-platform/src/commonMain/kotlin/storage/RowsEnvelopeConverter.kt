@@ -26,6 +26,14 @@ public interface RowsEnvelopeConverter<T> {
     public fun writeRows(rows: Rows<T>): Envelope
 }
 
+/**
+ * A converter implementation for transforming rows of data into a compressed envelope format
+ * and vice versa, using serialization and meta-conversion tools.
+ *
+ * @param T The type of the data in the rows.
+ * @property converter A metadata-based converter used for serializing and deserializing individual cell values.
+ * @property type The safe type information associated with the data type of the rows.
+ */
 public class ZipRowsEnvelopeConverter<T>(
     public val converter: MetaConverter<T>,
     public val type: SafeType<T>

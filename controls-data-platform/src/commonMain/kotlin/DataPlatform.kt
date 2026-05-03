@@ -12,6 +12,16 @@ import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import space.kscience.dataforge.names.Name
 import kotlin.time.Clock
 
+/**
+ * The [DataPlatform] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
+ * It provides methods to resolve clients for each source type based on their configurations.
+ * The class also supports time zone and clock customization and implements the `AutoCloseable` interface for resource management.
+ *
+ * @param scope The `CoroutineScope` used for managing coroutine lifetimes in asynchronous operations.
+ * @param configuration The configuration object that contains the sources, timers, and properties for the platform.
+ * @param timeZone The time zone setting for the platform, defaulting to the system's current time zone.
+ * @param clock The clock instance used for time-related operations, defaulting to the system clock.
+ */
 public class DataPlatform(
     private val scope: CoroutineScope,
     public val configuration: DataPlatformConfiguration,

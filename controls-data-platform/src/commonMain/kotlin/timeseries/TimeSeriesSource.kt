@@ -31,7 +31,7 @@ public interface TimeSeriesSource<T> {
 /**
  * A source of time series values from a device property
  */
-public class DeviceTimeSeriesSource<T>(
+public class PropertyTimeSeriesSource<T>(
     public val device: Device,
     public val propertyName: String,
     public val converter: MetaConverter<T>,
@@ -45,7 +45,7 @@ public class DeviceTimeSeriesSource<T>(
 /**
  * Create a time series source from a device property spec
  */
-public fun <T, D: Device> DeviceTimeSeriesSource(
+public fun <T, D: Device> PropertyTimeSeriesSource(
     device: D,
     propertySpec: DevicePropertySpec<T>
-): DeviceTimeSeriesSource<T> = DeviceTimeSeriesSource(device, propertySpec.name, propertySpec.converter)
+): PropertyTimeSeriesSource<T> = PropertyTimeSeriesSource(device, propertySpec.name, propertySpec.converter)

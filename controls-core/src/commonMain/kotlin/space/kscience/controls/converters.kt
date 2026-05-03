@@ -15,7 +15,7 @@ import kotlin.time.DurationUnit
 import kotlin.time.Instant
 import kotlin.time.toDuration
 
-public fun Double.asMeta(): Meta = Meta(asValue())
+public fun Number.asMeta(): Meta = Meta(asValue())
 
 /**
  * Generate a nullable [MetaConverter] from non-nullable one

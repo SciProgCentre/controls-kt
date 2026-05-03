@@ -32,6 +32,20 @@ internal fun SeriesAlgebra.Companion.labeledByTime(
 
 //TODO consider using other types
 
+/**
+ * A class for collecting and managing time series data from multiple sources within a specified time range.
+ *
+ * @constructor Initializes the collector with the given configuration and starts monitoring the sources.
+ * @param scope The scope for launching coroutines that manage the collection tasks.
+ * @param zero The starting point of the time series in terms of a specific instant of time.
+ * @param step The time interval between consecutive data points in the time series.
+ * @param size The maximum number of data points to retain for each time series.
+ * @param sources A map of source identifiers to their corresponding time series data sources.
+ * @param clock The clock used to measure time. Defaults to the system clock.
+ *
+ * @property series A map containing the rolling series for each source, indexed by their identifiers.
+ * The series are updated dynamically as new data is collected from the sources.
+ */
 public class TimeSeriesCollector(
     public val scope: CoroutineScope,
     public val zero: Instant,

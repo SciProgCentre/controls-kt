@@ -1,7 +1,10 @@
 package space.kscience.controls.dataplatform
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
@@ -109,10 +112,6 @@ public class DataPlatformDevice(
         super.stop()
     }
 
-    private val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("time") {
-        title = "Time"
-    }
-
     private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.properties.map { (name, property) ->
         SimpleColumnHeader(name.toString(), typeOf<Meta>(), property.meta)
     }
@@ -126,34 +125,29 @@ public class DataPlatformDevice(
      * Starts generating a flow of rows for the current data platform with a specified interval.
      *
      * @param interval the interval between row generation.
-     * @param skipUnchangedRows if true, skip rows that are identical to the previous one.
      */
     public fun asRows(
         interval: Duration,
-        skipUnchangedRows: Boolean = true,
-        scope: CoroutineScope = this
     ): AsyncRows<Meta> = object : AsyncRows<Meta> {
         override val headers: TableHeader<Meta> get() = tableHeaders
 
-        private val rowFlow: SharedFlow<Row<Meta>> = flow {
-            var previousValues: Map<String, Meta>? = null
+        private val rowFlow: Flow<Row<Meta>> = flow {
             while (true) {
                 val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
                 val valueMap = values + (timeColumnHeader.name to Meta(clock.now().toString()))
-                if (skipUnchangedRows) {
-                    if (values == previousValues) {
-                        continue
-                    } else {
-                        previousValues = values
-                    }
-                }
                 emit(MapRow(valueMap))
                 delay(interval)
             }
-        }.shareIn(scope, SharingStarted.WhileSubscribed())
+        }
 
-        override fun rowFlow(): SharedFlow<Row<Meta>> = rowFlow
+        override fun rowFlow(): Flow<Row<Meta>> = rowFlow
 
+    }
+
+    public companion object{
+        internal val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
+            title = "Time"
+        }
     }
 
 }

@@ -64,6 +64,9 @@ public data class PlcConfig(
 ) : PlatformSourceConfiguration
 
 
+/**
+ * Represents a platform-specific property that can be read from a data platform.
+ */
 @Serializable
 public sealed interface PlatformProperty {
     /**
