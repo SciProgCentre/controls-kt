@@ -1,6 +1,7 @@
 
 plugins {
     id("space.kscience.gradle.jvm")
+    kotlin("plugin.serialization")
     application
 }
 

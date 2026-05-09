@@ -30,8 +30,24 @@ import java.io.File
 
 fun main() = runBlocking {
     println("Generating Rust code...")
-    MetaRustGenerator.generateToFile(DemoDevice, "build/generated/rust/device.rs")
-    println("Rust code generated at build/generated/rust/device.rs")
+    val handlerPath = "build/generated/rust/device.rs"
+    val handlerFile = File(handlerPath)
+    val codecPath = buildString {
+        append(handlerFile.parentFile?.path ?: ".")
+        append('/')
+        append(handlerFile.nameWithoutExtension)
+        append("_codec.rs")
+    }
+    val supportPath = buildString {
+        append(handlerFile.parentFile?.path ?: ".")
+        append('/')
+        append(handlerFile.nameWithoutExtension)
+        append("_support.rs")
+    }
+    MetaRustGenerator.generateToFile(DemoDevice, handlerPath)
+    println("Rust API facade generated at $handlerPath")
+    println("Rust codec generated at $codecPath")
+    println("Rust support module generated at $supportPath")
 
     val context = Context("ProtoDemo") {
         plugin(Ports)

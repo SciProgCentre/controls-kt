@@ -12,7 +12,7 @@ public class RustStruct(private val name: String) : RustElement {
     }
 
     override fun render(builder: StringBuilder, indent: String) {
-        builder.append("$indent#[derive(Debug, Default)]\n")
+        builder.append("$indent#[derive(Debug, Default, Clone)]\n")
         builder.append("${indent}pub struct $name {\n")
         fields.forEach { (n, t) ->
             builder.append("$indent    pub $n: $t,\n")
@@ -24,8 +24,15 @@ public class RustStruct(private val name: String) : RustElement {
 public class RustImpl(private val structName: String) : RustElement {
     private val methods = mutableListOf<RustFunction>()
 
-    public fun fn(name: String, args: String = "", returnType: String? = null, modifiers: String = "", init: RustFunction.() -> Unit) {
-        val f = RustFunction(name, args, returnType, modifiers)
+    public fun fn(
+        name: String,
+        args: String = "",
+        returnType: String? = null,
+        modifiers: String = "",
+        visibility: String = "pub",
+        init: RustFunction.() -> Unit,
+    ) {
+        val f = RustFunction(name, args, returnType, modifiers, visibility)
         f.init()
         methods.add(f)
     }
@@ -41,7 +48,8 @@ public class RustFunction(
     private val name: String,
     private val args: String = "",
     private val returnType: String? = null,
-    private val modifiers: String = ""
+    private val modifiers: String = "",
+    private val visibility: String = "pub",
 ) : RustElement {
     private val bodyLines = mutableListOf<String>()
 
@@ -99,7 +107,8 @@ public class RustFunction(
     override fun render(builder: StringBuilder, indent: String) {
         val ret = if (returnType != null) " -> $returnType" else ""
         val mod = if (modifiers.isNotEmpty()) "$modifiers " else ""
-        builder.append("${indent}pub ${mod}fn $name($args)$ret {\n")
+        val vis = if (visibility.isNotEmpty()) "$visibility " else ""
+        builder.append("${indent}${vis}${mod}fn $name($args)$ret {\n")
         bodyLines.forEach { line ->
             builder.append("$indent    $line\n")
         }
@@ -150,8 +159,15 @@ public class RustFile : RustElement {
         elements.add(i)
     }
 
-    public fun fn(name: String, args: String = "", returnType: String? = null, modifiers: String = "", init: RustFunction.() -> Unit) {
-        val f = RustFunction(name, args, returnType, modifiers)
+    public fun fn(
+        name: String,
+        args: String = "",
+        returnType: String? = null,
+        modifiers: String = "",
+        visibility: String = "pub",
+        init: RustFunction.() -> Unit,
+    ) {
+        val f = RustFunction(name, args, returnType, modifiers, visibility)
         f.init()
         elements.add(f)
     }
