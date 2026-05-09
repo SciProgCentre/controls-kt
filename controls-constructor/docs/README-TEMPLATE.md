@@ -21,6 +21,7 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 - State DSL (reactive building blocks)
     - stateOf, registerState: create/register states; DeviceState and MutableDeviceState abstractions.
+    - [Property Expressions](docs/expressions.md): reactive numeric expressions for computed properties.
     - timer and onTimer: periodic timer states; helpers to trigger logic on ticks.
     - runSimulation: run models on the context simulation dispatcher.
     - mapState, flowState: transform a state via pure or flow-based transformations.
