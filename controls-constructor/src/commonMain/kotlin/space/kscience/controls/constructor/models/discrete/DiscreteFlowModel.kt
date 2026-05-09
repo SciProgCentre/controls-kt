@@ -123,7 +123,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         channel.send(value)
     }
 
-    private val _consumation = MutableValueState<Amount<U>>(NumericAmount(0.0))
+    private val _consumation = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
     override val consumation: ValueState<Amount<U>> get() = _consumation
 
@@ -161,7 +161,7 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
 ) : ModelConstructor(context) {
     override val modelType: Name = NameToken("producer", hashCode().toHexString()).asName()
 
-    private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0))
+    private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
     public val production: ValueState<Amount<U>> get() = _production
 

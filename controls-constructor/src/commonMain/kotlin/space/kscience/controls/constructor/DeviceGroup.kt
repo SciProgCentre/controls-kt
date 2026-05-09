@@ -37,6 +37,8 @@ public open class DeviceGroup(
     ) {
         val valueAsMeta get() = converter.convert(state.value)
 
+        fun asMetaValueState() = state.map(converter::convert)
+
         fun setMeta(meta: Meta) {
             check(state is MutableValueState) { "Can't write to read-only property" }
 
@@ -91,12 +93,22 @@ public open class DeviceGroup(
     public open fun <D : Device> install(token: Name, device: D): D {
         require(_devices[token] == null) { "A child device with name $token already exists" }
         //start the child device if needed
-        if (lifecycleState == STARTED || lifecycleState == STARTING) launch { device.start() }
+        if (!isStarted()) launch { device.start() }
         _devices[token] = device
         return device
     }
 
     private val properties: MutableMap<Name, Property<*>> = hashMapOf()
+
+    public fun <T> propertyAsState(propertyName: String, converter: MetaConverter<T>): ValueState<T> {
+        val prop = properties[propertyName.parseAsName()] ?: error("Property with name $propertyName not found")
+        return if (prop.converter == converter) {
+            @Suppress("UNCHECKED_CAST")
+            prop.state as ValueState<T>
+        } else {
+            prop.asMetaValueState().map(converter::read)
+        }
+    }
 
     /**
      * Register a new property based on [ValueState]. Properties could be modified dynamically

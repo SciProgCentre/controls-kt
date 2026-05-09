@@ -2,13 +2,13 @@ package space.kscience.controls.constructor.expressions
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.Serializable
-import space.kscience.controls.api.DeviceHub
-import space.kscience.controls.api.resolveDevice
+import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.isEmpty
@@ -84,6 +84,7 @@ public class StateExpressionContext(
             "sqrt" -> computeState(expression.argument).map { sqrt(it) }
             "exp" -> computeState(expression.argument).map { exp(it) }
             "ln" -> computeState(expression.argument).map { ln(it) }
+            "diff", "differentiate" -> computeState(expression.argument).differentiate(scope)
             else -> error("Unknown unary operation: ${expression.operation}")
         }
 
@@ -144,11 +145,35 @@ public class StateExpressionContext(
         }
 
     }
+
 }
 
 public fun DeviceConstructor.expression(
-    expression: StateExpression
-): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double>>> = property(
-    MetaConverter.double,
-    StateExpressionContext(context.request(DeviceManager), this).computeState(expression)
-)
+    expression: StateExpression,
+    propertyDescriptorBuilder: PropertyDescriptor.() -> Unit = {},
+    nameOverride: String? = null,
+): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double>>> =
+    PropertyDelegateProvider { _: DeviceConstructor, property ->
+        val name = nameOverride ?: property.name
+
+        val descriptor = PropertyDescriptor(name).apply {
+            valueType(ValueType.NUMBER)
+            propertyDescriptorBuilder()
+        }
+
+        var state: ValueState<Double>? = null
+
+        ReadOnlyProperty { _: DeviceConstructor, _ ->
+            when (val currentState = state) {
+                null if isStarted() -> {
+                    StateExpressionContext(context.request(DeviceManager), this).computeState(expression).also {
+                        registerProperty(MetaConverter.double, descriptor, it)
+                        state = it
+                    }
+                }
+
+                null -> error("Can't access expression proeperty if device is not started")
+                else -> currentState
+            }
+        }
+    }

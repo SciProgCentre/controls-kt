@@ -1,0 +1,62 @@
+package space.kscience.controls.constructor.expressions
+
+import kotlinx.coroutines.test.runTest
+import space.kscience.controls.api.DeviceHub
+import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.awaitLifecycleState
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.virtualProperty
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.manager.install
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.names.asName
+import kotlin.math.PI
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
+
+class StateExpressionTest {
+
+    @Test
+    fun testBasicExpressions() = runTest(timeout = 20.seconds) {
+        val context = Context("test")
+        val stateExpressionContext = StateExpressionContext(DeviceHub(emptyMap()), backgroundScope)
+
+        val a = StateExpression.Constant("pi", space.kscience.dataforge.meta.Meta.EMPTY)
+        val state = stateExpressionContext.computeState(a)
+        assertEquals(PI, state.value)
+
+        val b = StateExpression.Binary("+", a, a)
+        val state2 = stateExpressionContext.computeState(b)
+        assertEquals(PI * 2, state2.value)
+    }
+
+    class TestDevice(context: Context) : DeviceConstructor(context) {
+        val x by virtualProperty(MetaConverter.double, 1.0)
+        val y by virtualProperty(MetaConverter.double, 2.0)
+
+        val zState by expression(
+            StateExpression.Binary(
+                operation = "+",
+                left = StateExpression.Property(deviceName = "test".asName(), propertyName = "x"),
+                right = StateExpression.Property(deviceName = "test".asName(), propertyName = "y")
+            )
+        )
+    }
+
+    @Test
+    fun testDeviceConstructorWithExpression() = runTest {
+        val context = Context("test") {
+            plugin(DeviceManager)
+        }
+        val device = TestDevice(context)
+
+        context.install("test", device)
+        device.awaitLifecycleState(LifecycleState.STARTED)
+
+        assertEquals(3.0, device.zState.value)
+
+        device.stop()
+    }
+}

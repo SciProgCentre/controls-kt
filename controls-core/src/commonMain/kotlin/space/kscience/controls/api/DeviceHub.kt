@@ -60,7 +60,10 @@ public fun ParentDevice.resolveDevice(name: Name): Device =
  * Resolve a device by its name. Throw an exception if the device is not found.
  */
 public fun DeviceHub.resolveDevice(name: Name): Device =
-    if (name.isEmpty()) (this as Device) else devices[name] ?: error("Device $name not found in $this")
+    if (name.isEmpty()) {
+        (this as? Device ?: error("Device hub is not a device. It could not be accessed with empty name"))
+    } else devices[name]
+        ?: error("Device $name not found in $this")
 
 /**
  * Create a device hub that is also a device itself by providing a device mapping and root device.

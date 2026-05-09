@@ -32,7 +32,7 @@ public abstract class DeviceConstructor(
         _constructorElements.remove(constructorElement)
     }
 
-    override fun <T, S: ValueState<T>> registerProperty(
+    override fun <T, S : ValueState<T>> registerProperty(
         converter: MetaConverter<T>,
         descriptor: PropertyDescriptor,
         state: S,
@@ -101,10 +101,10 @@ public fun <T : Any> DeviceConstructor.property(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<T>>> = property(
-    metaConverter,
-    ValueState.external(this, readInterval, initialState, reader),
-    descriptorBuilder,
-    nameOverride,
+    converter = metaConverter,
+    state = ValueState.external(this, readInterval, initialState, clock, reader),
+    descriptorBuilder = descriptorBuilder,
+    nameOverride = nameOverride,
 )
 
 /**
@@ -119,10 +119,10 @@ public fun <T : Any> DeviceConstructor.mutableProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
-    metaConverter,
-    ValueState.external(this, readInterval, initialState, reader, writer),
-    descriptorBuilder,
-    nameOverride,
+    converter = metaConverter,
+    state = ValueState.external(this, readInterval, initialState, clock, reader, writer),
+    descriptorBuilder = descriptorBuilder,
+    nameOverride = nameOverride,
 )
 
 /**
@@ -134,10 +134,10 @@ public fun <T> DeviceConstructor.virtualProperty(
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
-    metaConverter,
-    MutableValueState(initialState),
-    descriptorBuilder,
-    nameOverride,
+    converter = metaConverter,
+    state = MutableValueState(initialState, clock),
+    descriptorBuilder = descriptorBuilder,
+    nameOverride = nameOverride,
 )
 
 public fun <T, S : ValueState<T>> DeviceConstructor.registerAsProperty(

@@ -165,3 +165,11 @@ public fun Device.onLifecycleEvent(
 ): Job = messageFlow.filterIsInstance<DeviceLifeCycleMessage>().onEach {
     block(it.state)
 }.launchIn(this)
+
+/**
+ * Wait for a specific device lifecycle state event. If the device is already in the state, the method returns immediately.
+ */
+public suspend fun Device.awaitLifecycleState(state: LifecycleState) {
+    if (lifecycleState == state) return
+    messageFlow.filterIsInstance<DeviceLifeCycleMessage>().first { it.state == state }
+}

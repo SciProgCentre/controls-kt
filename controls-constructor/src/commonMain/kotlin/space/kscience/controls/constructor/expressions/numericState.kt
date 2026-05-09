@@ -11,6 +11,7 @@ import space.kscience.controls.time.ValueWithTime
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
+
 /**
  * Integrates the values within a specified time window.
  *
@@ -18,24 +19,24 @@ import kotlin.time.DurationUnit
  * @param scope The coroutine scope in which the integration logic should execute.
  * @return A [ValueState] representing the integrated result as a time-coupled value.
  */
-public fun ValueState<ValueWithTime<Double>>.integrate(
+public fun ValueState<Double>.integrate(
     window: Duration,
     scope: CoroutineScope,
-): ValueState<ValueWithTime<Double>> = object : ValueStateWithDependencies<ValueWithTime<Double>> {
+): ValueState<Double> = object : ValueStateWithDependencies<Double> {
     private val history = mutableListOf<ValueWithTime<Double>>()
-    private val state = MutableStateFlow(value)
+    private val state = MutableStateFlow(valueWithTime)
 
-    private val job = this@integrate.subscribe().onEach { value ->
-        history.add(value)
-        history.removeAll { it.time < (value.time - window) }
-        state.emit(ValueWithTime(history.sumOf { it.value }, value.time))
+    private val job = this@integrate.subscribeWithTime().onEach { (value, time) ->
+        history.add(valueWithTime)
+        history.removeAll { it.time < (time - window) }
+        state.emit(ValueWithTime(history.sumOf { it.value }, time))
     }.launchIn(scope)
 
     override val dependencies = listOf(this)
 
-    override val value: ValueWithTime<Double> get() = state.value
+    override val valueWithTime: ValueWithTime<Double> get() = state.value
 
-    override fun subscribe(): Flow<ValueWithTime<Double>> = state
+    override fun subscribeWithTime(): Flow<ValueWithTime<Double>> = state
 
     override fun toString(): String = "DeviceState.integrate(state=${state.value}, window=$window)"
 }
@@ -46,33 +47,28 @@ public fun ValueState<ValueWithTime<Double>>.integrate(
  *
  * The returned [ValueState] emits the derivative values continuously based on the
  * changes in the original `ValueState`.
- *
- * @param scope The `CoroutineScope` in which the state operations and subscriptions
- *              are executed.
- * @return A `ValueState` containing the derivative of the initial state's
- *         `ValueWithTime<Double>` value.
  */
-public fun ValueState<ValueWithTime<Double>>.differentiate(
+public fun ValueState<Double>.differentiate(
     scope: CoroutineScope,
-): ValueState<ValueWithTime<Double>> = object : ValueStateWithDependencies<ValueWithTime<Double>> {
+): ValueState<Double> = object : ValueStateWithDependencies<Double> {
 
-    private var previous = value
-    private val state = MutableStateFlow(ValueWithTime(0.0, value.time))
+    private var previous = valueWithTime
+    private val state = MutableStateFlow(ValueWithTime(0.0, time))
 
-    private val job = this@differentiate.subscribe().onEach { value ->
+    private val job = this@differentiate.subscribeWithTime().onEach { value ->
         //skip invalid time marks
-        if(value.time <= previous.time) return@onEach
+        if (value.time <= previous.time) return@onEach
 
         val diff = (value.value - previous.value) / (value.time - previous.time).toDouble(DurationUnit.SECONDS)
         state.emit(ValueWithTime(diff, value.time))
+        previous = value
     }.launchIn(scope)
 
     override val dependencies: Collection<ValueState<*>> get() = listOf(this)
 
-    override val value: ValueWithTime<Double>
-        get() = state.value
+    override val valueWithTime: ValueWithTime<Double> get() = state.value
 
-    override fun subscribe(): Flow<ValueWithTime<Double>> = state
+    override fun subscribeWithTime(): Flow<ValueWithTime<Double>> = state
 
     override fun toString(): String = "DeviceState.differentiate(state=${state.value})"
 
