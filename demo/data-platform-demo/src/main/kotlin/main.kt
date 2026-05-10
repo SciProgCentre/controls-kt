@@ -24,7 +24,7 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
 
-suspend fun main() {
+fun main() {
     val context = Context {
         plugin(DeviceManager)
     }
@@ -34,7 +34,7 @@ suspend fun main() {
 
     val numberOfModbusDevices = 4
 
-    val propertiesPerDevice = 4
+    val propertiesPerDevice = 300
 
     val registryMap = TestDeviceRegistryMap(
         List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
@@ -48,7 +48,7 @@ suspend fun main() {
         scope = context
     )
 
-    delay(1.seconds)
+    Thread.sleep(1000)
 
     val opcSourceName = "opc".asName()
     val modbusSourceName = "modbus".asName()
@@ -131,7 +131,6 @@ suspend fun main() {
         platformDevice.onPropertyChange(this) {
             mutex.withLock {
                 values[property] = value
-                println("Changed: $property = $value")
             }
         }
 
