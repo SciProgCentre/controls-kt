@@ -16,6 +16,7 @@ import org.apache.plc4x.java.api.PlcConnection
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import space.kscience.controls.api.*
+import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
@@ -27,6 +28,7 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
@@ -261,14 +263,28 @@ public class DataPlatform(
 /**
  * Create a [ValueState] for a property of a [DataPlatform].
  */
-public fun DataPlatform.valueState(propertyName: String): ValueState<Meta> = object : ValueState<Meta> {
+public fun DataPlatform.valueState(tag: String): ValueState<Meta> = object : ValueState<Meta> {
     override val valueWithTime: ValueWithTime<Meta>
-        get() = ValueWithTime(readValues().get(propertyName) ?: Meta.EMPTY, clock.now())
+        get() = ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, clock.now())
 
     override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = messageFlow.filterIsInstance<PropertyChangedMessage>()
-        .filter { it.property == propertyName }.map {
-            ValueWithTime(readValues().get(propertyName) ?: Meta.EMPTY, it.time)
+        .filter { it.property == tag }.map {
+            ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, it.time)
         }
 
-    override fun toString(): String = "ValueState.dataPlatform(propertyName=$propertyName)"
+    override fun toString(): String = "ValueState.dataPlatform(propertyName=$tag)"
 }
+
+/**
+ * Register a device property that is bound to a [DataPlatform] source.
+ */
+public fun DeviceConstructor.dataPlatformProperty(
+    platform: DataPlatform,
+    propertyName: String,
+    dataPlatformTag: String = propertyName,
+    description: String? = null,
+): ValueState<Meta> = registerProperty(
+    converter = MetaConverter.meta,
+    descriptor = PropertyDescriptor(propertyName, description),
+    state = platform.valueState(dataPlatformTag)
+)
