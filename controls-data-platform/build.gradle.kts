@@ -15,6 +15,7 @@ kscience {
     commonMain {
         api(projects.controlsCore)
         api(projects.controlsConstructor)
+        api(projects.controlsStorage)
 
         api(projects.controlsPlc4x)
         api(projects.controlsOpcua)

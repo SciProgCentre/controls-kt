@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
-import space.kscience.controls.dataplatform.DataPlatformDevice
+import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime
@@ -19,7 +19,7 @@ import kotlin.time.Instant
 class CompressionTest {
 
     private val testHeaders: TableHeader<Meta> = listOf(
-        DataPlatformDevice.timeColumnHeader,
+        DataPlatform.timeColumnHeader,
         SimpleColumnHeader("v1", typeOf<Meta>(), Meta.EMPTY),
         SimpleColumnHeader("v2", typeOf<Meta>(), Meta.EMPTY)
     )

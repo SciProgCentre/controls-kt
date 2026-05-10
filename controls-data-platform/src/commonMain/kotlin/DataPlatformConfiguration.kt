@@ -10,6 +10,7 @@ import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 @Serializable
 public sealed interface PlatformSourceConfiguration
@@ -75,6 +76,8 @@ public sealed interface PlatformProperty {
      */
     public val meta: Meta
 
+    public val timeout: Duration get() =  1.seconds
+
 }
 
 
@@ -100,7 +103,7 @@ public class PlcPlatformProperty(
 
 @Serializable
 public sealed interface TimerConfiguration {
-    public fun timer(clockManager: ClockManager): TimerState
+    public fun createTimerState(clockManager: ClockManager): TimerState
 }
 
 @Serializable
@@ -108,7 +111,7 @@ public sealed interface TimerConfiguration {
 public class FixedRateTimer(
     public val tick: Duration
 ) : TimerConfiguration {
-    override fun timer(clockManager: ClockManager): TimerState = TimerState(clockManager, tick)
+    override fun createTimerState(clockManager: ClockManager): TimerState = TimerState(clockManager, tick)
 }
 
 
@@ -116,6 +119,6 @@ public class FixedRateTimer(
 public class DataPlatformConfiguration(
     public val sources: Map<Name, PlatformSourceConfiguration>,
     public val timers: Map<Name, TimerConfiguration>,
-    public val properties: Map<Name, PlatformProperty>,
+    public val properties: Map<String, PlatformProperty>,
 )
 

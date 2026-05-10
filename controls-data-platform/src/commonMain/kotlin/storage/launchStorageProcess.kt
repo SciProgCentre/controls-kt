@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.io.asSink
 import kotlinx.io.buffered
 import space.kscience.attributes.safeTypeOf
-import space.kscience.controls.dataplatform.DataPlatformDevice
+import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.EnvelopeFormat
 import space.kscience.dataforge.io.TaggedEnvelopeFormat
@@ -33,7 +33,7 @@ import kotlin.time.Duration.Companion.hours
  *
  * @return a [Job] representing the lifecycle of the data collection and storage process. This job can be canceled to stop the operation.
  */
-public fun DataPlatformDevice.launchStorageProcess(
+public fun DataPlatform.launchStorageProcess(
     directory: Path,
     readInterval: Duration,
     maxRowsPerEnvelope: Int = 10000,
@@ -49,7 +49,6 @@ public fun DataPlatformDevice.launchStorageProcess(
     maxDuration = maxDuration,
     maxPause = maxPause,
     compression = compression,
-    clock = clock,
 ).onEach { envelope ->
     val filePath = directory.resolve("dataPlarform_${clock.now().toString().replace(":", "-")}.df")
     filePath.outputStream().use {

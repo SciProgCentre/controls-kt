@@ -6,9 +6,9 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.controls.time.PropertyHistory
+import space.kscience.controls.storage.ValueHistory
+import space.kscience.controls.storage.collectPropertyHistory
 import space.kscience.controls.time.ValueWithTime
-import space.kscience.controls.time.collectPropertyHistory
 import space.kscience.dataforge.meta.MetaConverter
 
 /**
@@ -25,7 +25,7 @@ public interface TimeSeriesSource<T> {
     /**
      * An optional history of values. The clock in history is the same as in [subscribe].
      */
-    public val history: PropertyHistory<T>?
+    public val history: ValueHistory<T>?
 }
 
 /**
@@ -35,7 +35,7 @@ public class PropertyTimeSeriesSource<T>(
     public val device: Device,
     public val propertyName: String,
     public val converter: MetaConverter<T>,
-    override val history: PropertyHistory<T> = device.collectPropertyHistory(device, propertyName, converter)
+    override val history: ValueHistory<T> = device.collectPropertyHistory(device, propertyName, converter)
 ) : TimeSeriesSource<T> {
     override suspend fun subscribe(): Flow<ValueWithTime<T>> = device.propertyMessageFlow(propertyName).map {
         ValueWithTime(converter.read(it.value), it.time)

@@ -34,7 +34,7 @@ suspend fun main() {
 
     val numberOfModbusDevices = 4
 
-    val propertiesPerDevice = 300
+    val propertiesPerDevice = 4
 
     val registryMap = TestDeviceRegistryMap(
         List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
@@ -96,16 +96,19 @@ suspend fun main() {
     val configuration = DataPlatformConfiguration(
         sources = sources,
         timers = timers,
-        properties = platformProperties
+        properties = platformProperties.mapKeys { it.key.toString() }
     )
 
     Path("platform-config.json").writeText(
         Json { prettyPrint = true }.encodeToString(DataPlatformConfiguration.serializer(), configuration)
     )
 
-    val platformDevice = DataPlatformDevice(context, configuration)
+    val platform = DataPlatform(context, configuration)
+
+    val platformDevice = DataPlatformDevice(platform)
 
     deviceManager.install("platform", platformDevice)
+
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 
@@ -113,7 +116,7 @@ suspend fun main() {
         it.createDirectories()
     }
 
-    val storageJob = platformDevice.launchStorageProcess(
+    val storageJob = platform.launchStorageProcess(
         directory = dataDirectory,
         readInterval = 1.seconds,
         maxDuration = 30.seconds,
@@ -125,22 +128,25 @@ suspend fun main() {
         val mutex = Mutex()
         val values = mutableMapOf<String, Meta>()
 
-        platformDevice.onPropertyChange {
+        platformDevice.onPropertyChange(this) {
             mutex.withLock {
                 values[property] = value
+                println("Changed: $property = $value")
             }
         }
 
-        while(isActive) {
-            delay(1.seconds)
-            mutex.withLock {
-                println("Changed in a last second: ${values.size}")
-                values.clear()
+        launch {
+            while (isActive) {
+                delay(1.seconds)
+                mutex.withLock {
+                    println("Changed in a last second: ${values.size}")
+                    values.clear()
+                }
             }
         }
     }
 
-    do{
+    do {
         val str = readlnOrNull()
     } while (str != "exit")
 
