@@ -39,9 +39,12 @@ internal fun Meta.toOpc(
     return DataValue(variant, statusCode, sourceTime,serverTime ?: DateTime(Instant.now()))
 }
 
-internal fun opcToMeta(value: Any?): Meta = when (value) {
+/**
+ * Convert OPC data value to Meta
+ */
+public fun Meta.Companion.fromOpc(value: Any?): Meta = when (value) {
     null -> Meta(Null)
-    is Variant -> opcToMeta(value.value)
+    is Variant -> fromOpc(value.value)
     is Meta -> value
     is Value -> Meta(value)
     is Number -> when (value) {
@@ -65,7 +68,7 @@ internal fun opcToMeta(value: Any?): Meta = when (value) {
         "text" put value.text?.asValue()
     }
     is DataValue -> Meta {
-        val variant= opcToMeta(value.value)
+        val variant= fromOpc(value.value)
         update(variant)// need SerializationContext to do that properly
         //TODO remove after DF 0.7.2
         this.value =  variant.value
@@ -88,4 +91,4 @@ internal fun opcToMeta(value: Any?): Meta = when (value) {
 
 public fun Variant.toMeta(serializationContext: EncodingContext): Meta = (value as? ExtensionObject)?.let {
     it.decode(serializationContext) as Meta
-} ?: opcToMeta(value)
+} ?: Meta.fromOpc(value)

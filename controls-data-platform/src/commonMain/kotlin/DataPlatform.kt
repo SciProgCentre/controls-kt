@@ -19,7 +19,7 @@ import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
-import space.kscience.controls.opcua.client.readOpcWithTime
+import space.kscience.controls.opcua.client.readMetaWithTime
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.time.ClockManager
@@ -27,7 +27,6 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
@@ -113,7 +112,7 @@ public class DataPlatform(
 
         is OpcPlatformProperty -> with(propertyConfig) {
             val client = resolveOpcClient(source)
-            client.readOpcWithTime(NodeId.parse(nodeId), MetaConverter.meta)
+            client.readMetaWithTime(NodeId.parse(nodeId))
         }
 
         is PlcPlatformProperty -> with(propertyConfig) {
@@ -132,6 +131,8 @@ public class DataPlatform(
             }
         }
     }
+
+    //TODO provide a way to read multiple properties at once.
 
     private val values = mutableMapOf<String, Meta>()
 
@@ -175,23 +176,27 @@ public class DataPlatform(
                     ?: error("Timer $timerName not found")
                 timer.subscribe().onEach {
                     coroutineScope {
-                        properties.forEach { (propertyName, property) ->
+                        properties.groupBy { it.value.source }.forEach { (source, entries) ->
+                            //launch reading process for each separate source
                             launch {
-                                try {
-                                    withTimeout(property.timeout) {
-                                        val value = read(property)
+                                //TODO implement reading multiple properties at once here. They are already grouped by source
+                                entries.forEach { (propertyName, property) ->
+                                    try {
+                                        withTimeout(property.timeout) {
+                                            val value = read(property)
 
-                                        values[propertyName] = value.value
-                                        _messageFlow.emit(
-                                            PropertyChangedMessage(
-                                                time = value.time,
-                                                property = propertyName,
-                                                value = value.value,
+                                            values[propertyName] = value.value
+                                            _messageFlow.emit(
+                                                PropertyChangedMessage(
+                                                    time = value.time,
+                                                    property = propertyName,
+                                                    value = value.value,
+                                                )
                                             )
-                                        )
+                                        }
+                                    } catch (ex: Exception) {
+                                        logger.error(ex) { "Failed to read property $propertyName" }
                                     }
-                                } catch (ex: Exception) {
-                                    logger.error(ex) { "Failed to read property $propertyName" }
                                 }
                             }
                         }

@@ -1,7 +1,6 @@
 package space.kscience.controls.opcua.client
 
 import kotlinx.coroutines.future.await
-import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.sdk.client.OpcUaClientConfigBuilder
 import org.eclipse.milo.opcua.sdk.client.identity.AnonymousProvider
@@ -14,12 +13,11 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription
 import org.eclipse.milo.opcua.stack.transport.client.tcp.OpcTcpClientTransportConfigBuilder
+import space.kscience.controls.opcua.server.fromOpc
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.MetaSerializer
-import space.kscience.dataforge.meta.Value
 import java.util.*
 import kotlin.time.toKotlinInstant
 
@@ -74,28 +72,47 @@ internal fun Context.createOpcUaClient(
 
 
 /**
+ * Read OPC-UA value as [Meta] with timestamp
+ */
+public suspend fun OpcUaClient.readMetaWithTime(
+    nodeId: NodeId,
+    maxAge: Double = 500.0
+): ValueWithTime<Meta> {
+    val data: DataValue = readValuesAsync(maxAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
+    val time = data.serverTime ?: error("No server time provided")
+    val meta: Meta = Meta.fromOpc(data.value.value)
+
+    return ValueWithTime(meta, time.javaInstant.toKotlinInstant())
+}
+
+/**
+ * Read multiple OPC-UA values as [Meta] in a single request
+ */
+public suspend fun OpcUaClient.readMultipleMetaWithTime(
+    nodeIds: List<NodeId>,
+    maxAge: Double = 500.0
+): List<ValueWithTime<Meta>> = readValuesAsync(maxAge, TimestampsToReturn.Server, nodeIds)
+    .await()
+    .map {
+        ValueWithTime(
+            value = Meta.fromOpc(it.value.value),
+            time = (it.serverTime ?: error("No server time provided")).javaInstant.toKotlinInstant()
+        )
+    }
+
+
+/**
  * Read OPC-UA value with timestamp
  * @param T the type of property to read. The value is coerced to it.
  */
 public suspend inline fun <reified T : Any> OpcUaClient.readOpcWithTime(
     nodeId: NodeId,
     converter: MetaConverter<T>,
-    magAge: Double = 500.0
+    maxAge: Double = 500.0
 ): ValueWithTime<T> {
-    val data: DataValue = readValuesAsync(magAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
+    val data: DataValue = readValuesAsync(maxAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
     val time = data.serverTime ?: error("No server time provided")
-    val meta: Meta = when (val content = data.value.value) {
-        is T -> return ValueWithTime( content, time.javaInstant.toKotlinInstant())
-        is Number -> Meta(content)
-        is Boolean -> Meta(content)
-        is String -> Meta(content)
-        is Value -> Meta(content)
-        is Meta -> content
-        is ExtensionObject -> content.decode(dynamicEncodingContext) as Meta
-        else -> error("Incompatible OPC property value $content")
-    }
-
-    val res: T = converter.read(meta)
+    val res: T = data.value.value as? T ?: converter.read(Meta.fromOpc(data.value.value))
     return ValueWithTime(res, time.javaInstant.toKotlinInstant())
 }
 
@@ -111,17 +128,10 @@ public suspend inline fun <reified T> OpcUaClient.readOpc(
 
     val content = data.value.value
     if (content is T) return content
-    val meta: Meta = when (content) {
-        is Meta -> content
-        //Always decode string as Json meta
-        is String -> Json.decodeFromString(MetaSerializer, content)
-        is Number -> Meta(content)
-        is Boolean -> Meta(content)
-        //content is ExtensionObject -> (content as ExtensionObject).decode(client.dynamicSerializationContext) as Meta
-        else -> error("Incompatible OPC property value $content")
-    }
+    val meta: Meta = Meta.fromOpc(content)
 
-    return converter.readOrNull(meta) ?: error("Meta $meta could not be converted to ${T::class}")
+    return converter.readOrNull(Meta.fromOpc(data.value.value))
+        ?: error("Meta $meta could not be converted to ${T::class}")
 }
 
 public suspend inline fun <reified T> OpcUaClient.writeOpc(

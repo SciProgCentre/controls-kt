@@ -106,7 +106,7 @@ public class DeviceNameSpace(
                  */
                 node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any? ->
                     if (attributeId == AttributeId.Value) {
-                        val meta: Meta = opcToMeta(value)
+                        val meta: Meta = Meta.fromOpc(value)
                         scope.launch {
                             device.writeProperty(propertyName, meta)
                         }
