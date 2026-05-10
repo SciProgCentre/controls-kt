@@ -15,6 +15,7 @@ import space.kscience.controls.dataplatform.storage.launchStorageProcess
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.*
@@ -24,9 +25,11 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
 
+// IMPORTANT: run in blocking mode
 fun main() {
     val context = Context {
         plugin(DeviceManager)
+        plugin(SlfLogManager)
     }
     val deviceManager = context.request(DeviceManager)
 
@@ -34,7 +37,7 @@ fun main() {
 
     val numberOfModbusDevices = 4
 
-    val propertiesPerDevice = 300
+    val propertiesPerDevice = 200
 
     val registryMap = TestDeviceRegistryMap(
         List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
