@@ -2,6 +2,7 @@
 
 package space.kscience.controls.api
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -270,3 +271,10 @@ public data class DeviceLifeCycleMessage(
 public fun DeviceMessage.toMeta(): Meta = Json.encodeToJsonElement(this).toMeta()
 
 public fun DeviceMessage.toEnvelope(): Envelope = Envelope(toMeta(), null)
+
+/**
+ * An object that could provide device messages
+ */
+public interface DeviceMessageSource{
+    public val messageFlow: Flow<DeviceMessage>
+}

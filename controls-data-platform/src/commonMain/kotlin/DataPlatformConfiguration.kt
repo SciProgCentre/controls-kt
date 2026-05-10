@@ -2,21 +2,12 @@ package space.kscience.controls.dataplatform
 
 import com.fazecast.jSerialComm.SerialPort
 import com.ghgande.j2mod.modbus.Modbus
-import kotlinx.coroutines.future.await
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toKotlinLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
-import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import space.kscience.controls.constructor.TimerState
-import space.kscience.controls.opcua.client.readOpcWithTime
-import space.kscience.controls.plc4x.Plc4xProperty
-import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.time.ClockManager
-import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
 
@@ -84,7 +75,6 @@ public sealed interface PlatformProperty {
      */
     public val meta: Meta
 
-    public suspend fun read(platform: DataPlatform): ValueWithTime<Meta>
 }
 
 
@@ -95,12 +85,7 @@ public class OpcPlatformProperty(
     override val timer: Name,
     public val nodeId: String,
     override val meta: Meta = Meta.EMPTY,
-) : PlatformProperty {
-    override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val client = platform.resolveOpcClient(source)
-        return client.readOpcWithTime(NodeId.parse(nodeId), MetaConverter.meta)
-    }
-}
+) : PlatformProperty
 
 @Serializable
 @SerialName("plc")
@@ -111,23 +96,7 @@ public class PlcPlatformProperty(
     public val plcValueType: PlcValueType,
     public val name: String = "@default",
     override val meta: Meta = Meta.EMPTY,
-) : PlatformProperty {
-    override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val connection = platform.resolvePlcClient(source)
-
-        require(connection.metadata.isReadSupported) { "Read actions are not supported on connections" }
-
-        with(Plc4xProperty(address, plcValueType, name)) {
-            val request = connection.readRequestBuilder().request().build()
-            val response = request.execute().await()
-            response.throwOnFail()
-
-            val time = response.getDateTime(name).toKotlinLocalDateTime().toInstant(platform.timeZone)
-            val value = response.readProperty()
-            return ValueWithTime(value, time)
-        }
-    }
-}
+) : PlatformProperty
 
 @Serializable
 public sealed interface TimerConfiguration {

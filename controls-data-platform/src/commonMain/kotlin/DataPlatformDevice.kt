@@ -53,7 +53,7 @@ public class DataPlatformDevice(
             val timer = configuration.timers[timerName]?.timer(clockManager) ?: error("Timer $timerName not found")
             timer.subscribe().onEach { instant ->
                 properties.forEach { (propertyName, property) ->
-                    val value = property.read(platform)
+                    val value = platform.read(property)
                     values[propertyName] = value.value
                     _messageFlow.emit(
                         PropertyChangedMessage(
@@ -102,7 +102,7 @@ public class DataPlatformDevice(
         )
     }
 
-    final override suspend fun start() {
+    override suspend fun start() {
         if (lifecycleState == LifecycleState.STOPPED) {
             super.start()
             setLifecycleState(LifecycleState.STARTING)
@@ -112,8 +112,9 @@ public class DataPlatformDevice(
         }
     }
 
-    final override suspend fun stop() {
+    override suspend fun stop() {
         setLifecycleState(LifecycleState.STOPPED)
+        platform.close()
         super.stop()
     }
 

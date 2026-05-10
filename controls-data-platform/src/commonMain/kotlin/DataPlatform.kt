@@ -5,10 +5,20 @@ import com.ghgande.j2mod.modbus.facade.ModbusSerialMaster
 import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
 import com.ghgande.j2mod.modbus.util.SerialParameters
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.future.await
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toKotlinLocalDateTime
 import org.apache.plc4x.java.DefaultPlcDriverManager
 import org.apache.plc4x.java.api.PlcConnection
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
+import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
+import space.kscience.controls.opcua.client.readOpcWithTime
+import space.kscience.controls.plc4x.Plc4xProperty
+import space.kscience.controls.plc4x.throwOnFail
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import kotlin.time.Clock
 
@@ -73,6 +83,37 @@ public class DataPlatform(
         }
     }
 
+
+    public suspend fun read(propertyConfig: PlatformProperty): ValueWithTime<Meta> = when (propertyConfig) {
+        is ModbusPlatformProperty -> with(propertyConfig) {
+            val client = resolveModbusClient(source)
+
+            val meta = reader.read(client, unitId, address)
+
+            ValueWithTime(meta, clock.now())
+        }
+
+        is OpcPlatformProperty -> with(propertyConfig){
+            val client = resolveOpcClient(source)
+            client.readOpcWithTime(NodeId.parse(nodeId), MetaConverter.meta)
+        }
+
+        is PlcPlatformProperty -> with(propertyConfig){
+            val connection = resolvePlcClient(source)
+
+            require(connection.metadata.isReadSupported) { "Read actions are not supported on connections" }
+
+            with(Plc4xProperty(address, plcValueType, name)) {
+                val request = connection.readRequestBuilder().request().build()
+                val response = request.execute().await()
+                response.throwOnFail()
+
+                val time = response.getDateTime(name).toKotlinLocalDateTime().toInstant(timeZone)
+                val value = response.readProperty()
+                return ValueWithTime(value, time)
+            }
+        }
+    }
 
     override fun close() {
         opcClients.values.forEach { it.disconnect() }

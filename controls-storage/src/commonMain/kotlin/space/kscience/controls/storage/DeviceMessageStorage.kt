@@ -1,9 +1,13 @@
 package space.kscience.controls.storage
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.ExperimentalSerializationApi
 import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import kotlin.time.Instant
 
@@ -22,7 +26,7 @@ public interface DeviceMessageStorage {
     public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
 
     /**
-     * Return all messages in a storage as a discrete
+     * Return all messages in a storage as a flow
      */
     public fun readAll(): Flow<DeviceMessage>
 
@@ -51,4 +55,14 @@ public inline fun <reified T : DeviceMessage> DeviceMessageStorage.read(
 ): Flow<T> = read(DeviceMessage.serialNameFor<T>(), range, sourceDevice, targetDevice).map {
     //Check that all types are correct
     it as T
+}
+
+public fun <T> DeviceMessageStorage.propertyHistory(
+    propertyName: String,
+    converter: MetaConverter<T>,
+): ValueHistory<T> = object : ValueHistory<T> {
+    override fun flowHistory(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
+        read<PropertyChangedMessage>(from..until)
+            .filter { it.property == propertyName }
+            .map { ValueWithTime(converter.read(it.value), it.time) }
 }

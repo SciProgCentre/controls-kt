@@ -16,7 +16,7 @@ import space.kscience.dataforge.names.asName
 import java.nio.file.Files
 import kotlin.time.Instant
 
-internal class PropertyHistoryTest {
+internal class ValueHistoryTest {
     companion object {
         val storeFile = Files.createTempDirectory("controls-xodus").toFile()
 

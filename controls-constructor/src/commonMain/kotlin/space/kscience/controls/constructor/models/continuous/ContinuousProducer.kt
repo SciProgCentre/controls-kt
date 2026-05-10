@@ -45,12 +45,12 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.connectCo
 /**
  * A model representing a producer with continuous output constrained by its capacity and consumer requests.
  *
- * @param U The type of units of measurement for the production discrete.
+ * @param U The type of units of measurement for the production flow.
  * @param context The execution context for state management and operations.
  * @param productionCapacity The maximum capacity state defining the upper limit of the producer's output.
  *
- * @property consumerRequest A deferred-binding state representing the material discrete requested by consumers.
- * @property production A state representing the actual production discrete, calculated as the minimum of the
+ * @property consumerRequest A deferred-binding state representing the material flow requested by consumers.
+ * @property production A state representing the actual production flow, calculated as the minimum of the
  * consumer request and the producer's capacity.
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.

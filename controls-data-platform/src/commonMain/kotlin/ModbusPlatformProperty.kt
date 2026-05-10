@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.controls.modbus.readInputRegister
 import space.kscience.controls.modbus.readInputRegisters
-import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.io.DoubleIOFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -20,15 +19,7 @@ public class ModbusPlatformProperty(
     public val address: Int,
     public val unitId: Int = 1,
     override val meta: Meta = Meta.EMPTY,
-) : PlatformProperty {
-    override suspend fun read(platform: DataPlatform): ValueWithTime<Meta> {
-        val client = platform.resolveModbusClient(source)
-
-        val meta = reader.read(client, unitId, address)
-
-        return ValueWithTime(meta, platform.clock.now())
-    }
-}
+) : PlatformProperty
 
 @Serializable
 public sealed interface ModbusPropertyReader {
