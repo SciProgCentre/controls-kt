@@ -37,7 +37,7 @@ fun main() {
 
     val numberOfModbusDevices = 4
 
-    val propertiesPerDevice = 200
+    val propertiesPerDevice = 300
 
     val registryMap = TestDeviceRegistryMap(
         List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
@@ -53,15 +53,15 @@ fun main() {
 
     Thread.sleep(1000)
 
-    val opcSourceName = "opc".asName()
-    val modbusSourceName = "modbus".asName()
+    val opcSourceName = "opc"
+    val modbusSourceName = "modbus"
 
     val sources = mapOf(
         opcSourceName to OpcUaConfig("opc.tcp://localhost:9091"),
         modbusSourceName to ModbusTcpConfig("localhost", 9093)
     )
 
-    val timerName = "default".asName()
+    val timerName = "default"
 
     val timers = mapOf(timerName to FixedRateTimer(1.seconds))
 

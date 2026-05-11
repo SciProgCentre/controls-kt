@@ -8,7 +8,6 @@ import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -64,12 +63,12 @@ public sealed interface PlatformProperty {
     /**
      * The name of the source
      */
-    public val source: Name
+    public val source: String
 
     /**
      * The name of the timer that is used to read the property
      */
-    public val timer: Name
+    public val timer: String
 
     /**
      * Metadata of the property
@@ -84,8 +83,8 @@ public sealed interface PlatformProperty {
 @Serializable
 @SerialName("opc")
 public class OpcPlatformProperty(
-    override val source: Name,
-    override val timer: Name,
+    override val source: String,
+    override val timer: String,
     public val nodeId: String,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
@@ -93,8 +92,8 @@ public class OpcPlatformProperty(
 @Serializable
 @SerialName("plc")
 public class PlcPlatformProperty(
-    override val source: Name,
-    override val timer: Name,
+    override val source: String,
+    override val timer: String,
     public val address: String,
     public val plcValueType: PlcValueType,
     public val name: String = "@default",
@@ -117,8 +116,8 @@ public class FixedRateTimer(
 
 @Serializable
 public class DataPlatformConfiguration(
-    public val sources: Map<Name, PlatformSourceConfiguration>,
-    public val timers: Map<Name, TimerConfiguration>,
+    public val sources: Map<String, PlatformSourceConfiguration>,
+    public val timers: Map<String, TimerConfiguration>,
     public val properties: Map<String, PlatformProperty>,
 )
 

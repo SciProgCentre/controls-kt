@@ -8,13 +8,12 @@ import space.kscience.controls.modbus.readInputRegister
 import space.kscience.controls.modbus.readInputRegisters
 import space.kscience.dataforge.io.DoubleIOFormat
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
 
 @Serializable
 @SerialName("modbus")
 public class ModbusPlatformProperty(
-    override val source: Name,
-    override val timer: Name,
+    override val source: String,
+    override val timer: String,
     public val reader: ModbusPropertyReader,
     public val address: Int,
     public val unitId: Int = 1,

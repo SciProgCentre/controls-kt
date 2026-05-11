@@ -15,12 +15,14 @@ import org.apache.plc4x.java.DefaultPlcDriverManager
 import org.apache.plc4x.java.api.PlcConnection
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
+import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.opcua.client.readMetaWithTime
+import space.kscience.controls.opcua.server.fromOpc
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.time.ClockManager
@@ -29,7 +31,6 @@ import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.names.Name
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -37,6 +38,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.toKotlinInstant
 
 /**
  * The [DataPlatform] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
@@ -58,30 +60,31 @@ public class DataPlatform(
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job])
 
-    private val opcClients = mutableMapOf<Name, OpcUaClient>()
+    private val opcClients = mutableMapOf<String, OpcUaClient>()
 
     //FIXME process connection errors
 
-    public suspend fun resolveOpcClient(name: Name): OpcUaClient = opcClients.getOrPut(name) {
-        val config = configuration.sources[name] as? OpcUaConfig ?: error("No OPC source found for $name")
+    public suspend fun resolveOpcClient(source: String): OpcUaClient = opcClients.getOrPut(source) {
+        val config = configuration.sources[source] as? OpcUaConfig ?: error("No OPC source found for $source")
         OpcUaClient.create(config.host).apply {
             connect()
         }
     }
 
-    private val plcClients = mutableMapOf<Name, PlcConnection>()
+    private val plcClients = mutableMapOf<String, PlcConnection>()
 
-    public suspend fun resolvePlcClient(name: Name): PlcConnection = plcClients.getOrPut(name) {
-        val config = configuration.sources[name] as? PlcConfig ?: error("No PLC source found for $name")
+    public suspend fun resolvePlcClient(source: String): PlcConnection = plcClients.getOrPut(source) {
+        val config = configuration.sources[source] as? PlcConfig ?: error("No PLC source found for $source")
         DefaultPlcDriverManager().getConnection(config.address).apply {
             connect()
         }
     }
 
 
-    private val modbusClients = mutableMapOf<Name, AbstractModbusMaster>()
-    public suspend fun resolveModbusClient(name: Name): AbstractModbusMaster = modbusClients.getOrPut(name) {
-        val config = configuration.sources[name] as? ModbusConfig ?: error("No Modbus source found for $name")
+    private val modbusClients = mutableMapOf<String, AbstractModbusMaster>()
+
+    public suspend fun resolveModbusClient(source: String): AbstractModbusMaster = modbusClients.getOrPut(source) {
+        val config = configuration.sources[source] as? ModbusConfig ?: error("No Modbus source found for $source")
         when (config) {
             is ModbusRtuConfig -> {
                 val serialParameters = SerialParameters().apply {
@@ -103,7 +106,7 @@ public class DataPlatform(
     }
 
 
-    public suspend fun read(propertyConfig: PlatformProperty): ValueWithTime<Meta> = when (propertyConfig) {
+    internal suspend fun read(propertyConfig: PlatformProperty): ValueWithTime<Meta> = when (propertyConfig) {
         is ModbusPlatformProperty -> with(propertyConfig) {
             val client = resolveModbusClient(source)
 
@@ -131,6 +134,30 @@ public class DataPlatform(
                 val value = response.readProperty()
                 return ValueWithTime(value, time)
             }
+        }
+    }
+
+    /**
+     * Read multiple opc properties from the same source
+     */
+    private suspend fun readMultipleOpc(
+        source: String,
+        properties: List<Map.Entry<String, OpcPlatformProperty>>,
+        maxAge: Double = 500.0,
+    ): List<Pair<String, ValueWithTime<Meta>>> {
+        check(properties.all { it.value.source == source }) { "All properties must have the same source" }
+        val client = resolveOpcClient(source)
+
+        val dataValues = client.readValuesAsync(
+            maxAge,
+            TimestampsToReturn.Server,
+            properties.map { NodeId.parse(it.value.nodeId) }
+        ).await()
+
+        return properties.zip(dataValues).map { (entry, response) ->
+            val time = response.serverTime ?: error("No server time provided")
+            val meta: Meta = Meta.fromOpc(response.value.value)
+            entry.key to ValueWithTime(meta, time.javaInstant.toKotlinInstant())
         }
     }
 
@@ -166,6 +193,60 @@ public class DataPlatform(
 
     private var readJob: Job? = null
 
+    /**
+     * Read all properties on trigger
+     */
+    private suspend fun readAllProperties(properties: List<Map.Entry<String, PlatformProperty>>): Unit =
+        coroutineScope {
+            properties.groupBy { it.value.source }.forEach { (source, entries) ->
+                //launch reading process for each separate source
+                launch {
+                    //TODO maybe partition properties beforehand to avoid unnecessary computations
+                    val timeout = entries.maxOf { it.value.timeout }
+
+                    if (entries.all { it.value is OpcPlatformProperty }) {
+                        //optimization to read multiple OPC properties at once
+                        withTimeout(timeout) {
+                            @Suppress("UNCHECKED_CAST")
+                            readMultipleOpc(
+                                source,
+                                entries as List<Map.Entry<String, OpcPlatformProperty>>
+                            ).forEach { (propertyName, value) ->
+                                values[propertyName] = value.value
+                                _messageFlow.emit(
+                                    PropertyChangedMessage(
+                                        time = value.time,
+                                        property = propertyName,
+                                        value = value.value,
+                                    )
+                                )
+                            }
+                        }
+                    } else {
+                        entries.forEach { (propertyName, property) ->
+                            try {
+                                withTimeout(property.timeout) {
+                                    val value = read(property)
+
+                                    values[propertyName] = value.value
+                                    _messageFlow.emit(
+                                        PropertyChangedMessage(
+                                            time = value.time,
+                                            property = propertyName,
+                                            value = value.value,
+                                        )
+                                    )
+                                }
+                            } catch (ex: Exception) {
+                                logger.error(ex) { "Failed to read property $propertyName" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
     override suspend fun start() {
         if (readJob != null) return
         setLifecycleState(LifecycleState.STARTED)
@@ -173,38 +254,14 @@ public class DataPlatform(
         val clockManager = context.request(ClockManager)
 
         readJob = launch {
-            configuration.properties.entries.groupBy { it.value.timer }.forEach { (timerName, properties) ->
-                val timer = configuration.timers[timerName]?.createTimerState(clockManager)
-                    ?: error("Timer $timerName not found")
-                timer.subscribe().onEach {
-                    coroutineScope {
-                        properties.groupBy { it.value.source }.forEach { (source, entries) ->
-                            //launch reading process for each separate source
-                            launch {
-                                //TODO implement reading multiple properties at once here. They are already grouped by source
-                                entries.forEach { (propertyName, property) ->
-                                    try {
-                                        withTimeout(property.timeout) {
-                                            val value = read(property)
-
-                                            values[propertyName] = value.value
-                                            _messageFlow.emit(
-                                                PropertyChangedMessage(
-                                                    time = value.time,
-                                                    property = propertyName,
-                                                    value = value.value,
-                                                )
-                                            )
-                                        }
-                                    } catch (ex: Exception) {
-                                        logger.error(ex) { "Failed to read property $propertyName" }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }.launchIn(this)
-            }
+            configuration.properties.entries.groupBy { it.value.timer }
+                .forEach { (timerName, properties: List<Map.Entry<String, PlatformProperty>>) ->
+                    val timer = configuration.timers[timerName]?.createTimerState(clockManager)
+                        ?: error("Timer $timerName not found")
+                    timer.subscribe().onEach {
+                        readAllProperties(properties)
+                    }.launchIn(this)
+                }
         }
     }
 
