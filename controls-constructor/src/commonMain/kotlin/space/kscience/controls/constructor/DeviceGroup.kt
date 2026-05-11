@@ -100,12 +100,16 @@ public open class DeviceGroup(
 
     private val properties: MutableMap<Name, Property<*>> = hashMapOf()
 
+    /**
+     * Get property with given [propertyName] as a [ValueState]. If the property is not found, throws an error.
+     */
     public fun <T> propertyAsState(propertyName: String, converter: MetaConverter<T>): ValueState<T> {
         val prop = properties[propertyName.parseAsName()] ?: error("Property with name $propertyName not found")
         return if (prop.converter == converter) {
             @Suppress("UNCHECKED_CAST")
             prop.state as ValueState<T>
         } else {
+            //perform double meta conversion on read if inner converter and outer converter are different
             prop.asMetaValueState().map(converter::read)
         }
     }

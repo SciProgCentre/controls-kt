@@ -38,8 +38,11 @@ public fun DataPlatform.flowBinaryData(
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
 ): Flow<Envelope> {
-    val rows =
-        if (compression == null) readTimeSeries(readInterval) else readTimeSeries(readInterval).compress(compression)
+    val rows = if (compression == null) {
+        readTimeSeries(readInterval)
+    } else {
+        readTimeSeries(readInterval).compress(compression)
+    }
 
     return channelFlow {
         val rowBuffer = mutableListOf<TimeSeriesValues<Meta>>()
@@ -51,7 +54,7 @@ public fun DataPlatform.flowBinaryData(
             //ignore if rows are empty
             if (rowBuffer.isEmpty()) return
             val now = clock.now()
-            
+
             val table = RowTable(rows.headers, rowBuffer.map { it.toRow() })
             val envelope = converter.writeRows(table, Meta {
                 "time" put now.toString()
