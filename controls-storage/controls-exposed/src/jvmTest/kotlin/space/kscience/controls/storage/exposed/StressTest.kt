@@ -46,7 +46,7 @@ class StressTest {
         }
 
         measureTime {
-            val result = storage.readAll().toList()
+            val result = storage.read().toList()
             assertEquals(messages, result.size)
         }.also {
             println("Read time: $it")

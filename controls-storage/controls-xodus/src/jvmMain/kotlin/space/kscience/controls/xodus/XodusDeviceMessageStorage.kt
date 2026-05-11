@@ -64,12 +64,20 @@ public class XodusDeviceMessageStorage(
         }
     }
 
-    override fun readAll(): Flow<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
+    override fun read(
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?,
+    ): Flow<DeviceMessage> = entityStore.computeInReadonlyTransaction { transaction ->
         transaction.sort(
             DEVICE_MESSAGE_ENTITY_TYPE,
             DeviceMessage::time.name,
             true
-        ).map {
+        ).filter {
+            it.timeInRange(range) &&
+                    it.propertyMatchesName(DeviceMessage::sourceDevice.name, sourceDevice) &&
+                    it.propertyMatchesName(DeviceMessage::targetDevice.name, targetDevice)
+        }.map {
             Json.decodeFromString(
                 DeviceMessage.serializer(),
                 it.getBlobString("json") ?: error("No json content found")

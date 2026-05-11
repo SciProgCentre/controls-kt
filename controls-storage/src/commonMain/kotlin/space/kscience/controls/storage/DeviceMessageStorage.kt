@@ -26,12 +26,16 @@ public interface DeviceMessageStorage {
     public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
 
     /**
-     * Return all messages in a storage as a flow
+     * Return all messages in a storage as a flow and optinally filters by [range], [sourceDevice] and [targetDevice].
      */
-    public fun readAll(): Flow<DeviceMessage>
+    public fun read(
+        range: ClosedRange<Instant>? = null,
+        sourceDevice: Name? = null,
+        targetDevice: Name? = null,
+    ): Flow<DeviceMessage>
 
     /**
-     * Flow messages with given [eventType] and filters by [range], [sourceDevice] and [targetDevice].
+     * Flow messages with given [eventType] and optinally filters by [range], [sourceDevice] and [targetDevice].
      * Null in filters means that there is not filtering for this field.
      */
     public fun read(

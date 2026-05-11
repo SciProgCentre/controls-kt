@@ -55,7 +55,7 @@ class ExposedDeviceMessageStorageTest {
 
         storage.write(message)
 
-        val messages = storage.readAll().toList()
+        val messages = storage.read().toList()
         assertEquals(1, messages.size)
         assertEquals("Test message", (messages[0] as DeviceLogMessage).message)
     }
@@ -110,7 +110,7 @@ class ExposedDeviceMessageStorageTest {
 
         messages.forEach { storage.write(it) }
 
-        val readMessages = storage.readAll().toList()
+        val readMessages = storage.read().toList()
 
         assertContentEquals(messages.sortedByDescending { it.time }, readMessages)
     }

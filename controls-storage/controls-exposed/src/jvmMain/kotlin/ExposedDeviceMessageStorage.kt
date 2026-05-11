@@ -78,12 +78,12 @@ public class ExposedDeviceMessageStorage(
     }
 
     private fun flowQuery(queryBase: Query) = flow {
-        var lastpageBottomTime: Instant? = null
+        var lastPageBottomTime: Instant? = null
 
         while (true) {
             val page = suspendTransaction(db = database, readOnly = true) {
                 queryBase.copy().orderBy(DeviceMessages.time, SortOrder.DESC).limit(pageSize).apply {
-                    lastpageBottomTime?.let {
+                    lastPageBottomTime?.let {
                         andWhere { DeviceMessages.time less it }
                     }
                 }.map { it.readDeviceMessage() }
@@ -96,13 +96,37 @@ public class ExposedDeviceMessageStorage(
             if (page.size < pageSize) {
                 break
             } else {
-                lastpageBottomTime = page.last().time
+                lastPageBottomTime = page.last().time
             }
 
         }
     }
 
-    override fun readAll(): Flow<DeviceMessage> = flowQuery(DeviceMessages.selectAll())
+    private fun Query.filter(
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ){
+        if (range != null) {
+            andWhere { DeviceMessages.time.between(range.start, range.endInclusive) }
+        }
+        if (sourceDevice != null) {
+            andWhere { DeviceMessages.sourceDevice eq sourceDevice.toString() }
+        }
+        if (targetDevice != null) {
+            andWhere { DeviceMessages.targetDevice eq targetDevice.toString() }
+        }
+    }
+
+    override fun read(
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> = flowQuery(
+        DeviceMessages.selectAll().apply {
+            filter(range, sourceDevice, targetDevice)
+        }
+    )
 
     override fun read(
         eventType: String,
@@ -111,15 +135,8 @@ public class ExposedDeviceMessageStorage(
         targetDevice: Name?
     ): Flow<DeviceMessage> = flowQuery(
         DeviceMessages.selectAll().apply {
-            if (range != null) {
-                andWhere { DeviceMessages.time.between(range.start, range.endInclusive) }
-            }
-            if (sourceDevice != null) {
-                andWhere { DeviceMessages.sourceDevice eq sourceDevice.toString() }
-            }
-            if (targetDevice != null) {
-                andWhere { DeviceMessages.targetDevice eq targetDevice.toString() }
-            }
+            andWhere { DeviceMessages.type eq eventType }
+            filter(range, sourceDevice, targetDevice)
         }
     )
 
