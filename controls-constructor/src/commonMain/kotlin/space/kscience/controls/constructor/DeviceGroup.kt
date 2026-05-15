@@ -92,8 +92,8 @@ public open class DeviceGroup(
     @OptIn(DFExperimental::class)
     public open fun <D : Device> install(token: Name, device: D): D {
         require(_devices[token] == null) { "A child device with name $token already exists" }
-        //start the child device if needed
-        if (!isStarted()) launch { device.start() }
+        //start the child device if this device is started
+        if (isStarted()) launch { device.start() }
         _devices[token] = device
         return device
     }

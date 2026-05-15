@@ -38,7 +38,7 @@ private class VirtualValueState<T>(
         flow.emit(ValueWithTime(value, clock.now()))
     }
 
-    override fun toString(): String = "ValueState.Virtual($value)"
+    override fun toString(): String = "ValueState.virtual($value)"
 }
 
 
@@ -54,7 +54,7 @@ public fun <T> MutableValueState(
 /**
  * A [MutableValueState] that does not correspond to a physical state
  *
- * Inherits context clock
+ * Inherits the context clock
  */
 public fun <T> ContextAware.MutableValueState(
     initialValue: T,

@@ -4,9 +4,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.resolveDevice
+import space.kscience.controls.constructor.expressions.StateExpression
 import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.MetaRef
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.misc.DFExperimental
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 import kotlin.reflect.KProperty
 import kotlin.time.Instant
 
@@ -34,8 +44,28 @@ public interface ValueState<out T> {
 
     override fun toString(): String
 
+    @OptIn(DFExperimental::class)
     public companion object {
         public const val TYPE: String = "state"
+
+        public val deviceName: MetaRef<String> = MetaRef("deviceName".asName(), MetaConverter.string)
+
+        public val propertyName: MetaRef<String> = MetaRef("propertyName".asName(), MetaConverter.string)
+
+        public val defaultValue: MetaRef<Meta> = MetaRef("defaultValue".asName(), MetaConverter.meta)
+
+        public val contextValueStateFactory: ValueStateProvider = ValueStateProvider { context, meta ->
+            val deviceName = meta[deviceName]?.parseAsName() ?: error("Device name is not specified")
+            val propertyName = meta[propertyName] ?: error("Property name is not specified")
+            val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
+            val defaultValue = meta[defaultValue] ?: Meta.EMPTY
+            deviceManager.resolveDevice(deviceName).propertyAsState(propertyName, MetaConverter.meta, defaultValue)
+        }
+
+        public val defaultValueStateFactories: Map<String, ValueStateProvider> = mapOf(
+            "deviceProperty" to contextValueStateFactory,
+            "expression" to StateExpression.valueStateFactory
+        )
     }
 }
 
@@ -366,9 +396,10 @@ public fun <T, R> ValueState.Companion.combine(
     override fun subscribe(): StateFlow<R> = valueFlow
 
     @Suppress("UNCHECKED_CAST")
-    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = combine(states.map { it.subscribeWithTime() }) { array: Array<Any?> ->
-        mapper(array.asList() as List<T>)
-    }.map { ValueWithTime(it, states.maxOf { it.valueWithTime.time }) }
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
+        combine(states.map { it.subscribeWithTime() }) { array: Array<Any?> ->
+            mapper(array.asList() as List<T>)
+        }.map { ValueWithTime(it, states.maxOf { it.valueWithTime.time }) }
 
     override fun toString(): String =
         "DeviceState.combine(states=${
@@ -419,9 +450,10 @@ public fun <T, K, R> ValueState.Companion.combine(
     override fun subscribe(): StateFlow<R> = valueFlow
 
     @Suppress("UNCHECKED_CAST")
-    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = combine(entries.map { it.value.subscribeWithTime() }) { array: Array<Any?> ->
-        mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
-    }.map { ValueWithTime(it, states.maxOf { it.value.valueWithTime.time }) }
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
+        combine(entries.map { it.value.subscribeWithTime() }) { array: Array<Any?> ->
+            mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
+        }.map { ValueWithTime(it, states.maxOf { it.value.valueWithTime.time }) }
 
     override fun toString(): String =
         "DeviceState.associate(states=${

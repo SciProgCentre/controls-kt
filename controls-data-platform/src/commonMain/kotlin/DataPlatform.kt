@@ -19,6 +19,7 @@ import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.ValueStateProvider
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.opcua.client.readMetaWithTime
@@ -31,6 +32,9 @@ import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.MetaRef
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.names.asName
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -54,7 +58,7 @@ public class DataPlatform(
     public val configuration: DataPlatformConfiguration,
     public val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     public val clock: Clock = context.clock,
-) : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope {
+) : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope, ValueStateProvider {
 
 
     override val coroutineContext: CoroutineContext =
@@ -307,30 +311,42 @@ public class DataPlatform(
         }.shareIn(this@DataPlatform, SharingStarted.WhileSubscribed())
 
         override fun subscribe() = rowFlow
+    }
 
+    private val stateCache = mutableMapOf<String, ValueState<Meta>>()
+
+    /**
+     * Create a [ValueState] for a property of a [DataPlatform].
+     */
+    public fun valueState(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
+        object : ValueState<Meta> {
+            override val valueWithTime: ValueWithTime<Meta>
+                get() = ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, clock.now())
+
+            override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> =
+                messageFlow.filterIsInstance<PropertyChangedMessage>().filter { it.property == tag }.map {
+                    ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, it.time)
+                }
+
+            override fun toString(): String = "ValueState.dataPlatform(propertyName=$tag)"
+        }
+    }
+
+    override fun buildValueState(context: Context, parameters: Meta): ValueState<Meta> {
+        val tag = parameters[tag] ?: error("No tag specified")
+        return valueState(tag)
     }
 
     public companion object {
+        public val tag: MetaRef<String> = MetaRef("tag".asName(), MetaConverter.string)
+
         internal val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
             title = "Time"
         }
+
     }
 }
 
-/**
- * Create a [ValueState] for a property of a [DataPlatform].
- */
-public fun DataPlatform.valueState(tag: String): ValueState<Meta> = object : ValueState<Meta> {
-    override val valueWithTime: ValueWithTime<Meta>
-        get() = ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, clock.now())
-
-    override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = messageFlow.filterIsInstance<PropertyChangedMessage>()
-        .filter { it.property == tag }.map {
-            ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, it.time)
-        }
-
-    override fun toString(): String = "ValueState.dataPlatform(propertyName=$tag)"
-}
 
 /**
  * Register a device property that is bound to a [DataPlatform] source.

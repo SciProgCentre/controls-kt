@@ -8,9 +8,16 @@ description = """
 """.trimIndent()
 
 kscience {
-    jvm()
+
+    jvm {
+        compilerOptions {
+            optIn.add("space.kscience.dataforge.misc.DFExperimental")
+        }
+    }
+
     useCoroutines()
     useSerialization()
+    useContextParameters()
 
     commonMain {
         api(projects.controlsCore)
