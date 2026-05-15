@@ -44,7 +44,7 @@ fun main() = runBlocking {
 
         while (true) {
             try {
-                logCycle(cycle, "set channel=$counter, read voltage")
+                logCycle(cycle, "set channel=$counter, set/read stabilizationProfile, read voltage")
 
                 // POST: Update 'channel' property
                 val postMeta = Meta {
@@ -60,6 +60,39 @@ fun main() = runBlocking {
                     packetSize = postResponse.packetSize,
                     payloadSize = postResponse.data?.size ?: 0,
                     meta = postResponse.meta,
+                )
+
+                delay(POST_GET_DELAY_MS)
+
+                // POST: Update 'stabilizationProfile' structured property
+                val profileMeta = stabilizationProfilePostMeta(counter)
+                val profilePacketSize = device.packetSize(profileMeta)
+                logPacket("->", "POST stabilizationProfile", packetSize = profilePacketSize, meta = profileMeta)
+                val profileResponse = device.requestWithData(profileMeta)
+                logPacket(
+                    direction = "<-",
+                    label = "POST response",
+                    packetSize = profileResponse.packetSize,
+                    payloadSize = profileResponse.data?.size ?: 0,
+                    meta = profileResponse.meta,
+                )
+
+                delay(POST_GET_DELAY_MS)
+
+                // GET: Read 'stabilizationProfile' structured property
+                val getProfileMeta = Meta {
+                    "method" put "GET"
+                    "stabilizationProfile" put ""
+                }
+                
+                logPacket("->", "GET stabilizationProfile", packetSize = device.packetSize(getProfileMeta), meta = getProfileMeta)
+                val getProfileResponse = device.requestWithData(getProfileMeta)
+                logPacket(
+                    direction = "<-",
+                    label = "GET response",
+                    packetSize = getProfileResponse.packetSize,
+                    payloadSize = getProfileResponse.data?.size ?: 0,
+                    meta = getProfileResponse.meta,
                 )
 
                 delay(POST_GET_DELAY_MS)
@@ -92,6 +125,26 @@ fun main() = runBlocking {
 
     // Keep the demo running
     delay(DEMO_DURATION_MS)
+}
+
+private fun stabilizationProfilePostMeta(seed: Int): Meta = Meta {
+    "method" put "POST"
+    "stabilizationProfile" put {
+        "pid" put {
+            "p" put (0.1 + seed * 0.01)
+            "i" put 0.01
+            "d" put 0.001
+        }
+        "sensor" put {
+            "quaternion" put {
+                "w" put 1.0
+                "x" put 0.0
+                "y" put 0.0
+                "z" put 0.0
+            }
+            "healthy" put true
+        }
+    }
 }
 
 private fun logCycle(cycle: Int, description: String) {
