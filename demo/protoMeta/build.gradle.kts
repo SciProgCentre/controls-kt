@@ -22,3 +22,10 @@ dependencies {
 application {
     mainClass.set("space.kscience.controls.demo.proto.ProtoDemoKt")
 }
+
+tasks.register<JavaExec>("generateProtocol") {
+    group = "code generation"
+    description = "Generate protocol source files using the project-local ProtocolCodegen configuration."
+    mainClass.set("space.kscience.controls.demo.proto.ProtocolCodegenKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}

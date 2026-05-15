@@ -33,7 +33,7 @@ class DemoDevice(context: Context, meta: Meta) : ProtoDevice(context, meta) {
             descriptorBuilder = {
                 metaDescriptor {
                     attributes {
-                        "rust_type" put "int"
+                        "protocol_type" put "int"
                     }
                 }
             },
@@ -45,7 +45,7 @@ class DemoDevice(context: Context, meta: Meta) : ProtoDevice(context, meta) {
             descriptorBuilder = {
                 metaDescriptor {
                     attributes {
-                        "rust_type" put "int"
+                        "protocol_type" put "int"
                     }
                 }
             },

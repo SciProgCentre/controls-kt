@@ -10,45 +10,13 @@ import space.kscience.controls.ports.Ports
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.invoke
-import space.kscience.controls.ports.AsynchronousPort
-import space.kscience.dataforge.context.gather
-import space.kscience.dataforge.context.Factory
-import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.Datagram
-import io.ktor.network.sockets.InetSocketAddress
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.isActive
-import kotlinx.io.readByteArray
-import kotlinx.io.Buffer
 
-import space.kscience.controls.proto.generation.MetaRustGenerator
-import java.io.File
+private const val POST_GET_DELAY_MS = 500L
+private const val CYCLE_DELAY_MS = 1_000L
+private const val DEMO_DURATION_MS = 2000_000L
 
 fun main() = runBlocking {
-    println("Generating Rust code...")
-    val handlerPath = "build/generated/rust/device.rs"
-    val handlerFile = File(handlerPath)
-    val codecPath = buildString {
-        append(handlerFile.parentFile?.path ?: ".")
-        append('/')
-        append(handlerFile.nameWithoutExtension)
-        append("_codec.rs")
-    }
-    val supportPath = buildString {
-        append(handlerFile.parentFile?.path ?: ".")
-        append('/')
-        append(handlerFile.nameWithoutExtension)
-        append("_support.rs")
-    }
-    MetaRustGenerator.generateToFile(DemoDevice, handlerPath)
-    println("Rust API facade generated at $handlerPath")
-    println("Rust codec generated at $codecPath")
-    println("Rust support module generated at $supportPath")
-
     val context = Context("ProtoDemo") {
         plugin(Ports)
         plugin(KtorPortsPlugin)
@@ -72,18 +40,29 @@ fun main() = runBlocking {
     // Send data periodically
     launch {
         var counter = 10
-        while(true) {
+        var cycle = 1
+
+        while (true) {
             try {
+                logCycle(cycle, "set channel=$counter, read voltage")
+
                 // POST: Update 'channel' property
                 val postMeta = Meta {
                     "method" put "POST"
                     "channel" put counter
                 }
                 val postPacketSize = device.packetSize(postMeta)
-                println("Sending POST channel=$counter (0 bytes payload, $postPacketSize bytes total packet)...")
-                device.send(postMeta)
+                logPacket("->", "POST channel=$counter", packetSize = postPacketSize, meta = postMeta)
+                val postResponse = device.requestWithData(postMeta)
+                logPacket(
+                    direction = "<-",
+                    label = "POST response",
+                    packetSize = postResponse.packetSize,
+                    payloadSize = postResponse.data?.size ?: 0,
+                    meta = postResponse.meta,
+                )
 
-                delay(500)
+                delay(POST_GET_DELAY_MS)
 
                 // GET: Read 'voltage' property
                 val getMeta = Meta {
@@ -91,26 +70,57 @@ fun main() = runBlocking {
                     "voltage" put ""
                 }
                 val getPacketSize = device.packetSize(getMeta)
-                println("Sending GET voltage (0 bytes payload, $getPacketSize bytes total packet)...")
-                val response = device.requestWithData(getMeta)
-                println("Received response packet from MCU: ${response.packetSize} bytes total")
+                logPacket("->", "GET voltage", packetSize = getPacketSize, meta = getMeta)
+                val getResponse = device.requestWithData(getMeta)
+                logPacket(
+                    direction = "<-",
+                    label = "GET response",
+                    packetSize = getResponse.packetSize,
+                    payloadSize = getResponse.data?.size ?: 0,
+                    meta = getResponse.meta,
+                )
 
-                val voltage = response.meta["voltage"].double
-                if (voltage != null) {
-                    println("Received voltage from MCU (meta): $voltage")
-                } else {
-                    println("GET response does not contain numeric 'voltage' value in meta")
-                }
-
-                println("Packets sent")
+                println("Cycle ${cycle.formatCycle()} complete")
                 counter++
+                cycle++
             } catch (e: Exception) {
-                println("Send failed: ${e.message}")
+                println("Cycle ${cycle.formatCycle()} failed: ${e.message}")
             }
-            delay(1000)
+            delay(CYCLE_DELAY_MS)
         }
     }
 
     // Keep the demo running
-    delay(20000)
+    delay(DEMO_DURATION_MS)
 }
+
+private fun logCycle(cycle: Int, description: String) {
+    println()
+    println("=== Cycle ${cycle.formatCycle()} | $description ===")
+}
+
+private fun logPacket(
+    direction: String,
+    label: String,
+    packetSize: Int,
+    payloadSize: Int = 0,
+    meta: Meta,
+) {
+    println("$direction $label")
+    println("   payload=$payloadSize B, packet=$packetSize B")
+    println("   meta: ${meta.summary()}")
+}
+
+private fun Meta.summary(): String {
+    val children = items.map { (key, child) ->
+        val value = child.value?.toString()
+        if (value == null) {
+            "$key={${child.items.size} field(s)}"
+        } else {
+            "$key=$value"
+        }
+    }
+    return children.joinToString(separator = ", ").ifBlank { value?.toString() ?: "empty" }
+}
+
+private fun Int.formatCycle(): String = toString().padStart(3, '0')

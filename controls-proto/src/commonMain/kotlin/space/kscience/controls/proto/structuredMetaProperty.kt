@@ -27,11 +27,12 @@ import space.kscience.dataforge.misc.DFExperimental
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 
-private fun leafStructuredMetaDescriptor(valueType: ValueType, rustType: String? = null): MetaDescriptor = MetaDescriptor {
+private fun leafStructuredMetaDescriptor(valueType: ValueType, protocolType: String? = null): MetaDescriptor = MetaDescriptor {
     valueType(valueType)
-    rustType?.let { resolvedRustType ->
+    protocolType?.let { resolvedProtocolType ->
         attributes {
-            "rust_type" put resolvedRustType
+            ProtocolTypeHints.TYPE_ATTRIBUTE put resolvedProtocolType
+            ProtocolTypeHints.LEGACY_RUST_TYPE_ATTRIBUTE put resolvedProtocolType
         }
     }
 }
@@ -97,7 +98,8 @@ public fun <T, D : Device> DeviceSpec<D>.mutableStructuredMetaProperty(
         descriptorBuilder = {
             metaDescriptor {
                 attributes {
-                    "rust_type" put "meta"
+                    ProtocolTypeHints.TYPE_ATTRIBUTE put ProtocolTypeHints.STRUCTURED_META_TYPE
+                    ProtocolTypeHints.LEGACY_RUST_TYPE_ATTRIBUTE put ProtocolTypeHints.STRUCTURED_META_TYPE
                 }
             }
             descriptorBuilder()

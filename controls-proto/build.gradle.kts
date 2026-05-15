@@ -22,7 +22,7 @@ readme{
 kotlin {
     jvm {
         mainRun {
-            mainClass = "space.kscience.controls.proto.generation.MetaRustGenerator"
+            mainClass = "space.kscience.controls.proto.generation.RustProtocolGenerator"
         }
     }
 }
