@@ -12,12 +12,14 @@ repositories {
 
 dependencies {
     implementation(projects.controlsDataPlatform)
+    implementation(projects.controlsVisualisationCompose)
 
     implementation(libs.plotlykt.server)
+    implementation(libs.koala.plots)
 
-//    implementation(compose.runtime)
-//    implementation(compose.desktop.currentOs)
-//    implementation(compose.material3)
+    implementation(compose.runtime)
+    implementation(compose.desktop.currentOs)
+    implementation(compose.material3)
 
     implementation(spclibs.logback.classic)
 }

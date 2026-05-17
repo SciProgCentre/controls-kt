@@ -6,19 +6,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.NameToken
 import space.kscience.dataforge.names.plus
 
 /**
- * Process a message targeted at this [Device], assuming its name is [deviceTarget].
+ * Process a message targeted at this [Device], assuming its name to be used in responses is [targetDeviceName].
  */
-public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMessage): DeviceMessage? = try {
+public suspend fun Device.respondMessage(targetDeviceName: Name, request: DeviceMessage): DeviceMessage? = try {
     when (request) {
         is PropertyGetMessage -> {
             PropertyChangedMessage(
                 time = clock.now(),
                 property = request.property,
                 value = getOrReadProperty(request.property),
-                sourceDevice = deviceTarget,
+                sourceDevice = targetDeviceName,
                 targetDevice = request.sourceDevice,
             )
         }
@@ -29,7 +30,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
                 time = clock.now(),
                 property = request.property,
                 value = getOrReadProperty(request.property),
-                sourceDevice = deviceTarget,
+                sourceDevice = targetDeviceName,
                 targetDevice = request.sourceDevice,
             )
         }
@@ -40,7 +41,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
                 action = request.action,
                 result = execute(request.action, request.argument),
                 requestId = request.requestId,
-                sourceDevice = deviceTarget,
+                sourceDevice = targetDeviceName,
                 targetDevice = request.sourceDevice
             )
         }
@@ -51,7 +52,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
                 description = meta,
                 properties = propertyDescriptors,
                 actions = actionDescriptors,
-                sourceDevice = deviceTarget,
+                sourceDevice = targetDeviceName,
                 targetDevice = request.sourceDevice
             )
         }
@@ -70,7 +71,7 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
     DeviceMessage.error(
         time = clock.now(),
         cause = ex,
-        sourceDevice = deviceTarget,
+        sourceDevice = targetDeviceName,
         targetDevice = request.sourceDevice
     )
 }
@@ -79,12 +80,13 @@ public suspend fun Device.respondMessage(deviceTarget: Name, request: DeviceMess
  * Process incoming [DeviceMessage], using hub naming to find target.
  * If the `targetDevice` is `null`, then the message is sent to each device in this hub
  */
-public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<DeviceMessage> {
+public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<DeviceMessage> {
     return try {
         val targetName = request.targetDevice
+        //broadcast to all devices in this hub
         if (targetName == null) {
-            devices.mapNotNull {
-                it.value.respondMessage(it.key, request)
+            descendantDevices().mapNotNull {(deviceName, device)->
+                device.respondMessage(deviceName, request)
             }
         } else {
             val device = resolveDevice(targetName)
@@ -103,19 +105,15 @@ public suspend fun DeviceHub.respondHubMessage(request: DeviceMessage): List<Dev
 }
 
 /**
- * Collect all messages from given [DeviceHub], applying proper relative names.
+ * Collect all messages from given [DeviceTree], applying proper relative names.
  */
-public fun DeviceHub.hubMessageFlow(): Flow<DeviceMessage> {
+public fun DeviceTree.messageFlow(): Flow<DeviceMessage> {
 
-    val deviceMessageFlow = if (this is Device) messageFlow else emptyFlow()
+    val deviceMessageFlow = device?.messageFlow ?: emptyFlow()
 
-    val childrenFlows = devices.map { (token, childDevice) ->
-        if (childDevice is DeviceHub) {
-            childDevice.hubMessageFlow()
-        } else {
-            childDevice.messageFlow
-        }.map { deviceMessage ->
-            deviceMessage.changeSource { token + it }
+    val childrenFlows = children.map { (deviceName, childDevice) ->
+        childDevice.messageFlow().map { deviceMessage ->
+            deviceMessage.changeSource { NameToken(deviceName) + it }
         }
     }
 

@@ -2,6 +2,9 @@
 
 package space.kscience.controls.demo
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -18,7 +21,9 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.*
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.names.plus
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -40,7 +45,7 @@ fun main() {
     val propertiesPerDevice = 30
 
     val registryMap = TestDeviceRegistryMap(
-        List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
+        List(propertiesPerDevice) { "property[$it]"}
     )
 
     deviceManager.setupTestDevices(
@@ -112,7 +117,7 @@ fun main() {
 
     deviceManager.install("platform", platformDevice)
 
-    deviceManager.installFromConfiguration(platform, configuration, "devices")
+    val deviceHub = deviceManager.installFromConfiguration(platform, configuration, "devices")
 
 
 
@@ -147,16 +152,25 @@ fun main() {
             while (isActive) {
                 delay(1.seconds)
                 mutex.withLock {
-                    println("Changed in a last second: ${values.size}")
-                    values.clear()
+                    if (values.isNotEmpty()) {
+                        println("Changed in a last second: ${values.size}")
+                        values.clear()
+                    }
                 }
             }
         }
     }
 
-    do {
-        val str = readlnOrNull()
-    } while (str != "exit")
+    application {
+        Window(onCloseRequest = {
+            context.close()
+            exitApplication()
+        }, title = "Data Platform Demo") {
+            MaterialTheme {
+                DeviceVisualisation(deviceHub)
+            }
+        }
+    }
 
-    context.close()
+
 }

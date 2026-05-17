@@ -22,7 +22,6 @@ import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.names.asName
 import kotlin.time.toJavaInstant
 
 
@@ -38,7 +37,7 @@ https://github.com/eclipse/milo/blob/master/milo-examples/server-examples/src/ma
 public class DeviceNameSpace(
     private val scope: CoroutineScope,
     server: OpcUaServer,
-    public val deviceHub: DeviceHub
+    public val deviceTree: DeviceTree
 ) : ManagedNamespaceWithLifecycle(server, NAMESPACE_URI) {
 
     private val subscription = SubscriptionModel(server, this)
@@ -46,110 +45,110 @@ public class DeviceNameSpace(
     /**
      * Register device node within existing folder
      */
-    private fun UaFolderNode.registerDeviceNodes(deviceName: String, device: Device) {
-        val nodes = device.propertyDescriptors.associate { descriptor ->
-            val propertyName = descriptor.name
+    private fun UaFolderNode.registerDeviceNodes(deviceName: String, hub: DeviceTree) {
+        hub.device?.let { device ->
+            val nodes = device.propertyDescriptors.associate { descriptor ->
+                val propertyName = descriptor.name
 
 
-            val node: UaVariableNode = UaVariableNode.UaVariableNodeBuilder(nodeContext).apply {
-                //for now, use DF paths as ids
-                nodeId = newNodeId("$deviceName/$propertyName")
-                when {
-                    descriptor.readable && descriptor.mutable -> {
-                        setAccessLevel(AccessLevel.READ_WRITE)
-                        setUserAccessLevel(AccessLevel.READ_WRITE)
+                val node: UaVariableNode = UaVariableNode.UaVariableNodeBuilder(nodeContext).apply {
+                    //for now, use DF paths as ids
+                    nodeId = newNodeId("$deviceName/$propertyName")
+                    when {
+                        descriptor.readable && descriptor.mutable -> {
+                            setAccessLevel(AccessLevel.READ_WRITE)
+                            setUserAccessLevel(AccessLevel.READ_WRITE)
+                        }
+
+                        descriptor.mutable -> {
+                            setAccessLevel(AccessLevel.WRITE_ONLY)
+                            setUserAccessLevel(AccessLevel.WRITE_ONLY)
+                        }
+
+                        descriptor.readable -> {
+                            setAccessLevel(AccessLevel.READ_ONLY)
+                            setUserAccessLevel(AccessLevel.READ_ONLY)
+                        }
+
+                        else -> {
+                            setAccessLevel(AccessLevel.NONE)
+                            setUserAccessLevel(AccessLevel.NONE)
+                        }
                     }
 
-                    descriptor.mutable -> {
-                        setAccessLevel(AccessLevel.WRITE_ONLY)
-                        setUserAccessLevel(AccessLevel.WRITE_ONLY)
+                    browseName = newQualifiedName(propertyName)
+                    displayName = LocalizedText.english(propertyName)
+
+                    dataType = if (descriptor.metaDescriptor.nodes.isNotEmpty()) {
+                        NodeIds.String
+                    } else when (descriptor.metaDescriptor.valueTypes?.first()) {
+                        null, ValueType.STRING, ValueType.NULL -> NodeIds.String
+                        ValueType.NUMBER -> NodeIds.Number
+                        ValueType.BOOLEAN -> NodeIds.Boolean
+                        ValueType.LIST -> NodeIds.ArrayItemType
                     }
 
-                    descriptor.readable -> {
-                        setAccessLevel(AccessLevel.READ_ONLY)
-                        setUserAccessLevel(AccessLevel.READ_ONLY)
-                    }
 
-                    else -> {
-                        setAccessLevel(AccessLevel.NONE)
-                        setUserAccessLevel(AccessLevel.NONE)
+                    setTypeDefinition(NodeIds.BaseDataVariableType)
+                }.build()
+
+                // Update the initial value, but only if it is cached
+                if (device is CachingDevice) {
+                    device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
+                        node.value = it
                     }
                 }
 
-                browseName = newQualifiedName(propertyName)
-                displayName = LocalizedText.english(propertyName)
+                if (descriptor.mutable) {
 
-                dataType = if (descriptor.metaDescriptor.nodes.isNotEmpty()) {
-                    NodeIds.String
-                } else when (descriptor.metaDescriptor.valueTypes?.first()) {
-                    null, ValueType.STRING, ValueType.NULL -> NodeIds.String
-                    ValueType.NUMBER -> NodeIds.Number
-                    ValueType.BOOLEAN -> NodeIds.Boolean
-                    ValueType.LIST -> NodeIds.ArrayItemType
-                }
-
-
-                setTypeDefinition(NodeIds.BaseDataVariableType)
-            }.build()
-
-            // Update the initial value, but only if it is cached
-            if (device is CachingDevice) {
-                device[descriptor]?.toOpc(sourceTime = null, serverTime = null)?.let {
-                    node.value = it
-                }
-            }
-
-            if (descriptor.mutable) {
-
-                /**
-                 * Subscribe to node value changes
-                 */
-                node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any? ->
-                    if (attributeId == AttributeId.Value) {
-                        val meta: Meta = Meta.fromOpc(value)
-                        scope.launch {
-                            device.writeProperty(propertyName, meta)
+                    /**
+                     * Subscribe to node value changes
+                     */
+                    node.addAttributeObserver { _: UaNode, attributeId: AttributeId, value: Any? ->
+                        if (attributeId == AttributeId.Value) {
+                            val meta: Meta = Meta.fromOpc(value)
+                            scope.launch {
+                                device.writeProperty(propertyName, meta)
+                            }
                         }
                     }
                 }
+
+                nodeManager.addNode(node)
+                addOrganizes(node)
+                propertyName to node
             }
 
-            nodeManager.addNode(node)
-            addOrganizes(node)
-            propertyName to node
-        }
-
-        //Subscribe on properties updates
-        device.onPropertyChange {
-            nodes[property]?.let { node ->
-                val sourceTime = DateTime(time.toJavaInstant())
-                val newValue = value.toOpc(sourceTime = sourceTime)
-                if (node.value.value != newValue.value) {
-                    node.value = newValue
+            //Subscribe on properties updates
+            device.onPropertyChange {
+                nodes[property]?.let { node ->
+                    val sourceTime = DateTime(time.toJavaInstant())
+                    val newValue = value.toOpc(sourceTime = sourceTime)
+                    if (node.value.value != newValue.value) {
+                        node.value = newValue
+                    }
                 }
             }
         }
 
         //recursively add sub-devices
-        if (device is DeviceHub) {
-            device.devices.forEach { (childDeviceName, device) ->
+        hub.children.forEach { (childDeviceName, device) ->
 
-                val deviceFolder = UaFolderNode(
-                    nodeContext,
-                    newNodeId("$deviceName/$childDeviceName"),
-                    newQualifiedName("$deviceName/$childDeviceName"),
-                    LocalizedText.english(childDeviceName.toString())
-                )
+            val deviceFolder = UaFolderNode(
+                nodeContext,
+                newNodeId("$deviceName/$childDeviceName"),
+                newQualifiedName("$deviceName/$childDeviceName"),
+                LocalizedText.english(childDeviceName)
+            )
 
-                deviceFolder.registerDeviceNodes("$deviceName/$childDeviceName", device)
+            deviceFolder.registerDeviceNodes("$deviceName/$childDeviceName", device)
 
-                nodeManager.addNode(deviceFolder)
-                addOrganizes(deviceFolder)
-            }
+            nodeManager.addNode(deviceFolder)
+            addOrganizes(deviceFolder)
         }
     }
 
-    private fun UaNodeContext.registerTopLevelHub(hub: DeviceHub) {
+    private fun UaNodeContext.registerTopLevelHub(hub: DeviceTree) {
         val rootNode = UaFolderNode(
             nodeContext,
             newNodeId("Controls"),
@@ -157,8 +156,8 @@ public class DeviceNameSpace(
             LocalizedText.english("Controls")
         )
 
-        hub.devices.forEach { (deviceName, device) ->
-            val nameAsString = "$deviceName"
+        hub.children.forEach { (deviceName, device) ->
+            val nameAsString = deviceName
 
             val deviceFolder = UaFolderNode(
                 nodeContext,
@@ -167,7 +166,7 @@ public class DeviceNameSpace(
                 LocalizedText.english(nameAsString)
             )
 
-            deviceFolder.registerDeviceNodes(deviceName.toString(), device)
+            deviceFolder.registerDeviceNodes(deviceName, device)
 
             nodeManager.addNode(deviceFolder)
 
@@ -192,7 +191,7 @@ public class DeviceNameSpace(
         lifecycleManager.addLifecycle(subscription)
 
         lifecycleManager.addStartupTask {
-            nodeContext.registerTopLevelHub(deviceHub)
+            nodeContext.registerTopLevelHub(deviceTree)
         }
 
         lifecycleManager.addLifecycle(object : Lifecycle {
@@ -228,15 +227,15 @@ public class DeviceNameSpace(
 }
 
 
-public fun OpcUaServer.serveDevices(scope: CoroutineScope, deviceHub: DeviceHub): DeviceNameSpace =
-    DeviceNameSpace(scope, this, deviceHub).apply { startup() }
+public fun OpcUaServer.serveDevices(scope: CoroutineScope, deviceTree: DeviceTree): DeviceNameSpace =
+    DeviceNameSpace(scope, this, deviceTree).apply { startup() }
 
 
 /**
  * Serve single device as OPC-UA
  */
 public fun OpcUaServer.serveDevice(scope: CoroutineScope, device: Device): DeviceNameSpace {
-    return serveDevices(scope, DeviceHub(mapOf("root".asName() to device)))
+    return serveDevices(scope, DeviceTree(device))
 }
 
 /**

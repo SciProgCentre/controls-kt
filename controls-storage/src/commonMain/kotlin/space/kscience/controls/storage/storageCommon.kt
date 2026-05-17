@@ -9,7 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.hubMessageFlow
+import space.kscience.controls.manager.messageFlow
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.logger
@@ -67,7 +67,7 @@ public fun DeviceManager.storeMessages(
     val storage = factory.build(context, meta)
     logger.debug { "Message storage with meta = $meta created" }
 
-    return hubMessageFlow().filter(filterCondition).let {
+    return messageFlow().filter(filterCondition).let {
         //if batch window is specified, group messages into batches and write them to storage
         if (batchWindow != null) {
             it.timeWindowed(batchWindow).onEach { messages ->

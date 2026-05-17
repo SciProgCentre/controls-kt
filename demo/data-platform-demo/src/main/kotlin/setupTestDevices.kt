@@ -11,7 +11,7 @@ import space.kscience.controls.constructor.DeviceGroup
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.controls.modbus.ModbusRegistryMap
 import space.kscience.controls.modbus.bindProcessImage
 import space.kscience.controls.opcua.server.OpcUaServer
@@ -24,18 +24,17 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.dataforge.names.*
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
-class TestDevice(context: Context, val values: Map<Name, ValueState<Double>>) : DeviceConstructor(context) {
+class TestDevice(context: Context, val values: Map<String, ValueState<Double>>) : DeviceConstructor(context) {
     init {
         val metaDescriptor = MetaDescriptor {
             valueType(ValueType.NUMBER)
         }
         values.forEach { (key, state) ->
             val descriptor = PropertyDescriptor(
-                name = key.last().toStringUnescaped(),
+                name = key,
                 description = "Test property $key",
                 metaDescriptor = metaDescriptor
             )
@@ -45,7 +44,7 @@ class TestDevice(context: Context, val values: Map<Name, ValueState<Double>>) : 
     }
 }
 
-internal class TestDeviceRegistryMap(names: List<Name>) : ModbusRegistryMap() {
+internal class TestDeviceRegistryMap(names: List<String>) : ModbusRegistryMap() {
     val keys = names.mapIndexed { index, name ->
         name to input(address = index * 4, count = 4, reader = DoubleIOFormat)
     }.toMap()
@@ -55,14 +54,14 @@ internal class TestDeviceRegistryMap(names: List<Name>) : ModbusRegistryMap() {
 private fun DeviceManager.setupOpcTestDevices(
     numberOfOpcDevices: Int,
     propertiesPerDevice: Int,
-    properties: MutableMap<Name, MutableValueState<Double>>
+    properties: MutableMap<String, MutableValueState<Double>>
 ): DeviceGroup {
 
     //create opc device group
     val opcGroup = DeviceGroup(context, Meta.EMPTY)
     //fill opc device group
     repeat(numberOfOpcDevices) { deviceNum ->
-        val deviceName = NameToken("device", deviceNum.toString()).asName()
+        val deviceName = "device[${deviceNum}]"
 
         val states = buildMap {
             repeat(propertiesPerDevice) { propertyNum ->
@@ -75,7 +74,7 @@ private fun DeviceManager.setupOpcTestDevices(
         opcGroup.install(deviceName, testDevice)
     }
 
-    install("opc", opcGroup)
+    installNode("opc", opcGroup)
 
     //start opc server
     val opcServer = OpcUaServer {
@@ -105,7 +104,7 @@ private fun DeviceManager.setupOpcTestDevices(
 private fun DeviceManager.setupModbusDevices(
     numberOfModbusDevices: Int,
     registryMap: TestDeviceRegistryMap,
-    properties: MutableMap<Name, MutableValueState<Double>>
+    properties: MutableMap<String, MutableValueState<Double>>
 ): DeviceGroup {
     //create opc device group
     val modbusGroup = DeviceGroup(context, Meta.EMPTY)
@@ -122,18 +121,18 @@ private fun DeviceManager.setupModbusDevices(
         properties.putAll(states)
         val testDevice = TestDevice(context, states)
 
-        modbusGroup.install(NameToken("device", deviceNum.toString()).asName(), testDevice)
+        modbusGroup.install("device[${deviceNum}]", testDevice)
 
         val processImage = testDevice.bindProcessImage {
             registryMap.keys.forEach { (name, key) ->
-                bind(key, name.last().toStringUnescaped(), MetaConverter.double)
+                bind(key, name, MetaConverter.double)
             }
         }
 
         modbusSlave.addProcessImage(deviceNum + 1, processImage)
     }
 
-    install("modbus", modbusGroup)
+    installNode("modbus", modbusGroup)
 
     modbusSlave.open()
 
@@ -154,7 +153,7 @@ internal fun DeviceManager.setupTestDevices(
     registryMap: TestDeviceRegistryMap,
     scope: CoroutineScope = context
 ): Job = scope.launch {
-    val values = mutableMapOf<Name, MutableValueState<Double>>()
+    val values = mutableMapOf<String, MutableValueState<Double>>()
 
 
     setupOpcTestDevices(numberOfOpcDevices, propertiesPerDevice, values)

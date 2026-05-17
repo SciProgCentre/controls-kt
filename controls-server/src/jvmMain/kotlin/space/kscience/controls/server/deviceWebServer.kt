@@ -33,7 +33,7 @@ import space.kscience.controls.api.PropertyGetMessage
 import space.kscience.controls.api.PropertySetMessage
 import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.respondHubMessage
+import space.kscience.controls.manager.respondMessage
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
@@ -78,7 +78,7 @@ public val WEB_SERVER_TARGET: Name = "@webServer".asName()
 public fun Application.deviceManagerModule(
     manager: DeviceManager,
     vararg plugins: MagixFlowPlugin,
-    deviceNames: Collection<Name> = manager.devices.keys,
+    deviceNames: Collection<Name> = manager.descendantDevices().keys,
     route: String = "/",
     buffer: Int = 100,
 ) {
@@ -138,8 +138,9 @@ public fun Application.deviceManagerModule(
 
             get("list") {
                 call.respondJson {
-                    manager.devices.forEach { (name, device) ->
-                        put("target", name.toString())
+                    manager.children.forEach { (name, child) ->
+                        val device = child.device ?: return@forEach
+                        put("target", name)
                         put("properties", buildJsonArray {
                             device.propertyDescriptors.forEach { descriptor ->
                                 add(Json.encodeToJsonElement(descriptor))
@@ -157,7 +158,7 @@ public fun Application.deviceManagerModule(
             post("message") {
                 val body = call.receiveText()
                 val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(DeviceMessage.serializer(), body)
-                val response = manager.respondHubMessage(request)
+                val response = manager.respondMessage(request)
                 if (response.isNotEmpty()) {
                     call.respondMessages(response)
                 } else {
@@ -179,7 +180,7 @@ public fun Application.deviceManagerModule(
                             property = property,
                         )
 
-                        val responses = manager.respondHubMessage(request)
+                        val responses = manager.respondMessage(request)
                         if (responses.isNotEmpty()) {
                             call.respondMessages(responses)
                         } else {
@@ -200,7 +201,7 @@ public fun Application.deviceManagerModule(
                             value = json.toMeta()
                         )
 
-                        val responses = manager.respondHubMessage(request)
+                        val responses = manager.respondMessage(request)
                         if (responses.isNotEmpty()) {
                             call.respondMessages(responses)
                         } else {

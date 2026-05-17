@@ -1,13 +1,13 @@
 package space.kscience.controls.constructor.expressions
 
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.api.DeviceHub
+import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.awaitLifecycleState
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.virtualProperty
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.asName
@@ -21,7 +21,7 @@ class StateExpressionTest {
     @Test
     fun testBasicExpressions() = runTest(timeout = 20.seconds) {
         val context = Context("test")
-        val stateExpressionContext = StateExpressionContext(DeviceHub(emptyMap()), backgroundScope)
+        val stateExpressionContext = StateExpressionContext(DeviceTree(), backgroundScope)
 
         val a = StateExpression.Constant("pi", space.kscience.dataforge.meta.Meta.EMPTY)
         val state = stateExpressionContext.computeState(a)
@@ -52,7 +52,7 @@ class StateExpressionTest {
         }
         val device = TestDevice(context)
 
-        context.install("test", device)
+        context.installNode("test", device)
         device.awaitLifecycleState(LifecycleState.STARTED)
 
         assertEquals(3.0, device.zState.value)

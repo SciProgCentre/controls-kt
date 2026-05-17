@@ -20,34 +20,18 @@ import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
-import space.kscience.controls.api.ParentDevice
+import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installing
+import space.kscience.controls.manager.installNode
 import space.kscience.controls.spec.execute
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
-
-//class PiMotionMasterApp : App(PiMotionMasterView::class)
-//
-//class PiMotionMasterController : Controller() {
-//    //initialize context
-//    val context = Context("piMotionMaster") {
-//        plugin(DeviceManager)
-//    }
-//
-//    //initialize deviceManager plugin
-//    val deviceManager: DeviceManager = context.request(DeviceManager)
-//
-//    // install device
-//    val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
-//}
 
 @Composable
 fun ColumnScope.piMotionMasterAxis(
-    axisName: Name,
+    axisName: String,
     axis: Device,
 ) {
     var min by remember { mutableStateOf(0f) }
@@ -65,7 +49,7 @@ fun ColumnScope.piMotionMasterAxis(
 
 
     Row {
-        Text(axisName.toString())
+        Text(axisName)
 
         Column {
             Slider(
@@ -90,7 +74,7 @@ fun ColumnScope.piMotionMasterAxis(
 }
 
 @Composable
-fun AxisPane(axes: Map<Name, Device>) {
+fun AxisPane(axes: Map<String, Device>) {
     Column {
         axes.forEach { (name, axis) ->
             this.piMotionMasterAxis(name, axis)
@@ -100,12 +84,14 @@ fun AxisPane(axes: Map<Name, Device>) {
 
 
 @Composable
-fun PiMotionMasterApp(device: ParentDevice) {
+fun PiMotionMasterApp(hub: DeviceTree) {
+    val device = hub.device ?: error("No root device")
+
 
 //    val scope = rememberCoroutineScope()
     val connected by device.composeState(PiMotionMaster.connected, false)
     var debugServerJob by remember { mutableStateOf<Job?>(null) }
-    var axes by remember { mutableStateOf<Map<Name, Device>?>(null) }
+    var axes by remember { mutableStateOf<Map<String, Device>?>(null) }
     //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
     var host by remember { mutableStateOf("127.0.0.1") }
     var port by remember { mutableStateOf(10024) }
@@ -168,7 +154,7 @@ fun PiMotionMasterApp(device: ParentDevice) {
                                     "host" put host
                                     "port" put port
                                 })
-                                axes = device.devices
+                                axes = hub.children.mapValues { it.value.device ?: error("No root in axis node") }
                             }
                         } else {
                             device.launch {
@@ -205,7 +191,7 @@ fun main() = application {
     val deviceManager: DeviceManager = context.request(DeviceManager)
 
     // install device
-    val motionMaster: ParentDevice by deviceManager.installing(PiMotionMaster)
+    val motionMaster = deviceManager.installNode("motionMaster", PiMotionMaster)
 
     Window(
         title = "Pi motion master demo",

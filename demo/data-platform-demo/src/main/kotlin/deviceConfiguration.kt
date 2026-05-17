@@ -1,13 +1,14 @@
 package space.kscience.controls.demo
 
 import space.kscience.controls.constructor.DeviceConfiguration
+import space.kscience.controls.constructor.DeviceGroup
 import space.kscience.controls.constructor.PropertyConfiguration
 import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.DataPlatformConfiguration
 import space.kscience.controls.dataplatform.PlatformProperty
 import space.kscience.controls.dataplatform.buildDeviceGroup
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
@@ -50,8 +51,12 @@ internal fun createDeviceConfiguration(configuration: DataPlatformConfiguration)
     )
 }
 
-fun DeviceManager.installFromConfiguration(platform: DataPlatform, configuration: DataPlatformConfiguration, deviceName: String) {
+fun DeviceManager.installFromConfiguration(
+    platform: DataPlatform,
+    configuration: DataPlatformConfiguration,
+    deviceName: String
+): DeviceGroup {
     val deviceConfiguration = createDeviceConfiguration(configuration)
     val device = platform.buildDeviceGroup(deviceConfiguration)
-    install(deviceName, device)
+    return installNode(deviceName, device)
 }

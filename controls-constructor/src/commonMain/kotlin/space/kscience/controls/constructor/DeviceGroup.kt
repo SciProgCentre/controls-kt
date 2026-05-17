@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.time.clock
@@ -13,9 +13,9 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.get
 import space.kscience.dataforge.names.parseAsName
 import kotlin.coroutines.CoroutineContext
@@ -28,7 +28,9 @@ import kotlin.time.Clock
 public open class DeviceGroup(
     final override val context: Context,
     override val meta: Meta,
-) : ParentDevice, CachingDevice {
+) : Device, DeviceTree, CachingDevice {
+
+    override val device: Device? get() = this
 
     private class Property<T>(
         val state: ValueState<T>,
@@ -82,19 +84,19 @@ public open class DeviceGroup(
     )
 
 
-    private val _devices = hashMapOf<Name, Device>()
+    private val _devices = hashMapOf<String, DeviceTree>()
 
-    override val devices: Map<Name, Device> get() = _devices
+    override val children: Map<String, DeviceTree> get() = _devices
 
     /**
      * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group
      */
     @OptIn(DFExperimental::class)
-    public open fun <D : Device> install(token: Name, device: D): D {
-        require(_devices[token] == null) { "A child device with name $token already exists" }
+    public open fun <D : Device> install(deviceName: String, device: D): D {
+        require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
         //start the child device if this device is started
         if (isStarted()) launch { device.start() }
-        _devices[token] = device
+        _devices[deviceName] = DeviceTree(device)
         return device
     }
 
@@ -201,15 +203,15 @@ public open class DeviceGroup(
     override suspend fun start() {
         super<CachingDevice>.start()
         setLifecycleState(STARTING)
-        devices.values.forEach {
-            it.start()
+        children.values.forEach {
+            it.device?.start()
         }
         setLifecycleState(STARTED)
     }
 
     override suspend fun stop() {
-        devices.values.forEach {
-            it.stop()
+        children.values.forEach {
+            it.device?.stop()
         }
         setLifecycleState(STOPPED)
         super<CachingDevice>.stop()
@@ -230,7 +232,7 @@ public fun DeviceManager.registerDeviceGroup(
     block: DeviceGroup.() -> Unit,
 ): DeviceGroup {
     val group = DeviceGroup(context, meta).apply(block)
-    install(name, group)
+    installNode(name, group)
     return group
 }
 
@@ -251,8 +253,6 @@ public fun Context.registerDeviceGroup(
 //    }
 //}
 
-public fun <D : Device> DeviceGroup.install(name: String, device: D): D = install(name.parseAsName(), device)
-
 public fun <D : Device> DeviceGroup.install(device: D): D = install(device.id, device)
 
 /**
@@ -263,31 +263,21 @@ public fun <D : Device> DeviceGroup.install(device: D): D = install(device.id, d
  * @param metaLocation location of the template meta in parent group meta
  */
 public fun <D : Device> DeviceGroup.install(
-    name: Name,
+    name: String,
     factory: Factory<D>,
     deviceMeta: Meta? = null,
-    metaLocation: Name = name,
+    metaLocation: Name = name.asName(),
 ): D {
     val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
     install(name, newDevice)
     return newDevice
 }
 
-public fun <D : Device> DeviceGroup.install(
-    name: String,
-    factory: Factory<D>,
-    metaLocation: Name = name.parseAsName(),
-    metaBuilder: (MutableMeta.() -> Unit)? = null,
-): D = install(name.parseAsName(), factory, metaBuilder?.let { Meta(it) }, metaLocation)
-
 /**
  * Create or edit a group with a given [name].
  */
-public fun DeviceGroup.registerDeviceGroup(name: Name, block: DeviceGroup.() -> Unit): DeviceGroup =
-    install(name, DeviceGroup(context, meta).apply(block))
-
 public fun DeviceGroup.registerDeviceGroup(name: String, block: DeviceGroup.() -> Unit): DeviceGroup =
-    registerDeviceGroup(name.parseAsName(), block)
+    install(name, DeviceGroup(context, meta).apply(block))
 
 /**
  * Register read-only property based on [state]

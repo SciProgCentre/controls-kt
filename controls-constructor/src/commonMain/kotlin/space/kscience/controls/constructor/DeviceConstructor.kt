@@ -49,12 +49,12 @@ public abstract class DeviceConstructor(
 public fun <D : Device> DeviceConstructor.device(
     factory: Factory<D>,
     meta: Meta? = null,
-    nameOverride: Name? = null,
+    nameOverride: String? = null,
     metaLocation: Name? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, D>> =
     PropertyDelegateProvider { _: DeviceConstructor, property: KProperty<*> ->
-        val name = nameOverride ?: property.name.asName()
-        val device = install(name, factory, meta, metaLocation ?: name)
+        val name = nameOverride ?: property.name
+        val device = install(name, factory, meta, metaLocation ?: name.asName())
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             device
         }
@@ -62,10 +62,10 @@ public fun <D : Device> DeviceConstructor.device(
 
 public fun <D : Device> DeviceConstructor.device(
     device: D,
-    nameOverride: Name? = null,
+    nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, D>> =
     PropertyDelegateProvider { _: DeviceConstructor, property: KProperty<*> ->
-        val name = nameOverride ?: property.name.asName()
+        val name = nameOverride ?: property.name
         install(name, device)
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             device

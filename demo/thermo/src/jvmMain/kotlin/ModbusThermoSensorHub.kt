@@ -2,12 +2,11 @@ package center.sciprog.controls.demo.thermo
 
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
+import space.kscience.controls.api.Device
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.names.NameToken
-import space.kscience.dataforge.names.asName
 
 class ModbusThermoSensorHub(
     val deviceManager: DeviceManager,
@@ -15,6 +14,8 @@ class ModbusThermoSensorHub(
 ) : ThermoSensorHub, AutoCloseable {
 
     override val context: Context get() = deviceManager.context
+
+    override val device: Device? get() = null
 
     private val masterCache = mutableMapOf<ThermoSensorModbusConfig, AbstractModbusMaster>()
 
@@ -43,7 +44,7 @@ class ModbusThermoSensorHub(
             ),
             analyzerConfig = ThermoSensorAnalyzerConfig.combine(sensorConfig.analyzer, configuration.analyzerDefault)
         ).also { sensor ->
-            deviceManager.install(name, sensor)
+            deviceManager.installNode(name, sensor)
         }
     }
 
@@ -57,7 +58,7 @@ class ModbusThermoSensorHub(
                 sensorList.map { sensors[it] ?: error("Thermo sensor $it not found in hub") },
                 groupConfig
             ).also {
-                deviceManager.install(NameToken("group", name).asName(), it)
+                deviceManager.installNode("group[$name]", it)
             }
         }
 

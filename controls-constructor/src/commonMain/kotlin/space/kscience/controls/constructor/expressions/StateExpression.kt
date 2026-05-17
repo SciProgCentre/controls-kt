@@ -91,7 +91,7 @@ public sealed interface StateExpression {
  * A context for evaluating [StateExpression]
  */
 public class StateExpressionContext(
-    public val hub: DeviceHub,
+    public val hub: DeviceTree,
     public val scope: CoroutineScope
 ) {
     public fun computeState(expression: StateExpression): ValueState<Double> = when (expression) {

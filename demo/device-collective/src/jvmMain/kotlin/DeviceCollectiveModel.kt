@@ -10,7 +10,7 @@ import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.write
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.name
@@ -191,7 +191,7 @@ internal fun CoroutineScope.launchCollectiveMagixServer(
             plugin(DeviceManager)
         }
 
-        deviceContext.install(id, device)
+        deviceContext.installNode(id, device)
 
 //        val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 

@@ -57,13 +57,13 @@ class MagixLoopTest {
 
         val remoteHub = clientEndpoint.remoteDeviceHub(context, "client", "device")
 
-        assertEquals(0, remoteHub.devices.size)
+        assertEquals(0, remoteHub.children.size)
         clientEndpoint.requestDeviceUpdate("client", "device")
 
 
         delay(100.milliseconds)
 
-        assertEquals(10, remoteHub.devices.size)
+        assertEquals(10, remoteHub.children.size)
 
         clientEndpoint.close()
         deviceEndpoint.close()
