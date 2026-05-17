@@ -10,8 +10,7 @@ import space.kscience.dataforge.meta.MetaConverter
  * Serializable scheme for Device ValueState construction
  */
 @Serializable
-public class ConstructorStateScheme(
-    public val name: String,
+public class PropertyConfiguration(
     public val type: String,
     public val parameters: Meta
 )
@@ -20,10 +19,10 @@ public class ConstructorStateScheme(
  * Serializable scheme for Device construction
  */
 @Serializable
-public class ConstructorDeviceScheme(
-    public val devices: Map<String, ConstructorDeviceScheme>,
-    public val properties: Map<String, ConstructorStateScheme>,
-    public val parameters: Meta
+public class DeviceConfiguration(
+    public val properties: Map<String, PropertyConfiguration>,
+    public val devices: Map<String, DeviceConfiguration> = emptyMap(),
+    public val parameters: Meta = Meta.EMPTY,
 )
 //TODO add actions and setup/shutdown hooks
 
@@ -37,11 +36,11 @@ public fun interface ValueStateProvider {
 /**
  * Create a Device (or device hub) from a serializable scheme using given value state factories
  */
-public fun Context.buildDeviceGroup(
-    scheme: ConstructorDeviceScheme,
+public fun Context.buildDeviceGroupByScheme(
+    scheme: DeviceConfiguration,
     stateFactories: Map<String, ValueStateProvider> = ValueState.defaultValueStateFactories
 ): DeviceGroup = DeviceGroup(this, scheme.parameters).apply {
-    scheme.devices.forEach { (name, scheme) -> install(name, buildDeviceGroup(scheme, stateFactories)) }
+    scheme.devices.forEach { (name, scheme) -> install(name, buildDeviceGroupByScheme(scheme, stateFactories)) }
     scheme.properties.forEach { (name, stateScheme) ->
         registerAsProperty(
             name = name,
@@ -57,7 +56,7 @@ public fun Context.buildDeviceGroup(
  */
 public fun Context.install(
     name: String,
-    scheme: ConstructorDeviceScheme,
+    scheme: DeviceConfiguration,
     stateFactories: Map<String, ValueStateProvider>
-): DeviceGroup = install(name, buildDeviceGroup(scheme, stateFactories))
+): DeviceGroup = install(name, buildDeviceGroupByScheme(scheme, stateFactories))
 

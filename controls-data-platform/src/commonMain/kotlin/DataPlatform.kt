@@ -17,9 +17,7 @@ import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
-import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.ValueStateProvider
+import space.kscience.controls.constructor.*
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.opcua.client.readMetaWithTime
@@ -344,7 +342,21 @@ public class DataPlatform(
             title = "Time"
         }
 
+        public const val PLATFORM_VALUE_FACTORY_TYPE: String = "platform"
     }
+}
+
+/**
+ * Builds a device group using the provided constructor device scheme.
+ *
+ * @param scheme The construction scheme that defines the configuration and structure of the device group.
+ * @return A new instance of DeviceGroup created based on the provided scheme and associated state factories.
+ */
+public fun DataPlatform.buildDeviceGroup(
+    scheme: DeviceConfiguration
+): DeviceGroup{
+    val valueStateFactories = ValueState.defaultValueStateFactories + (DataPlatform.PLATFORM_VALUE_FACTORY_TYPE to this)
+    return context.buildDeviceGroupByScheme(scheme, valueStateFactories)
 }
 
 

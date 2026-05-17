@@ -37,7 +37,7 @@ fun main() {
 
     val numberOfModbusDevices = 4
 
-    val propertiesPerDevice = 300
+    val propertiesPerDevice = 30
 
     val registryMap = TestDeviceRegistryMap(
         List(propertiesPerDevice) { NameToken("property", it.toString()).asName() }
@@ -102,7 +102,7 @@ fun main() {
         properties = platformProperties.mapKeys { it.key.toString() }
     )
 
-    Path("platform-config.json").writeText(
+    Path("data/platform-config.json").writeText(
         Json { prettyPrint = true }.encodeToString(DataPlatformConfiguration.serializer(), configuration)
     )
 
@@ -112,6 +112,10 @@ fun main() {
 
     deviceManager.install("platform", platformDevice)
 
+    deviceManager.installFromConfiguration(platform, configuration, "devices")
+
+
+
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 
@@ -119,6 +123,7 @@ fun main() {
         it.createDirectories()
     }
 
+    //store all data from the platform
     val storageJob = platform.launchStorageProcess(
         directory = dataDirectory,
         readInterval = 1.seconds,
@@ -126,6 +131,7 @@ fun main() {
         compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05)
     )
 
+    // monitor changes
     context.launch {
 
         val mutex = Mutex()
