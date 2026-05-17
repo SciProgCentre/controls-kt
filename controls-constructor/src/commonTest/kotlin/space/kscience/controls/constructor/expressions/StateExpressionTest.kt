@@ -14,6 +14,7 @@ import space.kscience.dataforge.names.asName
 import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class StateExpressionTest {
@@ -46,17 +47,17 @@ class StateExpressionTest {
     }
 
     @Test
-    fun testDeviceConstructorWithExpression() = runTest {
+    fun testDeviceConstructorWithExpression() = runTest(timeout = 500.milliseconds) {
         val context = Context("test") {
             plugin(DeviceManager)
         }
         val device = TestDevice(context)
 
         context.installNode("test", device)
-        device.awaitLifecycleState(LifecycleState.STARTED)
+        device.awaitLifecycleState(LifecycleState.STARTING)
 
         assertEquals(3.0, device.zState.value)
 
-        device.stop()
+        context.close()
     }
 }
