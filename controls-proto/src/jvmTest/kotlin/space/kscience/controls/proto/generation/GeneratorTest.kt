@@ -280,6 +280,44 @@ class GeneratorTest {
     }
 
     @Test
+    fun testCProtocolGeneratorPackageApi() {
+        val spec = object : DeviceSpec<Device>() {
+            val stabilizationProfile by mutableStructuredMetaProperty(
+                serializer = TestStabilizationProfileSerializer,
+                read = { TestStabilizationProfile() },
+                write = { _, _ -> },
+            )
+        }
+
+        val generatedPackage = ProtocolGenerators
+            .forLanguage(ProtocolLanguage.C)
+            .generate(spec, ProtocolGenerationOptions(moduleName = "demo_device"))
+
+        assertEquals(ProtocolLanguage.C, generatedPackage.language)
+        assertEquals(
+            listOf(
+                "proto/meta.proto",
+                "proto/meta.options",
+                "CMakeLists.txt",
+                "demo_device_protocol.h",
+                "demo_device_protocol.c",
+                "README.md",
+            ),
+            generatedPackage.files.map { it.relativePath },
+        )
+        assertTrue(generatedPackage.file("proto/meta.proto")?.content?.contains("message ProtoMeta") == true)
+        assertTrue(generatedPackage.file("proto/meta.options")?.content?.contains("*.ProtoMeta.items type:FT_CALLBACK") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("find_package(Nanopb REQUIRED)") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("NANOPB_GENERATE_CPP(TARGET demo_device_meta_proto") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("demo_device_handle_message") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("demo_device_stabilization_profile_t") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("#include \"pb_decode.h\"") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("pb_decode(&stream, DEMO_DEVICE_PROTO_ENVELOPE_FIELDS") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("demo_device_stabilization_profile_decode_item") == true)
+        assertTrue(generatedPackage.file("README.md")?.content?.contains("This C backend uses nanopb") == true)
+    }
+
+    @Test
     fun testRustCrateDeliveryPackageApi() {
         val spec = object : DeviceSpec<Device>() {
             val stabilizationProfile by mutableStructuredMetaProperty(
@@ -433,6 +471,32 @@ class GeneratorTest {
         assertTrue(!outputDirectory.resolve("src/device.rs").exists())
         assertTrue(outputDirectory.resolve("src/device_codec.rs").isFile)
         assertTrue(outputDirectory.resolve("src/device_support.rs").isFile)
+        assertTrue(outputDirectory.resolve("README.md").isFile)
+    }
+
+    @Test
+    fun testProtocolGenerationPlanWritesCToConfiguredPath() {
+        val outputDirectory = kotlin.io.path.createTempDirectory(prefix = "protocol_c_generation_").toFile()
+        outputDirectory.deleteOnExit()
+
+        val plan = ProtocolGenerationPlan(
+            deviceSpec = emptyDeviceSpec(),
+            targets = listOf(
+                ProtocolGenerationTarget.c(
+                    outputDirectory = outputDirectory,
+                    moduleName = "device",
+                ),
+            ),
+        )
+
+        val generatedPackages = plan.generate()
+
+        assertEquals(1, generatedPackages.size)
+        assertTrue(outputDirectory.resolve("proto/meta.proto").isFile)
+        assertTrue(outputDirectory.resolve("proto/meta.options").isFile)
+        assertTrue(outputDirectory.resolve("CMakeLists.txt").isFile)
+        assertTrue(outputDirectory.resolve("device_protocol.h").isFile)
+        assertTrue(outputDirectory.resolve("device_protocol.c").isFile)
         assertTrue(outputDirectory.resolve("README.md").isFile)
     }
 }

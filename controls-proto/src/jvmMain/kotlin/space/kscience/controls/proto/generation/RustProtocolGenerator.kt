@@ -815,6 +815,7 @@ enum ProtocolError {
     private fun ProtocolGenerationOptions.rustBackendOptions(): RustBackendOptions = when (val backendOptions = backend) {
         is RustBackendOptions -> backendOptions
         DefaultProtocolBackendOptions -> RustBackendOptions()
+        else -> error("Rust generator does not accept backend options: ${backendOptions::class.simpleName}")
     }
 
     private fun List<ProtocolProtoSource>.loadProtoFiles(): List<GeneratedProtocolFile> =

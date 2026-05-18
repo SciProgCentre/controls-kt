@@ -53,6 +53,23 @@ public data class ProtocolGenerationTarget(
             generateBuildScript = generateBuildScript,
             cleanOutputDirectory = cleanOutputDirectory,
         )
+
+        public fun c(
+            outputDirectory: File,
+            moduleName: String = "device",
+            protoSources: List<ProtocolProtoSource> = listOf(ProtocolProtoSources.bundledDataForgeMeta()),
+            cleanOutputDirectory: Boolean = false,
+        ): ProtocolGenerationTarget = ProtocolGenerationTarget(
+            language = ProtocolLanguage.C,
+            outputDirectory = outputDirectory,
+            options = ProtocolGenerationOptions(
+                moduleName = moduleName,
+                backend = CBackendOptions(
+                    protoSources = protoSources,
+                ),
+            ),
+            cleanOutputDirectory = cleanOutputDirectory,
+        )
     }
 }
 
@@ -126,6 +143,20 @@ public class ProtocolGenerationPlanBuilder internal constructor() {
             runtime = runtime,
             protoSources = protoSources,
             generateBuildScript = generateBuildScript,
+            cleanOutputDirectory = cleanOutputDirectory,
+        )
+    }
+
+    public fun c(
+        outputDirectory: File,
+        moduleName: String = "device",
+        protoSources: List<ProtocolProtoSource> = listOf(ProtocolProtoSources.bundledDataForgeMeta()),
+        cleanOutputDirectory: Boolean = false,
+    ) {
+        targets += ProtocolGenerationTarget.c(
+            outputDirectory = outputDirectory,
+            moduleName = moduleName,
+            protoSources = protoSources,
             cleanOutputDirectory = cleanOutputDirectory,
         )
     }
