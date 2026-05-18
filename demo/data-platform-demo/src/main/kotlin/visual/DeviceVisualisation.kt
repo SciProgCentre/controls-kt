@@ -55,7 +55,7 @@ fun DeviceVisualisation(
                     yAxisTitle = "Value",
                 ) {
                     selectedProperties.forEach { (deviceName, propertyName) ->
-                        val device = remember(hub, deviceName) { hub.resolveDevice(deviceName) }
+                        val device = remember(hub, deviceName, selectedProperties) { hub.resolveDevice(deviceName) }
                         PlotDeviceProperty(
                             device = device,
                             propertyName = propertyName,

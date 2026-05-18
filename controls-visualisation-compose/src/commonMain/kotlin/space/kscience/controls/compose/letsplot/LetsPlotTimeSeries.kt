@@ -10,7 +10,7 @@ import org.jetbrains.letsPlot.compose.PlotPanel
 import org.jetbrains.letsPlot.geom.geomLine
 import org.jetbrains.letsPlot.label.labs
 import org.jetbrains.letsPlot.letsPlot
-import org.jetbrains.letsPlot.scale.scaleXDateTime
+import org.jetbrains.letsPlot.scale.scaleXTime
 import org.slf4j.LoggerFactory
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
@@ -120,22 +120,25 @@ public class TimeSeriesPlotState {
     }
 }
 
-public class TimeSeriesPlotScope(public val state: TimeSeriesPlotState)
+public class TimeSeriesPlotBuilder(public val state: TimeSeriesPlotState)
 
 @Composable
 public fun TimeSeriesPlot(
     modifier: Modifier = Modifier.fillMaxSize(),
     xAxisTitle: String? = "Time",
     yAxisTitle: String? = "Value",
-    content: @Composable TimeSeriesPlotScope.() -> Unit
+    drawInterval: Duration = defaultSampling,
+    content: @Composable TimeSeriesPlotBuilder.() -> Unit
 ) {
     val state = remember { TimeSeriesPlotState() }
-    val scope = remember(state) { TimeSeriesPlotScope(state) }
+    val builder = remember { TimeSeriesPlotBuilder(state) }
+    var plotData by remember { mutableStateOf<Map<String, List<*>>>(emptyMap()) }
 
-    content(scope)
+    // launch all time series updates in this scope as effects
+    content(builder)
 
-    val plotData by remember {
-        derivedStateOf {
+    LaunchedEffect(Unit) {
+        while (isActive) {
             val time = mutableListOf<Long>()
             val value = mutableListOf<Double>()
             val series = mutableListOf<String>()
@@ -148,15 +151,16 @@ public fun TimeSeriesPlot(
                 }
             }
 
-            mapOf(
+            plotData = mapOf(
                 "time" to time,
                 "value" to value,
                 "series" to series
             )
+            delay(drawInterval)
         }
     }
 
-    if ((plotData["time"] as? List<*>)?.isEmpty() != false) {
+    if (plotData["time"]?.isEmpty() != false) {
         return
     }
 
@@ -164,7 +168,7 @@ public fun TimeSeriesPlot(
         x = "time"
         y = "value"
         color = "series"
-    } + scaleXDateTime(name = xAxisTitle)
+    } + scaleXTime(name = xAxisTitle)
 
     if (yAxisTitle != null) {
         figure += labs(y = yAxisTitle)
@@ -176,9 +180,10 @@ public fun TimeSeriesPlot(
 }
 
 @Composable
-public fun TimeSeriesPlotScope.PlotDeviceProperty(
+public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
     device: Device,
     propertyName: String,
+    seriesName: String = propertyName,
     extractValue: Meta.() -> Double = { double ?: Double.NaN },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
@@ -187,17 +192,22 @@ public fun TimeSeriesPlotScope.PlotDeviceProperty(
 ) {
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
         val clockManager = device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager)
+
+        coroutineContext[Job]?.invokeOnCompletion {
+            state.removeSeries(seriesName)
+        }
+
         device.propertyMessageFlow(propertyName)
             .map { it.value.extractValue() }
             .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
-            .onEach { state.updateSeries(propertyName, it) }
+            .onEach { state.updateSeries(seriesName, it) }
             .launchIn(this)
     }
 }
 
 @Composable
-public fun TimeSeriesPlotScope.PlotDeviceProperty(
+public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
     device: Device,
     property: DevicePropertySpec<out Number>,
     maxAge: Duration = defaultMaxAge,
@@ -215,30 +225,35 @@ public fun TimeSeriesPlotScope.PlotDeviceProperty(
 )
 
 @Composable
-public fun TimeSeriesPlotScope.PlotNumberState(
+public fun TimeSeriesPlotBuilder.PlotNumberState(
     context: Context,
-    state: ValueState<Number>,
-    name: String = state.toString(),
+    valueState: ValueState<Number>,
+    seriesName: String = valueState.toString(),
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
 ): Unit {
-    LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
+    LaunchedEffect(context, valueState, maxAge, maxPoints, minPoints, sampling) {
         val clockManager = context.plugins.get<ClockManager>() ?: context.request(ClockManager)
         val clock = context.clock
 
-        state.subscribe()
+        coroutineContext[Job]?.invokeOnCompletion {
+            state.removeSeries(seriesName)
+        }
+
+
+        valueState.subscribe()
             .map { it.toDouble() }
             .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
-            .onEach { this@PlotNumberState.state.updateSeries(name, it) }
+            .onEach { state.updateSeries(seriesName, it) }
             .launchIn(this)
     }
 }
 
 @Composable
-public fun TimeSeriesPlotScope.PlotNumericState(
+public fun TimeSeriesPlotBuilder.PlotNumericState(
     context: Context,
     state: ValueState<Amount<*>>,
     name: String = state.toString(),
@@ -276,10 +291,11 @@ private fun <T> Flow<T>.chunkedByPeriod(duration: Duration): Flow<List<T>> {
 }
 
 @Composable
-public fun TimeSeriesPlotScope.PlotAveragedDeviceProperty(
+public fun TimeSeriesPlotBuilder.PlotAveragedDeviceProperty(
     device: Device,
     propertyName: String,
     startValue: Double = 0.0,
+    seriesName: String = propertyName,
     extractValue: Meta.() -> Double = { value?.double ?: startValue },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
@@ -289,6 +305,11 @@ public fun TimeSeriesPlotScope.PlotAveragedDeviceProperty(
     LaunchedEffect(device, propertyName, startValue, maxAge, maxPoints, minPoints, averagingInterval) {
         val clock: Clock = device.clock
         var lastValue = startValue
+
+        coroutineContext[Job]?.invokeOnCompletion {
+            state.removeSeries(seriesName)
+        }
+
         device.propertyMessageFlow(propertyName)
             .chunkedByPeriod(averagingInterval)
             .transform<List<PropertyChangedMessage>, ValueWithTime<Double>> { eventList ->
@@ -302,7 +323,7 @@ public fun TimeSeriesPlotScope.PlotAveragedDeviceProperty(
                     }
                 }
             }.collectAndTrim(maxAge, maxPoints, minPoints, clock)
-            .onEach { state.updateSeries(propertyName, it) }
+            .onEach { state.updateSeries(seriesName, it) }
             .launchIn(this)
     }
 }
