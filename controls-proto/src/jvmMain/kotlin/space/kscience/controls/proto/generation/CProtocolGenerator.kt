@@ -124,9 +124,32 @@ cmake_minimum_required(VERSION 3.16)
 
 project(${context.moduleName}_protocol C)
 
-set(NANOPB_SRC_ROOT_FOLDER "" CACHE PATH "Path to nanopb source checkout")
-if(NOT NANOPB_SRC_ROOT_FOLDER)
-    message(FATAL_ERROR "Set NANOPB_SRC_ROOT_FOLDER to a nanopb checkout, e.g. -DNANOPB_SRC_ROOT_FOLDER=/path/to/nanopb")
+set(${context.upperName}_PROTOCOL_CPM_VERSION "0.40.8" CACHE STRING "CPM.cmake version")
+set(${context.upperName}_PROTOCOL_NANOPB_GIT_TAG "master" CACHE STRING "nanopb git tag or branch")
+
+set(CPM_DOWNLOAD_LOCATION "${'$'}{CMAKE_CURRENT_BINARY_DIR}/cmake/CPM_${'$'}{${context.upperName}_PROTOCOL_CPM_VERSION}.cmake")
+if(NOT EXISTS "${'$'}{CPM_DOWNLOAD_LOCATION}")
+    file(DOWNLOAD
+        "https://github.com/cpm-cmake/CPM.cmake/releases/download/v${'$'}{${context.upperName}_PROTOCOL_CPM_VERSION}/CPM.cmake"
+        "${'$'}{CPM_DOWNLOAD_LOCATION}"
+        TLS_VERIFY ON
+    )
+endif()
+include("${'$'}{CPM_DOWNLOAD_LOCATION}")
+
+CPMAddPackage(
+    NAME lib_nanopb
+    GITHUB_REPOSITORY nanopb/nanopb
+    GIT_TAG ${'$'}{${context.upperName}_PROTOCOL_NANOPB_GIT_TAG}
+    DOWNLOAD_ONLY YES
+)
+
+if(CPM_lib_nanopb_SOURCE)
+    set(NANOPB_SRC_ROOT_FOLDER "${'$'}{CPM_lib_nanopb_SOURCE}" CACHE PATH "Path to nanopb source checkout" FORCE)
+elseif(lib_nanopb_SOURCE_DIR)
+    set(NANOPB_SRC_ROOT_FOLDER "${'$'}{lib_nanopb_SOURCE_DIR}" CACHE PATH "Path to nanopb source checkout" FORCE)
+else()
+    message(FATAL_ERROR "CPM did not provide nanopb source path")
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${'$'}{NANOPB_SRC_ROOT_FOLDER}/extra")
@@ -140,6 +163,11 @@ add_library(${context.moduleName}_protocol STATIC
 )
 
 target_compile_features(${context.moduleName}_protocol PUBLIC c_std_99)
+target_compile_options(${context.moduleName}_protocol
+    PRIVATE
+        ${'$'}<$<C_COMPILER_ID:Clang,GNU>:-Wno-unused-function>
+        ${'$'}<$<C_COMPILER_ID:Clang,GNU>:-Wno-unused-variable>
+)
 target_include_directories(${context.moduleName}_protocol
     PUBLIC
         "${'$'}{CMAKE_CURRENT_SOURCE_DIR}"
@@ -419,6 +447,7 @@ install(FILES
         appendLine()
         appendLine("static bool ${context.decodeChildCallbackName(path)}(pb_istream_t *stream, const pb_field_t *field, void **arg) {")
         appendLine("    ${context.decodeChildContextName(path)}_t *ctx = (${context.decodeChildContextName(path)}_t *)(*arg);")
+        appendLine("    (void)ctx;")
         node.children.filter { it.children.isNotEmpty() }.forEach { child ->
             appendLine("    if (${context.moduleName}_is_key(ctx->key, \"${child.name}\")) {")
             appendLine("        ${context.decodeContextName(path + child.name)}_t child_ctx = { &ctx->out->${child.name.toCIdentifier("field")} };")
@@ -540,11 +569,15 @@ install(FILES
             appendLine("        ctx->${property.hasFlagName} = true;")
             when (val type = property.type) {
                 is ProtocolPropertyType.Scalar -> {
-                    if (type.scalar == ProtocolScalar.STRING) {
-                        appendLine("        /* String scalar POST values are exposed as borrowed data from the decoded packet. */")
-                        appendLine("        ctx->${property.validFlagName} = ${context.moduleName}_get_string_value(&entry, &ctx->request.value.${property.unionFieldName});")
+                    if (property.writable) {
+                        if (type.scalar == ProtocolScalar.STRING) {
+                            appendLine("        /* String scalar POST values are exposed as borrowed data from the decoded packet. */")
+                            appendLine("        ctx->${property.validFlagName} = ${context.moduleName}_get_string_value(&entry, &ctx->request.value.${property.unionFieldName});")
+                        } else {
+                            appendLine("        ctx->${property.validFlagName} = ${context.moduleName}_get_${type.scalar.cSuffix()}_value(&entry, &ctx->request.value.${property.unionFieldName});")
+                        }
                     } else {
-                        appendLine("        ctx->${property.validFlagName} = ${context.moduleName}_get_${type.scalar.cSuffix()}_value(&entry, &ctx->request.value.${property.unionFieldName});")
+                        appendLine("        ctx->${property.validFlagName} = true;")
                     }
                 }
                 is ProtocolPropertyType.StructuredMeta -> {
@@ -753,14 +786,20 @@ $installedProtoFiles
 
 ## Dependencies
 
-This C backend uses nanopb. The generated `CMakeLists.txt` expects a nanopb source checkout.
+This C backend uses nanopb. The generated `CMakeLists.txt` resolves nanopb with CPM.cmake by default.
 The nanopb repo contains the runtime files, generator, and CMake helper used here.
 
 Example:
 
 ```sh
-git clone https://github.com/nanopb/nanopb.git /path/to/nanopb
-cmake -S . -B build -DNANOPB_SRC_ROOT_FOLDER=/path/to/nanopb
+cmake -S . -B build
+cmake --build build
+```
+
+If you already have a local nanopb checkout, pass it through CPM:
+
+```sh
+cmake -S . -B build -DCPM_lib_nanopb_SOURCE=/path/to/nanopb
 cmake --build build
 ```
 

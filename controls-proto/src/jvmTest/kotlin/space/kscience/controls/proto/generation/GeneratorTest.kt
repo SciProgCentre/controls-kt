@@ -9,6 +9,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import space.kscience.controls.api.Device
 import space.kscience.controls.spec.DeviceSpec
+import space.kscience.controls.spec.doubleProperty
 import space.kscience.controls.proto.mutableStructuredMetaProperty
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -307,14 +308,85 @@ class GeneratorTest {
         )
         assertTrue(generatedPackage.file("proto/meta.proto")?.content?.contains("message ProtoMeta") == true)
         assertTrue(generatedPackage.file("proto/meta.options")?.content?.contains("*.ProtoMeta.items type:FT_CALLBACK") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("CPMAddPackage(") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("GITHUB_REPOSITORY nanopb/nanopb") == true)
         assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("find_package(Nanopb REQUIRED)") == true)
         assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("NANOPB_GENERATE_CPP(TARGET demo_device_meta_proto") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("meta.pb.c") == false)
         assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("demo_device_handle_message") == true)
         assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("demo_device_stabilization_profile_t") == true)
         assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("#include \"pb_decode.h\"") == true)
         assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("pb_decode(&stream, DEMO_DEVICE_PROTO_ENVELOPE_FIELDS") == true)
         assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("demo_device_stabilization_profile_decode_item") == true)
         assertTrue(generatedPackage.file("README.md")?.content?.contains("This C backend uses nanopb") == true)
+    }
+
+    @Test
+    fun testCProtocolGeneratorDoesNotDecodeReadOnlyScalarIntoRequestValue() {
+        val spec = object : DeviceSpec<Device>() {
+            val current by doubleProperty(
+                read = { 1.25 },
+            )
+        }
+
+        val generatedPackage = CProtocolGenerator.generate(
+            spec,
+            ProtocolGenerationOptions(moduleName = "demo_device"),
+        )
+        val source = generatedPackage.file("demo_device_protocol.c")?.content.orEmpty()
+        val header = generatedPackage.file("demo_device_protocol.h")?.content.orEmpty()
+
+        assertTrue(header.contains("DEMO_DEVICE_REQUEST_GET_CURRENT"))
+        assertTrue(!source.contains("request.value.current"))
+        assertTrue(source.contains("ctx->valid_current = true;"))
+    }
+
+    @Test
+    fun testCppProtocolGeneratorPackageApi() {
+        val spec = object : DeviceSpec<Device>() {
+            val stabilizationProfile by mutableStructuredMetaProperty(
+                serializer = TestStabilizationProfileSerializer,
+                read = { TestStabilizationProfile() },
+                write = { _, _ -> },
+            )
+        }
+
+        val generatedPackage = ProtocolGenerators
+            .forLanguage(ProtocolLanguage.CPP)
+            .generate(spec, ProtocolGenerationOptions(moduleName = "demo_device"))
+
+        assertEquals(ProtocolLanguage.CPP, generatedPackage.language)
+        assertEquals(
+            listOf(
+                "proto/meta.proto",
+                "proto/meta.options",
+                "demo_device_protocol.h",
+                "demo_device_protocol.c",
+                "demo_device_protocol.cpp",
+                "CMakeLists.txt",
+                "README.md",
+            ),
+            generatedPackage.files.map { it.relativePath },
+        )
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("demo_device_handle_message") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("namespace demo_device") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("class Request") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("class Response") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.h")?.content?.contains("template <typename Handler>") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.c")?.content?.contains("#include \"demo_device_protocol.h\"") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.cpp")?.content?.contains("demo_device_handle_message") == true)
+        assertTrue(generatedPackage.file("demo_device_protocol.cpp")?.content?.contains("invoke_request_handler") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("project(demo_device_protocol C CXX)") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("NANOPB_GENERATE_CPP(TARGET demo_device_meta_proto") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("DEMO_DEVICE_PROTOCOL_USE_CPM") == false)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("CPMAddPackage(") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("GITHUB_REPOSITORY nanopb/nanopb") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("GITHUB_REPOSITORY nanopb/nanopb_cpp") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("CPM_lib_nanopb_SOURCE") == true)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("nanopb_cpp did not provide CPM_lib_nanopb_SOURCE") == false)
+        assertTrue(generatedPackage.file("CMakeLists.txt")?.content?.contains("python3 -m pip install protobuf") == false)
+        assertTrue(generatedPackage.file("README.md")?.content?.contains("Generated C++ protocol code") == true)
+        assertTrue(generatedPackage.file("README.md")?.content?.contains("uses CPM.cmake by default") == true)
     }
 
     @Test
@@ -497,6 +569,33 @@ class GeneratorTest {
         assertTrue(outputDirectory.resolve("CMakeLists.txt").isFile)
         assertTrue(outputDirectory.resolve("device_protocol.h").isFile)
         assertTrue(outputDirectory.resolve("device_protocol.c").isFile)
+        assertTrue(outputDirectory.resolve("README.md").isFile)
+    }
+
+    @Test
+    fun testProtocolGenerationPlanWritesCppToConfiguredPath() {
+        val outputDirectory = kotlin.io.path.createTempDirectory(prefix = "protocol_cpp_generation_").toFile()
+        outputDirectory.deleteOnExit()
+
+        val plan = ProtocolGenerationPlan(
+            deviceSpec = emptyDeviceSpec(),
+            targets = listOf(
+                ProtocolGenerationTarget.cpp(
+                    outputDirectory = outputDirectory,
+                    moduleName = "device",
+                ),
+            ),
+        )
+
+        val generatedPackages = plan.generate()
+
+        assertEquals(1, generatedPackages.size)
+        assertTrue(outputDirectory.resolve("proto/meta.proto").isFile)
+        assertTrue(outputDirectory.resolve("proto/meta.options").isFile)
+        assertTrue(outputDirectory.resolve("CMakeLists.txt").isFile)
+        assertTrue(outputDirectory.resolve("device_protocol.h").isFile)
+        assertTrue(outputDirectory.resolve("device_protocol.c").isFile)
+        assertTrue(outputDirectory.resolve("device_protocol.cpp").isFile)
         assertTrue(outputDirectory.resolve("README.md").isFile)
     }
 }

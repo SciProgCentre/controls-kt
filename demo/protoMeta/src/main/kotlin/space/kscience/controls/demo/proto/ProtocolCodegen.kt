@@ -9,8 +9,13 @@ private val demoProtocolGeneration = protocolGeneration(DemoDevice) {
     //     moduleName = "device",
     //     crateName = "demo_device_protocol",
     // )
-    c(
-        // outputDirectory = File("build/generated/protocol/c/demo_device_protocol"),
+    // c(
+    //     // outputDirectory = File("build/generated/protocol/c/demo_device_protocol"),
+    //     outputDirectory = File("/Users/igorzhukov/Documents/STM32/ProtoSTM32/Core/Src/Communication"),
+    //     moduleName = "device",
+    //     cleanOutputDirectory = true,
+    // )
+    cpp(
         outputDirectory = File("/Users/igorzhukov/Documents/STM32/ProtoSTM32/Core/Src/Communication"),
         moduleName = "device",
         cleanOutputDirectory = true,

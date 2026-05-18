@@ -70,6 +70,27 @@ public data class ProtocolGenerationTarget(
             ),
             cleanOutputDirectory = cleanOutputDirectory,
         )
+
+        public fun cpp(
+            outputDirectory: File,
+            moduleName: String = "device",
+            protoSources: List<ProtocolProtoSource> = listOf(ProtocolProtoSources.bundledDataForgeMeta()),
+            nanopbTextMaxLength: Int = 63,
+            nanopbCppCmakeSupport: Boolean = true,
+            cleanOutputDirectory: Boolean = false,
+        ): ProtocolGenerationTarget = ProtocolGenerationTarget(
+            language = ProtocolLanguage.CPP,
+            outputDirectory = outputDirectory,
+            options = ProtocolGenerationOptions(
+                moduleName = moduleName,
+                backend = CppBackendOptions(
+                    protoSources = protoSources,
+                    nanopbTextMaxLength = nanopbTextMaxLength,
+                    nanopbCppCmakeSupport = nanopbCppCmakeSupport,
+                ),
+            ),
+            cleanOutputDirectory = cleanOutputDirectory,
+        )
     }
 }
 
@@ -157,6 +178,24 @@ public class ProtocolGenerationPlanBuilder internal constructor() {
             outputDirectory = outputDirectory,
             moduleName = moduleName,
             protoSources = protoSources,
+            cleanOutputDirectory = cleanOutputDirectory,
+        )
+    }
+
+    public fun cpp(
+        outputDirectory: File,
+        moduleName: String = "device",
+        protoSources: List<ProtocolProtoSource> = listOf(ProtocolProtoSources.bundledDataForgeMeta()),
+        nanopbTextMaxLength: Int = 63,
+        nanopbCppCmakeSupport: Boolean = true,
+        cleanOutputDirectory: Boolean = false,
+    ) {
+        targets += ProtocolGenerationTarget.cpp(
+            outputDirectory = outputDirectory,
+            moduleName = moduleName,
+            protoSources = protoSources,
+            nanopbTextMaxLength = nanopbTextMaxLength,
+            nanopbCppCmakeSupport = nanopbCppCmakeSupport,
             cleanOutputDirectory = cleanOutputDirectory,
         )
     }

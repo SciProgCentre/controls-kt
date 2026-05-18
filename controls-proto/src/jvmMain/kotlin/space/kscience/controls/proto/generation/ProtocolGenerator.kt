@@ -173,17 +173,13 @@ public interface ProtocolGenerator {
 public object ProtocolGenerators {
     public val rust: ProtocolGenerator get() = RustProtocolGenerator
     public val c: ProtocolGenerator get() = CProtocolGenerator
+    public val cpp: ProtocolGenerator get() = CppProtocolGenerator
 
     public fun forLanguage(language: ProtocolLanguage): ProtocolGenerator = when (language) {
         ProtocolLanguage.RUST -> rust
         ProtocolLanguage.C -> c
-        ProtocolLanguage.CPP -> unsupportedGenerator(language)
+        ProtocolLanguage.CPP -> cpp
     }
-
-    private fun unsupportedGenerator(language: ProtocolLanguage): Nothing = error(
-        "Protocol generator for $language is not implemented yet. " +
-            "The common schema/API is ready for this backend.",
-    )
 }
 
 internal enum class ProtocolScalar {
