@@ -5,26 +5,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import io.github.koalaplot.core.ChartLayout
-import io.github.koalaplot.core.legend.FlowLegend
-import io.github.koalaplot.core.style.LineStyle
-import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
-import io.github.koalaplot.core.util.toString
-import io.github.koalaplot.core.xygraph.XYGraph
-import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
-import space.kscience.controls.compose.koala.PlotNumericState
-import space.kscience.controls.compose.koala.TimeAxisModel
+import space.kscience.controls.compose.letsplot.PlotNumericState
+import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
@@ -32,13 +22,10 @@ import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
-import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.DurationUnit
-import kotlin.time.Instant
 
 
 private class EnrichmentFacility(
@@ -133,7 +120,7 @@ private class EnrichmentFacility(
     }
 }
 
-@OptIn(ExperimentalKoalaPlotApi::class, ExperimentalSplitPaneApi::class)
+@OptIn(ExperimentalSplitPaneApi::class)
 fun main() {
     val context = Context {
         plugin(DeviceManager)
@@ -183,80 +170,48 @@ fun main() {
 
                     }
                     second(400.dp) {
-                        ChartLayout {
-                            XYGraph<Instant, Double>(
-                                xAxisModel = remember { TimeAxisModel.recent(maxAge, context.clock) },
-                                yAxisModel = rememberDoubleLinearAxisModel(0.0..12.0),
-                                xAxisTitle = { Text("Time in seconds relative to current") },
-                                xAxisLabels = { it: Instant ->
-                                    Text(
-                                        (context.clock.now() - it).toDouble(
-                                            DurationUnit.SECONDS
-                                        ).toString(2)
-                                    )
+                        TimeSeriesPlot(
+                            modifier = Modifier.fillMaxHeight().fillMaxWidth(),
+                            xAxisTitle = "Time",
+                            yAxisTitle = "Value"
+                        ) {
+                            PlotNumericState(
+                                context = context,
+                                state = model.consumer.consumation.map {
+                                    it.valuePerSecond.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
                                 },
-                                yAxisLabels = { it: Double -> Text(it.toString(2)) }
-                            ) {
-                                PlotNumericState(
-                                    context = context,
-                                    state = model.consumer.consumation.map {
-                                        it.valuePerSecond.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
-                                    },
-                                    maxAge = maxAge,
-                                    sampling = 500.milliseconds,
-                                    lineStyle = LineStyle(SolidColor(Color.Blue))
-                                )
-                                PlotNumericState(
-                                    context = context,
-                                    state = model.consumer.consumation.map {
-                                        it.valuePerSecond.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
-                                    },
-                                    maxAge = maxAge,
-                                    sampling = 500.milliseconds,
-                                    lineStyle = LineStyle(SolidColor(Color.Red))
-                                )
+                                name = "Component1 consumation",
+                                maxAge = maxAge,
+                                sampling = 500.milliseconds,
+                            )
+                            PlotNumericState(
+                                context = context,
+                                state = model.consumer.consumation.map {
+                                    it.valuePerSecond.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
+                                },
+                                name = "Component2 consumation",
+                                maxAge = maxAge,
+                                sampling = 500.milliseconds,
+                            )
 
-                                PlotNumericState(
-                                    context = context,
-                                    state = model.producer.production.map {
-                                        it.valuePerSecond.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
-                                    },
-                                    maxAge = maxAge,
-                                    sampling = 500.milliseconds,
-                                    lineStyle = LineStyle(SolidColor(Color.Green))
-                                )
-                                PlotNumericState(
-                                    context = context,
-                                    state = model.producer.production.map {
-                                        it.valuePerSecond.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
-                                    },
-                                    maxAge = maxAge,
-                                    sampling = 500.milliseconds,
-                                    lineStyle = LineStyle(SolidColor(Color.Black))
-                                )
-                            }
-                            Surface {
-                                FlowLegend(4, label = {
-                                    when (it) {
-                                        0 -> {
-                                            Text("Component1 consumation", color = Color.Blue)
-                                        }
-
-                                        1 -> {
-                                            Text("Component2 consumation", color = Color.Red)
-                                        }
-
-                                        2 -> {
-                                            Text("Component1 production", color = Color.Green)
-                                        }
-
-                                        3 -> {
-                                            Text("Componen2 production", color = Color.Black)
-                                        }
-
-                                    }
-                                })
-                            }
+                            PlotNumericState(
+                                context = context,
+                                state = model.producer.production.map {
+                                    it.valuePerSecond.components[EnrichmentFacility.component1] ?: NumericAmount(0.0)
+                                },
+                                name = "Component1 production",
+                                maxAge = maxAge,
+                                sampling = 500.milliseconds,
+                            )
+                            PlotNumericState(
+                                context = context,
+                                state = model.producer.production.map {
+                                    it.valuePerSecond.components[EnrichmentFacility.component2] ?: NumericAmount(0.0)
+                                },
+                                name = "Componen2 production",
+                                maxAge = maxAge,
+                                sampling = 500.milliseconds,
+                            )
                         }
                     }
                 }

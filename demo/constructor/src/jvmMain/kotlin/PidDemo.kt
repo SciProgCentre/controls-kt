@@ -7,17 +7,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import io.github.koalaplot.core.ChartLayout
-import io.github.koalaplot.core.legend.FlowLegend
-import io.github.koalaplot.core.style.LineStyle
-import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
-import io.github.koalaplot.core.util.toString
-import io.github.koalaplot.core.xygraph.XYGraph
-import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
@@ -26,8 +18,8 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.compose.NumberTextField
-import space.kscience.controls.compose.koala.PlotNumericState
-import space.kscience.controls.compose.koala.TimeAxisModel
+import space.kscience.controls.compose.letsplot.PlotNumericState
+import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.devices.Drive
@@ -45,7 +37,6 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installNode
 import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.time.ClockManager
-import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import java.awt.Dimension
@@ -55,7 +46,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
-import kotlin.time.Instant
 
 
 class Modulator(
@@ -137,7 +127,7 @@ private fun createModulator(linearDrive: LinearDrive): Modulator = linearDrive.c
 
 private val startPid = PidParameters(kp = 250.0, ki = 0.0, kd = -20.0, timeStep = 20.milliseconds)
 
-@OptIn(ExperimentalSplitPaneApi::class, ExperimentalKoalaPlotApi::class)
+@OptIn(ExperimentalSplitPaneApi::class)
 fun main() = application {
     val context = remember {
         Context {
@@ -269,48 +259,25 @@ fun main() = application {
                     }
                 }
                 second(400.dp) {
-                    ChartLayout {
-                        XYGraph<Instant, Double>(
-                            xAxisModel = remember { TimeAxisModel.recent(maxAge, context.clock) },
-                            yAxisModel = rememberDoubleLinearAxisModel((range.start - 1.0)..(range.endInclusive + 1.0)),
-                            xAxisTitle = { Text("Time in seconds relative to current") },
-                            xAxisLabels = { it: Instant ->
-                                Text(
-                                    (context.clock.now() - it).toDouble(
-                                        DurationUnit.SECONDS
-                                    ).toString(2)
-                                )
-                            },
-                            yAxisLabels = { it: Double -> Text(it.toString(2)) }
-                        ) {
-                            PlotNumericState(
-                                context = context,
-                                state = linearDrive.position,
-                                maxAge = maxAge,
-                                sampling = 50.milliseconds,
-                                lineStyle = LineStyle(SolidColor(Color.Blue))
-                            )
-                            PlotNumericState(
-                                context = context,
-                                state = linearDrive.pid.target,
-                                maxAge = maxAge,
-                                sampling = 50.milliseconds,
-                                lineStyle = LineStyle(SolidColor(Color.Red))
-                            )
-                        }
-                        Surface {
-                            FlowLegend(3, label = {
-                                when (it) {
-                                    0 -> {
-                                        Text("Body position", color = Color.Blue)
-                                    }
-
-                                    1 -> {
-                                        Text("Regulator target", color = Color.Red)
-                                    }
-                                }
-                            })
-                        }
+                    TimeSeriesPlot(
+                        modifier = Modifier.fillMaxSize(),
+                        xAxisTitle = "Time",
+                        yAxisTitle = "Position"
+                    ) {
+                        PlotNumericState(
+                            context = context,
+                            state = linearDrive.position,
+                            name = "Body position",
+                            maxAge = maxAge,
+                            sampling = 50.milliseconds,
+                        )
+                        PlotNumericState(
+                            context = context,
+                            state = linearDrive.pid.target,
+                            name = "Regulator target",
+                            maxAge = maxAge,
+                            sampling = 50.milliseconds,
+                        )
                     }
                 }
             }

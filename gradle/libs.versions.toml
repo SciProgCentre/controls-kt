@@ -95,7 +95,9 @@ visionforge-compose-html = { module = "space.kscience:visionforge-compose-html",
 
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
-koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.11.2" }
+lets-plot-kotlin-kernel = "org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.13.0"
+lets-plot-common = "org.jetbrains.lets-plot:lets-plot-common:4.9.0"
+lets-plot-compose = "org.jetbrains.lets-plot:lets-plot-compose:3.1.0"
 
 kmath-core = { module = "space.kscience:kmath-core", version.ref = "kmath" }
 kmath-stat = { module = "space.kscience:kmath-stat", version.ref = "kmath" }
