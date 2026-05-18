@@ -6,10 +6,7 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.onLifecycleEvent
-import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.DeviceGroup
-import space.kscience.controls.constructor.MutableValueState
-import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installNode
 import space.kscience.controls.modbus.ModbusRegistryMap
@@ -18,23 +15,25 @@ import space.kscience.controls.opcua.server.OpcUaServer
 import space.kscience.controls.opcua.server.endpoint
 import space.kscience.controls.opcua.server.serveDevices
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.DoubleIOFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.last
+import space.kscience.dataforge.names.parseAsName
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
-class TestDevice(context: Context, val values: Map<String, ValueState<Double>>) : DeviceConstructor(context) {
+class TestDevice(context: Context, val values: Map<Name, ValueState<Double>>) : DeviceConstructor(context) {
     init {
         val metaDescriptor = MetaDescriptor {
             valueType(ValueType.NUMBER)
         }
         values.forEach { (key, state) ->
             val descriptor = PropertyDescriptor(
-                name = key,
+                name = key.last().toStringUnescaped(),
                 description = "Test property $key",
                 metaDescriptor = metaDescriptor
             )
@@ -54,7 +53,7 @@ internal class TestDeviceRegistryMap(names: List<String>) : ModbusRegistryMap() 
 private fun DeviceManager.setupOpcTestDevices(
     numberOfOpcDevices: Int,
     propertiesPerDevice: Int,
-    properties: MutableMap<String, MutableValueState<Double>>
+    properties: MutableMap<Name, MutableValueState<Double>>
 ): DeviceGroup {
 
     //create opc device group
@@ -65,7 +64,8 @@ private fun DeviceManager.setupOpcTestDevices(
 
         val states = buildMap {
             repeat(propertiesPerDevice) { propertyNum ->
-                put(deviceName + "property[$propertyNum]", MutableValueState(0.0))
+                val state = MutableValueState(0.0)
+                put("opc.${deviceName}.property[$propertyNum]".parseAsName(false), state)
             }
         }
         properties.putAll(states)
@@ -85,12 +85,9 @@ private fun DeviceManager.setupOpcTestDevices(
         }
 
     }.apply {
-        serveDevices(context.request(DeviceManager))
+        serveDevices(context, opcGroup)
         startup().join()
     }
-
-    //register opc devices
-    opcServer.serveDevices(context, opcGroup)
 
     opcGroup.onLifecycleEvent { event ->
         if (event == LifecycleState.STOPPED) {
@@ -104,7 +101,7 @@ private fun DeviceManager.setupOpcTestDevices(
 private fun DeviceManager.setupModbusDevices(
     numberOfModbusDevices: Int,
     registryMap: TestDeviceRegistryMap,
-    properties: MutableMap<String, MutableValueState<Double>>
+    properties: MutableMap<Name, MutableValueState<Double>>
 ): DeviceGroup {
     //create opc device group
     val modbusGroup = DeviceGroup(context, Meta.EMPTY)
@@ -114,8 +111,8 @@ private fun DeviceManager.setupModbusDevices(
     //fill opc device group
     repeat(numberOfModbusDevices) { deviceNum ->
 
-        val states = registryMap.keys.entries.associate { (name, _) ->
-            name to MutableValueState(0.0)
+        val states = registryMap.keys.entries.associate { (keyName, _) ->
+            "modbus.device[${deviceNum}].$keyName".parseAsName(false) to MutableValueState(0.0)
         }
 
         properties.putAll(states)
@@ -153,7 +150,7 @@ internal fun DeviceManager.setupTestDevices(
     registryMap: TestDeviceRegistryMap,
     scope: CoroutineScope = context
 ): Job = scope.launch {
-    val values = mutableMapOf<String, MutableValueState<Double>>()
+    val values = mutableMapOf<Name, MutableValueState<Double>>()
 
 
     setupOpcTestDevices(numberOfOpcDevices, propertiesPerDevice, values)

@@ -45,8 +45,8 @@ public class DeviceNameSpace(
     /**
      * Register device node within existing folder
      */
-    private fun UaFolderNode.registerDeviceNodes(deviceName: String, hub: DeviceTree) {
-        hub.device?.let { device ->
+    private fun UaFolderNode.registerDeviceNodes(deviceName: String, deviceTree: DeviceTree) {
+        deviceTree.device?.let { device ->
             val nodes = device.propertyDescriptors.associate { descriptor ->
                 val propertyName = descriptor.name
 
@@ -132,7 +132,7 @@ public class DeviceNameSpace(
         }
 
         //recursively add sub-devices
-        hub.children.forEach { (childDeviceName, device) ->
+        deviceTree.children.forEach { (childDeviceName, device) ->
 
             val deviceFolder = UaFolderNode(
                 nodeContext,

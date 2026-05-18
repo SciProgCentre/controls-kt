@@ -15,6 +15,7 @@ import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.dataplatform.*
 import space.kscience.controls.dataplatform.storage.RowsCompression
 import space.kscience.controls.dataplatform.storage.launchStorageProcess
+import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
@@ -29,6 +30,8 @@ import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
+
+internal val json = Json { prettyPrint = true }
 
 // IMPORTANT: run in blocking mode
 fun main() {
@@ -78,7 +81,7 @@ fun main() {
                     value = OpcPlatformProperty(
                         source = opcSourceName,
                         timer = timerName,
-                        nodeId = "ns=2;s=opc/device[$opcDeviceNum]/property[$propertyNum]"
+                        nodeId = "ns=2;s=device[$opcDeviceNum]/property[$propertyNum]"
                     )
                 )
             }
@@ -108,7 +111,7 @@ fun main() {
     )
 
     Path("data/platform-config.json").writeText(
-        Json { prettyPrint = true }.encodeToString(DataPlatformConfiguration.serializer(), configuration)
+        json.encodeToString(DataPlatformConfiguration.serializer(), configuration)
     )
 
     val platform = DataPlatform(context, configuration)

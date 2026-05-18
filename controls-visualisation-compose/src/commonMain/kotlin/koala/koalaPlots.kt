@@ -39,28 +39,37 @@ private val defaultMaxPoints get() = 800
 private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
+/**
+ * Transforms a Flow to emit values either when a new value is collected or at a fixed interval,
+ * coupling each emitted value with its associated timestamp.
+ *
+ * @param T The type of the elements in the flow.
+ * @param clockManager The manager providing clock and time-related operations.
+ * @param interval The interval duration at which to sample the flow if no new values are collected.
+ * @return A Flow emitting values of type [ValueWithTime], including the value and the timestamp.
+ */
 private fun <T> Flow<T>.repeatOrSample(clockManager: ClockManager, interval: Duration): Flow<ValueWithTime<T>> = flow {
     val clock = clockManager.clock
 
     coroutineScope {
 
         var current: T? = null
-        var flag: Boolean = false
+        var hasNewValue: Boolean = false
 
         launch {
             collect {
                 current = it
-                flag = true
+                hasNewValue = true
             }
         }
 
         while (isActive) {
             current?.let {
-                if (!flag) {
+                if (hasNewValue) {
                     emit(ValueWithTime(it, clock.now()))
                 }
             }
-            flag = false
+            hasNewValue = false
             withContext(clockManager.simulationDispatcher) {
                 delay(interval)
             }
@@ -129,7 +138,7 @@ private fun <T> XYGraphScope<Instant, T>.PlotTimeSeries(
 public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     device: Device,
     propertyName: String,
-    extractValue: Meta.() -> Double = { value?.double ?: Double.NaN },
+    extractValue: Meta.() -> Double = { double ?: Double.NaN },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
@@ -137,8 +146,9 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     lineStyle: LineStyle = defaultLineStyle,
 ) {
     var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
-    val clockManager =
-        remember(device) { device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager) }
+    val clockManager = remember(device) {
+        device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager)
+    }
 
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
         device.propertyMessageFlow(propertyName)
