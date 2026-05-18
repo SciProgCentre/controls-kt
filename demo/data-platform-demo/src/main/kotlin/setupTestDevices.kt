@@ -161,7 +161,7 @@ internal fun DeviceManager.setupTestDevices(
     launch {
         while (isActive) {
             values.forEach { (name, value) ->
-                value.value = Random.nextDouble()
+                value.value += Random.nextDouble(-1.0,1.0)
             }
             delay(1.seconds)
         }

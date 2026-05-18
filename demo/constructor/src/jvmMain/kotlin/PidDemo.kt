@@ -262,7 +262,8 @@ fun main() = application {
                     TimeSeriesPlot(
                         modifier = Modifier.fillMaxSize(),
                         xAxisTitle = "Time",
-                        yAxisTitle = "Position"
+                        yAxisTitle = "Position",
+                        drawInterval = 50.milliseconds
                     ) {
                         PlotNumericState(
                             context = context,

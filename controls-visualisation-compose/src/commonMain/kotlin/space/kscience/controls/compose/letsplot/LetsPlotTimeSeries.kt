@@ -40,33 +40,34 @@ private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
 @OptIn(FlowPreview::class)
-private fun <T> Flow<T>.repeatOrSample(clockManager: ClockManager, interval: Duration): Flow<ValueWithTime<T>> = flow {
-    val clock = clockManager.clock
+private fun <T> Flow<T>.repeatOrSample(
+    clockManager: ClockManager,
+    interval: Duration
+): Flow<ValueWithTime<T>> = channelFlow {
+    withContext(clockManager.simulationDispatcher) {
+        val clock = clockManager.clock
 
-    coroutineScope {
-
-        var current: T? = null
-        var hasNewValue: Boolean = false
+        var currentValue: ValueWithTime<T>? = null
 
         launch {
             collect {
-                current = it
-                hasNewValue = true
+                currentValue = ValueWithTime(it, clock.now())
             }
         }
 
         while (isActive) {
-            current?.let {
-                if (hasNewValue) {
-                    emit(ValueWithTime(it, clock.now()))
+            currentValue?.let { current ->
+                val now = clock.now()
+                if (now - current.time > interval*3) {
+                    send(ValueWithTime(current.value, now))
+                } else if (now - current.time < interval) {
+                    send(current)
                 }
             }
-            hasNewValue = false
-            withContext(clockManager.simulationDispatcher) {
-                delay(interval)
-            }
+            delay(interval)
         }
     }
+
 }
 
 
