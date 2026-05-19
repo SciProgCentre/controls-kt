@@ -1,16 +1,17 @@
-@file:OptIn(FlowPreview::class)
+/* LLM generated code: Let's Plot integration for controls-kt */
+package space.kscience.controls.compose.letsplot
 
-package space.kscience.controls.compose.koala
-
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import io.github.koalaplot.core.line.LinePlot
-import io.github.koalaplot.core.style.LineStyle
-import io.github.koalaplot.core.xygraph.DefaultPoint
-import io.github.koalaplot.core.xygraph.XYGraphScope
+import androidx.compose.ui.Modifier
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import org.jetbrains.letsPlot.compose.PlotPanel
+import org.jetbrains.letsPlot.geom.geomLine
+import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.letsPlot
+import org.jetbrains.letsPlot.scale.scaleXTime
+import org.slf4j.LoggerFactory
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.propertyMessageFlow
@@ -33,46 +34,37 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-
 private val defaultMaxAge get() = 10.minutes
 private val defaultMaxPoints get() = 800
 private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
-/**
- * Transforms a Flow to emit values either when a new value is collected or at a fixed interval,
- * coupling each emitted value with its associated timestamp.
- *
- * @param T The type of the elements in the flow.
- * @param clockManager The manager providing clock and time-related operations.
- * @param interval The interval duration at which to sample the flow if no new values are collected.
- * @return A Flow emitting values of type [ValueWithTime], including the value and the timestamp.
- */
-private fun <T> Flow<T>.repeatOrSample(clockManager: ClockManager, interval: Duration): Flow<ValueWithTime<T>> = flow {
-    val clock = clockManager.clock
+@OptIn(FlowPreview::class)
+private fun <T> Flow<T>.repeatOrSample(
+    clockManager: ClockManager,
+    interval: Duration
+): Flow<ValueWithTime<T>> = channelFlow {
+    withContext(clockManager.simulationDispatcher) {
+        val clock = clockManager.clock
 
-    coroutineScope {
-
-        var current: T? = null
-        var hasNewValue: Boolean = false
+        var currentValue: ValueWithTime<T>? = null
 
         launch {
             collect {
-                current = it
-                hasNewValue = true
+                currentValue = ValueWithTime(it, clock.now())
             }
         }
 
         while (isActive) {
-            current?.let {
-                if (hasNewValue) {
-                    emit(ValueWithTime(it, clock.now()))
+            currentValue?.let { current ->
+                val now = clock.now()
+                if (now - current.time > interval*3) {
+                    send(ValueWithTime(current.value, now))
+                } else if (now - current.time < interval) {
+                    send(current)
                 }
             }
-            hasNewValue = false
-            withContext(clockManager.simulationDispatcher) {
-                delay(interval)
-            }
+            delay(interval)
         }
     }
 
@@ -115,63 +107,114 @@ internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     }
 }
 
-private val defaultLineStyle: LineStyle = LineStyle(SolidColor(Color.Black))
+@Stable
+public class TimeSeriesPlotState {
+    private val _data = mutableStateMapOf<String, List<ValueWithTime<Double>>>()
+    public val data: Map<String, List<ValueWithTime<Double>>> get() = _data
 
+    public fun updateSeries(name: String, points: List<ValueWithTime<Double>>) {
+        _data[name] = points
+    }
 
-@Composable
-private fun <T> XYGraphScope<Instant, T>.PlotTimeSeries(
-    data: List<ValueWithTime<T>>,
-    lineStyle: LineStyle = defaultLineStyle,
-) {
-    LinePlot(
-        data = data.map { DefaultPoint(it.time, it.value) },
-        lineStyle = lineStyle
-    )
+    public fun removeSeries(name: String) {
+        _data.remove(name)
+    }
 }
 
+public class TimeSeriesPlotBuilder(public val state: TimeSeriesPlotState)
 
-/**
- * Add a trace that shows a [Device] property change over time. Show only latest [maxPoints] .
- * @return a [Job] that handles the listener
- */
 @Composable
-public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
+public fun TimeSeriesPlot(
+    modifier: Modifier = Modifier.fillMaxSize(),
+    xAxisTitle: String? = "Time",
+    yAxisTitle: String? = "Value",
+    drawInterval: Duration = defaultSampling,
+    content: @Composable TimeSeriesPlotBuilder.() -> Unit
+) {
+    val state = remember { TimeSeriesPlotState() }
+    val builder = remember { TimeSeriesPlotBuilder(state) }
+    var plotData by remember { mutableStateOf<Map<String, List<*>>>(emptyMap()) }
+
+    // launch all time series updates in this scope as effects
+    content(builder)
+
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            val time = mutableListOf<Long>()
+            val value = mutableListOf<Double>()
+            val series = mutableListOf<String>()
+
+            state.data.forEach { (name, points) ->
+                points.forEach { p ->
+                    time.add(p.time.toEpochMilliseconds())
+                    value.add(p.value)
+                    series.add(name)
+                }
+            }
+
+            plotData = mapOf(
+                "time" to time,
+                "value" to value,
+                "series" to series
+            )
+            delay(drawInterval)
+        }
+    }
+
+    if (plotData["time"]?.isEmpty() != false) {
+        return
+    }
+
+    var figure = letsPlot(plotData) + geomLine {
+        x = "time"
+        y = "value"
+        color = "series"
+    } + scaleXTime(name = xAxisTitle)
+
+    if (yAxisTitle != null) {
+        figure += labs(y = yAxisTitle)
+    }
+
+    PlotPanel(figure, modifier = modifier) {
+        LoggerFactory.getLogger("LetsPlotTimeSeries").info(it.toString())
+    }
+}
+
+@Composable
+public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
     device: Device,
     propertyName: String,
+    seriesName: String = propertyName,
     extractValue: Meta.() -> Double = { double ?: Double.NaN },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
-    lineStyle: LineStyle = defaultLineStyle,
 ) {
-    var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
-    val clockManager = remember(device) {
-        device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager)
-    }
-
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
+        val clockManager = device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager)
+
+        coroutineContext[Job]?.invokeOnCompletion {
+            state.removeSeries(seriesName)
+        }
+
         device.propertyMessageFlow(propertyName)
             .map { it.value.extractValue() }
             .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
-            .onEach { points = it }
+            .onEach { state.updateSeries(seriesName, it) }
             .launchIn(this)
     }
-
-
-    PlotTimeSeries(points, lineStyle)
 }
 
 @Composable
-public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
+public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
     device: Device,
     property: DevicePropertySpec<out Number>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
-    lineStyle: LineStyle = LineStyle(SolidColor(Color.Black)),
 ): Unit = PlotDeviceProperty(
     device = device,
     propertyName = property.name,
@@ -180,58 +223,58 @@ public fun XYGraphScope<Instant, Double>.PlotDeviceProperty(
     maxPoints = maxPoints,
     minPoints = minPoints,
     sampling = sampling,
-    lineStyle = lineStyle
 )
 
 @Composable
-public fun XYGraphScope<Instant, Double>.PlotNumberState(
+public fun TimeSeriesPlotBuilder.PlotNumberState(
     context: Context,
-    state: ValueState<Number>,
+    valueState: ValueState<Number>,
+    seriesName: String = valueState.toString(),
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
-    lineStyle: LineStyle = defaultLineStyle,
 ): Unit {
-    var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
-    val clockManager = remember(context) { context.plugins.get<ClockManager>() ?: context.request(ClockManager) }
-
-    LaunchedEffect(context, state, maxAge, maxPoints, minPoints, sampling) {
+    LaunchedEffect(context, valueState, maxAge, maxPoints, minPoints, sampling) {
+        val clockManager = context.plugins.get<ClockManager>() ?: context.request(ClockManager)
         val clock = context.clock
 
-        state.subscribe()
+        coroutineContext[Job]?.invokeOnCompletion {
+            state.removeSeries(seriesName)
+        }
+
+
+        valueState.subscribe()
             .map { it.toDouble() }
             .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
-            .onEach { points = it }
+            .onEach { state.updateSeries(seriesName, it) }
             .launchIn(this)
     }
-
-
-    PlotTimeSeries(points, lineStyle)
 }
 
 @Composable
-public fun XYGraphScope<Instant, Double>.PlotNumericState(
+public fun TimeSeriesPlotBuilder.PlotNumericState(
     context: Context,
     state: ValueState<Amount<*>>,
+    name: String = state.toString(),
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
-    lineStyle: LineStyle = defaultLineStyle,
 ): Unit {
-    PlotNumberState(context, state.values(), maxAge, maxPoints, minPoints, sampling, lineStyle)
+    PlotNumberState(context, state.values(), name, maxAge, maxPoints, minPoints, sampling)
 }
 
-
 private fun List<Instant>.averageTime(): Instant {
+    if (isEmpty()) return Instant.DISTANT_PAST
     val min = min()
     val max = max()
     val duration = max - min
     return min + duration / 2
 }
 
+@OptIn(FlowPreview::class)
 private fun <T> Flow<T>.chunkedByPeriod(duration: Duration): Flow<List<T>> {
     val collector: ArrayDeque<T> = ArrayDeque<T>()
     return channelFlow {
@@ -248,28 +291,26 @@ private fun <T> Flow<T>.chunkedByPeriod(duration: Duration): Flow<List<T>> {
     }
 }
 
-
-/**
- * Average property value by [averagingInterval]. Return [startValue] on each sample interval if no events arrived.
- */
 @Composable
-public fun XYGraphScope<Instant, Double>.PlotAveragedDeviceProperty(
+public fun TimeSeriesPlotBuilder.PlotAveragedDeviceProperty(
     device: Device,
     propertyName: String,
     startValue: Double = 0.0,
+    seriesName: String = propertyName,
     extractValue: Meta.() -> Double = { value?.double ?: startValue },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     averagingInterval: Duration = defaultSampling,
-    lineStyle: LineStyle = defaultLineStyle,
 ) {
-
-    var points by remember { mutableStateOf<List<ValueWithTime<Double>>>(emptyList()) }
-
     LaunchedEffect(device, propertyName, startValue, maxAge, maxPoints, minPoints, averagingInterval) {
         val clock: Clock = device.clock
         var lastValue = startValue
+
+        coroutineContext[Job]?.invokeOnCompletion {
+            state.removeSeries(seriesName)
+        }
+
         device.propertyMessageFlow(propertyName)
             .chunkedByPeriod(averagingInterval)
             .transform<List<PropertyChangedMessage>, ValueWithTime<Double>> { eventList ->
@@ -283,9 +324,7 @@ public fun XYGraphScope<Instant, Double>.PlotAveragedDeviceProperty(
                     }
                 }
             }.collectAndTrim(maxAge, maxPoints, minPoints, clock)
-            .onEach { points = it }
+            .onEach { state.updateSeries(seriesName, it) }
             .launchIn(this)
     }
-
-    PlotTimeSeries(points, lineStyle)
 }

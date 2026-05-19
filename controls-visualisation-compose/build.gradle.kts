@@ -17,7 +17,9 @@ kscience {
     useContextParameters()
     commonMain {
         api(projects.controlsConstructor)
-        api(libs.koala.plots)
+        api(libs.lets.plot.kotlin.kernel)
+        api(libs.lets.plot.common)
+        api(libs.lets.plot.compose)
         api(compose.foundation)
         api(compose.material3)
         api(compose.materialIconsExtended)

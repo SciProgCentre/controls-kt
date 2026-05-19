@@ -1,5 +1,4 @@
 /* LLM generated code: Main visualization component for devices and properties */
-@file:OptIn(ExperimentalKoalaPlotApi::class)
 package space.kscience.controls.demo.visual
 
 import androidx.compose.foundation.layout.*
@@ -8,32 +7,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
-import io.github.koalaplot.core.ChartLayout
-import io.github.koalaplot.core.style.LineStyle
-import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
-import io.github.koalaplot.core.xygraph.XYGraph
-import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.resolveDevice
-import space.kscience.controls.compose.koala.PlotDeviceProperty
-import space.kscience.controls.compose.koala.TimeAxisModel
+import space.kscience.controls.compose.letsplot.PlotDeviceProperty
+import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.dataforge.names.Name
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Instant
-
-private val colors = listOf(
-    Color.Red,
-    Color.Blue,
-    Color.Green,
-    Color.Magenta,
-    Color.Cyan,
-    Color(0xFFFFA500), // Orange
-    Color(0xFF800080), // Purple
-    Color(0xFF008000), // Dark Green
-)
 
 @Composable
 fun DeviceVisualisation(
@@ -70,40 +49,17 @@ fun DeviceVisualisation(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-
-                ChartLayout(
-//                    legend = {
-//                        ColumnLegend2(
-//                            itemCount = selectedProperties.size,
-//                            symbol = { index ->
-//                                Box(modifier = Modifier.size(12.dp).background(colors[index % colors.size]))
-//                            },
-//                            label = { index ->
-//                                val (deviceName, propertyName) = selectedProperties.toList()[index]
-//                                val fullName = if (deviceName.isEmpty()) propertyName else "$deviceName.$propertyName"
-//                                Text(fullName, style = MaterialTheme.typography.labelSmall)
-//                            }
-//                        )
-//                    }
+                TimeSeriesPlot(
+                    modifier = Modifier.fillMaxSize(),
+                    xAxisTitle = "Time",
+                    yAxisTitle = "Value",
                 ) {
-                    XYGraph<Instant, Double>(
-                        xAxisModel = remember { TimeAxisModel.recent(30.seconds) },
-                        yAxisModel = rememberDoubleLinearAxisModel(0.0..1.0),
-                        modifier = Modifier.fillMaxSize(),
-                        xAxisTitle = "Time",
-                        yAxisTitle = "Value",
-                        xAxisLabels = { it.toString() },
-                        yAxisLabels = { it.toString() },
-                    ) {
-                        selectedProperties.forEachIndexed { index, property ->
-                            val (deviceName, propertyName) = property
-                            val device = remember(hub, deviceName) { hub.resolveDevice(deviceName) }
-                            PlotDeviceProperty(
-                                device = device,
-                                propertyName = propertyName,
-                                lineStyle = LineStyle(SolidColor(colors[index % colors.size]), strokeWidth = 2.dp)
-                            )
-                        }
+                    selectedProperties.forEach { (deviceName, propertyName) ->
+                        val device = remember(hub, deviceName, selectedProperties) { hub.resolveDevice(deviceName) }
+                        PlotDeviceProperty(
+                            device = device,
+                            propertyName = propertyName,
+                        )
                     }
                 }
             }
