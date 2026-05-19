@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
+import space.kscience.controls.dataplatform.storage.ColumnCompression
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
 import kotlin.time.Duration
@@ -70,6 +71,8 @@ public sealed interface PlatformProperty {
      */
     public val timer: String
 
+    public val compression: ColumnCompression?
+
     /**
      * Metadata of the property
      */
@@ -86,6 +89,7 @@ public class OpcPlatformProperty(
     override val source: String,
     override val timer: String,
     public val nodeId: String,
+    override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
 
@@ -97,6 +101,7 @@ public class PlcPlatformProperty(
     public val address: String,
     public val plcValueType: PlcValueType,
     public val name: String = "@default",
+    override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
 

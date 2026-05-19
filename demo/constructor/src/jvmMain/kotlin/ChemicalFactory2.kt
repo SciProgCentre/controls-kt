@@ -88,6 +88,7 @@ private class ChemicalFactory2(
     }
 }
 
+@Suppress("OPT_IN_USAGE")
 fun main() {
     val context = Context {
         plugin(DeviceManager)

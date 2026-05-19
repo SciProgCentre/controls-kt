@@ -10,7 +10,6 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaRepr
 import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.set
 import space.kscience.tables.MapRow
 import space.kscience.tables.Row
 import space.kscience.tables.TableHeader
@@ -35,20 +34,16 @@ public data class RowsCompression(
     val skipUnchangedRows: Boolean = true,
     val skipUnchangedValues: Boolean = false,
     val numericDelta: Double? = null,
-    val columns: Map<String, ColumnCompression> = emptyMap(),
 ) : MetaRepr {
 
     override fun toMeta(): Meta = Meta {
         "skipUnchangedRows" put skipUnchangedRows
         "skipUnchangedValues" put skipUnchangedValues
         numericDelta?.let { "numericDelta" put numericDelta }
-        columns.forEach { (column, compression) ->
-            set("column[$column]", compression.toMeta())
-        }
     }
 }
 
-public val RowsCompression.hasCompression: Boolean get() = skipUnchangedRows || skipUnchangedValues || numericDelta != null || columns.isNotEmpty()
+public val RowsCompression.hasCompression: Boolean get() = skipUnchangedRows || skipUnchangedValues || numericDelta != null
 
 
 private fun Row<Meta>.toMap(header: TableHeader<Meta>): Map<String, Meta?> = if (this is MapRow) {
@@ -64,19 +59,23 @@ private fun Row<Meta>.toMap(header: TableHeader<Meta>): Map<String, Meta?> = if 
  * if `skipUnchangedRows` in the configuration is enabled, consecutive rows with identical
  * data are omitted from the emitted flow.
  *
- * @param configuration Configuration that specifies compression behavior, including options
+ * @param rowsCompression Configuration that specifies compression behavior, including options
  * such as skipping unchanged rows.
+ * @param columnCompression Optional configuration for column-level compression
  * @return A new instance of `AsyncRows` where row-level compression has been applied
  * based on the given configuration.
  */
-public fun TimeSeriesRows<Meta>.compress(configuration: RowsCompression): TimeSeriesRows<Meta> {
-    if (!configuration.hasCompression) return this
+public fun TimeSeriesRows<Meta>.compress(
+    rowsCompression: RowsCompression,
+    columnCompression: Map<String, ColumnCompression> = emptyMap(),
+): TimeSeriesRows<Meta> {
+    if (!rowsCompression.hasCompression && columnCompression.isEmpty()) return this
 
     // compute column configurations with defaults
     val columnConfigurations = headers.minus(timeColumnHeader).associate {
-        it.name to (configuration.columns[it.name] ?: ColumnCompression(
-            configuration.skipUnchangedValues,
-            configuration.numericDelta
+        it.name to (columnCompression[it.name] ?: ColumnCompression(
+            rowsCompression.skipUnchangedValues,
+            rowsCompression.numericDelta
         ))
     }
 
@@ -90,11 +89,11 @@ public fun TimeSeriesRows<Meta>.compress(configuration: RowsCompression): TimeSe
                 //values except time value
 
                 when {
-                    configuration.skipUnchangedRows && row.value == previousValues -> {
+                    rowsCompression.skipUnchangedRows && row.value == previousValues -> {
                         return@collect
                     }
 
-                    configuration.skipUnchangedValues || configuration.columns.isNotEmpty() -> {
+                    rowsCompression.skipUnchangedValues || columnCompression.isNotEmpty() -> {
 
                         val changedValues = row.value.filter { (key, value) ->
                             //if the field is unknown, skip it just in case

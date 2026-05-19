@@ -18,6 +18,8 @@ rabbitmq = "5.14.2"
 
 exposed = "1.1.1"
 
+postgresql = "42.7.3"
+
 kmongo = "4.5.1"
 
 j2mod = "3.3.0"
@@ -33,7 +35,7 @@ visionforge = "0.5.1"
 
 kmath = "0.5.0"
 
-testcontainers = "1.21.0"
+testcontainers = "2.0.5"
 
 [libraries]
 
@@ -103,8 +105,11 @@ kmath-core = { module = "space.kscience:kmath-core", version.ref = "kmath" }
 kmath-stat = { module = "space.kscience:kmath-stat", version.ref = "kmath" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
-testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
-testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
+testcontainers-hivemq = { module = "org.testcontainers:testcontainers-hivemq", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 
 # Buildscript
 

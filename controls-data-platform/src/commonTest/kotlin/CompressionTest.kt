@@ -127,10 +127,8 @@ class CompressionTest {
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(
-            RowsCompression(
-                skipUnchangedRows = false,
-                columns = mapOf("v1" to ColumnCompression(numericDelta = 1.0))
-            )
+            rowsCompression = RowsCompression(skipUnchangedRows = false),
+            columnCompression = mapOf("v1" to ColumnCompression(numericDelta = 1.0))
         )
         val result = compressed.subscribe().toList()
 

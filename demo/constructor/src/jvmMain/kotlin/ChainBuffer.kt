@@ -66,6 +66,7 @@ private class ChainBufferModel(
     }
 }
 
+@Suppress("OPT_IN_USAGE")
 fun main() {
     val context = Context {
         plugin(DeviceManager)

@@ -20,6 +20,8 @@ kscience {
         implementation(spclibs.logback.classic)
         implementation(spclibs.kotlinx.coroutines.test)
         implementation(libs.h2)
+        implementation(libs.postgresql)
+        implementation(libs.testcontainers.postgresql)
     }
 }
 

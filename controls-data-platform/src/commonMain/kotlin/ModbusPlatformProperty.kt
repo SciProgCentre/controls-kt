@@ -3,6 +3,7 @@ package space.kscience.controls.dataplatform
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import space.kscience.controls.dataplatform.storage.ColumnCompression
 import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.controls.modbus.readInputRegister
 import space.kscience.controls.modbus.readInputRegisters
@@ -17,6 +18,7 @@ public class ModbusPlatformProperty(
     public val reader: ModbusPropertyReader,
     public val address: Int,
     public val unitId: Int = 1,
+    override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
 
