@@ -10,12 +10,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import space.kscience.controls.api.DeviceHub
 import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.hubMessageFlow
 import space.kscience.controls.manager.install
-import space.kscience.controls.manager.respondHubMessage
+import space.kscience.controls.manager.messageFlow
+import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
@@ -31,13 +31,13 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
 
-class VirtualMagixEndpoint(val hub: DeviceHub) : MagixEndpoint {
+class VirtualMagixEndpoint(val tree: DeviceTree) : MagixEndpoint {
 
-    private val additionalMessages = MutableSharedFlow<DeviceMessage>(1)
+    private val messages = MutableSharedFlow<DeviceMessage>(1)
 
     override fun subscribe(
         filter: MagixMessageFilter,
-    ): Flow<MagixMessage> = merge(hub.hubMessageFlow(), additionalMessages).map {
+    ): Flow<MagixMessage> = merge(tree.messageFlow(), messages).map {
         MagixMessage(
             format = DeviceManager.magixFormat.defaultFormat,
             payload = MagixEndpoint.magixJson.encodeToJsonElement(DeviceManager.magixFormat.serializer, it),
@@ -46,10 +46,10 @@ class VirtualMagixEndpoint(val hub: DeviceHub) : MagixEndpoint {
     }
 
     override suspend fun broadcast(message: MagixMessage) {
-        hub.respondHubMessage(
+        tree.respondMessage(
             Json.decodeFromJsonElement(DeviceManager.magixFormat.serializer, message.payload)
         ).forEach {
-            additionalMessages.emit(it)
+            messages.emit(it)
         }
     }
 
@@ -109,14 +109,14 @@ internal class RemoteDeviceConnect {
 
         val remoteHub = virtualMagixEndpoint.remoteDeviceHub(context, "client", "device")
 
-        assertEquals(0, remoteHub.devices.size)
+        assertEquals(0, remoteHub.children.size)
 
         delay(60.milliseconds)
         //switch context to use actual delay
         withContext(Dispatchers.Default) {
             virtualMagixEndpoint.requestDeviceUpdate("client", "device")
             delay(30.milliseconds)
-            assertEquals(10, remoteHub.devices.size)
+            assertEquals(10, remoteHub.children.size)
         }
     }
 }

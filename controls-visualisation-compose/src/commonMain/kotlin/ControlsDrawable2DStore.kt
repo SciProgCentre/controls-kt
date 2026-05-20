@@ -117,7 +117,7 @@ public fun <T, P : DevicePropertySpec<T>> ControlsDrawable2DStore.observePropert
 public fun Controls2DCanvas(
     modifier: Modifier = Modifier,
     onDraw: DrawScope.() -> Unit = {},
-    builder: suspend ControlsDrawable2DBuilder.() -> Unit,
+    builder: suspend ControlsDrawable2DStore.() -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     var canvasSize by remember { mutableStateOf(Size(100f, 100f)) }

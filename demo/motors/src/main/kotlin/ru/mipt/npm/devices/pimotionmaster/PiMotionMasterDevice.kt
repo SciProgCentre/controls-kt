@@ -9,8 +9,7 @@ import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.ParentDevice
+import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.duration
 import space.kscience.controls.ports.AsynchronousPort
 import space.kscience.controls.ports.KtorTcpPort
@@ -22,8 +21,6 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.asValue
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -107,7 +104,7 @@ public class PiMotionMasterConnector(
 }
 
 
-object PiMotionMaster : AbstractDeviceSpec(), Factory<ParentDevice> {
+object PiMotionMaster : AbstractDeviceSpec(), Factory<DeviceTree> {
     val connected by property(MetaConverter.boolean) {
         description = "True if the connection address is defined and the device is initialized"
     }
@@ -138,12 +135,12 @@ object PiMotionMaster : AbstractDeviceSpec(), Factory<ParentDevice> {
     override fun build(
         context: Context,
         meta: Meta
-    ): ParentDevice {
+    ): DeviceTree {
 
 
         var connector: PiMotionMasterConnector? = null
 
-        var axes: Map<Name, Device> = emptyMap()
+        var axes: Map<String, DeviceTree> = emptyMap()
 
         val rootDevice = Device(context, meta, PiMotionMaster) {
 
@@ -179,7 +176,7 @@ object PiMotionMaster : AbstractDeviceSpec(), Factory<ParentDevice> {
                     val ids = request("SAI?").map { it.trim() }
                     if (ids != axes.keys.toList()) {
                         //re-define axes if needed
-                        axes = ids.associate { it.parseAsName() to Axis.build(context, meta, this, it) }
+                        axes = ids.associateWith { DeviceTree(Axis.build(context, meta, this, it)) }
                     }
                     Meta(ids.map { it.asValue() }.asValue())
                     execute(PiMotionMaster.initialize)
@@ -215,7 +212,7 @@ object PiMotionMaster : AbstractDeviceSpec(), Factory<ParentDevice> {
         }
 
 
-        return ParentDevice(rootDevice, axes)
+        return DeviceTree(rootDevice, axes)
     }
 }
 

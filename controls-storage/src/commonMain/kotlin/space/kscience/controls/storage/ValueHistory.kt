@@ -1,4 +1,4 @@
-package space.kscience.controls.time
+package space.kscience.controls.storage
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
@@ -7,20 +7,21 @@ import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 /**
- * An interface for device property history.
+ * An interface for a device property history.
  */
-public interface PropertyHistory<T> {
+public interface ValueHistory<T> {
     /**
-     * Flow property values filtered by a time range. The implementation could discrete it as a chunk or provide paging.
-     * So the resulting discrete is allowed to suspend.
+     * Flow property values filtered by a time range. The implementation could flow it as a chunk or provide paging.
+     * So the resulting flow is allowed to suspend.
      *
-     * If [until] is in the future, the resulting discrete is potentially unlimited.
+     * If [until] is in the future, the resulting flow is potentially unlimited.
      * Theoretically, it could be also unlimited if the event source keeps producing new event with timestamp in a given range.
      */
     public fun flowHistory(
@@ -32,14 +33,14 @@ public interface PropertyHistory<T> {
 /**
  * An in-memory property values history collector
  */
-public class CollectedPropertyHistory<T>(
+public class CollectedValueHistory<T>(
     public val scope: CoroutineScope,
     eventFlow: Flow<DeviceMessage>,
-    public val deviceName: Name,
     public val propertyName: String,
     public val converter: MetaConverter<T>,
+    public val deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
-) : PropertyHistory<T> {
+) : ValueHistory<T> {
 
     private val store: SharedFlow<ValueWithTime<T>> = eventFlow
         .filterIsInstance<PropertyChangedMessage>()
@@ -56,15 +57,15 @@ public class CollectedPropertyHistory<T>(
  */
 public fun <T> Device.collectPropertyHistory(
     scope: CoroutineScope = this,
-    deviceName: Name,
     propertyName: String,
     converter: MetaConverter<T>,
+    deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
-): PropertyHistory<T> = CollectedPropertyHistory(scope, messageFlow, deviceName, propertyName, converter, maxSize)
+): ValueHistory<T> = CollectedValueHistory(scope, messageFlow, propertyName, converter, deviceName, maxSize)
 
 public fun <D : Device, T> D.collectPropertyHistory(
     scope: CoroutineScope = this,
-    deviceName: Name,
     spec: DevicePropertySpec<T>,
+    deviceName: Name = Name.EMPTY,
     maxSize: Int = 1000,
-): PropertyHistory<T> = collectPropertyHistory(scope, deviceName, spec.name, spec.converter, maxSize)
+): ValueHistory<T> = collectPropertyHistory(scope, spec.name, spec.converter, deviceName, maxSize)

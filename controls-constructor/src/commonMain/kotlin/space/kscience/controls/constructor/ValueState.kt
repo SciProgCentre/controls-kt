@@ -4,25 +4,68 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.resolveDevice
+import space.kscience.controls.constructor.expressions.StateExpression
 import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.MetaRef
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.misc.DFExperimental
+import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.parseAsName
 import kotlin.reflect.KProperty
+import kotlin.time.Instant
 
 /**
  * An observable value state
  */
 public interface ValueState<out T> {
-    public val value: T
+    public val valueWithTime: ValueWithTime<T>
+
+    public val value: T get() = valueWithTime.value
+
+    public val time: Instant get() = valueWithTime.time
+
+
+    /**
+     * Subscribe on changes made to this [ValueState] with time. The first value in a subscription is always the current value.
+     */
+    public fun subscribeWithTime(): Flow<ValueWithTime<T>>
 
     /**
      * Subscribe on changes made to this [ValueState]. The first value in a subscription is always the current value.
      */
-    public fun subscribe(): Flow<T>
+    public fun subscribe(): Flow<T> = subscribeWithTime().map { it.value }
+
 
     override fun toString(): String
 
+    @OptIn(DFExperimental::class)
     public companion object {
         public const val TYPE: String = "state"
+
+        public val deviceName: MetaRef<String> = MetaRef("deviceName".asName(), MetaConverter.string)
+
+        public val propertyName: MetaRef<String> = MetaRef("propertyName".asName(), MetaConverter.string)
+
+        public val defaultValue: MetaRef<Meta> = MetaRef("defaultValue".asName(), MetaConverter.meta)
+
+        public val contextValueStateFactory: ValueStateProvider = ValueStateProvider { context, meta ->
+            val deviceName = meta[deviceName]?.parseAsName() ?: error("Device name is not specified")
+            val propertyName = meta[propertyName] ?: error("Property name is not specified")
+            val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
+            val defaultValue = meta[defaultValue] ?: Meta.EMPTY
+            deviceManager.resolveDevice(deviceName).propertyAsState(propertyName, MetaConverter.meta, defaultValue)
+        }
+
+        public val defaultValueStateFactories: Map<String, ValueStateProvider> = mapOf(
+            "deviceProperty" to contextValueStateFactory,
+            "expression" to StateExpression.valueStateFactory
+        )
     }
 }
 
@@ -78,7 +121,17 @@ public fun <T, R> ValueState.Companion.map(
 
     override val value: R get() = mapper(state.value)
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            mapper(state.valueWithTime.value),
+            state.valueWithTime.time
+        )
+
     override fun subscribe(): Flow<R> = state.subscribe().map(mapper)
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = state.subscribeWithTime().map {
+        ValueWithTime(mapper(it.value), it.time)
+    }
 
     override fun toString(): String = "DeviceState.map(state=${state.value}, value=$value)"
 }
@@ -100,10 +153,20 @@ public fun <T, R> ValueState.Companion.map(
 
     override val value: R get() = mapper(state.value)
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            mapper(state.valueWithTime.value),
+            state.valueWithTime.time
+        )
+
     val valueFlow: StateFlow<R> = state.subscribe().map(mapper)
         .stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): StateFlow<R> = valueFlow
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = state.subscribeWithTime().map {
+        ValueWithTime(mapper(it.value), it.time)
+    }
 
     override fun toString(): String = "DeviceState.map(state=${state.value}, value=$value)"
 }
@@ -134,7 +197,13 @@ public fun <T, R> ValueState.Companion.transform(
 
     override val value: R get() = valueFlow.value
 
+    override val valueWithTime: ValueWithTime<R> get() = ValueWithTime(valueFlow.value, state.valueWithTime.time)
+
     override fun subscribe(): StateFlow<R> = valueFlow
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = state.subscribeWithTime().map {
+        ValueWithTime(valueFlow.value, it.time)
+    }
 
     override fun toString(): String = "DeviceState.transform(state=${state.value}, value=$value)"
 }
@@ -162,10 +231,29 @@ public fun <T1, T2, R> ValueState.Companion.combine(
 
     override val value: R get() = mapper(state1.value, state2.value)
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            value = mapper(
+                state1.valueWithTime.value,
+                state2.valueWithTime.value
+            ),
+            time = maxOf(state1.valueWithTime.time, state2.valueWithTime.time)
+        )
+
     val valueFlow: StateFlow<R> = combine(state1.subscribe(), state2.subscribe(), mapper)
         .stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): StateFlow<R> = valueFlow
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = combine(
+        flow = state1.subscribeWithTime(),
+        flow2 = state2.subscribeWithTime()
+    ) { v1, v2 ->
+        ValueWithTime(
+            value = mapper(v1.value, v2.value),
+            time = maxOf(v1.time, v2.time)
+        )
+    }
 
     override fun toString(): String =
         "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, value=$value)"
@@ -189,12 +277,33 @@ public fun <T1, T2, T3, R> ValueState.Companion.combine(
 ): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies = listOf(state1, state2, state3)
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            value = mapper(
+                state1.valueWithTime.value,
+                state2.valueWithTime.value,
+                state3.valueWithTime.value
+            ),
+            time = maxOf(state1.valueWithTime.time, state2.valueWithTime.time, state3.valueWithTime.time)
+        )
+
     override val value: R get() = mapper(state1.value, state2.value, state3.value)
 
     val valueFlow: SharedFlow<R> = combine(state1.subscribe(), state2.subscribe(), state3.subscribe(), mapper)
         .stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): SharedFlow<R> = valueFlow
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = combine(
+        flow = state1.subscribeWithTime(),
+        flow2 = state2.subscribeWithTime(),
+        flow3 = state3.subscribeWithTime()
+    ) { v1, v2, v3 ->
+        ValueWithTime(
+            value = mapper(v1.value, v2.value, v3.value),
+            time = maxOf(v1.time, v2.time, v3.time)
+        )
+    }
 
     override fun toString(): String =
         "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, state3=${state3.value}, value=$value)"
@@ -212,6 +321,22 @@ public fun <T1, T2, T3, T4, R> ValueState.Companion.combine(
 
     override val value: R get() = mapper(state1.value, state2.value, state3.value, state4.value)
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            value = mapper(
+                state1.valueWithTime.value,
+                state2.valueWithTime.value,
+                state3.valueWithTime.value,
+                state4.valueWithTime.value
+            ),
+            time = maxOf(
+                state1.valueWithTime.time,
+                state2.valueWithTime.time,
+                state3.valueWithTime.time,
+                state4.valueWithTime.time
+            )
+        )
+
     val valueFlow: StateFlow<R> = combine(
         flow = state1.subscribe(),
         flow2 = state2.subscribe(),
@@ -221,6 +346,18 @@ public fun <T1, T2, T3, T4, R> ValueState.Companion.combine(
     ).stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): StateFlow<R> = valueFlow
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = combine(
+        flow = state1.subscribeWithTime(),
+        flow2 = state2.subscribeWithTime(),
+        flow3 = state3.subscribeWithTime(),
+        flow4 = state4.subscribeWithTime()
+    ) { v1, v2, v3, v4 ->
+        ValueWithTime(
+            value = mapper(v1.value, v2.value, v3.value, v4.value),
+            time = maxOf(v1.time, v2.time, v3.time, v4.time)
+        )
+    }
 
     override fun toString(): String =
         "DeviceState.combine(state1=${state1.value}, state2=${state2.value}, state3=${state3.value}, state4=${state4.value}, value=$value)"
@@ -245,12 +382,24 @@ public fun <T, R> ValueState.Companion.combine(
 
     override val value: R get() = mapper(states.map { it.value })
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            value = mapper(states.map { it.valueWithTime.value }),
+            time = states.maxOf { it.valueWithTime.time }
+        )
+
     @Suppress("UNCHECKED_CAST")
     val valueFlow: StateFlow<R> = combine(states.map { it.subscribe() }) { array: Array<Any?> ->
         mapper(array.asList() as List<T>)
     }.stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): StateFlow<R> = valueFlow
+
+    @Suppress("UNCHECKED_CAST")
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
+        combine(states.map { it.subscribeWithTime() }) { array: Array<Any?> ->
+            mapper(array.asList() as List<T>)
+        }.map { ValueWithTime(it, states.maxOf { it.valueWithTime.time }) }
 
     override fun toString(): String =
         "DeviceState.combine(states=${
@@ -286,6 +435,12 @@ public fun <T, K, R> ValueState.Companion.combine(
 
     override val value: R get() = mapper(states.mapValues { it.value.value })
 
+    override val valueWithTime: ValueWithTime<R>
+        get() = ValueWithTime(
+            value = mapper(states.mapValues { it.value.valueWithTime.value }),
+            time = states.maxOf { it.value.valueWithTime.time }
+        )
+
     @Suppress("UNCHECKED_CAST")
     val valueFlow: StateFlow<R> = combine(entries.map { it.value.subscribe() }) { array: Array<Any?> ->
         // restore mapping
@@ -293,6 +448,12 @@ public fun <T, K, R> ValueState.Companion.combine(
     }.stateIn(scope, SharingStarted.WhileSubscribed(), value)
 
     override fun subscribe(): StateFlow<R> = valueFlow
+
+    @Suppress("UNCHECKED_CAST")
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
+        combine(entries.map { it.value.subscribeWithTime() }) { array: Array<Any?> ->
+            mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
+        }.map { ValueWithTime(it, states.maxOf { it.value.valueWithTime.time }) }
 
     override fun toString(): String =
         "DeviceState.associate(states=${

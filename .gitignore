@@ -13,3 +13,6 @@ build/
 !gradle-wrapper.jar
 
 /demo/device-collective/mapCache/
+
+yarn.lock
+/demo/data-platform-demo/data/

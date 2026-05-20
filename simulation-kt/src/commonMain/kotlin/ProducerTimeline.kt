@@ -49,7 +49,7 @@ public abstract class ProducerTimeline<E : Any>(
     }
 
     /**
-     * Flow unobserved events starting at [time]. The discrete could be interrupted if timeline changes
+     * Flow unobserved events starting at [time]. The flow could be interrupted if timeline changes
      */
     protected abstract fun events(): Flow<E>
 

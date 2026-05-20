@@ -33,7 +33,7 @@ dependencies {
 }
 
 kotlin{
-    jvmToolchain(11)
+    jvmToolchain(21)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

@@ -13,7 +13,6 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.names.asName
 import kotlin.math.abs
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
@@ -32,7 +31,7 @@ class ThermoSensorAnalyzer(
     val analyzerConfig: ThermoSensorAnalyzerConfig
 ) : DeviceConstructor(sensor.context, analyzerConfig.meta) {
     init {
-        install("sensor".asName(), sensor)
+        install("sensor", sensor)
     }
 
     val temperature by property(

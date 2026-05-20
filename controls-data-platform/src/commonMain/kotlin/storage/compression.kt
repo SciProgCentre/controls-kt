@@ -1,0 +1,129 @@
+package space.kscience.controls.dataplatform.storage
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.Serializable
+import space.kscience.controls.dataplatform.DataPlatform.Companion.timeColumnHeader
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
+import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaRepr
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.set
+import space.kscience.tables.MapRow
+import space.kscience.tables.Row
+import space.kscience.tables.TableHeader
+import space.kscience.tables.get
+import kotlin.math.abs
+
+
+@Serializable
+public data class ColumnCompression(
+    val skipUnchangedValues: Boolean = true,
+    val numericDelta: Double? = null
+) : MetaRepr {
+
+    override fun toMeta(): Meta = Meta {
+        "skipUnchangedValues" put skipUnchangedValues
+        numericDelta?.let { "numericDelta" put numericDelta }
+    }
+}
+
+@Serializable
+public data class RowsCompression(
+    val skipUnchangedRows: Boolean = true,
+    val skipUnchangedValues: Boolean = false,
+    val numericDelta: Double? = null,
+    val columns: Map<String, ColumnCompression> = emptyMap(),
+) : MetaRepr {
+
+    override fun toMeta(): Meta = Meta {
+        "skipUnchangedRows" put skipUnchangedRows
+        "skipUnchangedValues" put skipUnchangedValues
+        numericDelta?.let { "numericDelta" put numericDelta }
+        columns.forEach { (column, compression) ->
+            set("column[$column]", compression.toMeta())
+        }
+    }
+}
+
+public val RowsCompression.hasCompression: Boolean get() = skipUnchangedRows || skipUnchangedValues || numericDelta != null || columns.isNotEmpty()
+
+
+private fun Row<Meta>.toMap(header: TableHeader<Meta>): Map<String, Meta?> = if (this is MapRow) {
+    this.values
+} else {
+    header.associate { it.name to get(it) }
+}
+
+/**
+ * Compresses the rows of the current asynchronous dataset based on the provided configuration.
+ *
+ * This method applies row-level compression to reduce redundancy in the dataset. For instance,
+ * if `skipUnchangedRows` in the configuration is enabled, consecutive rows with identical
+ * data are omitted from the emitted flow.
+ *
+ * @param configuration Configuration that specifies compression behavior, including options
+ * such as skipping unchanged rows.
+ * @return A new instance of `AsyncRows` where row-level compression has been applied
+ * based on the given configuration.
+ */
+public fun TimeSeriesRows<Meta>.compress(configuration: RowsCompression): TimeSeriesRows<Meta> {
+    if (!configuration.hasCompression) return this
+
+    // compute column configurations with defaults
+    val columnConfigurations = headers.minus(timeColumnHeader).associate {
+        it.name to (configuration.columns[it.name] ?: ColumnCompression(
+            configuration.skipUnchangedValues,
+            configuration.numericDelta
+        ))
+    }
+
+    return object : TimeSeriesRows<Meta> {
+        override val headers: TableHeader<Meta> = this@compress.headers
+
+        override fun subscribe(): Flow<TimeSeriesValues<Meta>> = flow {
+            var previousValues: Map<String, Meta?>? = null
+
+            this@compress.subscribe().collect { row: TimeSeriesValues<Meta> ->
+                //values except time value
+
+                when {
+                    configuration.skipUnchangedRows && row.value == previousValues -> {
+                        return@collect
+                    }
+
+                    configuration.skipUnchangedValues || configuration.columns.isNotEmpty() -> {
+
+                        val changedValues = row.value.filter { (key, value) ->
+                            //if the field is unknown, skip it just in case
+                            val config = columnConfigurations[key] ?: return@filter true
+                            //if value is the same, keep it only if filtering is off
+                            if (value == previousValues?.get(key)) return@filter !config.skipUnchangedValues
+
+                            //if numeric delta is specified, check it
+                            if (config.numericDelta != null) {
+                                // if current or previous value does not exist, skip
+                                val previousNumeric = previousValues?.get(key)?.double ?: return@filter true
+                                val numeric = value.double ?: return@filter true
+                                abs(numeric - previousNumeric) > config.numericDelta
+                            } else {
+                                true
+                            }
+                        }
+
+                        previousValues = (previousValues ?: emptyMap()) + changedValues
+
+                        emit(ValueWithTime(changedValues, row.time))
+                    }
+
+                    else -> {
+                        emit(row)
+                        previousValues = row.value
+                    }
+                }
+            }
+        }
+    }
+}

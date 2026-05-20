@@ -1,39 +1,51 @@
 package space.kscience.controls.spec
 
-import space.kscience.controls.api.DeviceHub
-import space.kscience.controls.api.ParentDevice
+import space.kscience.controls.api.DeviceTree
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.isEmpty
 
 /**
- * A builder for [DeviceHub]
+ * A builder for [DeviceTree]
  */
-public class DeviceHubBuilder : Factory<DeviceHub> {
+public class DeviceHubBuilder : Factory<DeviceTree> {
 
-    private val devices: MutableMap<Name, DeviceBuilder> = mutableMapOf()
+
+    private var root: DeviceBuilder? = null
+
+    private val children: MutableMap<String, DeviceHubBuilder> = mutableMapOf()
 
     /**
-     * Register a device builder with the given name.
+     * Register a device hub builder with the given name.
      */
-    public fun device(name: Name, builder: DeviceBuilder) {
+    public fun hub(name: String, builder: DeviceHubBuilder) {
         require(!name.isEmpty()) { "Device name cannot be empty" }
-        require(name !in devices) { "Device $name is already defined" }
-
-        devices[name] = builder
+        require(name !in children.keys) { "Device $name is already defined" }
+        children[name] = builder
     }
 
     /**
      * Register a device builder with the given name.
      */
-    public fun device(name: Name, builder: DeviceBuilder.() -> Unit) {
+    public fun device(name: String, builder: DeviceBuilder) {
+        hub(name, DeviceHubBuilder().apply { root = builder })
+    }
+
+    /**
+     * Register a device builder with the given name.
+     */
+    public fun device(name: String, builder: DeviceBuilder.() -> Unit) {
         val device = DeviceBuilder().apply(builder)
         device(name, device)
     }
 
-    private var root: DeviceBuilder? = null
+    /**
+     * Register a device hub builder with the given name.
+     */
+    public fun hub(name: String, builder: DeviceHubBuilder.() -> Unit) {
+        hub(name, DeviceHubBuilder().apply(builder))
+    }
+
 
     public fun root(builder: DeviceBuilder): Unit {
         root = builder
@@ -42,30 +54,18 @@ public class DeviceHubBuilder : Factory<DeviceHub> {
     public fun root(builder: DeviceBuilder.() -> Unit): Unit = root(DeviceBuilder().apply(builder))
 
     /**
-     * Build a [DeviceHub] from the registered devices.
+     * Build a [DeviceTree] from the registered devices.
      */
-    override fun build(context: Context, meta: Meta): DeviceHub = root?.let { root ->
-        ParentDevice(root.build(context, meta), devices.mapValues { it.value.build(context, meta) })
-    } ?: DeviceHub(devices.mapValues { it.value.build(context, meta) })
+    override fun build(context: Context, meta: Meta): DeviceTree = DeviceTree(
+        rootDevice = root?.build(context, meta),
+        children = children.mapValues { it.value.build(context, meta) }
+    )
 
-    /**
-     * Build a [ParentDevice] from the registered devices. Throw an exception if the root device is not defined.
-     */
-    public fun buildParent(context: Context, meta: Meta): ParentDevice {
-        return ParentDevice(
-            rootDevice = (root ?: error("Root device is not defined")).build(context, meta),
-            children = devices.mapValues { it.value.build(context, meta) })
-    }
+
 }
 
 /**
  * Creates a DeviceHub using the provided context and optional meta, with the specified builder configuration.
  */
-public fun DeviceHub(context: Context, meta: Meta = Meta.EMPTY, builder: DeviceHubBuilder.() -> Unit): DeviceHub =
+public fun DeviceHub(context: Context, meta: Meta = Meta.EMPTY, builder: DeviceHubBuilder.() -> Unit): DeviceTree =
     DeviceHubBuilder().apply(builder).build(context, meta)
-
-/**
- * Creates a ParentDevice using the provided context and optional meta, with the specified builder configuration.
- */
-public fun ParentDevice(context: Context, meta: Meta = Meta.EMPTY, builder: DeviceHubBuilder.() -> Unit): ParentDevice =
-    DeviceHubBuilder().apply(builder).buildParent(context, meta)

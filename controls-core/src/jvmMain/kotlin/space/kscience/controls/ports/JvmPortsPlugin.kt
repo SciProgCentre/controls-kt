@@ -26,7 +26,7 @@ public class JvmPortsPlugin : AbstractPlugin() {
 
     public companion object : PluginFactory<JvmPortsPlugin> {
 
-        override val tag: PluginTag = PluginTag("controls.ports.jvm", group = PluginTag.DATAFORGE_GROUP)
+        override val tag: PluginTag = PluginTag("controls.ports.jvm")
 
         override fun build(context: Context, meta: Meta): JvmPortsPlugin = JvmPortsPlugin()
 

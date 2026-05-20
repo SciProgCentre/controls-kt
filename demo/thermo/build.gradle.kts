@@ -38,6 +38,9 @@ kscience {
     }
 
     commonMain {
+        implementation(
+            project.dependencies.platform(spclibs.kotlin.js.wrappers)
+        )
         implementation(projects.controlsCore)
         implementation(projects.controlsConstructor)
         implementation(projects.controlsVision)

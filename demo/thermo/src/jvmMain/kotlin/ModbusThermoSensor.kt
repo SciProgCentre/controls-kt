@@ -2,6 +2,7 @@ package center.sciprog.controls.demo.thermo
 
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import space.kscience.controls.api.Device
+import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.controls.modbus.readInputRegister
 import space.kscience.controls.spec.Device
 import space.kscience.controls.spec.doRecurring
@@ -29,11 +30,11 @@ fun ModbusThermoSensor(
     context: Context,
     master: AbstractModbusMaster,
     unitId: Int,
-    address: Int,
+    key: ModbusRegistryKey.InputRegister,
     meta: Meta
 ): Device = Device(context, meta) {
     reader(ThermoSensorSpec.temperature) {
-        master.readInputRegister(address, unitId).toDouble() / 10.0
+        master.readInputRegister(unitId, key).toDouble() / 10.0
     }
 
     onStart {

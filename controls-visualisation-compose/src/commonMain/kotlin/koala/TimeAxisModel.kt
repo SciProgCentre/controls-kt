@@ -10,6 +10,14 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.time.times
 
+/**
+ * A model representing a time-based axis for rendering and computing tick values.
+ *
+ * @constructor Creates a TimeAxisModel with the specified minimum spacing between major ticks and a function
+ * providing the range of time values to display on the axis.
+ * @param minimumMajorTickSpacing Minimum distance (in Dp) between two major ticks on the axis.
+ * @param rangeProvider A function that returns the current range of time values as a closed range of `Instant`.
+ */
 public class TimeAxisModel(
     private val minimumMajorTickSpacing: Dp = 50.dp,
     private val rangeProvider: () -> ClosedRange<Instant>,
@@ -31,6 +39,11 @@ public class TimeAxisModel(
     override fun computeOffset(point: Instant): Float {
         val currentRange = rangeProvider()
         return ((point - currentRange.start) / (currentRange.endInclusive - currentRange.start)).toFloat()
+    }
+
+    override fun offsetToValue(offset: Float): Instant {
+        val currentRange = rangeProvider()
+        return currentRange.start + (currentRange.endInclusive - currentRange.start) * offset.toDouble()
     }
 
     public companion object {

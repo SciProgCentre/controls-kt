@@ -18,6 +18,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.isEmpty
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
@@ -187,14 +188,15 @@ public suspend fun MagixEndpoint.remoteDevice(
 }
 
 /**
- * Create a dynamic [DeviceHub] from incoming messages
+ * Create a dynamic [DeviceTree] from incoming messages
  */
 public suspend fun MagixEndpoint.remoteDeviceHub(
     context: Context,
     thisEndpoint: String,
     deviceEndpoint: String,
-): DeviceHub {
+): DeviceTree {
     val devices = mutableMapOf<Name, DeviceClient>()
+
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
@@ -229,7 +231,15 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
         id = stringUID()
     )
 
-    return DeviceHub(devices)
+    return object : DeviceTree {
+        override val device: Device? get() = devices[Name.EMPTY]
+        override val children: Map<String, DeviceTree>
+            get() = devices.entries //capture current map state in a closure
+                .filter { !it.key.isEmpty() }
+                .associate { (name, tree) ->
+                    name.toString() to DeviceTree(tree)
+                }
+    }
 }
 
 /**
