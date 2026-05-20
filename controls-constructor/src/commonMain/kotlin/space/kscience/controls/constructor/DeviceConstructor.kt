@@ -102,7 +102,12 @@ public fun <T : Any> DeviceConstructor.property(
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<T>>> = property(
     converter = metaConverter,
-    state = ValueState.external(this, readInterval, initialState, clock, reader),
+    state = ValueState.external(
+        context = context,
+        readInterval = readInterval,
+        initialValue = initialState,
+        reader = reader
+    ),
     descriptorBuilder = descriptorBuilder,
     nameOverride = nameOverride,
 )
@@ -120,7 +125,13 @@ public fun <T : Any> DeviceConstructor.mutableProperty(
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
     converter = metaConverter,
-    state = ValueState.external(this, readInterval, initialState, clock, reader, writer),
+    state = ValueState.external(
+        context = context,
+        readInterval = readInterval,
+        initialValue = initialState,
+        reader = reader,
+        writer = writer
+    ),
     descriptorBuilder = descriptorBuilder,
     nameOverride = nameOverride,
 )
