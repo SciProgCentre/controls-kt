@@ -27,6 +27,7 @@ public class FrameProcessingGraph(
     }
 
     private val _nodes = mutableMapOf<String, Node>()
+    public val nodes: Collection<Node> get() = _nodes.values
 
     /**
      * Register a producer without dependencies
