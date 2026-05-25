@@ -24,6 +24,7 @@ kscience {
 
     commonMain {
         api(libs.dataforge.io)
+        //temporary fix for lets-plot
         api("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0-0.6.x-compat")
         //api(spclibs.kotlinx.datetime)
     }

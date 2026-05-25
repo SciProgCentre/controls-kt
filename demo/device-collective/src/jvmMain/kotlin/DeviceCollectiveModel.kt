@@ -5,6 +5,7 @@ import kotlinx.io.writeString
 import kotlinx.serialization.json.Json
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertySetMessage
+import space.kscience.controls.binary.PeerConnection
 import space.kscience.controls.client.DeviceClient
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.write
@@ -12,7 +13,6 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installNode
 import space.kscience.controls.manager.respondMessage
-import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.name
 import space.kscience.controls.spec.write
 import space.kscience.dataforge.context.Context

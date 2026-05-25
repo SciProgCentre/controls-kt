@@ -56,16 +56,19 @@ public fun DataPlatform.flowBinaryData(
             val now = clock.now()
 
             val table = RowTable(rows.headers, rowBuffer.map { it.toRow() })
-            val envelope = converter.writeRows(table, Meta {
-                "time" put now.toString()
-                "startTime" put rowBuffer.first().time.toString()
-                "endTime" put rowBuffer.last().time.toString()
-                "numberOfRows" put rowBuffer.size
-                "readInterval" put readInterval.toString()
-                "maxRows" put maxRows
-                "maxDuration" put maxDuration.toString()
-                compression?.let { "timeSerriesCompression" put compression.toMeta() }
-            })
+            val envelope = converter.writeRows(
+                rows = table,
+                meta = Meta {
+                    "time" put now.toString()
+                    "startTime" put rowBuffer.first().time.toString()
+                    "endTime" put rowBuffer.last().time.toString()
+                    "numberOfRows" put rowBuffer.size
+                    "readInterval" put readInterval.toString()
+                    "maxRows" put maxRows
+                    "maxDuration" put maxDuration.toString()
+                    compression?.let { "timeSerriesCompression" put compression.toMeta() }
+                }
+            )
             send(envelope)
             rowBuffer.clear()
 

@@ -189,7 +189,7 @@ public data class ActionResultMessage(
  * [contentMeta] includes public information that could be shared with loop subscribers. It should not contain sensitive data.
  *
  * The binary itself could not be provided via [DeviceMessage] API.
- * [space.kscience.controls.peer.PeerConnection] must be used instead
+ * [space.kscience.controls.binary.PeerConnection] must be used instead
  */
 @Serializable
 @SerialName("binary.notification")

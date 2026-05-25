@@ -2,8 +2,8 @@
 
 package space.kscience.controls.demo.collective
 
+import space.kscience.controls.binary.PeerConnection
 import space.kscience.controls.constructor.*
-import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.AbstractDeviceSpec
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter

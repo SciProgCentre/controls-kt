@@ -1,4 +1,4 @@
-package space.kscience.controls.peer
+package space.kscience.controls.binary
 
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
