@@ -26,8 +26,10 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
   - ClockManager and resolveClock for platform clocks.
   - ValueWithTime and PropertyHistory to provide local device state history data.
   - VirtualTimeDispatcher: a virtual-time coroutine dispatcher useful for simulation and deterministic tests.
-- Peer
+- Binary frames (see [detailed documentation](binary-frames.md))
   - PeerConnection: a thin abstraction for point-to-point message exchange between devices/hubs.
+  - FrameProcessor: middleware for reactive binary data processing with telemetry and monitoring.
+  - FrameProcessingGraph: DSL for building and monitoring complex processing pipelines.
 - Converters
   - Meta converters and IO formats for common types (Duration, Instant, Double ranges), plus convenience extensions.
 

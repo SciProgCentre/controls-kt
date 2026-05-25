@@ -1,8 +1,10 @@
 package space.kscience.controls.binary
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.misc.DFInternal
 import kotlin.time.Clock
@@ -21,7 +23,11 @@ public class FrameProcessingGraph(
         public val id: String,
         public val producer: FrameProducer,
         public val sources: Set<Node>
-    ) {
+    )  {
+        public fun subscribe(): Flow<Envelope> = producer.subscribe()
+
+        public val telemetry: Flow<FrameTelemetry> = producer.telemetry
+
         override fun toString(): String =
             "FrameProcessingGraph.Node(id='$id', sources=${sources.map { it.id }})"
     }
@@ -72,3 +78,8 @@ public class FrameProcessingGraph(
     public fun Node.transform(id: String, transformer: FrameTransformer): Node = node(id, setOf(this), transformer)
 
 }
+
+@DFExperimental
+public fun Context.FrameProcessingGraph(
+    block: FrameProcessingGraph.() -> Unit
+): FrameProcessingGraph = FrameProcessingGraph(this).apply(block)
