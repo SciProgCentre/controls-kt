@@ -2,10 +2,13 @@ package space.kscience.controls.dataplatform.storage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.binary.FrameProducer
 import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.dataplatform.timeseries.toRow
@@ -101,4 +104,24 @@ public fun DataPlatform.flowBinaryData(
             }
         }
     }
+}
+
+public fun DataPlatform.asFrameProducer(
+    readInterval: Duration,
+    converter: RowsEnvelopeConverter<Meta>,
+    maxRows: Int = 10000,
+    maxDuration: Duration = 3.hours,
+    maxPause: Duration? = null,
+    compression: RowsCompression? = null,
+): FrameProducer {
+    val flow = flowBinaryData(
+        readInterval = readInterval,
+        converter = converter,
+        maxRows = maxRows,
+        maxDuration = maxDuration,
+        maxPause = maxPause,
+        compression = compression
+    ).shareIn(context, SharingStarted.Eagerly)
+
+    return FrameProducer { flow }
 }

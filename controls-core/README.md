@@ -22,12 +22,14 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
   - Asynchronous/Synchronous port abstractions to send and receive raw byte arrays.
   - Common helpers to build framed protocols and I/O extensions.
   - JVM implementations: ChannelPort, UdpSocketPort; Ktor and Serial implementations live in separate modules.
-- Time utilities
+- Time utilities (see [detailed documentation](time-management.md))
   - ClockManager and resolveClock for platform clocks.
   - ValueWithTime and PropertyHistory to provide local device state history data.
   - VirtualTimeDispatcher: a virtual-time coroutine dispatcher useful for simulation and deterministic tests.
-- Peer
+- Binary frames (see [detailed documentation](binary-frames.md))
   - PeerConnection: a thin abstraction for point-to-point message exchange between devices/hubs.
+  - FrameProcessor: middleware for reactive binary data processing with telemetry and monitoring.
+  - FrameProcessingGraph: DSL for building and monitoring complex processing pipelines.
 - Converters
   - Meta converters and IO formats for common types (Duration, Instant, Double ranges), plus convenience extensions.
 
@@ -39,11 +41,13 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
  - [deviceSpec](src/commonMain/kotlin/space/kscience/controls/spec) : Mechanics and type-safe builders for devices. Including separation of device specification and device state.
  - [deviceManager](src/commonMain/kotlin/space/kscience/controls/manager) : DataForge DI integration for devices. Includes device builders.
  - [ports](src/commonMain/kotlin/space/kscience/controls/ports) : Working with asynchronous data sending and receiving raw byte arrays
+ - [time](docs/time-management.md) : Time management utilities: ClockManager, VirtualTimeDispatcher, and ValueWithTime.
+ - [frames](docs/binary-frames.md) : Binary frames utilities.
 
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-core:0.4.0-dev-8`.
+The Maven coordinates of this project are `space.kscience:controls-core:0.4.0-dev-10`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -53,7 +57,7 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-core:0.4.0-dev-8")
+    implementation("space.kscience:controls-core:0.4.0-dev-10")
 }
 ```
 

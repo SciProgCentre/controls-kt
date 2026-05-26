@@ -16,9 +16,9 @@ import kotlin.time.Instant
 /**
  * A producer of binary frames
  */
-public interface FrameProducer {
+public fun interface FrameProducer {
     public fun subscribe(): Flow<Envelope>
-    public val telemetry: Flow<FrameTelemetry>
+    public val telemetry: Flow<FrameTelemetry> get() = emptyFlow()
 }
 
 /**

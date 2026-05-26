@@ -22,7 +22,7 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
   - Asynchronous/Synchronous port abstractions to send and receive raw byte arrays.
   - Common helpers to build framed protocols and I/O extensions.
   - JVM implementations: ChannelPort, UdpSocketPort; Ktor and Serial implementations live in separate modules.
-- Time utilities
+- Time utilities (see [detailed documentation](time-management.md))
   - ClockManager and resolveClock for platform clocks.
   - ValueWithTime and PropertyHistory to provide local device state history data.
   - VirtualTimeDispatcher: a virtual-time coroutine dispatcher useful for simulation and deterministic tests.
