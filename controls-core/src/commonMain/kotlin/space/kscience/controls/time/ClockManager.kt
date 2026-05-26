@@ -54,8 +54,6 @@ private class CompressedClock(
     }
 }
 
-internal expect fun resolveClock(meta: Meta): Clock?
-
 /**
  * Represents the mode of operation for a clock, defining its time source or behavior.
  */
@@ -92,12 +90,13 @@ public sealed interface ClockMode {
 public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     override val tag: PluginTag get() = Companion.tag
 
+
     public val clockMode: ClockMode by lazy {
         when (meta["clock.mode"].string) {
             null, "system" -> ClockMode.System
             "virtual" -> ClockMode.Virtual(VirtualTimeDispatcher(context))
             "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
-            else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
+            else -> error("Can't resolve clock for $meta")
         }
     }
 
