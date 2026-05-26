@@ -17,7 +17,7 @@ kscience {
     native()
     wasmJs()
     useCoroutines()
-    useSerialization{
+    useSerialization {
         json()
     }
     useContextParameters()
@@ -29,48 +29,60 @@ kscience {
         //api(spclibs.kotlinx.datetime)
     }
 
-    jvmTest{
+    jvmTest {
         implementation(spclibs.logback.classic)
     }
 }
 
 
-readme{
+readme {
     maturity = Maturity.EXPERIMENTAL
 
-    feature("device", ref = "src/commonMain/kotlin/space/kscience/controls/api/Device.kt"){
+    feature("device", ref = "src/commonMain/kotlin/space/kscience/controls/api/Device.kt") {
         """
             Device API with subscription (asynchronous and pseudo-synchronous properties)
         """.trimIndent()
     }
 
-    feature("deviceMessage", ref = "src/commonMain/kotlin/space/kscience/controls/api/DeviceMessage.kt"){
+    feature("deviceMessage", ref = "src/commonMain/kotlin/space/kscience/controls/api/DeviceMessage.kt") {
         """
             Specification for messages used to communicate between Controls-kt devices.
         """.trimIndent()
     }
 
-    feature("deviceHub", ref = "src/commonMain/kotlin/space/kscience/controls/api/DeviceHub.kt"){
+    feature("deviceHub", ref = "src/commonMain/kotlin/space/kscience/controls/api/DeviceHub.kt") {
         """
             Grouping of devices into local tree-like hubs.
         """.trimIndent()
     }
 
-    feature("deviceSpec", ref = "src/commonMain/kotlin/space/kscience/controls/spec"){
+    feature("deviceSpec", ref = "src/commonMain/kotlin/space/kscience/controls/spec") {
         """
             Mechanics and type-safe builders for devices. Including separation of device specification and device state.
         """.trimIndent()
     }
 
-    feature("deviceManager", ref = "src/commonMain/kotlin/space/kscience/controls/manager"){
+    feature("deviceManager", ref = "src/commonMain/kotlin/space/kscience/controls/manager") {
         """
             DataForge DI integration for devices. Includes device builders.
         """.trimIndent()
     }
 
-    feature("ports", ref = "src/commonMain/kotlin/space/kscience/controls/ports"){
+    feature("ports", ref = "src/commonMain/kotlin/space/kscience/controls/ports") {
         """
             Working with asynchronous data sending and receiving raw byte arrays
+        """.trimIndent()
+    }
+
+    feature("time", ref = "docs/time-management.md") {
+        """
+            Time management utilities: ClockManager, VirtualTimeDispatcher, and ValueWithTime.
+        """.trimIndent()
+    }
+
+    feature("frames", ref = "docs/binary-frames.md") {
+        """
+            Binary frames utilities.
         """.trimIndent()
     }
 }
