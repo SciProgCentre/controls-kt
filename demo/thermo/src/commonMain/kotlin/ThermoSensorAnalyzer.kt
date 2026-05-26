@@ -17,6 +17,9 @@ import kotlin.math.abs
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * An enumeration representing the operational status of a thermo sensor.
+ */
 @Serializable
 enum class ThermoSensorStatus {
     NotConnected,
@@ -26,6 +29,20 @@ enum class ThermoSensorStatus {
     // TODO consider adding explicit messages
 }
 
+/**
+ * A class for analyzing temperature data from a thermo sensor device. This class interacts with a device
+ * providing temperature readings and computes various metrics such as average temperature and sensor status
+ * based on thresholds and correction factors.
+ *
+ * @property sensor The thermo sensor device to be analyzed.
+ * @property analyzerConfig Configuration settings for the analyzer, including thresholds and correction values.
+ *
+ * Main functionalities:
+ * - Provides the current temperature reading from the sensor.
+ * - Calculates the averaged temperature over a sliding time window.
+ * - Determines the operational status of the sensor based on thresholds.
+ * - Applies daily and yearly correction factors to thresholds.
+ */
 class ThermoSensorAnalyzer(
     val sensor: Device,
     val analyzerConfig: ThermoSensorAnalyzerConfig
