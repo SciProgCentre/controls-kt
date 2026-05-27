@@ -8,17 +8,17 @@ import space.kscience.dataforge.meta.Meta
 /**
  * A builder for [DeviceTree]
  */
-public class DeviceHubBuilder : Factory<DeviceTree> {
+public class DeviceTreeBuilder : Factory<DeviceTree> {
 
 
     private var root: DeviceBuilder? = null
 
-    private val children: MutableMap<String, DeviceHubBuilder> = mutableMapOf()
+    private val children: MutableMap<String, DeviceTreeBuilder> = mutableMapOf()
 
     /**
      * Register a device hub builder with the given name.
      */
-    public fun hub(name: String, builder: DeviceHubBuilder) {
+    public fun tree(name: String, builder: DeviceTreeBuilder) {
         require(!name.isEmpty()) { "Device name cannot be empty" }
         require(name !in children.keys) { "Device $name is already defined" }
         children[name] = builder
@@ -28,7 +28,7 @@ public class DeviceHubBuilder : Factory<DeviceTree> {
      * Register a device builder with the given name.
      */
     public fun device(name: String, builder: DeviceBuilder) {
-        hub(name, DeviceHubBuilder().apply { root = builder })
+        tree(name, DeviceTreeBuilder().apply { root = builder })
     }
 
     /**
@@ -42,8 +42,8 @@ public class DeviceHubBuilder : Factory<DeviceTree> {
     /**
      * Register a device hub builder with the given name.
      */
-    public fun hub(name: String, builder: DeviceHubBuilder.() -> Unit) {
-        hub(name, DeviceHubBuilder().apply(builder))
+    public fun tree(name: String, builder: DeviceTreeBuilder.() -> Unit) {
+        tree(name, DeviceTreeBuilder().apply(builder))
     }
 
 
@@ -67,5 +67,5 @@ public class DeviceHubBuilder : Factory<DeviceTree> {
 /**
  * Creates a DeviceHub using the provided context and optional meta, with the specified builder configuration.
  */
-public fun DeviceHub(context: Context, meta: Meta = Meta.EMPTY, builder: DeviceHubBuilder.() -> Unit): DeviceTree =
-    DeviceHubBuilder().apply(builder).build(context, meta)
+public fun DeviceTree(context: Context, meta: Meta = Meta.EMPTY, builder: DeviceTreeBuilder.() -> Unit): DeviceTree =
+    DeviceTreeBuilder().apply(builder).build(context, meta)
