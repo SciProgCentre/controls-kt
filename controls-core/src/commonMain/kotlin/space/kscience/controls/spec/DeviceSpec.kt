@@ -1,8 +1,6 @@
 package space.kscience.controls.spec
 
-import space.kscience.controls.api.ActionDescriptor
-import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.controls.api.metaDescriptor
+import space.kscience.controls.api.*
 import space.kscience.controls.unit
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -10,12 +8,6 @@ import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
-
-internal object DeviceMetaPropertySpec : DevicePropertySpec<Meta> {
-    override val descriptor: PropertyDescriptor = PropertyDescriptor("@meta")
-
-    override val converter: MetaConverter<Meta> = MetaConverter.meta
-}
 
 /**
  * A specification of a device
@@ -26,13 +18,54 @@ public interface DeviceSpec {
 }
 
 /**
- * A base for [DeviceSpec] implementation by inheritance
+ * A set of all element descriptors in the device spec
+ */
+public val DeviceSpec.elementDescriptors: Set<DeviceElementDescriptor>
+    get() = properties.values.mapTo(mutableSetOf()) {
+        it.descriptor
+    } + actions.values.mapTo(mutableSetOf()) {
+        it.descriptor
+    }
+
+/**
+ * Create a device specification from a map of properties and actions
+ */
+public fun DeviceSpec(
+    properties: Map<String, DevicePropertySpec<*>>,
+    actions: Map<String, DeviceActionSpec<*, *>> = emptyMap()
+): DeviceSpec = object : DeviceSpec {
+    override val properties: Map<String, DevicePropertySpec<*>> get() = properties
+    override val actions: Map<String, DeviceActionSpec<*, *>> get() = actions
+
+}
+
+/**
+ * Create a set of element (property or action) descriptors that are present in the spec, but missing in the device
+ */
+public fun DeviceSpec.checkMissingElements(device: Device): Set<DeviceElementDescriptor> = buildSet {
+    properties.forEach { (name, spec) ->
+        val descriptor = device.propertyDescriptors.find { it.name == name }
+        //TODO allow more flexible comparison of descriptors so they are not strictly equal
+        if (descriptor != spec.descriptor) add(spec.descriptor)
+    }
+    actions.forEach { (name, spec) ->
+        val descriptor = device.actionDescriptors.find { it.name == name }
+        if (descriptor != spec.descriptor) add(spec.descriptor)
+    }
+}
+
+/**
+ * Verify if this device adheres to the specification
+ */
+public fun DeviceSpec.verify(device: Device): Boolean = checkMissingElements(device).isEmpty()
+
+
+/**
+ * A base for [DeviceSpec] implementation
  */
 public abstract class AbstractDeviceSpec : DeviceSpec {
     //initializing the metadata property for everyone
-    private val _properties = hashMapOf<String, DevicePropertySpec<*>>(
-        DeviceMetaPropertySpec.name to DeviceMetaPropertySpec
-    )
+    private val _properties = hashMapOf<String, DevicePropertySpec<*>>()
     override val properties: Map<String, DevicePropertySpec<*>> get() = _properties
 
     private val _actions = HashMap<String, DeviceActionSpec<*, *>>()

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Add DeviceTreeSpec
 - `TimerState` implements `Clock`.
 - `setCachedValue` API for `CachingDevice` to directly manipulate cached value and solve circular write problem with virtual properties.
 - Flow control simulation

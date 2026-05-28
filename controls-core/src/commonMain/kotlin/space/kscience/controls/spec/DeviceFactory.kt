@@ -24,9 +24,7 @@ import kotlin.reflect.KProperty1
 public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
 
     //initializing the metadata property for everyone
-    private val _properties = hashMapOf<String, DevicePropertySpec<*>>(
-        DeviceMetaPropertySpec.name to DeviceMetaPropertySpec
-    )
+    private val _properties = hashMapOf<String, DevicePropertySpec<*>>()
     override val properties: Map<String, DevicePropertySpec<*>> get() = _properties
 
 
@@ -237,6 +235,8 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
         createState: suspend context(DeviceBase) () -> S
     ): Device = Device(context, meta) {
         val state = CompletableDeferred<S>()
+
+        reader(DevicePropertySpec.deviceMeta) { meta }
 
         readers.forEach { (property, reader) ->
             @Suppress("UNCHECKED_CAST")
