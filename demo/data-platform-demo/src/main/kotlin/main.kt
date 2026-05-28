@@ -35,6 +35,8 @@ internal val json = Json { prettyPrint = true }
 
 // IMPORTANT: run in blocking mode
 fun main() {
+    Path("data").createDirectories()
+
     val context = Context {
         plugin(DeviceManager)
         plugin(SlfLogManager)
