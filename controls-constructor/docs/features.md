@@ -4,7 +4,7 @@ The `controls-constructor` module provides a high-level, type-safe DSL for compo
 
 ## 1. Reactive State Abstraction
 
-At the heart of the constructor is the `ValueState` interface, which represents a reactive value that can be observed over time.
+At the heart of the constructor is the `ValueState` interface, which represents a reactive value that can be observed over time. See [Value State](./valueState.md) for more details.
 
 - **ValueState<T>**: A read-only observable state. It provides a `Flow` of values and their associated timestamps.
 - **MutableValueState<T>**: A state that can be updated (emitted to).
@@ -31,7 +31,7 @@ These bindings are automatically registered as `ConnectionConstructorElement` in
 
 ## 4. Device and Group Construction
 
-The `DeviceConstructor` and `DeviceGroup` classes allow for hierarchical composition of devices.
+The `DeviceConstructor` and `DeviceGroup` classes allow for hierarchical composition of devices. See [Device Construction](./constructor.md) for more details.
 
 - **DeviceGroup**: A container for sub-devices and properties.
 - **DeviceConstructor**: Extends `DeviceGroup` with `MutableConstructor` capabilities, allowing it to manage internal states and their connections.
@@ -46,7 +46,7 @@ See [Property Expressions](expressions.md) for more details.
 
 ## 6. Simulation and Modeling
 
-The module provides specialized tools for building simulation models.
+The module provides specialized tools for building simulation models. See [Simulation Models](./models.md) and [Flow Models](./flowModels.md) for more details.
 
 - **Model and ModelConstructor**: Create reusable simulation components.
 - **Continuous Models**: Pre-built components for modeling continuous flows:
@@ -57,8 +57,10 @@ The module provides specialized tools for building simulation models.
 
 ## 7. Unit-Aware Modeling
 
-Built-in support for typed measurements and rates:
+Built-in support for typed measurements and rates. See [Unit-Aware Modeling](./units.md) for more details.
 
 - **Amount<U>**: Represents a quantity with units.
 - **PerSecond<U>**: Represents a rate of change.
 - **Units support**: Located in `space.kscience.controls.constructor.units`, providing type safety for physical quantities in models.
+
+<!-- LLM generated code: Key Features of controls-constructor -->
