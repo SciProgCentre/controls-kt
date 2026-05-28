@@ -23,7 +23,7 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
   - Common helpers to build framed protocols and I/O extensions.
   - JVM implementations: ChannelPort, UdpSocketPort; Ktor and Serial implementations live in separate modules.
 - Time utilities
-  - ClockManager and resolveClock for platform clocks.
+  - [Clock Management](./clock.md): ClockManager for platform-independent time and simulations.
   - ValueWithTime and PropertyHistory to provide local device state history data.
   - VirtualTimeDispatcher: a virtual-time coroutine dispatcher useful for simulation and deterministic tests.
 - Peer

@@ -72,4 +72,10 @@ readme{
             Working with asynchronous data sending and receiving raw byte arrays
         """.trimIndent()
     }
+
+    feature("clock", ref = "src/commonMain/kotlin/space/kscience/controls/time"){
+        """
+            Clock management and time manipulation (virtual and compressed time)
+        """.trimIndent()
+    }
 }

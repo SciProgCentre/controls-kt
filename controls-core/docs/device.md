@@ -6,6 +6,7 @@ The `Device` interface is the core component of the `Controls-kt` library. It re
 
 - **Asynchronous Properties**: Properties can be read and written asynchronously.
 - **Subscription Model**: You can observe property changes through a `Flow` of `DeviceMessage`.
+- **Clock Integration**: Each device has an associated `clock` (see [Clock Management](clock.md)) used for timestamps and scheduling.
 - **Lifecycle Management**: Devices have a lifecycle (STARTING, STARTED, STOPPING, STOPPED).
 - **Type Safety**: When used with `DeviceSpec`, it provides a type-safe way to interact with the device.
 
