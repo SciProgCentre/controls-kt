@@ -19,43 +19,32 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.Device
+import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installing
+import space.kscience.controls.manager.installNode
+import space.kscience.controls.spec.execute
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
-
-//class PiMotionMasterApp : App(PiMotionMasterView::class)
-//
-//class PiMotionMasterController : Controller() {
-//    //initialize context
-//    val context = Context("piMotionMaster") {
-//        plugin(DeviceManager)
-//    }
-//
-//    //initialize deviceManager plugin
-//    val deviceManager: DeviceManager = context.request(DeviceManager)
-//
-//    // install device
-//    val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
-//}
+import space.kscience.dataforge.meta.Meta
 
 @Composable
 fun ColumnScope.piMotionMasterAxis(
     axisName: String,
-    axis: PiMotionMasterDevice.Axis,
+    axis: Device,
 ) {
     var min by remember { mutableStateOf(0f) }
     var max by remember { mutableStateOf(1f) }
     var targetPosition by remember { mutableStateOf(0f) }
-    val position: Double by axis.composeState(PiMotionMasterDevice.Axis.position, 0.0)
+    val position: Double by axis.composeState(Axis.position, 0.0)
 
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(axis) {
-        min = axis.read(PiMotionMasterDevice.Axis.minPosition).toFloat()
-        max = axis.read(PiMotionMasterDevice.Axis.maxPosition).toFloat()
-        targetPosition = axis.read(PiMotionMasterDevice.Axis.position).toFloat()
+        min = axis.read(Axis.minPosition).toFloat()
+        max = axis.read(Axis.maxPosition).toFloat()
+        targetPosition = axis.read(Axis.position).toFloat()
     }
 
 
@@ -74,7 +63,7 @@ fun ColumnScope.piMotionMasterAxis(
                 onValueChange = { newPosition ->
                     targetPosition = newPosition
                     scope.launch {
-                        axis.move(newPosition.toDouble())
+                        axis.execute(Axis.move, Meta(newPosition))
                     }
                 },
                 valueRange = min..max
@@ -85,7 +74,7 @@ fun ColumnScope.piMotionMasterAxis(
 }
 
 @Composable
-fun AxisPane(axes: Map<String, PiMotionMasterDevice.Axis>) {
+fun AxisPane(axes: Map<String, Device>) {
     Column {
         axes.forEach { (name, axis) ->
             this.piMotionMasterAxis(name, axis)
@@ -95,12 +84,14 @@ fun AxisPane(axes: Map<String, PiMotionMasterDevice.Axis>) {
 
 
 @Composable
-fun PiMotionMasterApp(device: PiMotionMasterDevice) {
+fun PiMotionMasterApp(hub: DeviceTree) {
+    val device = hub.device ?: error("No root device")
+
 
 //    val scope = rememberCoroutineScope()
-    val connected by device.composeState(PiMotionMasterDevice.connected, false)
+    val connected by device.composeState(PiMotionMaster.connected, false)
     var debugServerJob by remember { mutableStateOf<Job?>(null) }
-    var axes by remember { mutableStateOf<Map<String, PiMotionMasterDevice.Axis>?>(null) }
+    var axes by remember { mutableStateOf<Map<String, Device>?>(null) }
     //private val axisList = FXCollections.observableArrayList<Map.Entry<String, PiMotionMasterDevice.Axis>>()
     var host by remember { mutableStateOf("127.0.0.1") }
     var port by remember { mutableStateOf(10024) }
@@ -159,12 +150,15 @@ fun PiMotionMasterApp(device: PiMotionMasterDevice) {
                     onClick = {
                         if (!connected) {
                             device.launch {
-                                device.connect(host, port)
-                                axes = device.axes
+                                device.execute(PiMotionMaster.connect, Meta {
+                                    "host" put host
+                                    "port" put port
+                                })
+                                axes = hub.children.mapValues { it.value.device ?: error("No root in axis node") }
                             }
                         } else {
                             device.launch {
-                                device.disconnect()
+                                device.execute(PiMotionMaster.disconnect)
                                 axes = null
                             }
                         }
@@ -197,7 +191,7 @@ fun main() = application {
     val deviceManager: DeviceManager = context.request(DeviceManager)
 
     // install device
-    val motionMaster: PiMotionMasterDevice by deviceManager.installing(PiMotionMasterDevice)
+    val motionMaster = deviceManager.installNode("motionMaster", PiMotionMaster)
 
     Window(
         title = "Pi motion master demo",

@@ -1,20 +1,24 @@
 plugins {
-    id("space.kscience.gradle.jvm")
+    kotlin("jvm")
     application
 }
 
-//TODO to be moved to a separate project
-//
-//application{
-//    mainClass.set("ru.mipt.npm.devices.pimotionmaster.PiMotionMasterAppKt")
-//}
+repositories {
+    mavenCentral()
+    maven("https://repo.kotlin.link")
+}
 
 kotlin {
     explicitApi = null
+    jvmToolchain(21)
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn", "-Xcontext-parameters")
+    }
 }
 
 val ktorVersion: String by rootProject.extra
 val dataforgeVersion: String by extra
+
 
 dependencies {
     implementation(projects.controlsPortsKtor)

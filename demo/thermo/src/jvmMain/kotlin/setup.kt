@@ -4,7 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
-import space.kscience.controls.api.DeviceHub
+import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.server.OpcUaServer
 import space.kscience.controls.opcua.server.endpoint
@@ -12,7 +12,7 @@ import space.kscience.controls.opcua.server.serveDevices
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 
-fun DeviceHub.serveOpc(
+fun DeviceTree.serveOpc(
     scope: CoroutineScope,
     port: Int = 9091,
 ): OpcUaServer {

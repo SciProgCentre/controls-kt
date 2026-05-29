@@ -2,7 +2,8 @@ import space.kscience.gradle.Maturity
 
 plugins {
     id("space.kscience.gradle.mpp")
-    id("org.jetbrains.kotlinx.atomicfu") version "0.28.0"
+    alias(spclibs.plugins.atomicfu)
+
     `maven-publish`
 }
 
@@ -20,6 +21,7 @@ kscience {
         json()
     }
     useContextParameters()
+
     commonMain {
         api(libs.dataforge.io)
         api(spclibs.kotlinx.datetime)

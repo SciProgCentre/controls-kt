@@ -42,6 +42,9 @@ public interface WithLifeCycle {
     public val lifecycleState: LifecycleState
 }
 
+public fun WithLifeCycle.isStarted(): Boolean = lifecycleState == LifecycleState.STARTED || lifecycleState == LifecycleState.STARTING
+
+
 /**
  * Bind this object lifecycle to a device lifecycle
  *

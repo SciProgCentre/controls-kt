@@ -1,5 +1,6 @@
 package space.kscience.controls.modbus
 
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -10,61 +11,69 @@ import space.kscience.dataforge.io.IOFormat
 /**
  * Modbus registry key
  */
-public sealed class ModbusRegistryKey {
-    public abstract val address: Int
-    public open val count: Int = 1
-
+@Serializable
+public sealed interface ModbusRegistryKey<T> {
+    public val address: Int
+    public val count: Int get() = 1
 
     /**
      * Read-only boolean value
      */
-    public data class Coil(override val address: Int) : ModbusRegistryKey()
+    @Serializable
+    public data class Coil(override val address: Int) : ModbusRegistryKey<Boolean>
 
     /**
      * Read-write boolean value
      */
-    public data class DiscreteInput(override val address: Int) : ModbusRegistryKey()
+    @Serializable
+    public data class DiscreteInput(override val address: Int) : ModbusRegistryKey<Boolean>
+
+    @Serializable
+    public sealed interface InputRegisterKey<T>: ModbusRegistryKey<T>
 
     /**
      * Read-only binary value
      */
-    public open class InputRegister(override val address: Int) : ModbusRegistryKey() {
+    @Serializable
+    public class InputRegister(override val address: Int) : InputRegisterKey<Short> {
         override fun toString(): String = "InputRegister(address=$address)"
     }
 
     /**
      * A range of read-only register encoding a single value
      */
+    @Serializable
     public class InputRange<T>(
-        address: Int,
+        override val address: Int,
         override val count: Int,
         public val format: IOFormat<T>,
-    ) : InputRegister(address) {
+    ) : InputRegisterKey<T> {
         public val endAddress: Int get() = address + count
         override fun toString(): String = "InputRange(count=$count, format=$format)"
-
-
     }
+
+    @Serializable
+    public sealed interface HoldingRegisterKey<T>: ModbusRegistryKey<T>
 
     /**
      * A single read-write register
      */
-    public open class HoldingRegister(override val address: Int) : ModbusRegistryKey() {
+    @Serializable
+    public class HoldingRegister(override val address: Int) : HoldingRegisterKey<Short>{
         override fun toString(): String = "HoldingRegister(address=$address)"
     }
 
     /**
      * A range of read-write registers encoding a single value
      */
+    @Serializable
     public class HoldingRange<T>(
-        address: Int,
+        override val address: Int,
         override val count: Int,
         public val format: IOFormat<T>,
-    ) : HoldingRegister(address) {
+    ) : HoldingRegisterKey<T> {
         public val endAddress: Int get() = address + count
         override fun toString(): String = "HoldingRange(count=$count, format=$format)"
-
-
     }
 }
 
@@ -73,11 +82,11 @@ public sealed class ModbusRegistryKey {
  */
 public abstract class ModbusRegistryMap {
 
-    private val _entries: MutableMap<ModbusRegistryKey, String> = mutableMapOf<ModbusRegistryKey, String>()
+    private val _entries: MutableMap<ModbusRegistryKey<*>, String> = mutableMapOf()
 
-    public val entries: Map<ModbusRegistryKey, String> get() = _entries
+    public val entries: Map<ModbusRegistryKey<*>, String> get() = _entries
 
-    protected fun <T : ModbusRegistryKey> register(key: T, description: String): T {
+    protected fun <T : ModbusRegistryKey<*>> register(key: T, description: String): T {
         _entries[key] = description
         return key
     }
@@ -135,8 +144,8 @@ public abstract class ModbusRegistryMap {
         public fun validate(map: ModbusRegistryMap) {
             var lastCoil: ModbusRegistryKey.Coil? = null
             var lastDiscreteInput: ModbusRegistryKey.DiscreteInput? = null
-            var lastInput: ModbusRegistryKey.InputRegister? = null
-            var lastRegister: ModbusRegistryKey.HoldingRegister? = null
+            var lastInput: ModbusRegistryKey.InputRegisterKey<*>? = null
+            var lastRegister: ModbusRegistryKey.HoldingRegisterKey<*>? = null
             map.entries.keys.sortedBy { it.address }.forEach { key ->
                 when (key) {
                     is ModbusRegistryKey.Coil -> if (lastCoil?.let { key.address >= it.address + it.count } != false) {
@@ -151,13 +160,13 @@ public abstract class ModbusRegistryMap {
                         error("Key $lastDiscreteInput overlaps with key $key")
                     }
 
-                    is ModbusRegistryKey.InputRegister -> if (lastInput?.let { key.address >= it.address + it.count } != false) {
+                    is ModbusRegistryKey.InputRegisterKey -> if (lastInput?.let { key.address >= it.address + it.count } != false) {
                         lastInput = key
                     } else {
                         error("Key $lastInput overlaps with key $key")
                     }
 
-                    is ModbusRegistryKey.HoldingRegister -> if (lastRegister?.let { key.address >= it.address + it.count } != false) {
+                    is ModbusRegistryKey.HoldingRegisterKey -> if (lastRegister?.let { key.address >= it.address + it.count } != false) {
                         lastRegister = key
                     } else {
                         error("Key $lastRegister overlaps with key $key")
@@ -169,27 +178,27 @@ public abstract class ModbusRegistryMap {
     }
 }
 
-private val ModbusRegistryKey.sectionNumber
+private val ModbusRegistryKey<*>.sectionNumber
     get() = when (this) {
         is ModbusRegistryKey.Coil -> 1
         is ModbusRegistryKey.DiscreteInput -> 2
-        is ModbusRegistryKey.HoldingRegister -> 4
-        is ModbusRegistryKey.InputRegister -> 3
+        is ModbusRegistryKey.InputRegister, is ModbusRegistryKey.InputRange<*> -> 3
+        is ModbusRegistryKey.HoldingRegister, is ModbusRegistryKey.HoldingRange<*> -> 4
     }
 
 public fun ModbusRegistryMap.print(to: Appendable = System.out) {
     ModbusRegistryMap.validate(this)
     entries.entries
         .sortedWith(
-            Comparator.comparingInt<Map.Entry<ModbusRegistryKey, String>> { it.key.sectionNumber }
+            Comparator.comparingInt<Map.Entry<ModbusRegistryKey<*>, String>> { it.key.sectionNumber }
                 .thenComparingInt { it.key.address }
         )
         .forEach { (key, description) ->
             val typeString = when (key) {
                 is ModbusRegistryKey.Coil -> "Coil"
                 is ModbusRegistryKey.DiscreteInput -> "Discrete"
-                is ModbusRegistryKey.HoldingRegister -> "Register"
-                is ModbusRegistryKey.InputRegister -> "Input"
+                is ModbusRegistryKey.HoldingRegisterKey -> "Register"
+                is ModbusRegistryKey.InputRegisterKey -> "Input"
             }
             val rangeString = if (key.count == 1) {
                 key.address.toString()
@@ -210,8 +219,8 @@ public fun ModbusRegistryMap.toJson(): JsonArray = buildJsonArray {
                 when (key) {
                     is ModbusRegistryKey.Coil -> "Coil"
                     is ModbusRegistryKey.DiscreteInput -> "Discrete"
-                    is ModbusRegistryKey.HoldingRegister -> "Register"
-                    is ModbusRegistryKey.InputRegister -> "Input"
+                    is ModbusRegistryKey.HoldingRegisterKey -> "Register"
+                    is ModbusRegistryKey.InputRegisterKey -> "Input"
                 }
             )
             put("address", key.address)
@@ -224,5 +233,3 @@ public fun ModbusRegistryMap.toJson(): JsonArray = buildJsonArray {
         add(entry)
     }
 }
-
-

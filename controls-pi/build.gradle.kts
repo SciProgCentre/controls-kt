@@ -12,8 +12,8 @@ kscience {
 
 
     jvmMain {
-        api(project(":controls-core"))
-        api(libs.pi4j.ktx) // Kotlin DSL
+        api(projects.controlsCore)
+        api(projects.controlsSerial)
         api(libs.pi4j.core)
         api(libs.pi4j.plugin.raspberrypi)
         api(libs.pi4j.plugin.pigpio)

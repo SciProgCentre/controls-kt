@@ -201,7 +201,7 @@ public fun <T, R> MutableConstructor.flowState(
     name: Name? = null,
     transformation: suspend FlowCollector<R>.(T) -> Unit,
 ): ValueStateWithDependencies<R> {
-    val state = MutableValueState(initialValue)
+    val state = MutableValueState(initialValue, clock)
     origin.subscribe().transform(transformation).onEach { state.value = it }.launchIn(this)
     return registerState(state.withDependencies(setOf(origin)), name)
 }
@@ -267,7 +267,7 @@ public fun <K, T, R> MutableConstructor.combineState(
     states: Map<K, ValueState<T>>,
     name: Name? = null,
     transformation: (Map<K, T>) -> R,
-): ValueState<R> = registerState(ValueState.combine(this, states, transformation),name)
+): ValueState<R> = registerState(ValueState.combine(this, states, transformation), name)
 
 /**
  * Create and start binding between [sourceState] and [targetState]. Changes made to [sourceState] are automatically

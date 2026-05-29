@@ -2,13 +2,24 @@ package space.kscience.controls.modbus
 
 import com.ghgande.j2mod.modbus.procimg.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.io.Buffer
 import space.kscience.controls.api.Device
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.ports.readShort
-import space.kscience.controls.spec.*
+import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.useProperty
+import space.kscience.controls.spec.write
+import space.kscience.controls.spec.writeAsync
 import space.kscience.dataforge.io.Binary
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.MetaReader
+import kotlin.time.Duration.Companion.milliseconds
 
 
 public class DeviceProcessImageBuilder<D : Device> internal constructor(
@@ -28,7 +39,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.Coil,
-        propertySpec: MutableDevicePropertySpec<D, Boolean>,
+        propertySpec: DevicePropertySpec<Boolean>,
     ): ObservableDigitalOut = bind(key) { coil ->
         coil.addObserver { _, _ ->
             device.writeAsync(propertySpec, coil.isSet)
@@ -50,7 +61,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.DiscreteInput,
-        propertySpec: DevicePropertySpec<D, Boolean>,
+        propertySpec: DevicePropertySpec<Boolean>,
     ): DigitalIn = bind(key) { input ->
         device.useProperty(propertySpec) { value ->
             input.set(value)
@@ -69,7 +80,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.InputRegister,
-        propertySpec: DevicePropertySpec<D, Short>,
+        propertySpec: DevicePropertySpec<Short>,
     ): SimpleInputRegister = bind(key) { input ->
         device.useProperty(propertySpec) { value ->
             input.setValue(value)
@@ -88,7 +99,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
 
     public fun bind(
         key: ModbusRegistryKey.HoldingRegister,
-        propertySpec: MutableDevicePropertySpec<D, Short>,
+        propertySpec: DevicePropertySpec<Short>,
     ): ObservableRegister = bind(key) { register ->
         register.addObserver { _, _ ->
             device.writeAsync(propertySpec, register.toShort())
@@ -98,7 +109,35 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
     }
 
-    public fun <T> bind(key: ModbusRegistryKey.InputRange<T>, propertySpec: DevicePropertySpec<D, T>) {
+    /**
+     * Bind a range of registers to a property using the property name and reader
+     */
+    public fun <T> bind(key: ModbusRegistryKey.InputRange<T>, property: String, reader: MetaReader<T>) {
+        val registers = List(key.count) {
+            SimpleInputRegister()
+        }
+
+        registers.forEachIndexed { index, register ->
+            image.addInputRegister(key.address + index, register)
+        }
+
+        device.messageFlow
+            .filterIsInstance<PropertyChangedMessage>()
+            .filter { it.property == property }
+            .onEach { change ->
+                val newValue = reader.read(change.value)
+                val binary = Binary {
+                    key.format.writeTo(this, newValue)
+                }
+                registers.forEachIndexed { index, register ->
+                    register.setValue(binary.readShort(index * 2))
+                }
+
+            }.launchIn(device)
+    }
+
+
+    public fun <T> bind(key: ModbusRegistryKey.InputRange<T>, propertySpec: DevicePropertySpec<T>) {
         val registers = List(key.count) {
             SimpleInputRegister()
         }
@@ -118,35 +157,38 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
     }
 
     /**
-     * Trigger [block] if one of register changes.
+     * Bind a range of read/write registers to a property using the property name and converter
      */
-    private fun List<ObservableRegister>.onChange(block: suspend (Buffer) -> Unit) {
-        var ready = false
-
-        forEach { register ->
-            register.addObserver { _, _ ->
-                ready = true
-            }
+    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, property: String, converter: MetaConverter<T>) {
+        val registers = List(key.count) {
+            ObservableRegister()
         }
 
-        device.launch {
-            val builder = Buffer()
-            while (isActive) {
-                delay(1)
-                if (ready) {
-                    val packet = builder.apply {
-                        forEach { value ->
-                            writeShort(value.toShort())
-                        }
-                    }
-                    block(packet)
-                    ready = false
+        registers.forEachIndexed { index, register ->
+            image.addRegister(key.address + index, register)
+        }
+
+        registers.onChange { packet ->
+            val value = key.format.readFrom(packet)
+            device.writeProperty(property, converter.convert(value))
+        }
+
+        device.messageFlow
+            .filterIsInstance<PropertyChangedMessage>()
+            .filter { it.property == property }
+            .onEach { change ->
+                val newValue = converter.read(change.value)
+                val binary = Binary {
+                    key.format.writeTo(this, newValue)
                 }
-            }
-        }
+                registers.forEachIndexed { index, register ->
+                    register.setValue(binary.readShort(index * 2))
+                }
+
+            }.launchIn(device)
     }
 
-    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: MutableDevicePropertySpec<D, T>) {
+    public fun <T> bind(key: ModbusRegistryKey.HoldingRange<T>, propertySpec: DevicePropertySpec<T>) {
         val registers = List(key.count) {
             ObservableRegister()
         }
@@ -165,6 +207,35 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
             }
             registers.forEachIndexed { index, observableRegister ->
                 observableRegister.setValue(binary.readShort(index * 2))
+            }
+        }
+    }
+
+    /**
+     * Trigger [block] if one of register changes.
+     */
+    private fun List<ObservableRegister>.onChange(block: suspend (Buffer) -> Unit) {
+        var ready = false
+
+        forEach { register ->
+            register.addObserver { _, _ ->
+                ready = true
+            }
+        }
+
+        device.launch {
+            val builder = Buffer()
+            while (isActive) {
+                delay(1.milliseconds)
+                if (ready) {
+                    val packet = builder.apply {
+                        forEach { value ->
+                            writeShort(value.toShort())
+                        }
+                    }
+                    block(packet)
+                    ready = false
+                }
             }
         }
     }

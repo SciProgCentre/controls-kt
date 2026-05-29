@@ -15,6 +15,7 @@ kscience {
     native()
 //    wasm()
     useCoroutines()
+    useContextParameters()
     useSerialization {
         json()
     }

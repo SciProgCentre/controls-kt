@@ -21,6 +21,7 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 - State DSL (reactive building blocks)
     - stateOf, registerState: create/register states; DeviceState and MutableDeviceState abstractions.
+    - [Property Expressions](docs/expressions.md): reactive numeric expressions for computed properties.
     - timer and onTimer: periodic timer states; helpers to trigger logic on ticks.
     - runSimulation: run models on the context simulation dispatcher.
     - mapState, flowState: transform a state via pure or flow-based transformations.
@@ -46,7 +47,16 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 ## Features:
 
-${features}
+The `controls-constructor` module offers a powerful set of tools for building complex control systems:
+
+- **Reactive State DSL**: A type-safe way to define and observe device states.
+- **State Wiring**: Tools for binding and combining states to create complex data flows.
+- **Hierarchical Composition**: Build devices by grouping sub-devices and exposing states as properties.
+- **Simulation Engine**: Built-in support for continuous and discrete-event simulations with virtual time.
+- **Computed Expressions**: Reactive numeric expressions for derived properties.
+- **Unit Safety**: Support for physical units and rates in models.
+
+For more details, see [Key Features](docs/key-features.md).
 
 ${artifact}
 

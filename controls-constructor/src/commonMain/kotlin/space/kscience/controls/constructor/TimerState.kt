@@ -1,11 +1,14 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.ValueWithTime
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -23,18 +26,22 @@ public class TimerState(
     initialValue: Instant = Instant.DISTANT_PAST,
 ) : ValueState<Instant> {
 
-    private val time = MutableStateFlow(initialValue)
+    private val timeFlow = MutableStateFlow(initialValue)
 
     private val updateJob = clockManager.context.launch(clockManager.simulationDispatcher) {
         while (isActive) {
-            time.emit(clockManager.clock.now())
+            timeFlow.emit(clockManager.clock.now())
             delay(tick)
         }
     }
 
-    override fun subscribe(): StateFlow<Instant> = time
+    override fun subscribe(): StateFlow<Instant> = timeFlow
 
-    override val value: Instant get() = time.value
+    override fun subscribeWithTime(): Flow<ValueWithTime<Instant>> = timeFlow.map { ValueWithTime(it,it) }
 
-    override fun toString(): String = "TimerState(time=${time.value}, tick=$tick)"
+    override val value: Instant get() = timeFlow.value
+
+    override val valueWithTime: ValueWithTime<Instant> get() = ValueWithTime(value, value)
+
+    override fun toString(): String = "TimerState(time=${timeFlow.value}, tick=$tick)"
 }

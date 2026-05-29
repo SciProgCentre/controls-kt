@@ -1,10 +1,13 @@
 package space.kscience.controls.storage
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.descriptors.serialDescriptor
 import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import kotlin.time.Instant
 
@@ -12,15 +15,27 @@ import kotlin.time.Instant
  * A storage for Controls-kt [DeviceMessage]
  */
 public interface DeviceMessageStorage {
+    /**
+     * Write a single message to the storage
+     */
     public suspend fun write(event: DeviceMessage)
 
     /**
-     * Return all messages in a storage as a discrete
+     * Write several messages in the same transaction to the database
      */
-    public fun readAll(): Flow<DeviceMessage>
+    public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
 
     /**
-     * Flow messages with given [eventType] and filters by [range], [sourceDevice] and [targetDevice].
+     * Return all messages in a storage as a flow and optinally filters by [range], [sourceDevice] and [targetDevice].
+     */
+    public fun read(
+        range: ClosedRange<Instant>? = null,
+        sourceDevice: Name? = null,
+        targetDevice: Name? = null,
+    ): Flow<DeviceMessage>
+
+    /**
+     * Flow messages with given [eventType] and optinally filters by [range], [sourceDevice] and [targetDevice].
      * Null in filters means that there is not filtering for this field.
      */
     public fun read(
@@ -34,14 +49,24 @@ public interface DeviceMessageStorage {
 }
 
 /**
- * Query all messages of given type
+ * Query all messages of a given type
  */
 @OptIn(ExperimentalSerializationApi::class)
 public inline fun <reified T : DeviceMessage> DeviceMessageStorage.read(
     range: ClosedRange<Instant>? = null,
     sourceDevice: Name? = null,
     targetDevice: Name? = null,
-): Flow<T> = read(serialDescriptor<T>().serialName, range, sourceDevice, targetDevice).map {
+): Flow<T> = read(DeviceMessage.serialNameFor<T>(), range, sourceDevice, targetDevice).map {
     //Check that all types are correct
     it as T
+}
+
+public fun <T> DeviceMessageStorage.propertyHistory(
+    propertyName: String,
+    converter: MetaConverter<T>,
+): ValueHistory<T> = object : ValueHistory<T> {
+    override fun flowHistory(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
+        read<PropertyChangedMessage>(from..until)
+            .filter { it.property == propertyName }
+            .map { ValueWithTime(converter.read(it.value), it.time) }
 }

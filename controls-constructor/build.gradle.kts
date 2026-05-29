@@ -14,6 +14,7 @@ kscience {
 //    wasm()
     useCoroutines()
     useSerialization()
+    useContextParameters()
 
     commonMain {
         api(projects.controlsCore)
@@ -27,10 +28,4 @@ kscience {
 
 readme {
     maturity = space.kscience.gradle.Maturity.EXPERIMENTAL
-}
-
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
-    }
 }

@@ -10,6 +10,6 @@ import space.kscience.controls.spec.propertyFlow
 
 @Composable
 fun <D : Device, T : Any> D.composeState(
-    spec: DevicePropertySpec<D, T>,
+    spec: DevicePropertySpec<T>,
     initialState: T,
 ): State<T> = propertyFlow(spec).collectAsState(initialState)

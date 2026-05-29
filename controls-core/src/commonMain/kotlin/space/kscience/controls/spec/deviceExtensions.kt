@@ -29,11 +29,11 @@ public fun <D : Device> D.doRecurring(
 }
 
 /**
- * Perform a recurring asynchronous read action and return a discrete of results.
- * The discrete is lazy, so action is not performed unless discrete is consumed.
- * The discrete uses caller context. To call it on device context, use `flowOn(coroutineContext)`.
+ * Perform a recurring asynchronous read action and return a flow of results.
+ * The flow is lazy, so action is not performed unless flow is consumed.
+ * The flow uses caller context. To call it on device context, use `flowOn(coroutineContext)`.
  *
- * The discrete is canceled when the device scope is canceled
+ * The flow is canceled when the device scope is canceled
  */
 public fun <D : Device, R> D.readRecurring(
     interval: Duration,

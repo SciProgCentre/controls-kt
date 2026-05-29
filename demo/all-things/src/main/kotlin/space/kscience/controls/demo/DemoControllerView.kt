@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
+import space.kscience.controls.api.Device
 import space.kscience.controls.api.GetDescriptionMessage
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.launchMagixService
@@ -50,7 +51,7 @@ private val json = Json { prettyPrint = true }
 
 class DemoController : ContextAware {
 
-    var device: DemoDevice? = null
+    var device: Device? = null
     var magixServer: EmbeddedServer<*, *>? = null
     var visualizer: EmbeddedServer<*, *>? = null
 
@@ -165,11 +166,12 @@ fun DemoControls(controller: DemoController) {
             Row(Modifier.fillMaxWidth()) {
                 Button(
                     onClick = {
-                        controller.device?.run {
-                            launch {
-                                write(DemoDevice.timeScale, timeScale.toDouble())
-                                write(DemoDevice.sinScale, xScale.toDouble())
-                                write(DemoDevice.cosScale, yScale.toDouble())
+                        val currentDevice = controller.device
+                        if (currentDevice != null) {
+                            currentDevice.launch {
+                                currentDevice.write(DemoDevice.timeScale, timeScale.toDouble())
+                                currentDevice.write(DemoDevice.sinScale, xScale.toDouble())
+                                currentDevice.write(DemoDevice.cosScale, yScale.toDouble())
                             }
                         }
                     },
