@@ -18,6 +18,8 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
+import space.kscience.controls.dataplatform.storage.RowsCompression
+import space.kscience.controls.dataplatform.storage.storeData
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.opcua.client.readMetaWithTime
@@ -37,6 +39,7 @@ import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
 import kotlin.coroutines.CoroutineContext
+import kotlin.io.path.Path
 import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -195,6 +198,8 @@ public class DataPlatform(
 
     private var readJob: Job? = null
 
+    private var storageJob: Job? = null
+
     /**
      * Read all properties on trigger
      */
@@ -255,6 +260,7 @@ public class DataPlatform(
 
         val clockManager = context.request(ClockManager)
 
+        //start read job
         readJob = launch {
             configuration.properties.entries.groupBy { it.value.timer }
                 .forEach { (timerName, properties: List<Map.Entry<String, PlatformProperty>>) ->
@@ -265,12 +271,46 @@ public class DataPlatform(
                     }.launchIn(this)
                 }
         }
+
+        //start storage job
+        configuration.storage?.let { storageConfig ->
+
+            //merge global parameters and per-column configuration
+            val columnCompression = configuration.properties.entries.mapNotNull { (key, value) ->
+                value.compression?.let { compression -> key to compression }
+            }.toMap()
+
+            val compression = if (
+                storageConfig.compression == null && columnCompression.isEmpty()
+            ) {
+                null
+            } else {
+                RowsCompression(
+                    skipUnchangedRows = storageConfig.compression?.skipUnchangedRows ?: true,
+                    skipUnchangedValues = storageConfig.compression?.skipUnchangedValues ?: false,
+                    numericDelta = storageConfig.compression?.numericDelta,
+                    columns = storageConfig.compression?.columns?.plus(columnCompression) ?: columnCompression,
+                )
+            }
+
+            storageJob = storeData(
+                directory = Path(storageConfig.path),
+                readInterval = storageConfig.readInterval,
+                maxRowsPerEnvelope = storageConfig.maxRowsPerEnvelope,
+                maxDuration = storageConfig.maxDuration,
+                maxPause = storageConfig.maxPause,
+                compression = compression,
+                strategy = storageConfig.splitStrategy,
+            )
+        }
     }
 
     override suspend fun stop() {
         setLifecycleState(LifecycleState.STOPPED)
         readJob?.cancel()
         readJob = null
+        storageJob?.cancel()
+        storageJob = null
         opcClients.values.forEach { it.disconnect() }
         plcClients.values.forEach { it.close() }
         modbusClients.values.forEach { it.disconnect() }
@@ -302,6 +342,7 @@ public class DataPlatform(
 
         private val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
+                //FIXME process read errors
                 val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
@@ -354,7 +395,7 @@ public class DataPlatform(
  */
 public fun DataPlatform.buildDeviceGroup(
     scheme: DeviceConfiguration
-): DeviceGroup{
+): DeviceGroup {
     val valueStateFactories = ValueState.defaultValueStateFactories + (DataPlatform.PLATFORM_VALUE_FACTORY_TYPE to this)
     return context.buildDeviceGroupByScheme(scheme, valueStateFactories)
 }

@@ -17,7 +17,20 @@ import space.kscience.tables.TableHeader
 import space.kscience.tables.get
 import kotlin.math.abs
 
-
+/**
+ * Represents compression settings for columnar data.
+ *
+ * This class is used to configure and represent the settings for compressing a column of data.
+ * Column compression can be applied to optimize memory usage and processing efficiency, particularly
+ * for numeric or continuous data, by skipping unchanged values or applying numeric delta encoding.
+ *
+ * @property skipUnchangedValues If true, unchanged values in the column will be skipped during compression.
+ *                                This helps optimize storage and processing for columns with sparse changes.
+ *                                Default is true.
+ * @property numericDelta An optional numeric delta value. If provided, compression will encode numeric changes
+ *                         by storing only the difference between successive values and this delta value.
+ *                         This can reduce space for numeric data with small increments.
+ */
 @Serializable
 public data class ColumnCompression(
     val skipUnchangedValues: Boolean = true,
@@ -30,6 +43,20 @@ public data class ColumnCompression(
     }
 }
 
+/**
+ * Represents the settings for compressing rows of data, providing control over which rows and values
+ * should be retained, and enabling the application of numeric delta compression.
+ *
+ * @property skipUnchangedRows If true, rows with unchanged values compared to the previous row will be skipped.
+ *                             Default is true.
+ * @property skipUnchangedValues If true, individual unchanged value fields within rows will be skipped,
+ *                                reducing redundancy within row data. Default is false.
+ * @property numericDelta An optional numeric threshold to use for delta compression. If specified, numeric values
+ *                        differing by less than this threshold will be considered unchanged.
+ *                        null indicates delta compression is disabled.
+ * @property columns A map of column-specific compression settings, allowing individual column behavior to
+ *                   be configured independently.
+ */
 @Serializable
 public data class RowsCompression(
     val skipUnchangedRows: Boolean = true,

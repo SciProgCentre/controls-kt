@@ -6,6 +6,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import space.kscience.attributes.safeTypeOf
 import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.instant
@@ -26,24 +29,37 @@ import kotlin.time.Instant
 /**
  * Directory splitting strategy for data storage.
  */
+@Serializable
 public sealed interface DataPlatformFileSplit {
     /**
      * Resolve a relative path to the directory where the data should be stored.
      */
     public fun resolveDirectory(envelope: Envelope, time: Instant): Path
 
+    @Serializable
+    @SerialName("flat")
     public data object Flat : DataPlatformFileSplit {
         override fun resolveDirectory(envelope: Envelope, time: Instant): Path = Path("")
     }
 
-    public data class ByDate(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformFileSplit {
+    @Serializable
+    @SerialName("byDate")
+    public class ByDate(public val timeZoneId: String = TimeZone.currentSystemDefault().id) : DataPlatformFileSplit {
+        @Transient
+        private val timeZone = TimeZone.of(timeZoneId)
+
         override fun resolveDirectory(envelope: Envelope, time: Instant): Path {
             val date = time.toLocalDateTime(timeZone)
             return Path(date.year.toString(), date.month.number.toString(), date.day.toString())
         }
     }
 
-    public data class ByHour(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformFileSplit {
+    @Serializable
+    @SerialName("byHour")
+    public data class ByHour(val timeZoneId: String = TimeZone.currentSystemDefault().id) : DataPlatformFileSplit {
+        @Transient
+        private val timeZone = TimeZone.of(timeZoneId)
+
         override fun resolveDirectory(envelope: Envelope, time: Instant): Path {
             val date = time.toLocalDateTime(timeZone)
             return Path(date.year.toString(), date.month.number.toString(), date.day.toString(), date.hour.toString())

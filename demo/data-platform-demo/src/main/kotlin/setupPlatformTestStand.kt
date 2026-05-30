@@ -2,6 +2,7 @@ package space.kscience.controls.demo
 
 import space.kscience.controls.constructor.DeviceConfiguration
 import space.kscience.controls.dataplatform.*
+import space.kscience.controls.dataplatform.storage.RowsCompression
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
@@ -78,14 +79,21 @@ internal fun DeviceManager.setupPlatformTestStand(
         }
     }
 
+    val dataDirectory = Path("data")
+    dataDirectory.createDirectories()
+
     val configuration = DataPlatformConfiguration(
         sources = sources,
         timers = timers,
-        properties = platformProperties.mapKeys { it.key.toString() }
+        properties = platformProperties.mapKeys { it.key.toString() },
+        storage = PlatformStorageConfiguration(
+            path = dataDirectory.toString(),
+            readInterval = 1.seconds,
+            maxDuration = 30.seconds,
+            compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05)
+        )
     )
 
-    val dataDirectory = Path("data")
-    dataDirectory.createDirectories()
 
     dataDirectory.resolve("platform-config.json").writeText(
         json.encodeToString(DataPlatformConfiguration.serializer(), configuration)

@@ -3,12 +3,16 @@ package space.kscience.controls.dataplatform
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import space.kscience.controls.dataplatform.storage.ColumnCompression
 import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.controls.modbus.readInputRegister
 import space.kscience.controls.modbus.readInputRegisters
 import space.kscience.dataforge.io.DoubleIOFormat
 import space.kscience.dataforge.meta.Meta
 
+/**
+ * A property that is exposed as a Modbus register
+ */
 @Serializable
 @SerialName("modbus")
 public class ModbusPlatformProperty(
@@ -17,6 +21,7 @@ public class ModbusPlatformProperty(
     public val reader: ModbusPropertyReader,
     public val address: Int,
     public val unitId: Int = 1,
+    override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
 

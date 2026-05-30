@@ -6,9 +6,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
+import space.kscience.controls.dataplatform.storage.ColumnCompression
+import space.kscience.controls.dataplatform.storage.DataPlatformFileSplit
+import space.kscience.controls.dataplatform.storage.RowsCompression
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 @Serializable
@@ -75,20 +79,34 @@ public sealed interface PlatformProperty {
      */
     public val meta: Meta
 
+    /**
+     * The timeout for reading the property, defaults to 1 second
+     */
     public val timeout: Duration get() =  1.seconds
 
+    /**
+     * The compression configuration for storage of property values.
+     * If not defined, global platform compression configuration is used.
+     */
+    public val compression: ColumnCompression?
 }
 
-
+/**
+ * A property that is read from an OPC UA server
+ */
 @Serializable
 @SerialName("opc")
 public class OpcPlatformProperty(
     override val source: String,
     override val timer: String,
     public val nodeId: String,
+    override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
 
+/**
+ * A property that is read from a Plc4X compatible source
+ */
 @Serializable
 @SerialName("plc")
 public class PlcPlatformProperty(
@@ -97,6 +115,7 @@ public class PlcPlatformProperty(
     public val address: String,
     public val plcValueType: PlcValueType,
     public val name: String = "@default",
+    override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
 ) : PlatformProperty
 
@@ -115,9 +134,35 @@ public class FixedRateTimer(
 
 
 @Serializable
+public data class PlatformStorageConfiguration(
+    val path: String,
+    val readInterval: Duration,
+    val maxRowsPerEnvelope: Int = 10000,
+    val maxDuration: Duration = 3.hours,
+    val maxPause: Duration? = null,
+    val compression: RowsCompression? = null,
+    val splitStrategy: DataPlatformFileSplit = DataPlatformFileSplit.ByDate(),
+)
+
+/**
+ * Represents the configuration for a data platform, defining its sources, timers,
+ * properties, and optional storage settings.
+ *
+ * @property sources A map of source identifiers to their corresponding configurations,
+ *                   specifying how data is sourced for the platform.
+ * @property timers A map of timer identifiers to their corresponding timer configurations,
+ *                  defining the timing mechanisms used within the platform.
+ * @property properties A map of property identifiers to their platform-specific properties,
+ *                      used to read and manage data attributes from the platform.
+ * @property storage The optional storage configuration for the platform, which manages
+ *                   persistence settings such as file paths, intervals, compression, and
+ *                   split strategies.
+ */
+@Serializable
 public class DataPlatformConfiguration(
     public val sources: Map<String, PlatformSourceConfiguration>,
     public val timers: Map<String, TimerConfiguration>,
     public val properties: Map<String, PlatformProperty>,
+    public val storage: PlatformStorageConfiguration? = null,
 )
 

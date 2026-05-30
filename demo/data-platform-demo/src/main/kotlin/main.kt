@@ -21,8 +21,6 @@ import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.DataPlatformConfiguration
 import space.kscience.controls.dataplatform.DataPlatformDevice
 import space.kscience.controls.dataplatform.buildDeviceGroup
-import space.kscience.controls.dataplatform.storage.RowsCompression
-import space.kscience.controls.dataplatform.storage.storeData
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
@@ -109,14 +107,6 @@ fun main() {
 
 
 //    val allDescriptors = platformDevice.propertyDescriptors
-
-    // start storing data event from the platform
-    platform.storeData(
-        directory = platformDataDirectory,
-        readInterval = 1.seconds,
-        maxDuration = 30.seconds,
-        compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05)
-    )
 
 
     //launch visualization app

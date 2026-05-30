@@ -61,7 +61,8 @@ class FileEnvelopeOperationsTest {
         // Then try to read it using NativeFileEnvelopeOperations
         val nativeOps = NativeFileEnvelopeOperations(ioPlugin)
         val iterated = nativeOps.iterate(tempDir).toList()
-        
+
+        assertEquals(1, iterated.size, "Native operations should find one envelope")
         assertTrue(iterated.any { it.first == name }, "Native operations should be able to read single file envelope")
     }
     
