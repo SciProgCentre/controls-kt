@@ -45,10 +45,8 @@ public class ZipRowsEnvelopeConverter<T>(
         }
         val meta = Meta {
             "@header" put headerMeta
-            "format" put {
-                "description" put """A Json array of objects representing rows, compressed with ZIP/DEFLATE."""
-                "type" put "rows.meta.zip"
-            }
+            Envelope.ENVELOPE_DESCRIPTION_KEY put """A Json array of objects representing rows, compressed with ZIP/DEFLATE."""
+            Envelope.ENVELOPE_DATA_TYPE_KEY put "rows.meta.zip"
             update(meta)
        }
 

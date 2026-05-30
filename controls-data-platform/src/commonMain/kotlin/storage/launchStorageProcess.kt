@@ -3,19 +3,51 @@ package space.kscience.controls.dataplatform.storage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.io.asSink
-import kotlinx.io.buffered
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
+import kotlinx.datetime.toLocalDateTime
 import space.kscience.attributes.safeTypeOf
 import space.kscience.controls.dataplatform.DataPlatform
+import space.kscience.controls.instant
+import space.kscience.controls.storage.FileEnvelopeOperations
+import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.time.clock
-import space.kscience.dataforge.io.EnvelopeFormat
-import space.kscience.dataforge.io.TaggedEnvelopeFormat
+import space.kscience.dataforge.io.Envelope
+import space.kscience.dataforge.io.io
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.get
 import java.nio.file.Path
-import kotlin.io.path.outputStream
+import kotlin.io.path.Path
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Instant
+
+
+public sealed interface DataPlatformStorageNamingStrategy {
+    /**
+     * Resolve a relative path to the directory where the data should be stored.
+     */
+    public fun resolveDirectory(envelope: Envelope, time: Instant): Path
+
+    public data object Flat : DataPlatformStorageNamingStrategy {
+        override fun resolveDirectory(envelope: Envelope, time: Instant): Path = Path("")
+    }
+
+    public data class ByDate(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformStorageNamingStrategy {
+        override fun resolveDirectory(envelope: Envelope, time: Instant): Path {
+            val date = time.toLocalDateTime(timeZone)
+            return Path(date.year.toString(), date.month.number.toString(), date.day.toString())
+        }
+    }
+
+    public data class ByHour(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformStorageNamingStrategy {
+        override fun resolveDirectory(envelope: Envelope, time: Instant): Path {
+            val date = time.toLocalDateTime(timeZone)
+            return Path(date.year.toString(), date.month.number.toString(), date.day.toString(), date.hour.toString())
+        }
+    }
+}
 
 /**
  * Stores data from the `DataPlatformDevice` into a file in the specified directory,
@@ -29,19 +61,21 @@ import kotlin.time.Duration.Companion.hours
  * @param maxPause the maximum pause duration between data collection intervals. If null, no pause is enforced.
  * @param compression configuration for compressing the rows in the envelope. If null, no compression is used.
  * @param clock the clock instance used to timestamp the collected data. Defaults to the device's default clock.
- * @param envelopeFormat the format used for encoding the data envelope. Defaults to `TaggedEnvelopeFormat`.
+ * @param strategy the naming strategy for organizing data files within the directory. Defaults to `DataPlatformStorageNamingStrategy.ByDate()`.
+ * @param operations the file operations instance used to write the data envelope to a file. Defaults to `NativeFileEnvelopeOperations(context.io)`.
  *
  * @return a [Job] representing the lifecycle of the data collection and storage process. This job can be canceled to stop the operation.
  */
-public fun DataPlatform.launchStorageProcess(
+public fun DataPlatform.storeData(
     directory: Path,
     readInterval: Duration,
     maxRowsPerEnvelope: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
+    operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(context.io),
+    strategy: DataPlatformStorageNamingStrategy = DataPlatformStorageNamingStrategy.ByDate(),
     clock: Clock = context.clock,
-    envelopeFormat: EnvelopeFormat = TaggedEnvelopeFormat,
 ): Job = flowBinaryData(
     readInterval = readInterval,
     converter = ZipRowsEnvelopeConverter(MetaConverter.meta, safeTypeOf()),
@@ -50,8 +84,8 @@ public fun DataPlatform.launchStorageProcess(
     maxPause = maxPause,
     compression = compression,
 ).onEach { envelope ->
-    val filePath = directory.resolve("dataPlarform_${clock.now().toString().replace(":", "-")}.df")
-    filePath.outputStream().use {
-        envelopeFormat.writeTo(it.asSink().buffered(), envelope)
-    }
+    val time = envelope.meta["@envelope.time"]?.instant ?: clock.now()
+    val relativePath = strategy.resolveDirectory(envelope, time)
+    val fileName = "data_${clock.now().toString().replace(":", "-")}"
+    operations.writeEnvelope(fileName, directory.resolve(relativePath), envelope)
 }.launchIn(this)
