@@ -119,7 +119,7 @@ fun main() {
     )
 
 
-    //launch visualisation app
+    //launch visualization app
     application {
         Window(onCloseRequest = {
             context.close()

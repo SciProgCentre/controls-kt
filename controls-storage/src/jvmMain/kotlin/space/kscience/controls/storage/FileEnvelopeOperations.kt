@@ -8,9 +8,7 @@ import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.*
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
-import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.*
 
 //TODO move to DataForge
 //TODO process file overwrites
@@ -81,17 +79,17 @@ public class SingleFileEnvelopeOperations(
         while (queue.isNotEmpty()) {
             val (currentName, currentFile) = queue.removeFirst()
 
-            if (directory.nameWithoutExtension == FILE_EXTENSION) {
+            if (currentFile.extension == FILE_EXTENSION) {
                 try {
-                    val envelope = ioPlugin.readEnvelopeFile(currentFile, false)
-                    yield(currentFile.fileName.nameWithoutExtension.asName() to envelope)
+                    val envelope = ioPlugin.readEnvelopeFile(currentFile)
+                    yield(currentName to envelope)
                 } catch (e: Exception) {
                     ioPlugin.logger.error(e) { "Failed to read envelope from $currentFile" }
                 }
             } else if (Files.isDirectory(currentFile)) {
                 Files.newDirectoryStream(currentFile).use {
                     it.forEach { child: Path ->
-                        queue.add((currentName + child.fileName.toString()) to child)
+                        queue.add((currentName + child.nameWithoutExtension) to child)
                     }
                 }
             }
@@ -107,7 +105,7 @@ public class NativeFileEnvelopeOperations(
     public val metaFormatFactory: MetaFormatFactory = JsonMetaFormat
 ) : FileEnvelopeOperations {
 
-    public val metaExtension: String = "$FILE_EXTENSION.${metaFormatFactory.shortName}"
+    public val metaExtension: String = ".$FILE_EXTENSION.${metaFormatFactory.shortName}"
 
     override fun writeEnvelope(
         fileName: String,
@@ -121,7 +119,7 @@ public class NativeFileEnvelopeOperations(
             }
         }
 
-        val metaFile = directory.resolve("$fileName.$metaExtension")
+        val metaFile = directory.resolve("$fileName$metaExtension")
         metaFile.write {
             metaFormatFactory.writeMeta(this, envelope.meta)
         }
@@ -134,27 +132,32 @@ public class NativeFileEnvelopeOperations(
         while (queue.isNotEmpty()) {
             val (currentName, currentFile) = queue.removeFirst()
 
-            if (directory.nameWithoutExtension == FILE_EXTENSION) {
-                try {
-                    val envelope = ioPlugin.readEnvelopeFile(currentFile, false)
-                    yield(currentFile.fileName.nameWithoutExtension.asName() to envelope)
-                } catch (e: Exception) {
-                    ioPlugin.logger.error(e) { "Failed to read envelope from $currentFile" }
+            when {
+                currentFile.extension == FILE_EXTENSION -> {
+                    try {
+                        val envelope = ioPlugin.readEnvelopeFile(currentFile, false)
+                        yield(currentName to envelope)
+                    } catch (e: Exception) {
+                        ioPlugin.logger.error(e) { "Failed to read envelope from $currentFile" }
+                    }
                 }
-            } else if (currentFile.fileName.toString().endsWith(metaExtension)) {
-                try {
-                    val meta = metaFormatFactory.readFrom(currentFile.asBinary())
-                    val envelopeName = currentFile.fileName.toString().removeSuffix(metaExtension)
-                    val dataFile = currentFile.resolveSibling(envelopeName)
-                    val binary = if (dataFile.exists()) dataFile.asBinary() else null
-                    yield((currentName + envelopeName) to Envelope(meta, binary))
-                } catch (e: Exception) {
-                    ioPlugin.logger.error(e) { "Failed to read envelope from $currentFile" }
-                }
-            } else if (Files.isDirectory(currentFile)) {
-                Files.newDirectoryStream(currentFile).use {
-                    it.forEach { child: Path ->
-                        queue.add((currentName + child.fileName.toString()) to child)
+                currentFile.isDirectory() -> {
+                    Files.newDirectoryStream(currentFile).use { directoryStream ->
+                        directoryStream.forEach { child: Path ->
+                            if(child.fileName.toString().endsWith(metaExtension)){
+                                try {
+                                    val envelopeName = child.fileName.toString().removeSuffix(metaExtension)
+                                    val meta = metaFormatFactory.readFrom(child.asBinary())
+                                    val dataFile = child.resolveSibling(envelopeName)
+                                    val binary = if (dataFile.exists()) dataFile.asBinary() else null
+                                    yield((currentName + envelopeName) to Envelope(meta, binary))
+                                } catch (e: Exception) {
+                                    ioPlugin.logger.error(e) { "Failed to read envelope from $child" }
+                                }
+                            } else {
+                                queue.add((currentName + child.nameWithoutExtension) to child)
+                            }
+                        }
                     }
                 }
             }
