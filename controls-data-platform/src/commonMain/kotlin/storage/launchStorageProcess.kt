@@ -23,25 +23,27 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 
-
-public sealed interface DataPlatformStorageNamingStrategy {
+/**
+ * Directory splitting strategy for data storage.
+ */
+public sealed interface DataPlatformFileSplit {
     /**
      * Resolve a relative path to the directory where the data should be stored.
      */
     public fun resolveDirectory(envelope: Envelope, time: Instant): Path
 
-    public data object Flat : DataPlatformStorageNamingStrategy {
+    public data object Flat : DataPlatformFileSplit {
         override fun resolveDirectory(envelope: Envelope, time: Instant): Path = Path("")
     }
 
-    public data class ByDate(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformStorageNamingStrategy {
+    public data class ByDate(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformFileSplit {
         override fun resolveDirectory(envelope: Envelope, time: Instant): Path {
             val date = time.toLocalDateTime(timeZone)
             return Path(date.year.toString(), date.month.number.toString(), date.day.toString())
         }
     }
 
-    public data class ByHour(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformStorageNamingStrategy {
+    public data class ByHour(val timeZone: TimeZone = TimeZone.currentSystemDefault()) : DataPlatformFileSplit {
         override fun resolveDirectory(envelope: Envelope, time: Instant): Path {
             val date = time.toLocalDateTime(timeZone)
             return Path(date.year.toString(), date.month.number.toString(), date.day.toString(), date.hour.toString())
@@ -74,7 +76,7 @@ public fun DataPlatform.storeData(
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
     operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(context.io),
-    strategy: DataPlatformStorageNamingStrategy = DataPlatformStorageNamingStrategy.ByDate(),
+    strategy: DataPlatformFileSplit = DataPlatformFileSplit.ByDate(),
     clock: Clock = context.clock,
 ): Job = flowBinaryData(
     readInterval = readInterval,
