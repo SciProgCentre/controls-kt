@@ -132,7 +132,20 @@ public class FixedRateTimer(
     override fun createTimerState(clockManager: ClockManager): TimerState = TimerState(clockManager, tick)
 }
 
-
+/**
+ * Represents the configuration settings for platform storage, providing control over file paths,
+ * data partitioning, compression, and other storage-related parameters.
+ *
+ * @property path The base directory path where platform data files will be stored.
+ * @property readInterval The interval between successive read operations from the storage.
+ * @property maxRowsPerEnvelope The maximum number of rows to be included in a single data envelope.
+ *                              Defaults to 10,000 rows.
+ * @property maxDuration The maximum time interval for storing data before triggering a flush or split operation.
+ *                       Defaults to 3 hours.
+ * @property maxPause The maximum allowable pause duration between storage operations to create a new file.
+ * @property compression Optional compression settings to be applied to the stored rows.
+ * @property splitStrategy The strategy for organizing data into subdirectories, such as by date or by hour.
+ */
 @Serializable
 public data class PlatformStorageConfiguration(
     val path: String,

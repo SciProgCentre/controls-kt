@@ -1,14 +1,15 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.storage
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
-import space.kscience.attributes.SafeType
+import space.kscience.controls.dataplatform.storage.RowsEnvelopeConverter
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.asBinary
 import space.kscience.dataforge.io.toByteArray
 import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.getIndexedList
 import space.kscience.dataforge.names.parseAsName
 import space.kscience.tables.*
@@ -16,6 +17,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
+import kotlin.reflect.KType
 
 /**
  * A converter implementation for transforming rows of data into a compressed envelope format
@@ -25,13 +27,14 @@ import java.util.zip.InflaterInputStream
  * @property converter A metadata-based converter used for serializing and deserializing individual cell values.
  * @property type The safe type information associated with the data type of the rows.
  */
+@DfType(ZipRowsEnvelopeConverter.TYPE)
+@OptIn(ExperimentalSerializationApi::class)
 public class ZipRowsEnvelopeConverter<T>(
     public val converter: MetaConverter<T>,
-    public val type: SafeType<T>
+    public val type: KType
 ) : RowsEnvelopeConverter<T> {
 
 
-    @OptIn(ExperimentalSerializationApi::class)
     override fun writeRows(rows: Rows<T>, meta: Meta): Envelope {
         val headerMeta = Meta {
             rows.headers.forEach { header ->
@@ -46,7 +49,7 @@ public class ZipRowsEnvelopeConverter<T>(
         val meta = Meta {
             "@header" put headerMeta
             Envelope.ENVELOPE_DESCRIPTION_KEY put """A Json array of objects representing rows, compressed with ZIP/DEFLATE."""
-            Envelope.ENVELOPE_DATA_TYPE_KEY put "rows.meta.zip"
+            Envelope.ENVELOPE_DATA_TYPE_KEY put TYPE
             update(meta)
        }
 
@@ -63,10 +66,9 @@ public class ZipRowsEnvelopeConverter<T>(
         return Envelope(meta, baos.toByteArray().asBinary())
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     override fun readRows(envelope: Envelope): Rows<T> {
         val header: TableHeader<T> = envelope.meta.getIndexedList("@header.column".parseAsName()).map { item ->
-            SimpleColumnHeader(item["name"].string ?: "default", type.kType, item["meta"] ?: Meta.EMPTY)
+            SimpleColumnHeader(item["name"].string ?: "default", type, item["meta"] ?: Meta.EMPTY)
         }
         val bais = ByteArrayInputStream(envelope.data?.toByteArray() ?: error("No data in envelope"))
         val zipInputStream = InflaterInputStream(bais)
@@ -77,6 +79,10 @@ public class ZipRowsEnvelopeConverter<T>(
         }
 
         return RowTable(header, rows)
+    }
+
+    public companion object{
+        public const val TYPE: String = "envelope.rows.meta.zip"
     }
 
 }

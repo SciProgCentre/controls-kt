@@ -17,6 +17,9 @@ public typealias TimeSeriesValues<T> = ValueWithTime<Map<String, T>>
 
 internal fun <T> TimeSeriesValues<T>.toRow(): Row<T> = MapRow(value)
 
+/**
+ * A source of time series rows
+ */
 public interface TimeSeriesRows<T> {
     /**
      * An ordered list of headers that *must* be present.

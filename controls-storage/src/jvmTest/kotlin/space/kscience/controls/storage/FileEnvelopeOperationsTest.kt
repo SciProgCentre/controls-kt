@@ -3,11 +3,9 @@ package space.kscience.controls.storage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.io.Envelope
-import space.kscience.dataforge.io.IOPlugin
-import space.kscience.dataforge.io.asBinary
-import space.kscience.dataforge.io.io
+import space.kscience.dataforge.io.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -76,5 +74,38 @@ class FileEnvelopeOperationsTest {
         val iterated = operations.iterate(tempDir).toList()
         assertEquals(1, iterated.size)
         assertEquals(name, iterated[0].first)
+    }
+
+    /*
+     * LLM generated code: Added tests for FileEnvelopeOperations.read function on a single file.
+     */
+    @Test
+    fun testSingleFileRead() {
+        val operations = SingleFileEnvelopeOperations(ioPlugin)
+        val envelope = Envelope(Meta { "key" put "value" }, null)
+        val name = "test".parseAsName()
+        operations.writeEnvelope(name, tempDir, envelope)
+
+        val file = tempDir.resolve("test.df")
+        val read = operations.read(file)
+        assertEquals(1, read.size)
+        assertTrue(read.containsKey(Name.EMPTY))
+    }
+
+    @Test
+    fun testNativeReadSingleFileDirect() {
+        val operations = NativeFileEnvelopeOperations(ioPlugin)
+        val envelope = Envelope(
+            Meta { "key" put "value" },
+            "Hello".toByteArray().asBinary()
+        )
+        val name = "test".parseAsName()
+        operations.writeEnvelope(name, tempDir, envelope)
+
+        val metaFile = tempDir.resolve("test.df.json")
+        val read = operations.read(metaFile)
+        assertEquals(1, read.size, "Should be able to read single meta file as envelope")
+        assertTrue(read.containsKey(Name.EMPTY))
+        assertEquals("Hello", read[Name.EMPTY]?.data?.toByteArray()?.decodeToString())
     }
 }

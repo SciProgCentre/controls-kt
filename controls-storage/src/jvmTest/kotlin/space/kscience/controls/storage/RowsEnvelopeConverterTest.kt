@@ -1,13 +1,14 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.storage
 
-import space.kscience.attributes.safeTypeOf
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.io.*
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.tables.MapRow
 import space.kscience.tables.RowTable
 import space.kscience.tables.SimpleColumnHeader
 import kotlin.random.Random
+import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -19,7 +20,7 @@ class RowsEnvelopeConverterTest {
         val rowsCount = 10000
 
         val headers = (1..columnsCount).map { i ->
-            SimpleColumnHeader<Double>("column_$i", safeTypeOf<Double>().kType, space.kscience.dataforge.meta.Meta.EMPTY)
+            SimpleColumnHeader<Double>("column_$i", typeOf<Double>(), Meta.EMPTY)
         }
 
         val random = Random(42)
@@ -31,7 +32,7 @@ class RowsEnvelopeConverterTest {
 
         val table = RowTable(headers, data)
 
-        val converter = ZipRowsEnvelopeConverter(MetaConverter.double, safeTypeOf<Double>())
+        val converter = ZipRowsEnvelopeConverter(MetaConverter.double, typeOf<Double>())
 
         val envelope = converter.writeRows(table)
 
@@ -60,7 +61,11 @@ class RowsEnvelopeConverterTest {
             val expectedRow = data[i]
             val actualRow = resultRows[i]
             headers.forEach { header ->
-                assertEquals(expectedRow.getOrNull(header.name), actualRow.getOrNull(header.name), "Error in row $i, column ${header.name}")
+                assertEquals(
+                    expectedRow.getOrNull(header.name),
+                    actualRow.getOrNull(header.name),
+                    "Error in row $i, column ${header.name}"
+                )
             }
         }
     }

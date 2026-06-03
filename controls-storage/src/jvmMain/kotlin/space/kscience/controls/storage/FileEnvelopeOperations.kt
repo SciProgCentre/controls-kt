@@ -24,9 +24,20 @@ public interface FileEnvelopeOperations {
     public fun writeEnvelope(fileName: String, directory: Path, envelope: Envelope)
 
     /**
+     * Provide a sequence of files that could contain envelopes
+     */
+    public fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>>
+
+    /**
+     * Read a single envelope file if possible
+     */
+    public fun readEnvelope(path: Path): Envelope?
+
+    /**
      * Width first iteration over all envelopes in the given directory and subdirectories
      */
-    public fun iterate(directory: Path): Sequence<Pair<Name, Envelope>>
+    public fun iterate(directory: Path): Sequence<Pair<Name, Envelope>> = envelopeFilesSequence(directory)
+        .mapNotNull { (name, path) -> readEnvelope(path)?.let { Pair(name, it) } }
 
     public companion object {
         public const val FILE_EXTENSION: String = "df"
@@ -34,10 +45,10 @@ public interface FileEnvelopeOperations {
 }
 
 /**
- * Read all envelopes from the given directory with the given maximum depth
+ * Read a file or directory and return all envelopes found in it
  */
-public fun FileEnvelopeOperations.readDirectory(directory: Path, maxDepth: Int = 1): Map<Name, Envelope> =
-    iterate(directory).takeWhile { it.first.length < maxDepth }.associate { it.first to it.second }
+public fun FileEnvelopeOperations.read(path: Path, maxDepth: Int = Int.MAX_VALUE): Map<Name, Envelope> =
+    iterate(path).takeWhile { it.first.length < maxDepth }.associate { it.first to it.second }
 
 public fun FileEnvelopeOperations.writeEnvelope(name: Name, directory: Path, envelope: Envelope) {
     check(!name.isEmpty()) { "Envelope file name could not be empty" }
@@ -72,20 +83,15 @@ public class SingleFileEnvelopeOperations(
         ioPlugin.writeEnvelopeFile(fileName, envelope, envelopeFormat)
     }
 
-    override fun iterate(directory: Path): Sequence<Pair<Name, Envelope>> = sequence {
+    override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> = sequence {
         val queue = ArrayDeque<Pair<Name, Path>>()
-        queue.add(Name.EMPTY to directory)
+        queue.add(Name.EMPTY to root)
 
         while (queue.isNotEmpty()) {
             val (currentName, currentFile) = queue.removeFirst()
 
             if (currentFile.extension == FILE_EXTENSION) {
-                try {
-                    val envelope = ioPlugin.readEnvelopeFile(currentFile)
-                    yield(currentName to envelope)
-                } catch (e: Exception) {
-                    ioPlugin.logger.error(e) { "Failed to read envelope from $currentFile" }
-                }
+                yield(currentName to currentFile)
             } else if (Files.isDirectory(currentFile)) {
                 Files.newDirectoryStream(currentFile).use {
                     it.forEach { child: Path ->
@@ -95,6 +101,15 @@ public class SingleFileEnvelopeOperations(
             }
         }
     }
+
+
+    override fun readEnvelope(path: Path): Envelope? = try {
+        ioPlugin.readEnvelopeFile(path)
+    } catch (e: Exception) {
+        ioPlugin.logger.error(e) { "Failed to read envelope from $path" }
+        null
+    }
+
 }
 
 /**
@@ -125,38 +140,27 @@ public class NativeFileEnvelopeOperations(
         }
     }
 
-    override fun iterate(directory: Path): Sequence<Pair<Name, Envelope>> = sequence {
+    override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> = sequence {
         val queue = ArrayDeque<Pair<Name, Path>>()
-        queue.add(Name.EMPTY to directory)
+        queue.add(Name.EMPTY to root)
 
         while (queue.isNotEmpty()) {
             val (currentName, currentFile) = queue.removeFirst()
 
             when {
                 currentFile.extension == FILE_EXTENSION -> {
-                    try {
-                        val envelope = ioPlugin.readEnvelopeFile(currentFile, false)
-                        yield(currentName to envelope)
-                    } catch (e: Exception) {
-                        ioPlugin.logger.error(e) { "Failed to read envelope from $currentFile" }
-                    }
+                    yield(currentName to currentFile)
                 }
+
+                currentFile.fileName.toString().endsWith(metaExtension) -> {
+                    yield(currentName to currentFile)
+                }
+
                 currentFile.isDirectory() -> {
                     Files.newDirectoryStream(currentFile).use { directoryStream ->
                         directoryStream.forEach { child: Path ->
-                            if(child.fileName.toString().endsWith(metaExtension)){
-                                try {
-                                    val envelopeName = child.fileName.toString().removeSuffix(metaExtension)
-                                    val meta = metaFormatFactory.readFrom(child.asBinary())
-                                    val dataFile = child.resolveSibling(envelopeName)
-                                    val binary = if (dataFile.exists()) dataFile.asBinary() else null
-                                    yield((currentName + envelopeName) to Envelope(meta, binary))
-                                } catch (e: Exception) {
-                                    ioPlugin.logger.error(e) { "Failed to read envelope from $child" }
-                                }
-                            } else {
-                                queue.add((currentName + child.nameWithoutExtension) to child)
-                            }
+                            val childName = child.fileName.toString().removeSuffix(metaExtension).removeSuffix(".$FILE_EXTENSION")
+                            yield((currentName + childName) to child)
                         }
                     }
                 }
@@ -164,5 +168,22 @@ public class NativeFileEnvelopeOperations(
         }
     }
 
+    override fun readEnvelope(path: Path): Envelope? = try {
+        if (path.extension == FILE_EXTENSION) {
+            ioPlugin.readEnvelopeFile(path)
+        } else if (path.fileName.toString().endsWith(metaExtension)) {
+            val envelopeName = path.fileName.toString().removeSuffix(metaExtension)
+            val meta = metaFormatFactory.readFrom(path.asBinary())
+            val dataFile = path.resolveSibling(envelopeName)
+            val binary = if (dataFile.exists()) dataFile.asBinary() else null
+            Envelope(meta, binary)
+        } else {
+            ioPlugin.logger.error { "Envelope file does not have proper envelope extension: $path" }
+            null
+        }
+    } catch (e: Exception) {
+        ioPlugin.logger.error(e) { "Failed to read envelope from $path" }
+        null
+    }
 
 }

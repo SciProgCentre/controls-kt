@@ -9,18 +9,20 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import space.kscience.attributes.safeTypeOf
 import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.instant
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
+import space.kscience.controls.storage.ZipRowsEnvelopeConverter
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.io
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
 import java.nio.file.Path
 import kotlin.io.path.Path
+import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -96,7 +98,7 @@ public fun DataPlatform.storeData(
     clock: Clock = context.clock,
 ): Job = flowBinaryData(
     readInterval = readInterval,
-    converter = ZipRowsEnvelopeConverter(MetaConverter.meta, safeTypeOf()),
+    converter = ZipRowsEnvelopeConverter(MetaConverter.meta, typeOf<Meta>()),
     maxRows = maxRowsPerEnvelope,
     maxDuration = maxDuration,
     maxPause = maxPause,
