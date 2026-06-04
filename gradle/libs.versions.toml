@@ -3,6 +3,7 @@
 dataforge = "0.10.3"
 rsocket = "0.20.0"
 xodus = "2.0.1"
+parsus = "0.6.1"
 
 uuid = "0.8.0"
 
@@ -42,6 +43,7 @@ dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "data
 tables-kt = { module = "space.kscience:tables-kt", version.ref = "dataforge" }
 
 uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }
+parsus = { module = "me.alllex.parsus:parsus", version.ref = "parsus" }
 
 xodus-entity-store = { module = "org.jetbrains.xodus:xodus-entity-store", version.ref = "xodus" }
 xodus-environment = { module = "org.jetbrains.xodus:xodus-environment", version.ref = "xodus" }
