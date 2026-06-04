@@ -7,6 +7,12 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.meta.Meta
 
+/**
+ * Represents the interface for a programmable logic controller (PLC) state.
+ * This interface allows interaction with registers, external values,
+ * and functions in a synchronous or asynchronous context. It also supports
+ * subscribing to external value changes for real-time updates.
+ */
 public interface PlcState : ContextAware, CoroutineScope {
     /**
      * A clock manager for delays and virtual time
