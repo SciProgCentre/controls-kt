@@ -24,25 +24,28 @@ public interface FileEnvelopeOperations {
     public fun writeEnvelope(fileName: String, directory: Path, envelope: Envelope)
 
     /**
-     * Provide a sequence of files that could contain envelopes
+     * Provide a sequence of files that could contain envelopes. In general does not read files.
+     * It is possible that files listed in a sequence are broken.
+     * An envelope is not necessarily stored in a file, but each envelope has an "anchor file" it is attached to.
+     *
      */
     public fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>>
 
     /**
-     * Read a single envelope file if possible
+     * Read a single envelope file if possible. If path is not an envelope or read is failed, return null.
      */
     public fun readEnvelope(path: Path): Envelope?
-
-    /**
-     * Width first iteration over all envelopes in the given directory and subdirectories
-     */
-    public fun iterate(directory: Path): Sequence<Pair<Name, Envelope>> = envelopeFilesSequence(directory)
-        .mapNotNull { (name, path) -> readEnvelope(path)?.let { Pair(name, it) } }
 
     public companion object {
         public const val FILE_EXTENSION: String = "df"
     }
 }
+
+/**
+ * Width first iteration over all envelopes in the given directory and subdirectories
+ */
+public fun FileEnvelopeOperations.iterate(directory: Path): Sequence<Pair<Name, Envelope>> = envelopeFilesSequence(directory)
+    .mapNotNull { (name, path) -> readEnvelope(path)?.let { Pair(name, it) } }
 
 /**
  * Read a file or directory and return all envelopes found in it

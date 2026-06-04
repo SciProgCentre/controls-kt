@@ -6,11 +6,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
-import space.kscience.controls.dataplatform.storage.ColumnCompression
-import space.kscience.controls.dataplatform.storage.DataPlatformFileSplit
-import space.kscience.controls.dataplatform.storage.RowsCompression
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
+import storage.ColumnCompression
+import storage.DataPlatformFileSplit
+import storage.RowsCompression
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -25,7 +25,7 @@ public data class OpcUaConfig(
 ) : PlatformSourceConfiguration
 
 @Serializable
-public sealed interface ModbusConfig: PlatformSourceConfiguration
+public sealed interface ModbusConfig : PlatformSourceConfiguration
 
 @Serializable
 @SerialName("modbus-tcp")
@@ -82,7 +82,7 @@ public sealed interface PlatformProperty {
     /**
      * The timeout for reading the property, defaults to 1 second
      */
-    public val timeout: Duration get() =  1.seconds
+    public val timeout: Duration get() = 1.seconds
 
     /**
      * The compression configuration for storage of property values.

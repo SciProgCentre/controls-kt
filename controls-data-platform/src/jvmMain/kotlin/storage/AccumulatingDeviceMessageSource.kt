@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package storage
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
@@ -12,7 +12,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 
 /**
- *  A wrapper for [space.kscience.controls.api.DeviceMessageSource] that accumulates current devices state.
+ *  A wrapper for [DeviceMessageSource] that accumulates current devices state.
  */
 public class AccumulatingDeviceMessageSource(
     public val scope: CoroutineScope,

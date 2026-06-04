@@ -7,6 +7,7 @@ import kotlinx.serialization.json.encodeToStream
 import space.kscience.controls.dataplatform.storage.RowsEnvelopeConverter
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.asBinary
+import space.kscience.dataforge.io.dataType
 import space.kscience.dataforge.io.toByteArray
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.misc.DfType
@@ -34,6 +35,7 @@ public class ZipRowsEnvelopeConverter<T>(
     public val type: KType
 ) : RowsEnvelopeConverter<T> {
 
+    override val envelopeType: String get() = ENVELOPE_TYPE
 
     override fun writeRows(rows: Rows<T>, meta: Meta): Envelope {
         val headerMeta = Meta {
@@ -49,9 +51,9 @@ public class ZipRowsEnvelopeConverter<T>(
         val meta = Meta {
             "@header" put headerMeta
             Envelope.ENVELOPE_DESCRIPTION_KEY put """A Json array of objects representing rows, compressed with ZIP/DEFLATE."""
-            Envelope.ENVELOPE_DATA_TYPE_KEY put TYPE
+            Envelope.ENVELOPE_DATA_TYPE_KEY put envelopeType
             update(meta)
-       }
+        }
 
         val rowsPrepared = rows.rowSequence().map { row ->
             val map = if (row is MapRow) row.values else rows.headers.associate { it.name to row.getOrNull(it.name) }
@@ -67,6 +69,8 @@ public class ZipRowsEnvelopeConverter<T>(
     }
 
     override fun readRows(envelope: Envelope): Rows<T> {
+        require(envelope.dataType != envelopeType) { "Envelope data type should be $envelopeType" }
+
         val header: TableHeader<T> = envelope.meta.getIndexedList("@header.column".parseAsName()).map { item ->
             SimpleColumnHeader(item["name"].string ?: "default", type, item["meta"] ?: Meta.EMPTY)
         }
@@ -81,8 +85,10 @@ public class ZipRowsEnvelopeConverter<T>(
         return RowTable(header, rows)
     }
 
-    public companion object{
-        public const val TYPE: String = "envelope.rows.meta.zip"
+    public companion object {
+
+        public const val ENVELOPE_TYPE: String = "rows.meta.zip"
+        public const val TYPE: String = "envelope.${ENVELOPE_TYPE}"
     }
 
 }

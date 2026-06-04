@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package storage
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn

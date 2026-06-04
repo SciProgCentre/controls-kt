@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package storage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.dataplatform.DataPlatform
+import space.kscience.controls.dataplatform.storage.RowsEnvelopeConverter
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.dataplatform.timeseries.toRow
 import space.kscience.controls.time.ValueWithTime

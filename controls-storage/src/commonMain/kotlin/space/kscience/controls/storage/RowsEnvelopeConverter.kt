@@ -8,6 +8,9 @@ import space.kscience.tables.Rows
  * Table to Envelope converter.
  */
 public interface RowsEnvelopeConverter<T> {
+
+    public val envelopeType: String
+
     /**
      * Reads a table of rows from the given envelope.
      *

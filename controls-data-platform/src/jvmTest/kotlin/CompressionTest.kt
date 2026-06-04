@@ -1,5 +1,3 @@
-package space.kscience.controls.dataplatform.storage
-
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -11,6 +9,9 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
+import storage.ColumnCompression
+import storage.RowsCompression
+import storage.compress
 import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals

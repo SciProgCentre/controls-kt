@@ -18,8 +18,6 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
-import space.kscience.controls.dataplatform.storage.RowsCompression
-import space.kscience.controls.dataplatform.storage.storeData
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.opcua.client.readMetaWithTime
@@ -38,6 +36,8 @@ import space.kscience.dataforge.names.asName
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
+import storage.RowsCompression
+import storage.storeData
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.reflect.typeOf
