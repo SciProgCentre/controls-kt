@@ -22,15 +22,24 @@ This document specifies the design and technical requirements for an emulator of
     - `JMP`, `JMPC`, `JMPCN` (Jump / Conditional Jump)
     - `CAL`, `CALC`, `CALCN` (Call / Conditional Call)
     - `RET`, `RETC`, `RETCN` (Return)
+- The emulator MUST support variable declarations within `VAR` ... `END_VAR` blocks.
+- The emulator MUST support program blocks defined by `PROGRAM` ... `END_PROGRAM`.
 
 ### 3.2 Parsing
 - The emulator MAY use the [parsus](https://github.com/alllex/parsus) library for parsing IL source code.
-- The parser SHOULD handle labels, operators, modifiers, and operands.
+- The parser SHOULD handle:
+    - Program blocks with names.
+    - Variable declarations with optional types and initial values.
+    - Labels, operators, modifiers, and operands.
 
-### 3.3 Concurrency
+### 3.3 Concurrency and Lifecycle
 - Each IL program execution MUST be encapsulated in a separate Kotlin `Job`.
 - The emulator MUST support multiple IL programs running concurrently within the same `PlcEmulatorScope`.
 - Implementations MUST take into account concurrent modification of registry values and external variables.
+- A **Runner** component MUST be provided to:
+    - Load and manage multiple named programs.
+    - Start a program by its name.
+    - Stop a running program by its name.
 
 ### 3.4 Integration
 - The emulator MUST use `PlcEmulatorScope` for interacting with registers, variables, and external functions.
@@ -69,6 +78,13 @@ public interface PlcEmulatorScope : ContextAware {
 }
 ```
 *Note: `PlcEmulatorScope` may be extended or modified to support IL-specific needs.*
+
+### 4.4 Program Runner
+The `IlRunner` manages the lifecycle of multiple `IlProgramBlock` instances.
+- **Loading**: Parsing a source string or file into a set of `IlProgramBlock`s.
+- **Starting**: Instantiating an `IlRuntime` for a specific `IlProgramBlock` and launching it in a `Job`.
+- **Stopping**: Canceling the `Job` associated with a named program.
+- **Isolation**: Each program instance has its own local memory for variables declared in its `VAR` block.
 
 ## 5. Implementation Considerations
 

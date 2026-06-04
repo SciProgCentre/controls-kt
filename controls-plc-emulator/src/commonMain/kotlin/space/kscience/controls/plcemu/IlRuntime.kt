@@ -1,6 +1,7 @@
 package space.kscience.controls.plcemu
 
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.asValue
@@ -10,10 +11,10 @@ import space.kscience.dataforge.meta.double
 /**
  * LLM generated code: IL Runtime implementation for IEC 61131-3 Instruction List emulator.
  * 
- * A runtime for executing [IlProgram].
+ * A runtime for executing [IlProgramBlock].
  */
 public class IlRuntime(
-    public val program: IlProgram,
+    public val program: IlProgramBlock,
     public val scope: PlcEmulatorScope,
     public val customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ) {
@@ -31,17 +32,32 @@ public class IlRuntime(
 
     private var isFinished = false
 
-    private fun Meta.toBoolean(): Boolean = value?.boolean ?: false
-    private fun Meta.toDouble(): Double = value?.double ?: 0.0
-    private fun Boolean.asMeta(): Meta = Meta(this)
-    private fun Double.asMeta(): Meta = Meta(this)
+    private val localVariables = mutableMapOf<String, Meta>().apply {
+        program.variables.forEach { v ->
+            put(v.name, v.initialValue ?: Meta.EMPTY)
+        }
+    }
 
-    private suspend fun readOperand(operand: IlOperand?): Meta {
-        return when (operand) {
-            is IlOperand.Constant -> operand.value
-            is IlOperand.Variable -> scope.read(operand.name.toString())
-            is IlOperand.Label -> Meta(operand.label.asValue())
-            null -> Meta.EMPTY
+    private fun Meta.toBoolean(): Boolean = value?.boolean ?: error("Invalid boolean value in Meta: $this")
+    private fun Meta.toDouble(): Double = value?.double ?: error("Invalid double value in Meta: $this")
+    private fun Boolean.asMeta(): Meta = Meta(this.asValue())
+    private fun Double.asMeta(): Meta = Meta(this.asValue())
+
+    private suspend fun readOperand(operand: IlOperand?): Meta = when (operand) {
+        is IlOperand.Constant -> operand.value
+        is IlOperand.Variable -> {
+            val name = operand.name
+            localVariables[name] ?: scope.read(name)
+        }
+        is IlOperand.Label -> Meta(operand.label.asValue())
+        null -> Meta.EMPTY
+    }
+
+    private suspend fun writeVariable(name: String, value: Meta) {
+        if (name in localVariables) {
+            localVariables[name] = value
+        } else {
+            scope.write(name, value)
         }
     }
 
@@ -53,18 +69,18 @@ public class IlRuntime(
         "ST" to { instr ->
             val target = (instr.operand as? IlOperand.Variable)?.name ?: error("ST requires a variable operand")
             val value = if (instr.modifier == "N") (!accumulator.toBoolean()).asMeta() else accumulator
-            scope.write(target.toString(), value)
+            writeVariable(target, value)
         },
         "S" to { instr ->
             if (accumulator.toBoolean()) {
                 val target = (instr.operand as? IlOperand.Variable)?.name ?: error("S requires a variable operand")
-                scope.write(target.toString(), true.asMeta())
+                writeVariable(target, true.asMeta())
             }
         },
         "R" to { instr ->
             if (accumulator.toBoolean()) {
                 val target = (instr.operand as? IlOperand.Variable)?.name ?: error("R requires a variable operand")
-                scope.write(target.toString(), false.asMeta())
+                writeVariable(target, false.asMeta())
             }
         },
         "AND" to { instr ->
@@ -123,13 +139,13 @@ public class IlRuntime(
             accumulator = (accumulator.toDouble() < value.toDouble()).asMeta()
         },
         "JMP" to { instr ->
-            val label = (instr.operand as? IlOperand.Variable)?.name?.toString()
+            val label = (instr.operand as? IlOperand.Variable)?.name
                 ?: (instr.operand as? IlOperand.Label)?.label
                 ?: error("JMP requires a label")
             programCounter = program.labels[label] ?: error("Label $label not found")
         },
         "CAL" to { instr ->
-            val func = (instr.operand as? IlOperand.Variable)?.name?.toString() ?: error("CAL requires a function name")
+            val func = (instr.operand as? IlOperand.Variable)?.name ?: error("CAL requires a function name")
             accumulator = scope.call(func, accumulator)
         },
         "RET" to { _ ->
@@ -176,27 +192,66 @@ public class IlRuntime(
     public suspend fun run() {
         while (!isFinished) {
             runStep()
+            kotlinx.coroutines.yield()
         }
     }
 }
 
 /**
- * Launch an IL program in a new coroutine Job.
+ * A runner for managing multiple IL programs.
+ */
+public class IlRunner(
+    public val scope: PlcEmulatorScope,
+    public val project: IlProject,
+    public val customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
+) {
+    private val runningPrograms = mutableMapOf<String, Job>()
+
+    /**
+     * Start a program by name.
+     */
+    public fun start(programName: String): Job {
+        val program = project.programs.find { it.name == programName } ?: error("Program $programName not found")
+        val job = scope.launch {
+            IlRuntime(program, scope, customOperators).run()
+        }
+        runningPrograms[programName] = job
+        job.invokeOnCompletion { runningPrograms.remove(programName) }
+        return job
+    }
+
+    /**
+     * Stop a running program by name.
+     */
+    public fun stop(programName: String) {
+        runningPrograms[programName]?.cancel("Stopped by runner")
+    }
+
+    /**
+     * Check if a program is running.
+     */
+    public fun isRunning(programName: String): Boolean = runningPrograms.containsKey(programName)
+}
+
+/**
+ * Launch an IL program block in a new coroutine Job.
  */
 public fun PlcEmulatorScope.launchIl(
-    program: IlProgram,
+    program: IlProgramBlock,
     customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ): Job = launch {
     IlRuntime(program, this@launchIl, customOperators).run()
 }
 
 /**
- * Parse and launch an IL program in a new coroutine Job.
+ * Parse and launch an IL project in a new coroutine Job (launches all programs).
  */
 public fun PlcEmulatorScope.launchIl(
     source: String,
     customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
-): Job = launch {
-    val program = IlParser.parseProgram(source)
-    IlRuntime(program, this@launchIl, customOperators).run()
+): List<Job> {
+    val project = IlParser.parseProject(source)
+    return project.programs.map { program ->
+        launchIl(program, customOperators)
+    }
 }

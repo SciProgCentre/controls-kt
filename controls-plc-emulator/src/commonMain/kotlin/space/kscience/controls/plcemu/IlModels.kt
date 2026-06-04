@@ -1,7 +1,6 @@
 package space.kscience.controls.plcemu
 
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
 
 /**
  * LLM generated code: IL models and AST for IEC 61131-3 Instruction List emulator.
@@ -12,7 +11,7 @@ public sealed interface IlOperand {
     /**
      * A variable or register reference.
      */
-    public data class Variable(val name: Name) : IlOperand
+    public data class Variable(val name: String) : IlOperand
 
     /**
      * A constant value.
@@ -26,6 +25,15 @@ public sealed interface IlOperand {
 }
 
 /**
+ * A variable declaration in an IL program.
+ */
+public data class IlVariableDefinition(
+    val name: String,
+    val type: String,
+    val initialValue: Meta? = null
+)
+
+/**
  * A single IL instruction.
  */
 public data class IlInstruction(
@@ -36,9 +44,11 @@ public data class IlInstruction(
 )
 
 /**
- * A parsed IL program.
+ * A named IL program block.
  */
-public data class IlProgram(
+public data class IlProgramBlock(
+    val name: String,
+    val variables: List<IlVariableDefinition>,
     val instructions: List<IlInstruction>
 ) {
     /**
@@ -48,3 +58,10 @@ public data class IlProgram(
         instr.label?.let { it to index }
     }.toMap()
 }
+
+/**
+ * A parsed IL project containing multiple program blocks.
+ */
+public data class IlProject(
+    val programs: List<IlProgramBlock>
+)
