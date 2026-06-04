@@ -4,6 +4,7 @@ This module provides an emulator for the IEC 61131-3 Instruction List (IL) langu
 
 ## Features
 - Full support for standard IL operators (`LD`, `ST`, `ADD`, `SUB`, `MUL`, `DIV`, `AND`, `OR`, `XOR`, `JMP`, `CAL`, etc.).
+- **ST Compiler**: Compile Structured Text (ST) to IL and execute it.
 - Integration with `controls-kt` via `PlcEmulatorScope`.
 - Support for custom vendor-specific instructions.
 - Concurrent execution of multiple IL programs using Kotlin coroutines.
@@ -22,4 +23,4 @@ val source = """
 scope.launchIl(source).join()
 ```
 
-For more details, see the [specification](il-emulator-spec.md).
+For more details, see the [IL specification](il-emulator-spec.md) and [ST specification](st-emulator-spec.md).

@@ -15,7 +15,7 @@ import space.kscience.dataforge.meta.double
  */
 public class IlRuntime(
     public val program: IlProgramBlock,
-    public val scope: PlcEmulatorScope,
+    public val scope: PlcState,
     public val customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ) {
     /**
@@ -201,7 +201,7 @@ public class IlRuntime(
  * A runner for managing multiple IL programs.
  */
 public class IlRunner(
-    public val scope: PlcEmulatorScope,
+    public val scope: PlcState,
     public val project: IlProject,
     public val customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ) {
@@ -236,7 +236,7 @@ public class IlRunner(
 /**
  * Launch an IL program block in a new coroutine Job.
  */
-public fun PlcEmulatorScope.launchIl(
+public fun PlcState.launchIl(
     program: IlProgramBlock,
     customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ): Job = launch {
@@ -246,7 +246,7 @@ public fun PlcEmulatorScope.launchIl(
 /**
  * Parse and launch an IL project in a new coroutine Job (launches all programs).
  */
-public fun PlcEmulatorScope.launchIl(
+public fun PlcState.launchIl(
     source: String,
     customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ): List<Job> {

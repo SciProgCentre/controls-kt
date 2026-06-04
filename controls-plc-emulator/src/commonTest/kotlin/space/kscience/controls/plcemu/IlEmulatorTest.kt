@@ -15,7 +15,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class IlEmulatorTest {
 
-    class TestPlcEmulatorScope(override val context: Context) : PlcEmulatorScope {
+    class TestPlcState(override val context: Context) : PlcState {
         override val coroutineContext: CoroutineContext get() = context.coroutineContext
         val registers = mutableMapOf<String, Meta>()
         val calls = mutableListOf<Pair<String, Meta>>()
@@ -48,7 +48,7 @@ class IlEmulatorTest {
 
     @Test
     fun testFullProgramWithVariables() = runTest {
-        val scope = TestPlcEmulatorScope(testContext)
+        val scope = TestPlcState(testContext)
         val source = """
             PROGRAM MyProg
               VAR
@@ -74,7 +74,7 @@ class IlEmulatorTest {
 
     @Test
     fun testRunnerStartStop() = runTest(timeout = 1.seconds) {
-        val scope = TestPlcEmulatorScope(testContext)
+        val scope = TestPlcState(testContext)
         val source = """
             PROGRAM Infinite
               VAR
@@ -105,7 +105,7 @@ class IlEmulatorTest {
 
     @Test
     fun testMultiplePrograms() = runTest {
-        val scope = TestPlcEmulatorScope(testContext)
+        val scope = TestPlcState(testContext)
         val source = """
             PROGRAM Prog1
               LD 1

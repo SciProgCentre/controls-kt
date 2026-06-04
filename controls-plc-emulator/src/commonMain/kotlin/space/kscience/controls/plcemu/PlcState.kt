@@ -7,7 +7,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.meta.Meta
 
-public interface PlcEmulatorScope : ContextAware, CoroutineScope {
+public interface PlcState : ContextAware, CoroutineScope {
     /**
      * A clock manager for delays and virtual time
      */
