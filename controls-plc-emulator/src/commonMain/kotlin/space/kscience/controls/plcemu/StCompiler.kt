@@ -58,6 +58,10 @@ public data class StWhile(val condition: StExpression, val body: List<StStatemen
 public data class StRepeat(val body: List<StStatement>, val condition: StExpression) : StStatement
 public data class StFbCall(val instanceName: String, val arguments: Map<String, StExpression>) : StStatement
 
+/**
+ * Represents a Program Organization Unit (POU) in Structured Text (ST) programming language.
+ * A POU can be a program, function, or function block.
+ */
 public sealed interface StPou {
     public val name: String
     public val variables: List<StVariableDeclaration>
@@ -96,41 +100,41 @@ public object StParser : Grammar<StProject>() {
     private val ws by regexToken("[ \\t]+", ignored = true)
     private val comment by regexToken("//.*|/\\*.*?\\*/|\\(\\*.*?\\*\\)", ignored = true)
 
-    private val PROGRAM_KW by regexToken("PROGRAM", ignoreCase = true)
-    private val END_PROGRAM_KW by regexToken("END_PROGRAM", ignoreCase = true)
-    private val FUNCTION_KW by regexToken("FUNCTION", ignoreCase = true)
-    private val END_FUNCTION_KW by regexToken("END_FUNCTION", ignoreCase = true)
-    private val FUNCTION_BLOCK_KW by regexToken("FUNCTION_BLOCK", ignoreCase = true)
-    private val END_FUNCTION_BLOCK_KW by regexToken("END_FUNCTION_BLOCK", ignoreCase = true)
+    private val PROGRAM_KW by literalToken("PROGRAM", ignoreCase = true)
+    private val END_PROGRAM_KW by literalToken("END_PROGRAM", ignoreCase = true)
+    private val FUNCTION_KW by literalToken("FUNCTION", ignoreCase = true)
+    private val END_FUNCTION_KW by literalToken("END_FUNCTION", ignoreCase = true)
+    private val FUNCTION_BLOCK_KW by literalToken("FUNCTION_BLOCK", ignoreCase = true)
+    private val END_FUNCTION_BLOCK_KW by literalToken("END_FUNCTION_BLOCK", ignoreCase = true)
 
-    private val VAR_KW by regexToken("VAR", ignoreCase = true)
-    private val VAR_INPUT_KW by regexToken("VAR_INPUT", ignoreCase = true)
-    private val VAR_OUTPUT_KW by regexToken("VAR_OUTPUT", ignoreCase = true)
-    private val VAR_IN_OUT_KW by regexToken("VAR_IN_OUT", ignoreCase = true)
-    private val END_VAR_KW by regexToken("END_VAR", ignoreCase = true)
+    private val VAR_KW by literalToken("VAR", ignoreCase = true)
+    private val VAR_INPUT_KW by literalToken("VAR_INPUT", ignoreCase = true)
+    private val VAR_OUTPUT_KW by literalToken("VAR_OUTPUT", ignoreCase = true)
+    private val VAR_IN_OUT_KW by literalToken("VAR_IN_OUT", ignoreCase = true)
+    private val END_VAR_KW by literalToken("END_VAR", ignoreCase = true)
 
-    private val IF_KW by regexToken("IF", ignoreCase = true)
-    private val THEN_KW by regexToken("THEN", ignoreCase = true)
-    private val ELSIF_KW by regexToken("ELSIF", ignoreCase = true)
-    private val ELSE_KW by regexToken("ELSE", ignoreCase = true)
-    private val END_IF_KW by regexToken("END_IF", ignoreCase = true)
+    private val IF_KW by literalToken("IF", ignoreCase = true)
+    private val THEN_KW by literalToken("THEN", ignoreCase = true)
+    private val ELSIF_KW by literalToken("ELSIF", ignoreCase = true)
+    private val ELSE_KW by literalToken("ELSE", ignoreCase = true)
+    private val END_IF_KW by literalToken("END_IF", ignoreCase = true)
 
-    private val CASE_KW by regexToken("CASE", ignoreCase = true)
-    private val OF_KW by regexToken("OF", ignoreCase = true)
-    private val END_CASE_KW by regexToken("END_CASE", ignoreCase = true)
+    private val CASE_KW by literalToken("CASE", ignoreCase = true)
+    private val OF_KW by literalToken("OF", ignoreCase = true)
+    private val END_CASE_KW by literalToken("END_CASE", ignoreCase = true)
 
-    private val FOR_KW by regexToken("FOR", ignoreCase = true)
-    private val TO_KW by regexToken("TO", ignoreCase = true)
-    private val BY_KW by regexToken("BY", ignoreCase = true)
-    private val DO_KW by regexToken("DO", ignoreCase = true)
-    private val END_FOR_KW by regexToken("END_FOR", ignoreCase = true)
+    private val FOR_KW by literalToken("FOR", ignoreCase = true)
+    private val TO_KW by literalToken("TO", ignoreCase = true)
+    private val BY_KW by literalToken("BY", ignoreCase = true)
+    private val DO_KW by literalToken("DO", ignoreCase = true)
+    private val END_FOR_KW by literalToken("END_FOR", ignoreCase = true)
 
-    private val WHILE_KW by regexToken("WHILE", ignoreCase = true)
-    private val END_WHILE_KW by regexToken("END_WHILE", ignoreCase = true)
+    private val WHILE_KW by literalToken("WHILE", ignoreCase = true)
+    private val END_WHILE_KW by literalToken("END_WHILE", ignoreCase = true)
 
-    private val REPEAT_KW by regexToken("REPEAT", ignoreCase = true)
-    private val UNTIL_KW by regexToken("UNTIL", ignoreCase = true)
-    private val END_REPEAT_KW by regexToken("END_REPEAT", ignoreCase = true)
+    private val REPEAT_KW by literalToken("REPEAT", ignoreCase = true)
+    private val UNTIL_KW by literalToken("UNTIL", ignoreCase = true)
+    private val END_REPEAT_KW by literalToken("END_REPEAT", ignoreCase = true)
 
     private val ASSIGN by literalToken(":=")
     private val COLON by literalToken(":")
@@ -140,10 +144,10 @@ public object StParser : Grammar<StProject>() {
     private val RPAREN by literalToken(")")
     private val DOT by literalToken(".")
 
-    private val OR_KW by regexToken("OR", ignoreCase = true)
-    private val XOR_KW by regexToken("XOR", ignoreCase = true)
-    private val AND_KW by regexToken("AND", ignoreCase = true)
-    private val NOT_KW by regexToken("NOT", ignoreCase = true)
+    private val OR_KW by literalToken("OR", ignoreCase = true)
+    private val XOR_KW by literalToken("XOR", ignoreCase = true)
+    private val AND_KW by literalToken("AND", ignoreCase = true)
+    private val NOT_KW by literalToken("NOT", ignoreCase = true)
 
     private val EQ by literalToken("=")
     private val NEQ by literalToken("<>")
@@ -156,11 +160,11 @@ public object StParser : Grammar<StProject>() {
     private val MINUS by literalToken("-")
     private val MUL by literalToken("*")
     private val DIV by literalToken("/")
-    private val MOD_KW by regexToken("MOD", ignoreCase = true)
+    private val MOD_KW by literalToken("MOD", ignoreCase = true)
     private val POW by literalToken("**")
 
-    private val TRUE_KW by regexToken("TRUE", ignoreCase = true)
-    private val FALSE_KW by regexToken("FALSE", ignoreCase = true)
+    private val TRUE_KW by literalToken("TRUE", ignoreCase = true)
+    private val FALSE_KW by literalToken("FALSE", ignoreCase = true)
 
     private val numberToken by regexToken("-?\\d+(\\.\\d+)?")
     private val stringToken by regexToken("'[^']*'|\"[^\"]*\"")
@@ -224,7 +228,7 @@ public object StParser : Grammar<StProject>() {
         }, COMMA))()
         RPAREN()
         SEMICOLON()
-        StFbCall(instance, (args ?: emptyList<Pair<String, StExpression>>()).toMap())
+        StFbCall(instance, (args ?: emptyList()).toMap())
     }
 
     private val ifStatement: Parser<StIf> by parser {
@@ -577,7 +581,6 @@ public class StCompiler {
             instructions.add(IlInstruction(null, "CAL", null, IlOperand.Variable(stmt.instanceName)))
             instructions
         }
-        else -> emptyList()
     }
 
     private fun compileExpression(expr: StExpression): List<IlInstruction> = when (expr) {

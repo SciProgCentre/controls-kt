@@ -1,6 +1,7 @@
 package space.kscience.controls.plcemu
 
 import me.alllex.parsus.parser.*
+import me.alllex.parsus.token.literalToken
 import me.alllex.parsus.token.regexToken
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.asValue
@@ -15,14 +16,14 @@ public object IlParser : Grammar<IlProject>() {
     private val ws by regexToken("[ \\t]+", ignored = true)
     private val comment by regexToken("//.*|/\\*.*?\\*/", ignored = true)
 
-    private val PROGRAM_KW by regexToken("PROGRAM", ignoreCase = true)
-    private val END_PROGRAM_KW by regexToken("END_PROGRAM", ignoreCase = true)
-    private val VAR_KW by regexToken("VAR", ignoreCase = true)
-    private val END_VAR_KW by regexToken("END_VAR", ignoreCase = true)
+    private val PROGRAM_KW by literalToken("PROGRAM", ignoreCase = true)
+    private val END_PROGRAM_KW by literalToken("END_PROGRAM", ignoreCase = true)
+    private val VAR_KW by literalToken("VAR", ignoreCase = true)
+    private val END_VAR_KW by literalToken("END_VAR", ignoreCase = true)
     
-    private val ASSIGN by regexToken(":=")
-    private val COLON by regexToken(":")
-    private val SEMICOLON by regexToken(";")
+    private val ASSIGN by literalToken(":=")
+    private val COLON by literalToken(":")
+    private val SEMICOLON by literalToken(";")
 
     private val booleanToken by regexToken("(true|false)", ignoreCase = true)
     private val numberToken by regexToken("-?\\d+(\\.\\d+)?")

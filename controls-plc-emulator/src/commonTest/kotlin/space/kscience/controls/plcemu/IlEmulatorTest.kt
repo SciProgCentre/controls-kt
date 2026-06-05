@@ -1,7 +1,10 @@
 package space.kscience.controls.plcemu
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
@@ -11,6 +14,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class IlEmulatorTest {
@@ -35,7 +39,7 @@ class IlEmulatorTest {
         override fun subscribe(identifier: String): Flow<Meta> = TODO()
     }
 
-    private val testContext = Context {
+    private val testContext = Context("TEST") {
         plugin(ClockManager)
     }
 
@@ -62,11 +66,11 @@ class IlEmulatorTest {
               ST GlobalRes
             END_PROGRAM
         """.trimIndent()
-        
+
         val project = IlParser.parseProject(source)
         val runner = IlRunner(scope, project)
         runner.start("MyProg").join()
-        
+
         // GlobalRes should be in scope.registers, but Res should NOT (it's local)
         assertEquals(30.0, scope.registers["GlobalRes"]?.double)
         assertTrue("Res" !in scope.registers)
@@ -91,15 +95,18 @@ class IlEmulatorTest {
         val project = IlParser.parseProject(source)
         val runner = IlRunner(scope, project)
         val job = runner.start("Infinite")
-        
+
+        withContext(Dispatchers.Default) {
+            delay(20.milliseconds)
+        }
         // Let it run for a bit (in virtual time/test dispatcher)
         // Since it's a tight loop without delays, it might run many iterations instantly
-        
+
         runner.stop("Infinite")
         job.join()
-        
-        val count = scope.registers["GlobalCounter"]?.double ?: 0.0
-        assertTrue(count > 0)
+
+        val count = scope.read("GlobalCounter").double ?: 0.0
+        assertTrue(count > 0, "GlobalCounter should increment, but got $count")
         assertTrue(!runner.isRunning("Infinite"))
     }
 
@@ -120,7 +127,7 @@ class IlEmulatorTest {
 
         val project = IlParser.parseProject(source)
         val runner = IlRunner(scope, project)
-        
+
         runner.start("Prog1").join()
         runner.start("Prog2").join()
 

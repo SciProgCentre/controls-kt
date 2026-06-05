@@ -9,7 +9,7 @@ description = """
 
 kscience {
     jvm()
-//    js()
+    js()
 //    native()
 //    wasm()
     useCoroutines()

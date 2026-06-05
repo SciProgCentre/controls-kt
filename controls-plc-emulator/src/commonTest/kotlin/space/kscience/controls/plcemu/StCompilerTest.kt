@@ -4,6 +4,7 @@ import space.kscience.dataforge.meta.int
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class StCompilerTest {
 
@@ -22,21 +23,21 @@ class StCompilerTest {
         val ilProject = StCompiler.compile(st)
         val program = ilProject.programs.find { it.name == "Test" }
         assertNotNull(program)
-        
+
         assertEquals(2, program.variables.size)
         assertEquals("A", program.variables[0].name)
         assertEquals("B", program.variables[1].name)
-        
+
         // Expected IL:
         // LD B
         // ADD 5
         // ST A
-        
+
         val instructions = program.instructions
         assertEquals("LD", instructions[0].operator)
         assertEquals("B", (instructions[0].operand as IlOperand.Variable).name)
         assertEquals("ADD", instructions[1].operator)
-        assertEquals(5, (instructions[1].operand as IlOperand.Constant).value.value?.int) 
+        assertEquals(5, (instructions[1].operand as IlOperand.Constant).value.value?.int)
         assertEquals("ST", instructions[2].operator)
         assertEquals("A", (instructions[2].operand as IlOperand.Variable).name)
     }
@@ -60,9 +61,9 @@ class StCompilerTest {
         val ilProject = StCompiler.compile(st)
         val program = ilProject.programs.find { it.name == "Test" }
         assertNotNull(program)
-        
+
         // Just verify it compiles and has some instructions
-        assert(program.instructions.isNotEmpty())
+        assertTrue { program.instructions.isNotEmpty() }
     }
 
     @Test
@@ -91,17 +92,17 @@ class StCompilerTest {
         val ilProject = StCompiler.compile(st)
         val main = ilProject.programs.find { it.name == "Main" }
         assertNotNull(main)
-        
+
         val instructions = main.instructions
         // Expected for FB1(IN1 := 5):
         // LD 5
         // ST FB1.IN1
         // CAL FB1
-        
+
         val calIndex = instructions.indexOfFirst { it.operator == "CAL" }
-        assert(calIndex > 0)
+        assertTrue { calIndex > 0 }
         assertEquals("FB1", (instructions[calIndex].operand as IlOperand.Variable).name)
-        assertEquals("ST", instructions[calIndex-1].operator)
-        assertEquals("FB1.IN1", (instructions[calIndex-1].operand as IlOperand.Variable).name)
+        assertEquals("ST", instructions[calIndex - 1].operator)
+        assertEquals("FB1.IN1", (instructions[calIndex - 1].operand as IlOperand.Variable).name)
     }
 }
