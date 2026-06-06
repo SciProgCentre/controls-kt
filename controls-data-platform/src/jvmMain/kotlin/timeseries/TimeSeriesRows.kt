@@ -6,16 +6,21 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import space.kscience.attributes.SafeType
 import space.kscience.attributes.safeTypeOf
+import space.kscience.controls.dataplatform.DataPlatform.Companion.timeColumnHeader
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaReader
 import space.kscience.dataforge.meta.Value
 import space.kscience.tables.*
+import kotlin.time.Instant
 
 public typealias TimeSeriesValues<T> = ValueWithTime<Map<String, T>>
 
-internal fun <T> TimeSeriesValues<T>.toRow(): Row<T> = MapRow(value)
+public fun Meta(time: Instant): Meta = Meta(time.toString())
+
+internal fun TimeSeriesValues<Meta>.toRow(): Row<Meta> = MapRow(value + (timeColumnHeader.name to Meta(time)))
+
 
 /**
  * A source of time series rows
@@ -35,7 +40,7 @@ public interface TimeSeriesRows<T> {
 /**
  * Collect [rowNum] rows from the source and represent them as a table
  */
-public suspend fun <T> TimeSeriesRows<T>.collectTable(rowNum: Int): RowTable<T> {
+public suspend fun  TimeSeriesRows<Meta>.collectTable(rowNum: Int): RowTable<Meta> {
     val rows = subscribe().map {
         it.toRow()
     }.take(rowNum).toList()

@@ -8,7 +8,6 @@ import space.kscience.controls.modbus.readInputRegister
 import space.kscience.controls.modbus.readInputRegisters
 import space.kscience.dataforge.io.DoubleIOFormat
 import space.kscience.dataforge.meta.Meta
-import storage.ColumnCompression
 
 /**
  * A property that is exposed as a Modbus register

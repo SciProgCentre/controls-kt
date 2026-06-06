@@ -1,4 +1,4 @@
-package storage
+package space.kscience.controls.dataplatform.storage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -7,12 +7,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.dataplatform.DataPlatform
-import space.kscience.controls.dataplatform.storage.RowsEnvelopeConverter
+import space.kscience.controls.dataplatform.RowsCompression
+import space.kscience.controls.dataplatform.compress
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.dataplatform.timeseries.toRow
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.set
 import space.kscience.tables.RowTable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -58,9 +60,8 @@ public fun DataPlatform.flowBinaryData(
 
             val table = RowTable(rows.headers, rowBuffer.map { it.toRow() })
             val envelope = converter.writeRows(table, Meta {
-                "time" put now.toString()
-                "startTime" put rowBuffer.first().time.toString()
-                "endTime" put rowBuffer.last().time.toString()
+                set(RowEnvelopeMetaSpec.startTime, rowBuffer.first().time)
+                set(RowEnvelopeMetaSpec.endTime, rowBuffer.last().time)
                 "numberOfRows" put rowBuffer.size
                 "readInterval" put readInterval.toString()
                 "maxRows" put maxRows

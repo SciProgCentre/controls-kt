@@ -1,4 +1,4 @@
-package storage
+package space.kscience.controls.dataplatform
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

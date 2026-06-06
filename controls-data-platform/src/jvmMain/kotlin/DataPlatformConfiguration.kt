@@ -6,11 +6,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
+import space.kscience.controls.dataplatform.storage.DataPlatformFileSplit
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
-import storage.ColumnCompression
-import storage.DataPlatformFileSplit
-import storage.RowsCompression
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds

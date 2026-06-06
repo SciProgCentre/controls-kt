@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
 import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 /**
  * A converter implementation for transforming rows of data into a compressed envelope format
@@ -69,7 +70,7 @@ public class ZipRowsEnvelopeConverter<T>(
     }
 
     override fun readRows(envelope: Envelope): Rows<T> {
-        require(envelope.dataType != envelopeType) { "Envelope data type should be $envelopeType" }
+        require(envelope.dataType == envelopeType) { "Envelope data type should be $envelopeType" }
 
         val header: TableHeader<T> = envelope.meta.getIndexedList("@header.column".parseAsName()).map { item ->
             SimpleColumnHeader(item["name"].string ?: "default", type, item["meta"] ?: Meta.EMPTY)
@@ -89,6 +90,8 @@ public class ZipRowsEnvelopeConverter<T>(
 
         public const val ENVELOPE_TYPE: String = "rows.meta.zip"
         public const val TYPE: String = "envelope.${ENVELOPE_TYPE}"
+
+        public val meta: ZipRowsEnvelopeConverter<Meta> =  ZipRowsEnvelopeConverter(MetaConverter.meta, typeOf<Meta>())
     }
 
 }

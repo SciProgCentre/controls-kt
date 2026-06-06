@@ -6,7 +6,6 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import space.kscience.dataforge.names.plus
-import storage.RowsCompression
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
