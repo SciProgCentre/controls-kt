@@ -1,11 +1,9 @@
+package space.kscience.controls.dataplatform
+
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
-import space.kscience.controls.dataplatform.ColumnCompression
-import space.kscience.controls.dataplatform.DataPlatform
-import space.kscience.controls.dataplatform.RowsCompression
-import space.kscience.controls.dataplatform.compress
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime

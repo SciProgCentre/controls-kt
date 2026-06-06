@@ -163,7 +163,7 @@ public class NativeFileEnvelopeOperations(
                     Files.newDirectoryStream(currentFile).use { directoryStream ->
                         directoryStream.forEach { child: Path ->
                             val childName = child.fileName.toString().removeSuffix(metaExtension).removeSuffix(".$FILE_EXTENSION")
-                            yield((currentName + childName) to child)
+                            queue.add((currentName + childName) to child)
                         }
                     }
                 }

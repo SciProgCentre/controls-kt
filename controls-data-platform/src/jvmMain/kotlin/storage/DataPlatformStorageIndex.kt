@@ -66,7 +66,41 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 }
 
 /**
+ * A class that represents an index for a data platform's storage, providing capabilities for
+ * managing, querying, and maintaining intervals of stored data. The class organizes data by
+ * intervals and supports both querying and real-time updates to the index.
  *
+ * @property io The IOPlugin used for file system interactions such as reading or monitoring files.
+ * @property dataDirectory The directory where data files are stored and monitored.
+ * @property cacheMetadata A flag indicating whether metadata should be cached for storage efficiency.
+ * @property operations An instance of FileEnvelopeOperations to handle reading and writing envelope data.
+ * @property rowsConverter A converter responsible for transforming envelopes into rows with metadata.
+ * @property scope A CoroutineScope used for managing asynchronous operations.
+ * @property removeFilesCycleDuration The duration interval for periodically checking and handling removed files.
+ *
+ * Implements:
+ * - [ContextAware] to provide context for the operations performed in the index.
+ * - [AutoCloseable] to ensure resources can be managed and released appropriately.
+ *
+ * Key Features:
+ * 1. **Interval-Based Storage**:
+ *    - Maintains data in intervals with start and end times and organizes them efficiently for search and retrieval.
+ *    - Uses an AVL tree structure for balanced interval organization, supporting fast insert, remove, and search operations.
+ *
+ * 2. **Querying Capabilities**:
+ *    - `selectEnvelopes`: Queries and retrieves envelope data that intersects with a specified time range.
+ *    - `selectRows`: Queries and organizes rows within a specific time range, ensuring continuity across intervals.
+ *
+ * 3. **Data Insertion and Removal**:
+ *    - Supports adding new data intervals and dynamically updating the index tree.
+ *    - Handles safe removal of intervals while maintaining balanced tree operations.
+ *
+ * 4. **Asynchronous Monitoring**:
+ *    - Monitors the `dataDirectory` for real-time changes, supporting automatic indexing of new files and tracking deletions.
+ *
+ * 5. **Synchronization and Cleanup**:
+ *    - Employs a coroutine-based lifecycle, ensuring safety and concurrency for operations.
+ *    - Periodically scans for and removes outdated or deleted files from the index.
  */
 public class DataPlatformStorageIndex(
     public val io: IOPlugin,
@@ -94,6 +128,9 @@ public class DataPlatformStorageIndex(
     private var root: IntervalNode? = null
 
 
+    /**
+     * Select row envelopes in [range]
+     */
     public fun selectEnvelopes(range: ClosedRange<Instant>): List<Envelope> =
         search(range).sortedBy { it.start }.mapNotNull { operations.readEnvelope(it.path) }
 

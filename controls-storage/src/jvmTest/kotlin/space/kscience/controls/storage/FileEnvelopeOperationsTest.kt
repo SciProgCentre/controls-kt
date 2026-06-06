@@ -8,6 +8,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import java.nio.file.Path
+import kotlin.io.path.exists
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -74,6 +75,55 @@ class FileEnvelopeOperationsTest {
         val iterated = operations.iterate(tempDir).toList()
         assertEquals(1, iterated.size)
         assertEquals(name, iterated[0].first)
+    }
+
+    @Test
+    fun testSingleFileWithSubdirectories() {
+        val operations = SingleFileEnvelopeOperations(ioPlugin)
+        val envelope = Envelope(Meta { "key" put "value" }, null)
+        val name = "sub.dir.test".parseAsName()
+        operations.writeEnvelope(name, tempDir, envelope)
+
+        assertTrue(tempDir.resolve("sub/dir/test.df").exists())
+
+        val iterated = operations.iterate(tempDir).toList()
+        assertEquals(1, iterated.size)
+        assertEquals(name, iterated[0].first)
+    }
+
+    @Test
+    fun testNativeFileWithSubdirectories() {
+        val operations = NativeFileEnvelopeOperations(ioPlugin)
+        val envelope = Envelope(
+            Meta { "key" put "value" },
+            "Hello".toByteArray().asBinary()
+        )
+        val name = "sub.dir.test".parseAsName()
+        operations.writeEnvelope(name, tempDir, envelope)
+
+        assertTrue(tempDir.resolve("sub/dir/test.df.json").exists())
+        assertTrue(tempDir.resolve("sub/dir/test").exists())
+
+        val iterated = operations.iterate(tempDir).toList()
+        assertEquals(1, iterated.size)
+        assertEquals(name, iterated[0].first)
+    }
+
+    @Test
+    fun testMixedSubdirectories() {
+        val singleOps = SingleFileEnvelopeOperations(ioPlugin)
+        val nativeOps = NativeFileEnvelopeOperations(ioPlugin)
+        val envelope = Envelope(Meta { "key" put "value" }, null)
+
+        singleOps.writeEnvelope("a.b.c1".parseAsName(), tempDir, envelope)
+        nativeOps.writeEnvelope("a.b.c2".parseAsName(), tempDir, envelope)
+        singleOps.writeEnvelope("a.d.e".parseAsName(), tempDir, envelope)
+
+        val iterated = nativeOps.iterate(tempDir).toList()
+        assertEquals(3, iterated.size)
+        assertTrue(iterated.any { it.first == "a.b.c1".parseAsName() })
+        assertTrue(iterated.any { it.first == "a.b.c2".parseAsName() })
+        assertTrue(iterated.any { it.first == "a.d.e".parseAsName() })
     }
 
     /*
