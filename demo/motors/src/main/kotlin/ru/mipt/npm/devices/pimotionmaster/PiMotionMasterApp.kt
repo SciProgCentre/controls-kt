@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.spec.execute
 import space.kscience.controls.spec.read
 import space.kscience.dataforge.context.Context
@@ -191,7 +191,7 @@ fun main() = application {
     val deviceManager: DeviceManager = context.request(DeviceManager)
 
     // install device
-    val motionMaster = deviceManager.installNode("motionMaster", PiMotionMaster)
+    val motionMaster = deviceManager.installTree("motionMaster", PiMotionMaster)
 
     Window(
         title = "Pi motion master demo",

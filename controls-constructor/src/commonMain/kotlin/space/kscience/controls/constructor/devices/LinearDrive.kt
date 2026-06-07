@@ -24,7 +24,7 @@ public class LinearDrive(
     public val position: ValueState<NumericAmount<Meters>> by property(MetaConverter.numeric(Meters), position)
 
     public val drive: Drive by device(drive)
-    public val pid: PidRegulator<Meters, NewtonsMeters>  = model(
+    public val pid: PidRegulator<Meters, NewtonsMeters>  = child(
         PidRegulator(
             context = context,
             position = position,

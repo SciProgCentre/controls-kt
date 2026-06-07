@@ -278,7 +278,7 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
 
 
 /**
- * A device specification that provides a builder for device instance that adheres to this specification
+ * A device specification that provides a builder for a device instance that adheres to this specification
  *
  * @param S the type of device state
  */

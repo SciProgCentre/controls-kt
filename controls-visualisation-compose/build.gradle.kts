@@ -1,5 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
-
 plugins {
     id("space.kscience.gradle.mpp")
     alias(spclibs.plugins.compose.compiler)
@@ -14,17 +12,15 @@ description = """
 kscience {
     jvm()
     useSerialization()
-    useContextParameters()
     commonMain {
         api(projects.controlsConstructor)
         api(libs.lets.plot.kotlin.kernel)
         api(libs.lets.plot.common)
         api(libs.lets.plot.compose)
-        api(compose.foundation)
-        api(compose.material3)
-        api(compose.materialIconsExtended)
-        @OptIn(ExperimentalComposeLibrary::class)
-        api(compose.desktop.components.splitPane)
+        api("org.jetbrains.compose.foundation:foundation")
+        api("org.jetbrains.compose.material3:material3:1.9.0")
+        api("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+        api("org.jetbrains.compose.components:components-splitpane:1.11.1")
     }
 }
 

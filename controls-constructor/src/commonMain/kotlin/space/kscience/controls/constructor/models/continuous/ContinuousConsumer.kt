@@ -58,7 +58,7 @@ private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
     override val consumationCapacity: ValueState<AmountPerSecond<U>>,
-) : ModelConstructor(context), ContinuousConsumer<U, T> {
+) : DeviceConstructor(context), ContinuousConsumer<U, T> {
 
     override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
         LateBindValueState(consumerAlgebra.zero.perSecond)
@@ -101,10 +101,10 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
     capacity: ValueState<AmountPerSecond<U>>,
     modelName: Name? = null
-): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, capacity), modelName)
+): ContinuousConsumer<U, T> = child(ContinuousConsumerImpl(context, algebra, capacity), modelName)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
     capacity: AmountPerSecond<U>,
     modelName: Name? = null
-): ContinuousConsumer<U, T> = model(ContinuousConsumerImpl(context, algebra, ValueState(capacity)), modelName)
+): ContinuousConsumer<U, T> = child(ContinuousConsumerImpl(context, algebra, ValueState(capacity)), modelName)

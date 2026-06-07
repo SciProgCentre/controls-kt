@@ -11,7 +11,6 @@ description = """
 
 kscience {
     jvm()
-    useContextParameters()
     jvmMain {
         api(projects.controlsCore)
         api(libs.j2mod)

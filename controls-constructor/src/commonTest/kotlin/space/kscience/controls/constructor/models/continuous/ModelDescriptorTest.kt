@@ -1,5 +1,6 @@
 package space.kscience.controls.constructor.models.continuous
 
+import space.kscience.controls.constructor.states
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.kilograms
 import space.kscience.dataforge.context.Context

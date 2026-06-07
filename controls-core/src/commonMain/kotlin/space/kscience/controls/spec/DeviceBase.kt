@@ -8,7 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
 import space.kscience.controls.time.clock
-import space.kscience.controls.time.simulationDispatcher
+import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.error
@@ -58,7 +58,7 @@ public abstract class DeviceBase(
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
                 CoroutineName("Device $id") +
-                context.simulationDispatcher +
+                context.deviceDispatcher +
                 CoroutineExceptionHandler { _, throwable ->
                     launch {
                         sharedMessageFlow.emit(

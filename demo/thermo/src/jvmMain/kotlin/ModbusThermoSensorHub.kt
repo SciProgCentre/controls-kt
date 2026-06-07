@@ -4,7 +4,7 @@ import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
 import space.kscience.controls.api.Device
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.dataforge.context.Context
 
@@ -47,7 +47,7 @@ class ModbusThermoSensorHub(
             ),
             analyzerConfig = ThermoSensorAnalyzerConfig.combine(sensorConfig.analyzer, configuration.analyzerDefault)
         ).also { sensor ->
-            deviceManager.installNode(name, sensor)
+            deviceManager.installTree(name, sensor)
         }
     }
 
@@ -61,7 +61,7 @@ class ModbusThermoSensorHub(
                 sensorList.map { sensors[it] ?: error("Thermo sensor $it not found in hub") },
                 groupConfig
             ).also {
-                deviceManager.installNode("group[$name]", it)
+                deviceManager.installTree("group[$name]", it)
             }
         }
 

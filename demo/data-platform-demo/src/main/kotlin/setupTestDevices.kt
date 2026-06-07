@@ -8,7 +8,7 @@ import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.onLifecycleEvent
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.modbus.ModbusRegistryMap
 import space.kscience.controls.modbus.bindProcessImage
 import space.kscience.controls.opcua.server.OpcUaServer
@@ -74,7 +74,7 @@ private fun DeviceManager.setupOpcTestDevices(
         opcGroup.install(deviceName, testDevice)
     }
 
-    installNode("opc", opcGroup)
+    installTree("opc", opcGroup)
 
     //start opc server
     val opcServer = OpcUaServer {
@@ -129,7 +129,7 @@ private fun DeviceManager.setupModbusDevices(
         modbusSlave.addProcessImage(deviceNum + 1, processImage)
     }
 
-    installNode("modbus", modbusGroup)
+    installTree("modbus", modbusGroup)
 
     modbusSlave.open()
 

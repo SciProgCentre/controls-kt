@@ -9,7 +9,7 @@ import space.kscience.controls.dataplatform.DataPlatformConfiguration
 import space.kscience.controls.dataplatform.PlatformProperty
 import space.kscience.controls.dataplatform.buildDeviceGroup
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.opcua.server.read
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
@@ -77,5 +77,5 @@ fun DeviceManager.installFromConfiguration(
         )
     )
     val device = platform.buildDeviceGroup(deviceConfiguration)
-    return installNode(deviceName, device)
+    return installTree(deviceName, device)
 }

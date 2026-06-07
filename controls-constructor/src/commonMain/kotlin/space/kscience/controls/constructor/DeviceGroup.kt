@@ -5,10 +5,11 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.time.clock
+import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
@@ -66,6 +67,7 @@ public open class DeviceGroup(
     @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
+                context.deviceDispatcher +
                 CoroutineName("Device $id") +
                 CoroutineExceptionHandler { _, throwable ->
                     context.launch {
@@ -238,7 +240,7 @@ public fun DeviceManager.registerDeviceGroup(
     block: DeviceGroup.() -> Unit,
 ): DeviceGroup {
     val group = DeviceGroup(context, meta).apply(block)
-    installNode(name, group)
+    installTree(name, group)
     return group
 }
 

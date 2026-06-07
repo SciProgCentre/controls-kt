@@ -60,7 +60,7 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
     override val producerAlgebra: AmountAlgebra<U, T>,
     override val productionCapacity: ValueState<PerSecond<U,T>>,
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero()),
-) : ModelConstructor(context), ContinuousProducer<U, T> {
+) : DeviceConstructor(context), ContinuousProducer<U, T> {
 
     init {
         registerState(productionCapacity, "production.capacity".parseAsName(true))
@@ -101,10 +101,10 @@ public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
     capacity: ValueState<PerSecond<U,T>>,
     modelName: Name? = null
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, capacity), modelName)
+): ContinuousProducer<U, T> = child(ContinuousProducerImpl(context, algebra, capacity), modelName)
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
     capacity: PerSecond<U,T>,
     modelName: Name? = null
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, ValueState(capacity)), modelName)
+): ContinuousProducer<U, T> = child(ContinuousProducerImpl(context, algebra, ValueState(capacity)), modelName)

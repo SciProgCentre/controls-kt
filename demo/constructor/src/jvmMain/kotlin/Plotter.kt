@@ -24,7 +24,10 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.*
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.combineState
+import space.kscience.controls.constructor.device
 import space.kscience.controls.constructor.devices.LimitSwitch
 import space.kscience.controls.constructor.devices.StepDrive
 import space.kscience.controls.constructor.devices.angle
@@ -116,7 +119,7 @@ private data class PlotterPoint(
 private class PlotterModel(
     context: Context,
     val callback: (PlotterPoint) -> Unit,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
 
     private val xDrive = StepDrive(context, ticksPerSecond)
     private val xTransmission = Leadscrew(context, NumericAmount(0.01))

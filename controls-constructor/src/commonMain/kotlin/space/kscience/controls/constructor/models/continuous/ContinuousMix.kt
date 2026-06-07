@@ -33,7 +33,7 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val supplyKeys: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : ModelConstructor(context), ContinuousProducer<U, T> {
+) : DeviceConstructor(context), ContinuousProducer<U, T> {
 
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
 
@@ -190,4 +190,4 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.mix(
     supplyKeys: Collection<String>,
     modelName: Name? = null,
     joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-): ContinuousMix<U, T> = model(ContinuousMix(context, algebra, supplyKeys, joinManagementStrategy), modelName)
+): ContinuousMix<U, T> = child(ContinuousMix(context, algebra, supplyKeys, joinManagementStrategy), modelName)

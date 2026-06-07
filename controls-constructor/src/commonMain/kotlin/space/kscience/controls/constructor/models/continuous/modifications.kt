@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
+import space.kscience.controls.time.clock
 import kotlin.time.Duration
 
 /**
@@ -172,7 +173,7 @@ context(container: Constructor, algebra: AmountAlgebra<U, T>)
 public fun <U : UnitsOfMeasurement, T : Amount<U>> ValueState<PerSecond<U, T>>.collectAmountAsync(
     duration: Duration
 ): Deferred<T> = container.async {
-    val clock = container.clock
+    val clock = container.context.clock
     var sum: T = algebra.zero
     var lastValue: PerSecond<U, T> = value
     var lastTime = clock.now()

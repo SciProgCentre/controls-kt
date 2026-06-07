@@ -34,7 +34,7 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(AmountPerSecond.zero()),
     initialLevel: T = consumerAlgebra.zero,
     externalTimer: TimerState? = null,
-) : ModelConstructor(context),
+) : DeviceConstructor(context),
     ContinuousProducer<U, T>,
     ContinuousConsumer<U, T> {
 
@@ -141,7 +141,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(
     initialLevel: T = algebra.zero,
     externalTimer: TimerState? = null,
     modelName: Name? = null
-): ContinuousBuffer<U, T> = model(
+): ContinuousBuffer<U, T> = child(
     ContinuousBuffer(
         context = context,
         consumerAlgebra = algebra,

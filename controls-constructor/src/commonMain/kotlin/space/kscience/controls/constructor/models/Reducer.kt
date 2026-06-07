@@ -15,7 +15,7 @@ public class Reducer(
     public val ratio: Double,
     public val input: ValueState<NumericAmount<Degrees>>,
     public val output: MutableValueState<NumericAmount<Degrees>>,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
     init {
         registerState(input, "input".asName())
         registerState(output, "output".asName())

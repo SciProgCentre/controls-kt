@@ -1,8 +1,10 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.withContext
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
@@ -157,4 +159,21 @@ public fun <T, S : ValueState<T>> DeviceConstructor.registerAsProperty(
 ): S {
     registerProperty(spec.converter, spec.descriptor, state)
     return state
+}
+
+/**
+ * Run simulation using context simulation dispatcher
+ */
+public suspend fun <C : Constructor> C.runSimulation(
+    block: suspend C.() -> Unit
+) {
+    withContext(context.deviceDispatcher) {
+        block()
+    }
+}
+
+
+public fun <T : Constructor> DeviceConstructor.child(model: T, name: Name? = null): T {
+    registerElement(ChildConstructorElement(name, model))
+    return model
 }

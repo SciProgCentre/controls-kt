@@ -45,7 +45,7 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
     public val rule: SeparationRule<U, T>,
-) : ModelConstructor(context), ContinuousConsumer<U, T> {
+) : DeviceConstructor(context), ContinuousConsumer<U, T> {
 
     override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
         LateBindValueState(consumerAlgebra.zero.perSecond)
@@ -137,4 +137,4 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.separator(
     algebra: AmountAlgebra<U, T>,
     separationRule: SeparationRule<U, T>,
     modelName: Name? = null
-): ContinuousSeparate<U, T> = model(ContinuousSeparate<U, T>(context, algebra, separationRule), modelName)
+): ContinuousSeparate<U, T> = child(ContinuousSeparate<U, T>(context, algebra, separationRule), modelName)

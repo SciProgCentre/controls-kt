@@ -78,7 +78,7 @@ public class ContinuousReaction<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val reaction: ReactionRule<U, T>,
-) : ModelConstructor(context), ContinuousProducer<U, T> {
+) : DeviceConstructor(context), ContinuousProducer<U, T> {
 
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
     public val supplyRequest: Map<String, LateBindValueState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith {
@@ -211,7 +211,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
     reaction: ReactionRule<U, T>,
     modelName: Name? = null
-): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction), modelName)
+): ContinuousReaction<U, T> = child(ContinuousReaction(context, algebra, reaction), modelName)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
@@ -219,7 +219,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     production: PerSecond<U, T>,
     productKey: String = "@product",
     modelName: Name? = null
-): ContinuousReaction<U, T> = model(
+): ContinuousReaction<U, T> = child(
     ContinuousReaction(
         context, algebra,
         reaction = formula(

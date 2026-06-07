@@ -1,5 +1,7 @@
 package space.kscience.controls.constructor.expressions
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.LifecycleState
@@ -7,7 +9,7 @@ import space.kscience.controls.api.awaitLifecycleState
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.virtualProperty
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.installTree
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.asName
@@ -53,11 +55,16 @@ class StateExpressionTest {
         }
         val device = TestDevice(context)
 
-        context.installNode("test", device)
-        device.awaitLifecycleState(LifecycleState.STARTING)
+        launch {
+            device.awaitLifecycleState(LifecycleState.STARTING)
 
-        assertEquals(3.0, device.zState.value)
+            assertEquals(3.0, device.zState.value)
 
-        context.close()
+            context.close()
+        }
+        delay(10.milliseconds)
+
+        context.installTree("test", device)
+
     }
 }

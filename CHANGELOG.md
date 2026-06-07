@@ -16,6 +16,7 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- **BREAKING** Removed Model and replaced it with Device.
 - **BREAKING** DeviceHub is renamed to `DeviceTree`, has optional `rootDevice` and its children are `DeviceTree`s instead of `Device`s.
 - **BREAKING** DeviceHub works with string device names instead of `Name`.
 - ValueState now works both with and without time mark. Time is automatically provided and could be accessed with several new methods. 
