@@ -20,7 +20,7 @@ val source = """
     ADD 20
     ST result
 """
-scope.launchIl(source).join()
+scope.launchIlBlock(source).join()
 ```
 
 For more details, see the [IL specification](docs/il-emulator-spec.md) and [ST specification](docs/st-emulator-spec.md).

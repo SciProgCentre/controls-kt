@@ -32,16 +32,15 @@ public class IlRuntime(
 
     private var isFinished = false
 
-    private val localVariables = mutableMapOf<String, Meta>().apply {
-        program.variables.forEach { v ->
-            put(v.name, v.initialValue ?: Meta.EMPTY)
-        }
+    private val localVariables = program.variables.associateTo(mutableMapOf<String, Meta>()) { v ->
+        v.name to (v.initialValue ?: Meta.EMPTY)
     }
+
 
     private fun Meta.toBoolean(): Boolean = value?.boolean ?: error("Invalid boolean value in Meta: $this")
     private fun Meta.toDouble(): Double = value?.double ?: error("Invalid double value in Meta: $this")
-    private fun Boolean.asMeta(): Meta = Meta(this.asValue())
-    private fun Double.asMeta(): Meta = Meta(this.asValue())
+    private fun Boolean.asMeta(): Meta = Meta(this)
+    private fun Double.asMeta(): Meta = Meta(this)
 
     private suspend fun readOperand(operand: IlOperand?): Meta = when (operand) {
         is IlOperand.Constant -> operand.value
@@ -49,6 +48,7 @@ public class IlRuntime(
             val name = operand.name
             localVariables[name] ?: scope.read(name)
         }
+
         is IlOperand.Label -> Meta(operand.label.asValue())
         null -> Meta.EMPTY
     }
@@ -236,22 +236,22 @@ public class IlRunner(
 /**
  * Launch an IL program block in a new coroutine Job.
  */
-public fun PlcState.launchIl(
+public fun PlcState.launchIlBlock(
     program: IlProgramBlock,
     customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ): Job = launch {
-    IlRuntime(program, this@launchIl, customOperators).run()
+    IlRuntime(program, this@launchIlBlock, customOperators).run()
 }
 
 /**
  * Parse and launch an IL project in a new coroutine Job (launches all programs).
  */
-public fun PlcState.launchIl(
+public fun PlcState.launchIlBlock(
     source: String,
     customOperators: Map<String, suspend IlRuntime.(IlInstruction) -> Unit> = emptyMap()
 ): List<Job> {
     val project = IlParser.parseProject(source)
     return project.programs.map { program ->
-        launchIl(program, customOperators)
+        launchIlBlock(program, customOperators)
     }
 }

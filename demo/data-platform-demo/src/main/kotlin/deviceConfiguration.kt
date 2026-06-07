@@ -13,11 +13,13 @@ import space.kscience.controls.manager.installNode
 import space.kscience.controls.opcua.server.read
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
+import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.*
 import kotlin.io.path.Path
 import kotlin.io.path.writeText
 
 
+@OptIn(DFExperimental::class)
 internal fun createDeviceConfiguration(configuration: DataPlatformConfiguration): DeviceConfiguration {
     val blocks = configuration.properties.mapKeys { it.key.parseAsName() }.entries
         .groupBy { (tag, property) ->
