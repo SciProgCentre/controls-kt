@@ -15,7 +15,6 @@ dependencies {
     implementation(projects.controlsVisualisationCompose)
 
     implementation(libs.plotlykt.server)
-    implementation(libs.koala.plots)
 
     implementation(compose.runtime)
     implementation(compose.desktop.currentOs)

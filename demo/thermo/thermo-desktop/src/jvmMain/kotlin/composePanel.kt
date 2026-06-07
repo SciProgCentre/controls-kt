@@ -15,28 +15,20 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import io.github.koalaplot.core.ChartLayout
-import io.github.koalaplot.core.Symbol
-import io.github.koalaplot.core.legend.FlowLegend
-import io.github.koalaplot.core.legend.LegendLocation
-import io.github.koalaplot.core.style.LineStyle
-import io.github.koalaplot.core.util.ExperimentalKoalaPlotApi
-import io.github.koalaplot.core.util.generateHueColorPalette
-import io.github.koalaplot.core.xygraph.XYGraph
-import io.github.koalaplot.core.xygraph.rememberDoubleLinearAxisModel
-import kotlinx.datetime.*
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format.Padding
 import kotlinx.datetime.format.char
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
-import space.kscience.controls.compose.PlotNumberState
-import space.kscience.controls.compose.TimeAxisModel
 import space.kscience.controls.compose.asComposeState
+import space.kscience.controls.compose.letsplot.PlotNumberState
+import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -64,7 +56,7 @@ private val timeFormat = LocalDateTime.Format {
     second(padding = Padding.ZERO)
 }
 
-@OptIn(ExperimentalSplitPaneApi::class, ExperimentalKoalaPlotApi::class)
+@OptIn(ExperimentalSplitPaneApi::class)
 @Composable
 private fun MainScreen(hub: ThermoSensorHub, config: ThermoSensorHubConfig) {
 
@@ -147,42 +139,19 @@ private fun MainScreen(hub: ThermoSensorHub, config: ThermoSensorHubConfig) {
             }
         }
         second(400.dp) {
-            val palette = generateHueColorPalette(plotEnabled.size)
-            ChartLayout(
-                legend = {
-                    if (plotEnabled.isNotEmpty()) {
-                        FlowLegend(
-                            plotEnabled.size,
-                            label = {
-                                Text(plotEnabled[it], color = palette[it])
-                            },
-                            symbol = { i ->
-                                Symbol(
-                                    modifier = Modifier.size(5.dp),
-                                    fillBrush = SolidColor(palette[i])
-                                )
-                            },
-                        )
-                    }
-                },
-                legendLocation = LegendLocation.BOTTOM
+            TimeSeriesPlot(
+                modifier = Modifier.fillMaxSize(),
+                xAxisTitle = "Time",
+                yAxisTitle = "Temperature"
             ) {
-                XYGraph<Instant, Double>(
-                    xAxisModel = remember { TimeAxisModel.recent(maxAge, hub.context.clock, 100.dp) },
-                    yAxisModel = rememberDoubleLinearAxisModel(-10.0..110.0, minimumMajorTickIncrement = 10.0),
-                    xAxisTitle = "Time",
-                    xAxisLabels = { time -> time.toLocalDateTime(TimeZone.currentSystemDefault()).format(timeFormat) },
-                    yAxisLabels = { value -> String.format("%.2f", value) }
-                ) {
-                    plotEnabled.forEachIndexed { index, sensorName ->
-                        hub.sensors[sensorName]?.let { sensor ->
-                            PlotNumberState(
-                                context = hub.context,
-                                state = sensor.temperature,
-                                maxAge = maxAge,
-                                lineStyle = LineStyle(SolidColor(palette[index]))
-                            )
-                        }
+                plotEnabled.forEach { sensorName ->
+                    hub.sensors[sensorName]?.let { sensor ->
+                        PlotNumberState(
+                            context = hub.context,
+                            state = sensor.temperature,
+                            name = sensorName,
+                            maxAge = maxAge,
+                        )
                     }
                 }
             }

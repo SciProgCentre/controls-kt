@@ -7,23 +7,23 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
 ## What’s inside
 
 - API
-  - Device: the main lifecycle-aware, coroutine-scope interface to read/write properties and execute actions.
-  - DeviceMessage: a sealed message model to describe property changes, gets/sets, action execution/results, logging, lifecycle, and binary notifications.
-  - DeviceHub: a tree-like composition of devices that routes messages and aggregates descriptions.
+  - [Device](./device.md): the main lifecycle-aware, coroutine-scope interface to read/write properties and execute actions.
+  - [DeviceMessage](./deviceMessage.md): a sealed message model to describe property changes, gets/sets, action execution/results, logging, lifecycle, and binary notifications.
+  - [DeviceHub](./deviceHub.md): a tree-like composition of devices that routes messages and aggregates descriptions.
   - WithLifeCycle: common lifecycle utilities for devices.
-- Spec (Type-safe DSL)
+- [Spec](./deviceSpec.md) (Type-safe DSL)
   - DeviceSpec, DeviceBase, DeviceBySpec: split of device description (specification) from its runtime state.
   - Property and Action descriptors, delegates for defining meta-backed, typed properties.
   - Helpers to create device instances from specs on each target.
-- Manager
+- [Manager](./deviceManager.md)
   - DeviceManager: DataForge DI integration and registry to build/find devices by names.
   - respondMessage: helper to respond to incoming DeviceMessage queries.
-- Ports
+- [Ports](./ports.md)
   - Asynchronous/Synchronous port abstractions to send and receive raw byte arrays.
   - Common helpers to build framed protocols and I/O extensions.
   - JVM implementations: ChannelPort, UdpSocketPort; Ktor and Serial implementations live in separate modules.
 - Time utilities
-  - ClockManager and resolveClock for platform clocks.
+  - [Clock Management](./clock.md): ClockManager for platform-independent time and simulations.
   - ValueWithTime and PropertyHistory to provide local device state history data.
   - VirtualTimeDispatcher: a virtual-time coroutine dispatcher useful for simulation and deterministic tests.
 - Peer
@@ -40,5 +40,5 @@ ${artifact}
 ## Notes
 
 - Maturity: EXPERIMENTAL (APIs may change).
-- This module uses DataForge Meta to represent values; see [dataforge-core](https://git.sciprog.center/kscience/dataforge-core) for details.
+- This module uses DataForge Meta to represent values; see [DataForge concepts](../../docs/DataForge.md) and [dataforge-core](https://git.sciprog.center/kscience/dataforge-core) for details.
 - For examples and demos, check the [demo](../demo) modules in the root project and controls-constructor for high-level composition and simulation.

@@ -73,3 +73,10 @@ val velocity by expression(
 ### Path Resolution
 When a device property returns a complex `Meta` object, you can use the `path` parameter in `StateExpression.Property` to extract a specific numeric value from it.
 
+## Demos and Tests
+
+- **Tests**: `../src/commonTest/kotlin/space/kscience/controls/constructor/expressions/StateExpressionTest.kt`
+- **Demos**: `../../demo/constructor`
+
+<!-- LLM generated code: Documentation for Property Expressions feature -->
+

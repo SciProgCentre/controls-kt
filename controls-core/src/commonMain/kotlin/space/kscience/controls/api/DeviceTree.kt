@@ -1,5 +1,8 @@
 package space.kscience.controls.api
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.*
 import space.kscience.dataforge.provider.Provider
@@ -95,3 +98,13 @@ public suspend fun DeviceTree.writeProperty(deviceName: Name, propertyName: Stri
 
 public suspend fun DeviceTree.execute(deviceName: Name, command: String, argument: Meta?): Meta? =
     resolveDevice(deviceName).execute(command, argument)
+
+
+/**
+ * Start all devices in the tree
+ */
+context(coroutineScope: CoroutineScope)
+public fun DeviceTree.start(): Job = coroutineScope.launch{
+    device?.start()
+    children.values.forEach { it.start() }
+}

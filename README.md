@@ -39,6 +39,7 @@ Example view of a demo:
 
 ## Documentation
 
+* [DataForge concepts](docs/DataForge.md)
 * [Creating a device](docs/Device%20and%20DeviceSpec.md)
 
 ## Modules

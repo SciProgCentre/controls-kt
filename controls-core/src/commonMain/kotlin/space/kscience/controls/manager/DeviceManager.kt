@@ -20,15 +20,19 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     /**
      * Actual list of connected devices
      */
-    private val _devices = HashMap<String, DeviceTree>()
-    override val children: Map<String, DeviceTree> get() = _devices
+    private val _children = HashMap<String, DeviceTree>()
+    override val children: Map<String, DeviceTree> get() = _children
 
     public fun registerNode(name: String, hub: DeviceTree) {
-        _devices[name] = hub
+        _children[name] = hub
     }
 
     public fun registerDevice(name: String, device: Device) {
-        registerNode(name, DeviceTree(device))
+        if (device is DeviceTree) {
+            registerNode(name, device)
+        } else {
+            registerNode(name, DeviceTree(device))
+        }
     }
 
     public companion object : PluginFactory<DeviceManager> {
@@ -46,7 +50,7 @@ public fun <D : Device> DeviceManager.install(name: String, device: D): D {
     return device
 }
 
-public fun <DN: DeviceTree> DeviceManager.installNode(name: String, node: DN): DN {
+public fun <DN : DeviceTree> DeviceManager.installNode(name: String, node: DN): DN {
     registerNode(name, node)
 
     fun DeviceTree.start() {
@@ -65,7 +69,8 @@ public fun <D : Device> DeviceManager.install(device: D): D = install(device.id,
 
 public fun <D : Device> Context.install(name: String, device: D): D = request(DeviceManager).install(name, device)
 
-public fun <DN: DeviceTree> Context.installNode(name: String, node: DN): DN = request(DeviceManager).installNode(name, node)
+public fun <DN : DeviceTree> Context.installNode(name: String, node: DN): DN =
+    request(DeviceManager).installNode(name, node)
 
 public fun <D : Device> Context.install(device: D): D = request(DeviceManager).install(device.id, device)
 

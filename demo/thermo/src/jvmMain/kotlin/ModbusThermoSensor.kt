@@ -24,7 +24,9 @@ import kotlin.time.Duration.Companion.seconds
 //    override suspend fun readTemperature(): Double = readInputRegister(address).toDouble() / 10.0
 //}
 
-
+/**
+ * Create a thermo sensor device
+ */
 @Suppress("FunctionName")
 fun ModbusThermoSensor(
     context: Context,
