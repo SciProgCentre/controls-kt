@@ -42,19 +42,19 @@ class CollectiveDevice(
 
     val id: CollectiveDeviceId get() = configuration.deviceId
 
-    val position = registerAsProperty(
+    val position = registerProperty(
         CollectiveDevice.position,
         position.sample(configuration.reportInterval.milliseconds)
     )
 
-    val velocity = registerAsProperty(
+    val velocity = registerProperty(
         CollectiveDevice.velocity,
         velocity.sample(configuration.reportInterval.milliseconds)
     )
 
     private val _visibleNeighbors: MutableValueState<Collection<CollectiveDeviceId>> = stateOf(emptyList())
 
-    val visibleNeighbors = registerAsProperty(
+    val visibleNeighbors = registerProperty(
         CollectiveDevice.visibleNeighbors,
         ValueState.map(_visibleNeighbors) { it.toList() }
     )

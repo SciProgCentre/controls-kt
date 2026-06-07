@@ -2,7 +2,7 @@ package space.kscience.controls.demo
 
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.constructor.DeviceConfiguration
-import space.kscience.controls.constructor.DeviceGroup
+import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.PropertyConfiguration
 import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.DataPlatformConfiguration
@@ -68,7 +68,7 @@ fun DeviceManager.installFromConfiguration(
     platform: DataPlatform,
     configuration: DataPlatformConfiguration,
     deviceName: String
-): DeviceGroup {
+): DeviceConstructor {
     val deviceConfiguration = createDeviceConfiguration(configuration)
     Path("data/device-config.json").writeText(
         json.encodeToString(

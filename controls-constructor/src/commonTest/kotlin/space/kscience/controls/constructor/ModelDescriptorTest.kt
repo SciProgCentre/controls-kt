@@ -1,6 +1,6 @@
-package space.kscience.controls.constructor.models.continuous
+package space.kscience.controls.constructor
 
-import space.kscience.controls.constructor.states
+import space.kscience.controls.constructor.models.continuous.ContinuousBuffer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.kilograms
 import space.kscience.dataforge.context.Context
