@@ -6,10 +6,9 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
-import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
-import io.ktor.server.engine.embeddedServer
 import io.ktor.server.html.respondHtml
+import io.ktor.server.plugins.openapi.openAPI
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
@@ -21,22 +20,21 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.util.getValue
 import io.ktor.server.websocket.WebSockets
-import kotlinx.coroutines.CoroutineScope
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.Frame
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.html.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.put
-import space.kscience.controls.api.DeviceMessage
-import space.kscience.controls.api.PropertyGetMessage
-import space.kscience.controls.api.PropertySetMessage
-import space.kscience.controls.api.resolveDevice
+import kotlinx.serialization.json.*
+import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.respondMessage
+import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.plus
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixFlowPlugin
 import space.kscience.magix.api.MagixMessage
@@ -59,19 +57,36 @@ private fun Application.deviceServerModule(manager: DeviceManager) {
     }
 }
 
-/**
- * Create and start a web server for several devices
- */
-public fun CoroutineScope.startDeviceServer(
-    manager: DeviceManager,
-    port: Int = MagixEndpoint.DEFAULT_MAGIX_HTTP_PORT,
-    host: String = "localhost",
-): EmbeddedServer<*, *> = embeddedServer(CIO, port, host, module = { deviceServerModule(manager) }).start()
 
 public fun EmbeddedServer<*, *>.whenStarted(callback: Application.() -> Unit) {
     monitor.subscribe(ApplicationStarted, callback)
 }
 
+
+private fun JsonObjectBuilder.deviceTree(tree: DeviceTree, namePrefix: Name, expand: Boolean) {
+    tree.device?.let { device ->
+        put("name", namePrefix.toString())
+        if (expand) {
+            put("meta", device.meta.toJson())
+            put("properties", buildJsonArray {
+                device.propertyDescriptors.forEach { descriptor ->
+                    add(Json.encodeToJsonElement(descriptor))
+                }
+            })
+            put("actions", buildJsonArray {
+                device.actionDescriptors.forEach { actionDescriptor ->
+                    add(Json.encodeToJsonElement(actionDescriptor))
+                }
+            })
+        }
+    }
+
+    tree.children.forEach { (childName, child) ->
+        put(childName, buildJsonObject {
+            deviceTree(child, namePrefix + childName, expand)
+        })
+    }
+}
 
 public val WEB_SERVER_TARGET: Name = "@webServer".asName()
 
@@ -136,28 +151,21 @@ public fun Application.deviceManagerModule(
                 }
             }
 
-            get("list") {
+            // get the device tree with or without detalisation
+            get("tree") {
+                val expand = call.queryParameters["expand"]?.toBoolean() ?: false
                 call.respondJson {
-                    manager.children.forEach { (name, child) ->
-                        val device = child.device ?: return@forEach
-                        put("target", name)
-                        put("properties", buildJsonArray {
-                            device.propertyDescriptors.forEach { descriptor ->
-                                add(Json.encodeToJsonElement(descriptor))
-                            }
-                        })
-                        put("actions", buildJsonArray {
-                            device.actionDescriptors.forEach { actionDescriptor ->
-                                add(Json.encodeToJsonElement(actionDescriptor))
-                            }
-                        })
-                    }
+                    deviceTree(manager, Name.EMPTY, expand)
                 }
             }
 
-            post("message") {
+            // send a device message to deviceManager
+            post("send") {
                 val body = call.receiveText()
-                val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(DeviceMessage.serializer(), body)
+                val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(
+                    deserializer = DeviceMessage.serializer(),
+                    string = body
+                )
                 val response = manager.respondMessage(request)
                 if (response.isNotEmpty()) {
                     call.respondMessages(response)
@@ -166,7 +174,7 @@ public fun Application.deviceManagerModule(
                 }
             }
 
-            route("{target}") {
+            route("devices/{target}") {
                 //global route for the device
 
                 route("{property}") {
@@ -208,8 +216,19 @@ public fun Application.deviceManagerModule(
                             call.respond(HttpStatusCode.InternalServerError)
                         }
                     }
+
+                    webSocket("subscribe") {
+                        val target: String by call.parameters
+                        val property: String by call.parameters
+                        val device = manager.resolveDevice(target)
+
+                        device.propertyMessageFlow(property).onEach {
+                            outgoing.send(Frame.Text(MagixEndpoint.magixJson.encodeToString(it)))
+                        }.launchIn(this)
+                    }
                 }
             }
+            openAPI("/openAPI")
         }
     }
 

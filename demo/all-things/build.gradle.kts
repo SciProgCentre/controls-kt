@@ -19,7 +19,7 @@ dependencies {
     implementation(projects.magix.magixZmq)
     implementation(projects.controlsOpcua)
 
-    implementation(spclibs.ktor.client.cio)
+    implementation("io.ktor:ktor-server-cio")
     implementation(libs.plotlykt.server)
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
 
@@ -33,16 +33,16 @@ dependencies {
     implementation(spclibs.logback.classic)
 }
 
-kotlin{
+kotlin {
     jvmToolchain(21)
     compilerOptions {
         freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn", "-Xcontext-parameters")
     }
 }
 
-compose{
-    desktop{
-        application{
+compose {
+    desktop {
+        application {
             mainClass = "space.kscience.controls.demo.DemoControllerViewKt"
         }
     }

@@ -107,7 +107,6 @@ fun main() {
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 
-
     //launch visualization app
     application {
         Window(onCloseRequest = {

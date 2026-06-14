@@ -15,7 +15,7 @@ dependencies {
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
 
-    implementation(spclibs.ktor.client.cio)
+    implementation("io.ktor:ktor-client-cio")
     implementation(libs.plotlykt.server)
     implementation(spclibs.logback.classic)
 }

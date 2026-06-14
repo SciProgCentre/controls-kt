@@ -26,7 +26,7 @@ kscience {
 
     jvmMain{
         api(libs.visionforge.server)
-        api(spclibs.ktor.server.cio)
+        api("io.ktor:ktor-server-cio")
     }
 }
 
