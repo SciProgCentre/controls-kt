@@ -14,6 +14,7 @@ import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.*
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.*
+import kotlin.time.Duration
 
 /**
  * A device library for continuous flow models
@@ -77,6 +78,62 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
         )
     }
 
+    public val consumer: DeviceFactory = DeviceFactory(
+        MetaDescriptor {
+            value("consumationCapacity", ValueType.NUMBER) { required() }
+        }
+    ) { context, parameters ->
+        val consumationCapacity = parameters["consumationCapacity"].double
+            ?: error("Consumation capacity parameter is required")
+
+        ContinuousConsumerDevice<U, T>(
+            context = context,
+            consumerAlgebra = algebra,
+            consumationCapacity = ValueState(AmountPerSecond(consumationCapacity))
+        )
+    }
+
+    public val reaction: DeviceFactory = DeviceFactory(
+        MetaDescriptor {
+            node("formula") { required() }
+            value("productionCapacity", ValueType.NUMBER) { required() }
+            value("productKey", ValueType.STRING) { default = "@product".asValue() }
+        }
+    ) { context, parameters ->
+        val formulaMap = parameters["formula"]?.items?.map { it.key.toString() to (it.value.double ?: 0.0) }?.toMap()
+            ?: error("Formula is required")
+        val productionCapacity = parameters["productionCapacity"].double
+            ?: error("Production capacity is required")
+        val productKey = parameters["productKey"].string ?: "@product"
+
+        ContinuousReaction(
+            context,
+            algebra,
+            ReactionRule.formula(
+                algebra = algebra,
+                formula = formulaMap,
+                production = algebra.valueOf(productionCapacity).perSecond,
+                productKey = productKey
+            )
+        )
+    }
+
+    public val separate: DeviceFactory = DeviceFactory(
+        MetaDescriptor {
+            node("fractions") { required() }
+        }
+    ) { context, parameters ->
+        val fractionsMap =
+            parameters["fractions"]?.items?.map { it.key.toString() to (it.value.double ?: 0.0) }?.toMap()
+                ?: error("Fractions are required")
+
+        ContinuousSeparate(
+            context,
+            algebra,
+            SeparationRule.proportional(algebra, fractionsMap)
+        )
+    }
+
     /**
      * A factory for flow model composition including flow bindings
      */
@@ -112,7 +169,7 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
 
                     @Suppress("UNCHECKED_CAST")
                     val producerModel: ContinuousProducer<U, T> = when (producerName.length) {
-                        1 -> models[producerName.first()] as? ContinuousProducerDevice<U, T>
+                        1 -> models[producerName.first()] as? ContinuousProducer<U, T>
                             ?: error("Producer is not a continuous producer device")
 
                         2 -> {
@@ -140,7 +197,19 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
                         else -> error("Consumer name must have length 1 or 2")
                     }
 
-                    connect(producerModel, consumerModel)
+                    var producer = producerModel
+
+                    //apply delay and limitation to binding if needed
+
+                    bindingMeta[FlowBindingMetaSpec.limited]?.let {
+                        producer = producer.limited(context, AmountPerSecond(it))
+                    }
+
+                    bindingMeta[FlowBindingMetaSpec.delayed]?.let {
+                        producer = producer.delayed(context, Duration.parse(it))
+                    }
+
+                    connect(producer, consumerModel)
                 }
             }
         }
@@ -149,8 +218,11 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
 
     override val factories: Map<String, DeviceTreeFactory> = mapOf(
         "producer" to producer,
+        "consumer" to consumer,
         "buffer" to buffer,
         "mix" to mix,
+        "reaction" to reaction,
+        "separate" to separate,
         "flowModel" to flowModel,
     )
 
@@ -160,6 +232,8 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
  * A specification for flow binding meta for flow model composition
  */
 public object FlowBindingMetaSpec : MetaSpec() {
-    public val producer: MetaRef<String> by string()
-    public val consumer: MetaRef<String> by string()
+    public val producer: MetaRef<String> by string { required() }
+    public val consumer: MetaRef<String> by string { required() }
+    public val limited: MetaRef<Double> by double()
+    public val delayed: MetaRef<String> by string()
 }
