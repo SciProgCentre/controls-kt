@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Introduce separate classes for DeviceFactory and DeviceTreeFactory
 - Add DeviceTreeSpec
 - `TimerState` implements `Clock`.
 - `setCachedValue` API for `CachingDevice` to directly manipulate cached value and solve circular write problem with virtual properties.
@@ -16,6 +17,7 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+- Minor change to continuous model library
 - **BREAKING** Removed Model and replaced it with Device.
 - **BREAKING** DeviceHub is renamed to `DeviceTree`, has optional `rootDevice` and its children are `DeviceTree`s instead of `Device`s.
 - **BREAKING** DeviceHub works with string device names instead of `Name`.
