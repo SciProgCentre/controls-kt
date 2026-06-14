@@ -24,6 +24,11 @@ public interface DeviceFactory : DeviceTreeFactory {
     override fun build(context: Context, meta: Meta): DeviceTree = DeviceTree(buildDevice(context, meta))
 }
 
+/**
+ * Create a [space.kscience.controls.api.DeviceFactory].
+ *
+ * @param descriptor a meta descriptor for input meta of the factory
+ */
 public fun DeviceFactory(
     descriptor: MetaDescriptor? = null,
     block: (context: Context, meta: Meta) -> Device

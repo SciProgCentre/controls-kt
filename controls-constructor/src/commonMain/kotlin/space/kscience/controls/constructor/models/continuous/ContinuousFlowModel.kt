@@ -22,5 +22,3 @@ public abstract class ContinuousFlowModel(
         }
     }
 }
-
-public interface ContinuousFlowComponent
