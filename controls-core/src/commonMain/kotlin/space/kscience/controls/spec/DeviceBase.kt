@@ -20,8 +20,6 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 
 
-
-
 /**
  * A base abstraction for [Device], introducing specifications for properties
  */
@@ -151,14 +149,17 @@ public abstract class DeviceBase(
         }
         when (val property = writers[propertyName]) {
             null -> {
-                //If there are no registered physical properties with given name, write a logical one.
-                propertyChanged(propertyName, value)
+                if (readers.containsKey(propertyName)) {
+                    error("Property with name $propertyName is not writeable")
+                } else {
+                    error("Property with name $propertyName not found")
+                }
             }
 
-           else ->  {
+            else -> {
                 //if there is a writeable property with a given name, invalidate logical and write physical
                 invalidate(propertyName)
-                property.writeMeta( value)
+                property.writeMeta(value)
                 // perform read after writing if the writer did not set the value and the value is still in invalid state
                 if (logicalState[propertyName] == null) {
                     readers[propertyName]?.let { reader ->
@@ -173,7 +174,7 @@ public abstract class DeviceBase(
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val spec = actions[actionName] ?: error("Action with name $actionName not found")
-        return spec.executeWithMeta( argument ?: Meta.EMPTY)
+        return spec.executeWithMeta(argument ?: Meta.EMPTY)
     }
 
     final override var lifecycleState: LifecycleState = LifecycleState.STOPPED

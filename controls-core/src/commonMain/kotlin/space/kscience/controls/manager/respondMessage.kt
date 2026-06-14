@@ -77,8 +77,8 @@ public suspend fun Device.respondMessage(targetDeviceName: Name, request: Device
 }
 
 /**
- * Process incoming [DeviceMessage], using hub naming to find target.
- * If the `targetDevice` is `null`, then the message is sent to each device in this hub
+ * Process incoming [DeviceMessage], using tree naming to find target.
+ * If the `targetDevice` is `null`, then the message is sent to each device in this tree
  */
 public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<DeviceMessage> {
     return try {
@@ -89,8 +89,8 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
                 device.respondMessage(deviceName, request)
             }
         } else {
-            val device = resolveDevice(targetName)
-            listOfNotNull(device.respondMessage(targetName, request))
+            val device = resolveDeviceOrNull(targetName)
+            listOfNotNull(device?.respondMessage(targetName, request))
         }
     } catch (ex: Exception) {
         listOf(

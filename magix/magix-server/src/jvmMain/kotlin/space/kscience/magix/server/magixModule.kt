@@ -1,7 +1,10 @@
 package space.kscience.magix.server
 
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.*
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.install
+import io.ktor.server.application.pluginOrNull
 import io.ktor.server.html.respondHtml
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
@@ -15,7 +18,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.html.*
-import kotlinx.serialization.encodeToString
+import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixEndpoint.Companion.magixJson
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -57,6 +60,12 @@ public fun Application.magixModule(
         install(RSocketSupport)
     }
 
+    if(pluginOrNull(ContentNegotiation) == null) {
+        install(ContentNegotiation) {
+            json(MagixEndpoint.magixJson)
+        }
+    }
+
 
 //    if (pluginOrNull(CORS) == null) {
 //        install(CORS) {
@@ -68,9 +77,6 @@ public fun Application.magixModule(
 
     routing {
         route(route) {
-            install(ContentNegotiation) {
-                json()
-            }
             if (magixFlow is SharedFlow) {
                 get("state") {
                     call.respondHtml {

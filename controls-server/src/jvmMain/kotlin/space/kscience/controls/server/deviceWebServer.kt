@@ -2,19 +2,22 @@ package space.kscience.controls.server
 
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.html.respondHtml
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.openapi.openAPI
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
-import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
@@ -23,8 +26,6 @@ import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.html.*
 import kotlinx.serialization.json.*
 import space.kscience.controls.api.*
@@ -100,6 +101,11 @@ public fun Application.deviceManagerModule(
     if (pluginOrNull(WebSockets) == null) {
         install(WebSockets)
     }
+    if (pluginOrNull(ContentNegotiation) == null) {
+        install(ContentNegotiation) {
+            json(MagixEndpoint.magixJson)
+        }
+    }
 
 //    if (pluginOrNull(CORS) == null) {
 //        install(CORS) {
@@ -108,6 +114,8 @@ public fun Application.deviceManagerModule(
 //    }
 
     routing {
+        openAPI("openAPI")
+
         route(route) {
             get("dashboard") {
                 call.respondHtml {
@@ -127,7 +135,7 @@ public fun Application.deviceManagerModule(
                                 ul {
                                     device.propertyDescriptors.forEach { property ->
                                         li {
-                                            a(href = "../$deviceName/${property.name}/get") { +"${property.name}: " }
+                                            a(href = "../$deviceName/get/${property.name}") { +"${property.name}: " }
                                             code {
                                                 +Json.encodeToString(property)
                                             }
@@ -151,84 +159,152 @@ public fun Application.deviceManagerModule(
                 }
             }
 
-            // get the device tree with or without detalisation
+            /**
+             * Returns a tree of devices in a form of Json.
+             */
             get("tree") {
                 val expand = call.queryParameters["expand"]?.toBoolean() ?: false
-                call.respondJson {
+                val json = buildJsonObject {
                     deviceTree(manager, Name.EMPTY, expand)
+                }
+                call.respond(json)
+            }.describe {
+                description = "Devices represented as a json tree"
+                parameters {
+                    query("expand") {
+                        description = "If set to 'true' include device details in the tree"
+                        required = false
+                    }
                 }
             }
 
-            // send a device message to deviceManager
+            /**
+             * Send a single message [DeviceMessage] to the [DeviceManager]
+             *
+             * The response contains zero, one or many [DeviceMessage] objects in a form of array.
+             */
             post("send") {
-                val body = call.receiveText()
-                val request: DeviceMessage = MagixEndpoint.magixJson.decodeFromString(
-                    deserializer = DeviceMessage.serializer(),
-                    string = body
-                )
-                val response = manager.respondMessage(request)
-                if (response.isNotEmpty()) {
-                    call.respondMessages(response)
-                } else {
-                    call.respondText("No response")
-                }
+                val message = call.receive<DeviceMessage>()
+                val response = manager.respondMessage(message)
+                call.respond(response)
             }
 
             route("devices/{target}") {
                 //global route for the device
 
-                route("{property}") {
-                    get("get") {
-                        val target: String by call.parameters
-                        val property: String by call.parameters
-                        val request = PropertyGetMessage(
-                            time = Clock.System.now(),
-                            sourceDevice = WEB_SERVER_TARGET,
-                            targetDevice = Name.parse(target),
-                            property = property,
-                        )
+                /**
+                 * Get description for device with given name.
+                 *
+                 * Should return an array of single [DescriptionMessage]. If device not found, returns an empty array.
+                 * Could return [DeviceErrorMessage] in some cases
+                 */
+                get("description") {
+                    val target: String by call.parameters
+                    val name = Name.parse(target)
+                    val request = GetDescriptionMessage(
+                        time = Clock.System.now(),
+                        sourceDevice = WEB_SERVER_TARGET,
+                        targetDevice = name
+                    )
+                    val response = manager.respondMessage(request)
+                    call.respond(response)
+                }
 
-                        val responses = manager.respondMessage(request)
-                        if (responses.isNotEmpty()) {
-                            call.respondMessages(responses)
-                        } else {
-                            call.respond(HttpStatusCode.InternalServerError)
-                        }
-                    }
-                    post("set") {
-                        val target: String by call.parameters
-                        val property: String by call.parameters
-                        val body = call.receiveText()
-                        val json = Json.parseToJsonElement(body)
+                /**
+                 * Get a property value for given device. Returns an array of singe [PropertyChangedMessage].
+                 * If device not found, returns code 404.
+                 *
+                 * Could return one or several [DeviceErrorMessage] in case of errors
+                 */
+                get("get/{property}") {
+                    val target: String by call.parameters
+                    val property: String by call.parameters
+                    val request = PropertyGetMessage(
+                        time = Clock.System.now(),
+                        sourceDevice = WEB_SERVER_TARGET,
+                        targetDevice = Name.parse(target),
+                        property = property,
+                    )
 
-                        val request = PropertySetMessage(
-                            time = Clock.System.now(),
-                            sourceDevice = WEB_SERVER_TARGET,
-                            targetDevice = Name.parse(target),
-                            property = property,
-                            value = json.toMeta()
-                        )
-
-                        val responses = manager.respondMessage(request)
-                        if (responses.isNotEmpty()) {
-                            call.respondMessages(responses)
-                        } else {
-                            call.respond(HttpStatusCode.InternalServerError)
-                        }
-                    }
-
-                    webSocket("subscribe") {
-                        val target: String by call.parameters
-                        val property: String by call.parameters
-                        val device = manager.resolveDevice(target)
-
-                        device.propertyMessageFlow(property).onEach {
-                            outgoing.send(Frame.Text(MagixEndpoint.magixJson.encodeToString(it)))
-                        }.launchIn(this)
+                    val responses = manager.respondMessage(request)
+                    if (responses.isNotEmpty()) {
+                        call.respond(responses)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
                     }
                 }
+
+                /**
+                 * Tries to set value of the property.
+                 *
+                 * Should return a single [PropertyChangedMessage] in an array.
+                 * Returns code 404 if device is not found.
+                 *
+                 * Could return one or several [DeviceErrorMessage] in case of errors
+                 */
+                post("set/{property}") {
+                    val target: String by call.parameters
+                    val property: String by call.parameters
+                    val body = call.receiveText()
+                    val json = Json.parseToJsonElement(body)
+
+                    val request = PropertySetMessage(
+                        time = Clock.System.now(),
+                        sourceDevice = WEB_SERVER_TARGET,
+                        targetDevice = Name.parse(target),
+                        property = property,
+                        value = json.toMeta()
+                    )
+
+                    val responses = manager.respondMessage(request)
+                    if (responses.isNotEmpty()) {
+                        call.respond(responses)
+                    } else {
+                        call.respond(HttpStatusCode.NotFound)
+                    }
+                }
+
+                /**
+                 *
+                 * Subscribes on changes of given property. The current value is always send first
+                 *
+                 */
+                webSocket("subscribe/{property}") {
+                    val target: String by call.parameters
+                    val property: String by call.parameters
+                    val device = manager.resolveDevice(target)
+
+                    val request = PropertyGetMessage(
+                        time = Clock.System.now(),
+                        sourceDevice = WEB_SERVER_TARGET,
+                        targetDevice = Name.parse(target),
+                        property = property,
+                    )
+
+                    manager.respondMessage(request).forEach {
+                        outgoing.send(
+                            Frame.Text(
+                                MagixEndpoint.magixJson.encodeToString(
+                                    DeviceMessage.serializer(),
+                                    it
+                                )
+                            )
+                        )
+                    }
+
+                    device.propertyMessageFlow(property).collect {
+                        outgoing.send(
+                            Frame.Text(
+                                MagixEndpoint.magixJson.encodeToString(
+                                    DeviceMessage.serializer(),
+                                    it.copy(sourceDevice = Name.parse(target))
+                                )
+                            )
+                        )
+                    }
+                }
+
             }
-            openAPI("/openAPI")
         }
     }
 

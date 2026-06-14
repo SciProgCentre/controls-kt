@@ -27,15 +27,23 @@ kscience {
         implementation("io.ktor:ktor-server-routing-openapi")
         implementation("io.ktor:ktor-server-openapi")
     }
+
+    jvmTest {
+        dependencies {
+            implementation("io.ktor:ktor-server-test-host")
+            implementation("io.ktor:ktor-client-content-negotiation")
+            implementation("io.ktor:ktor-client-websockets")
+        }
+    }
 }
 
 readme {
     maturity = Maturity.PROTOTYPE
 }
 
-//ktor {
+ktor {
 //    openApi {
 //        enabled = true
-//        codeInferenceEnabled = true
+//        codeInferenceEnabled = false
 //    }
-//}
+}
