@@ -1,6 +1,11 @@
 package space.kscience.controls.constructor.units
 
+import space.kscience.dataforge.meta.MetaConverter
+
 public interface AmountAlgebra<U : UnitsOfMeasurement, T : Amount<U>> {
+
+    public val converter: MetaConverter<T>
+
     public operator fun T.plus(other: T): T
     public operator fun T.minus(other: T): T
     public operator fun T.unaryMinus(): T
@@ -61,7 +66,10 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.maxOf(fir
 public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.sum(args: Iterable<T>): T =
     args.fold(zero) { acc, t -> acc + t }
 
-public open class NumericAmountAlgebra<U : UnitsOfMeasurement> : AmountAlgebra<U, NumericAmount<U>> {
+public open class NumericAmountAlgebra<U : UnitsOfMeasurement>(public val units: U) : AmountAlgebra<U, NumericAmount<U>> {
+
+    override val converter: MetaConverter<NumericAmount<U>> = MetaConverter.numeric(units)
+
     override fun NumericAmount<U>.plus(other: NumericAmount<U>): NumericAmount<U> = NumericAmount(value + other.value)
 
     override fun NumericAmount<U>.minus(other: NumericAmount<U>): NumericAmount<U> = NumericAmount(value - other.value)

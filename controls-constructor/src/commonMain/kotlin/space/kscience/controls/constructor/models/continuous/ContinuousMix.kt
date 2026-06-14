@@ -41,14 +41,6 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
         LateBindValueState(producerAlgebra.zero.perSecond)
     }
 
-
-    init {
-        registerState(consumerRequest, "consumer.request".parseAsName(true))
-        supplyRequest.forEach { (key, value) ->
-            registerState(value, "supply[$key].request".parseAsName())
-        }
-    }
-
     // trick with casts is needed for reification to work
     @Suppress("UNCHECKED_CAST")
     private val jointSupplyRequest: ValueState<Map<String, PerSecond<U, T>>> =
@@ -148,6 +140,12 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
         }
     } ?: error("No supplier with key $key found")
 
+    init {
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
+        supplyRequest.forEach { (key, value) ->
+            registerState(value, "supply[$key].request".parseAsName())
+        }
+    }
 
     override fun toString(): String =
         "ContinuousMix(strategy=$joinManagementStrategy, consumation=${consumation.value}, production=${production.value})"

@@ -39,32 +39,32 @@ public data object Degrees : UnitsOfAngles
 
 public sealed interface UnitsAngularOfVelocity : UnitsOfMeasurement
 
-public data object RadiansPerSecond : UnitsAngularOfVelocity, NumericAmountAlgebra<RadiansPerSecond>()
+public data object RadiansPerSecond : UnitsAngularOfVelocity, NumericAmountAlgebra<RadiansPerSecond>(RadiansPerSecond)
 
-public data object DegreesPerSecond : UnitsAngularOfVelocity, NumericAmountAlgebra<DegreesPerSecond>()
+public data object DegreesPerSecond : UnitsAngularOfVelocity, NumericAmountAlgebra<DegreesPerSecond>(DegreesPerSecond)
 
 /**/
 public interface UnitsOfForce : UnitsOfMeasurement
 
-public data object Newtons : UnitsOfForce, NumericAmountAlgebra<Newtons>()
+public data object Newtons : UnitsOfForce, NumericAmountAlgebra<Newtons>(Newtons)
 
 /**/
 
 public interface UnitsOfTorque : UnitsOfMeasurement
 
-public data object NewtonsMeters : UnitsOfTorque, NumericAmountAlgebra<NewtonsMeters>()
+public data object NewtonsMeters : UnitsOfTorque, NumericAmountAlgebra<NewtonsMeters>(NewtonsMeters)
 
 /**/
 
 public interface UnitsOfVolume : UnitsOfMatter
 
-public data object CubicMeters : UnitsOfVolume, NumericAmountAlgebra<CubicMeters>()
+public data object CubicMeters : UnitsOfVolume, NumericAmountAlgebra<CubicMeters>(CubicMeters)
 
 /**/
 
 public interface UnitsOfMass : UnitsOfMatter
 
-public data object Kilograms : UnitsOfMass, NumericAmountAlgebra<Kilograms>()
+public data object Kilograms : UnitsOfMass, NumericAmountAlgebra<Kilograms>(Kilograms)
 
 public val Number.kilograms: NumericAmount<Kilograms> get() = NumericAmount<Kilograms>(toDouble())
 
@@ -72,8 +72,8 @@ public val Number.kilograms: NumericAmount<Kilograms> get() = NumericAmount<Kilo
 
 public interface UnitsOfMomentOfInertia : UnitsOfMeasurement
 
-public data object KgM2 : UnitsOfMomentOfInertia, NumericAmountAlgebra<KgM2>()
+public data object KgM2 : UnitsOfMomentOfInertia, NumericAmountAlgebra<KgM2>(KgM2)
 
 /**/
 
-public data object Mole : UnitsOfMatter, NumericAmountAlgebra<Mole>()
+public data object Mole : UnitsOfMatter, NumericAmountAlgebra<Mole>(Mole)

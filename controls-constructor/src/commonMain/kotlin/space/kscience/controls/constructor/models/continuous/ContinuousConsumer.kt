@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
@@ -87,6 +88,18 @@ public class ContinuousConsumerDevice<U : UnitsOfMatter, T : Amount<U>>(
     init {
         registerState(consumationCapacity, "consumation.capacity".parseAsName(true))
         registerState(supplyRequest, "supply.request".parseAsName(true))
+
+        registerProperty(
+            name = "consumation",
+            converter = MetaConverter.perSecond(consumerAlgebra.converter),
+            state = consumation
+        )
+
+        registerProperty(
+            name = "efficiency",
+            converter = MetaConverter.double,
+            state = efficiency
+        )
     }
 }
 

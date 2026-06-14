@@ -155,6 +155,9 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
 
         object : ContinuousFlowModel(context) {
             init {
+
+                //FIXME add external parameter bindings
+
                 val models = modelConfiguration.items.mapValues { (token, modelMeta) ->
                     installTree(token.toString(), deviceManager.createDeviceTree(modelMeta, factories))
                 }

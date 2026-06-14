@@ -4,6 +4,7 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
@@ -45,13 +46,6 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     private val _content: MutableValueState<T> = MutableValueState(initialLevel)
 
     public val content: ValueState<T> get() = _content
-
-    init {
-        registerState(content, "content".asName())
-        registerState(bufferCapacity, "bufferCapacity".asName())
-        registerState(supplyRequest, "supply.request".parseAsName(true))
-        registerState(consumerRequest, "consumer.request".parseAsName(true))
-    }
 
     override val productionCapacity: ValueState<PerSecond<U, T>> = combineState(
         first = supplyRequest,
@@ -117,6 +111,27 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
             )
         }
     }
+
+    init {
+        registerState(content, "content".asName())
+        registerState(bufferCapacity, "bufferCapacity".asName())
+        registerState(supplyRequest, "supply.request".parseAsName(true))
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
+
+        registerProperty(
+            "production",
+            converter = MetaConverter.perSecond(consumerAlgebra.converter),
+            state = production
+        )
+
+        registerProperty(
+            "consumation",
+            converter = MetaConverter.perSecond(consumerAlgebra.converter),
+            state = consumation
+        )
+
+        registerProperty("content", converter = consumerAlgebra.converter, state = content)
+    }
 }
 
 /**
@@ -130,11 +145,12 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
  */
 public fun <U : UnitsOfMatter> ContinuousBuffer(
     context: Context,
+    algebra: NumericAmountAlgebra<U>,
     capacity: NumericAmount<U>,
 ): ContinuousBuffer<U, NumericAmount<U>> = ContinuousBuffer(
-    context,
-    NumericAmountAlgebra<U>(),
-    ValueState(capacity)
+    context = context,
+    consumerAlgebra = algebra,
+    bufferCapacity = ValueState(capacity)
 )
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.buffer(

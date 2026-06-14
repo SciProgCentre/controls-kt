@@ -83,6 +83,9 @@ public class MixtureAlgebra<U : UnitsOfMeasurement, T : Amount<U>>(
     public val componentAlgebra: AmountAlgebra<U, T>,
     public val one: Mixture<U, T>
 ) : AmountAlgebra<U, Mixture<U, T>> {
+
+    override val converter: MetaConverter<Mixture<U, T>> = MetaConverter.mixture(componentAlgebra.converter)
+
     override fun Mixture<U, T>.plus(other: Mixture<U, T>): Mixture<U, T> = Mixture(
         with(componentAlgebra) {
             (components.keys + other.components.keys).associateWith {
