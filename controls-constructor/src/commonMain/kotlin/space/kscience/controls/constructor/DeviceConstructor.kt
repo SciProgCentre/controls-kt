@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installTree
+import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.time.clock
@@ -263,7 +263,7 @@ public fun DeviceManager.install(
     block: DeviceConstructor.() -> Unit,
 ): DeviceConstructor {
     val group = DeviceConstructor(context, meta).apply(block)
-    installTree(name, group)
+    install(name, group)
 
     return group
 }

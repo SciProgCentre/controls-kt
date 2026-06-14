@@ -47,14 +47,13 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.connectPr
  * @param U The type of units of measurement for the material flow.
  * @param context The execution context used for state management and operations.
  * @param consumationCapacity The maximum capacity for material flow consumption of the consumer.
- * @param supplyRequest The state representing the requested material flow to be supplied.
- *
+ * @property supplyRequest The state representing the requested material flow to be supplied.
  * @property consumation A device state representing the actual material flow consumed,
  * calculated as the minimum of the requested supply and the consumer's capacity.
  * @property efficiency A device state representing the efficiency of the consumer, calculated
  * as the ratio of the actual consumption to the capacity.
  */
-private class ContinuousConsumerImpl<U : UnitsOfMatter, T : Amount<U>>(
+public class ContinuousConsumerDevice<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
     override val consumationCapacity: ValueState<AmountPerSecond<U>>,
@@ -95,16 +94,33 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer(
     context: Context,
     consumerAlgebra: AmountAlgebra<U, T>,
     consumationCapacity: ValueState<AmountPerSecond<U>>,
-): ContinuousConsumer<U, T> = ContinuousConsumerImpl(context, consumerAlgebra, consumationCapacity)
+): ContinuousConsumer<U, T> = ContinuousConsumerDevice(context, consumerAlgebra, consumationCapacity)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
     capacity: ValueState<AmountPerSecond<U>>,
     modelName: Name? = null
-): ContinuousConsumer<U, T> = child(ContinuousConsumerImpl(context, algebra, capacity), modelName)
+): ContinuousConsumer<U, T> = child(ContinuousConsumerDevice(context, algebra, capacity), modelName)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
     algebra: AmountAlgebra<U, T>,
     capacity: AmountPerSecond<U>,
     modelName: Name? = null
-): ContinuousConsumer<U, T> = child(ContinuousConsumerImpl(context, algebra, ValueState(capacity)), modelName)
+): ContinuousConsumer<U, T> = child(ContinuousConsumerDevice(context, algebra, ValueState(capacity)), modelName)
+
+/**
+ * An interface designating a model capable of consuming material from multiple consumers.
+ */
+public interface ContinuousMultiConsumer<U : UnitsOfMatter, T : Amount<U>>{
+    public fun asConsumer(key: String): ContinuousConsumer<U,T>
+}
+
+/**
+ * Connect a producer to a single key in multiconsumer
+ */
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMultiConsumer<U, T>.connectProducer(
+    key: String,
+    producer: ContinuousProducer<U, T>
+) {
+    ContinuousFlowModel.connect(producer, this.asConsumer(key))
+}

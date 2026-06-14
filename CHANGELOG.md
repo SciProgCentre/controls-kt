@@ -20,7 +20,7 @@
 - **BREAKING** DeviceHub is renamed to `DeviceTree`, has optional `rootDevice` and its children are `DeviceTree`s instead of `Device`s.
 - **BREAKING** DeviceHub works with string device names instead of `Name`.
 - ValueState now works both with and without time mark. Time is automatically provided and could be accessed with several new methods. 
-- **BREAKING** Full refactor of device spec and device builders. Now device spec is a separate content. There is a `DeviceFactory` that could be used to create both specification and device factory at the same time. 
+- **BREAKING** Full refactor of device spec and device builders. Now device spec is a separate content. There is a `DeviceWithStateFactory` that could be used to create both specification and device factory at the same time. 
 - Add optional names to model states and submodels
 - `StateContainer` renamed to `Constructor`
 - Separate StateContainer and MutableStateContainer

@@ -1,24 +1,24 @@
 # Device Factory and DeviceWithStateBuilder
 
-`DeviceFactory` is one of ways to create a `Device` in `Controls-kt`. It combines the `DeviceSpec` (declaration of properties and actions) with the implementation logic.
+`DeviceWithStateFactory` is one of ways to create a `Device` in `Controls-kt`. It combines the `DeviceSpec` (declaration of properties and actions) with the implementation logic.
 
 ## The concept of State
 
-A `DeviceFactory<S>` manages an internal state of type `S` for the whole device. This state can be anything: a simple data class, a connection to a hardware port, or a complex object managing multiple resources.
+A `DeviceWithStateFactory<S>` manages an internal state of type `S` for the whole device. This state can be anything: a simple data class, a connection to a hardware port, or a complex object managing multiple resources.
 
 The factory is responsible for:
 1. Creating the state (`createState`).
 2. Registering properties and actions that operate on this state.
 3. Building the `Device` instance.
 
-## Creating a DeviceFactory
+## Creating a DeviceWithStateFactory
 
-To create a factory, you should inherit from `DeviceFactory<S>` and implement `createState`:
+To create a factory, you should inherit from `DeviceWithStateFactory<S>` and implement `createState`:
 
 ```kotlin
 class MyDeviceState(var value: Double = 0.0)
 
-object MyDevice : DeviceFactory<MyDeviceState>() {
+object MyDevice : DeviceWithStateFactory<MyDeviceState>() {
     // Register properties
     val value by mutableDoubleProperty(
         read = { value },
@@ -31,7 +31,7 @@ object MyDevice : DeviceFactory<MyDeviceState>() {
 
 ## Property Registration
 
-Inside a `DeviceFactory` (or its parent class `DeviceWithStateBuilder`), you can use several delegate functions to register properties:
+Inside a `DeviceWithStateFactory` (or its parent class `DeviceWithStateBuilder`), you can use several delegate functions to register properties:
 
 - `property(converter, ...)`: A generic read-only property.
 - `mutableProperty(converter, ...)`: A generic read-write property.

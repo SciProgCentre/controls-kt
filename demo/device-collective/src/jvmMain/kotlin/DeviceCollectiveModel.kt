@@ -13,7 +13,7 @@ import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installTree
+import space.kscience.controls.manager.install
 import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.name
@@ -194,7 +194,7 @@ internal fun CoroutineScope.launchCollectiveMagixServer(
             plugin(DeviceManager)
         }
 
-        deviceContext.installTree(id, device)
+        deviceContext.install(id, device)
 
 //        val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 

@@ -14,7 +14,7 @@ import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.magixFormat
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.spec.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
@@ -55,7 +55,7 @@ class MassDeviceState(seed: Int = 0) {
     val incrementValue: Double get() = (counter++).toDouble()
 }
 
-object MassDevice : DeviceFactory<MassDeviceState>() {
+object MassDevice : DeviceWithStateFactory<MassDeviceState>() {
 
     val value by doubleProperty { incrementValue }
 
@@ -92,7 +92,7 @@ suspend fun main() {
 
         val deviceManager = deviceContext.request(DeviceManager)
 
-        deviceManager.install("device$it", MassDevice, Meta { "delay" put 5 })
+        deviceManager.installTree("device$it", MassDevice, Meta { "delay" put 5 })
 
         val endpointId = "device$it"
         val deviceEndpoint = MagixEndpoint.rSocketStreamWithTcp("localhost")

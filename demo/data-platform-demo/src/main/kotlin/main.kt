@@ -24,7 +24,6 @@ import space.kscience.controls.dataplatform.buildDeviceGroup
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
-import space.kscience.controls.manager.installTree
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
@@ -103,7 +102,7 @@ fun main() {
     }
     //setup devices from config
     val devices = platform.buildDeviceGroup(deviceConfig)
-    deviceManager.installTree("devices", devices)
+    deviceManager.install("devices", devices)
 
 
 //    val allDescriptors = platformDevice.propertyDescriptors

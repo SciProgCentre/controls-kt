@@ -1,7 +1,7 @@
 package space.kscience.controls.constructor
 
 import kotlinx.serialization.Serializable
-import space.kscience.controls.manager.installTree
+import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -58,5 +58,5 @@ public fun Context.install(
     name: String,
     scheme: DeviceConfiguration,
     stateFactories: Map<String, ValueStateProvider>
-): DeviceConstructor = installTree(name, buildDeviceGroupByScheme(scheme, stateFactories))
+): DeviceConstructor = install(name, buildDeviceGroupByScheme(scheme, stateFactories))
 

@@ -55,7 +55,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.connectCo
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.
  */
-private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
+public class ContinuousProducerDevice<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     override val productionCapacity: ValueState<PerSecond<U,T>>,
@@ -95,16 +95,23 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer(
     producerAlgebra: AmountAlgebra<U, T>,
     productionCapacity: ValueState<PerSecond<U,T>>,
     consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
-): ContinuousProducer<U, T> = ContinuousProducerImpl(context, producerAlgebra, productionCapacity, consumerRequest)
+): ContinuousProducer<U, T> = ContinuousProducerDevice(context, producerAlgebra, productionCapacity, consumerRequest)
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
     capacity: ValueState<PerSecond<U,T>>,
     modelName: Name? = null
-): ContinuousProducer<U, T> = child(ContinuousProducerImpl(context, algebra, capacity), modelName)
+): ContinuousProducer<U, T> = child(ContinuousProducerDevice(context, algebra, capacity), modelName)
 
 public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
     capacity: PerSecond<U,T>,
     modelName: Name? = null
-): ContinuousProducer<U, T> = child(ContinuousProducerImpl(context, algebra, ValueState(capacity)), modelName)
+): ContinuousProducer<U, T> = child(ContinuousProducerDevice(context, algebra, ValueState(capacity)), modelName)
+
+/**
+ * An interface designating a model capable of producing material to multiple consumers.
+ */
+public interface ContinuousMultiProducer<U : UnitsOfMatter, T: Amount<U>>{
+    public fun asProducer(key: String): ContinuousProducer<U,T>
+}

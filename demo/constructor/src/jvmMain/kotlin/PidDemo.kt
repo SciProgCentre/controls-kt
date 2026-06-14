@@ -34,7 +34,7 @@ import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Meters
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installTree
+import space.kscience.controls.manager.install
 import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
@@ -120,7 +120,7 @@ internal fun createLinearDriveModel(
 
 }
 
-private fun createModulator(linearDrive: LinearDrive): Modulator = linearDrive.context.installTree(
+private fun createModulator(linearDrive: LinearDrive): Modulator = linearDrive.context.install(
     "modulator",
     Modulator(linearDrive.context, linearDrive.pid.target)
 )
@@ -141,7 +141,7 @@ fun main() = application {
     }
 
     val linearDrive: LinearDrive = remember {
-        context.installTree(
+        context.install(
             "linearDrive",
             createLinearDriveModel(
                 context = context,
@@ -155,7 +155,7 @@ fun main() = application {
     }
 
     val modulator = remember {
-        context.installTree("modulator", createModulator(linearDrive))
+        context.install("modulator", createModulator(linearDrive))
     }
 
     //bind pid parameters

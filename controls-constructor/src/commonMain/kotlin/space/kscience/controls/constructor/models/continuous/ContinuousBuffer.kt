@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
@@ -34,7 +35,8 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(AmountPerSecond.zero()),
     initialLevel: T = consumerAlgebra.zero,
     externalTimer: TimerState? = null,
-) : DeviceConstructor(context),
+    meta: Meta = Meta.EMPTY
+) : DeviceConstructor(context, meta),
     ContinuousProducer<U, T>,
     ContinuousConsumer<U, T> {
 

@@ -11,6 +11,8 @@ public interface AmountAlgebra<U : UnitsOfMeasurement, T : Amount<U>> {
     public operator fun T.div(scale: Number): T
     public val zero: T
 
+    public fun valueOf(number: Number): T
+
     public fun T.coerceValueIn(range: ClosedRange<Amount<U>>): T = when {
         value < range.start.value -> {
             val ratio = range.start.value / value
@@ -69,6 +71,8 @@ public open class NumericAmountAlgebra<U : UnitsOfMeasurement> : AmountAlgebra<U
     override fun NumericAmount<U>.times(scale: Number): NumericAmount<U> = NumericAmount(value * scale.toDouble())
 
     override fun NumericAmount<U>.div(scale: Number): NumericAmount<U> = NumericAmount(value / scale.toDouble())
+
+    override fun valueOf(number: Number): NumericAmount<U>  = NumericAmount(number.toDouble())
 
     override val zero: NumericAmount<U> = NumericAmount(0.0)
 }

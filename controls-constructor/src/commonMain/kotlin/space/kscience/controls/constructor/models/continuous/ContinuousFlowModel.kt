@@ -5,6 +5,9 @@ import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.UnitsOfMatter
 import space.kscience.dataforge.context.Context
 
+/**
+ *  A class for continuous flow model composition
+ */
 public abstract class ContinuousFlowModel(
     context: Context,
 ) : DeviceConstructor(context) {
@@ -19,3 +22,5 @@ public abstract class ContinuousFlowModel(
         }
     }
 }
+
+public interface ContinuousFlowComponent

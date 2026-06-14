@@ -19,11 +19,10 @@ public enum class JoinManagementStrategy {
  * strategies. The resulting flows are calculated based on the defined management strategy.
  *
  * @param context The context in which the material flow is managed.
- * @param consumerRequest The state representing the total amount requested by consumers.
- * @param supplyRequest The map of supplier identifiers to their respective supply states.
  * @param joinManagementStrategy The strategy used to manage the distribution of available supply to the consumer.
  * Defaults to the proportional strategy.
- *
+ * @property consumerRequest The state representing the total amount requested by consumers.
+ * @property supplyRequest The map of supplier identifiers to their respective supply states.
  * @property consumation A state representing the consumption calculation, resulting in a distribution map
  * of available material flow across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
@@ -33,7 +32,7 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val supplyKeys: Collection<String>,
     private val joinManagementStrategy: JoinManagementStrategy = JoinManagementStrategy.PROPORTIONAL,
-) : DeviceConstructor(context), ContinuousProducer<U, T> {
+) : DeviceConstructor(context), ContinuousProducer<U, T>, ContinuousMultiConsumer<U, T> {
 
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
 
@@ -122,44 +121,36 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
+    /**
+     * Creates a consumer instance for a specific supply key from a continuous mix instance.
+     *
+     * @param key The unique identifier of the supply for which the consumer is to be created.
+     * @return A [ContinuousConsumer] instance associated with the specified key, capable of consuming material flow
+     * based on its capacity and the corresponding supply request.
+     * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
+     */
+    override fun asConsumer(
+        key: String
+    ): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input: LateBindValueState<PerSecond<U, T>> ->
+        val consumation = individualConsumation[key]!!
+
+        object : ContinuousConsumer<U, T> {
+            override val consumerAlgebra: AmountAlgebra<U, T> get() = this@ContinuousMix.producerAlgebra
+
+            override val consumation: ValueState<PerSecond<U, T>> get() = consumation
+
+            override val consumationCapacity: ValueState<AmountPerSecond<U>>
+                get() = ValueState.map(consumation) {
+                    AmountPerSecond<U>(consumation.value.value)
+                }
+
+            override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
+        }
+    } ?: error("No supplier with key $key found")
+
 
     override fun toString(): String =
         "ContinuousMix(strategy=$joinManagementStrategy, consumation=${consumation.value}, production=${production.value})"
-}
-
-/**
- * Creates a consumer instance for a specific supply key from a continuous mix instance.
- *
- * @param key The unique identifier of the supply for which the consumer is to be created.
- * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material flow
- * based on its capacity and the corresponding supply request.
- * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
- */
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.asConsumer(
-    key: String
-): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input: LateBindValueState<PerSecond<U, T>> ->
-    val consumation = individualConsumation[key]!!
-
-    object : ContinuousConsumer<U, T> {
-        override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
-
-        override val consumation: ValueState<PerSecond<U, T>> get() = consumation
-
-        override val consumationCapacity: ValueState<AmountPerSecond<U>>
-            get() = ValueState.map(consumation) {
-                AmountPerSecond<U>(consumation.value.value)
-            }
-
-        override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
-    }
-} ?: error("No supplier with key $key found")
-
-
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProducer(
-    key: String,
-    producer: ContinuousProducer<U, T>
-) {
-    ContinuousFlowModel.connect(producer, asConsumer(key))
 }
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousMix<U, T>.connectProducer(

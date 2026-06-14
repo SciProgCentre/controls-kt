@@ -10,7 +10,7 @@ import space.kscience.controls.constructor.expressions.StateExpression
 import space.kscience.controls.constructor.expressions.StateExpressionContext
 import space.kscience.controls.constructor.expressions.expression
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installTree
+import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -66,7 +66,7 @@ class StateExpressionTest {
         }
         delay(10.milliseconds)
 
-        context.installTree("test", device)
+        context.install("test", device)
 
     }
 }

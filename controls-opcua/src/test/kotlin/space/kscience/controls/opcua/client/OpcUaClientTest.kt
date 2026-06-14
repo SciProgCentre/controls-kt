@@ -27,7 +27,7 @@ class OpcUaClientTest {
         val config = MiloConfiguration {
             endpointUrl = "opc.tcp://milo.digitalpetri.com:62541/milo"
         }
-        val device = DemoOpcUaDevice.build(Global, config.meta)
+        val device = DemoOpcUaDevice.buildDevice(Global, config.meta)
         device.start()
         println(device.read(DemoOpcUaDevice.randomDouble))
         device.stop()

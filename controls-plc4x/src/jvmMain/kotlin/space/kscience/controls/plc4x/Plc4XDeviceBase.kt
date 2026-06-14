@@ -3,7 +3,7 @@ package space.kscience.controls.plc4x
 import org.apache.plc4x.java.api.PlcConnection
 import org.apache.plc4x.java.api.PlcDriverManager
 import space.kscience.controls.spec.DeviceBase
-import space.kscience.controls.spec.DeviceFactory
+import space.kscience.controls.spec.DeviceWithStateFactory
 import space.kscience.dataforge.meta.Scheme
 import space.kscience.dataforge.meta.SchemeSpec
 import space.kscience.dataforge.meta.string
@@ -16,7 +16,7 @@ public class Plc4XConfig : Scheme() {
 }
 
 
-public abstract class Plc4XDeviceFactory : DeviceFactory<PlcConnection>() {
+public abstract class Plc4XDeviceFactory : DeviceWithStateFactory<PlcConnection>() {
 
     context(device: DeviceBase)
     override suspend fun createState(): PlcConnection {
