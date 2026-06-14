@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
@@ -34,7 +35,7 @@ import kotlin.time.Duration.Companion.seconds
 
 
 @Suppress("UNCHECKED_CAST")
-@OptIn(ExperimentalSplitPaneApi::class)
+@OptIn(ExperimentalSplitPaneApi::class, ExperimentalSerializationApi::class)
 fun main() {
     val context = Context {
         plugin(DeviceManager)
@@ -43,7 +44,7 @@ fun main() {
 
     val deviceManager = context.plugins[DeviceManager]!!
 
-    val config = Json.decodeFromStream<Meta>({}.javaClass.getResourceAsStream("/ChemicalFactory.json"))
+    val config = Json.decodeFromStream<Meta>({}.javaClass.getResourceAsStream("/ChemicalFactory.json")!!)
 
     val model = deviceManager.install(config, ContinuousModelLibrary(Kilograms).factories)
 

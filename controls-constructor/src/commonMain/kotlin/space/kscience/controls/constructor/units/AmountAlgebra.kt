@@ -66,7 +66,9 @@ public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.maxOf(fir
 public fun <U : UnitsOfMeasurement, T : Amount<U>> AmountAlgebra<U, T>.sum(args: Iterable<T>): T =
     args.fold(zero) { acc, t -> acc + t }
 
-public open class NumericAmountAlgebra<U : UnitsOfMeasurement>(public val units: U) : AmountAlgebra<U, NumericAmount<U>> {
+public abstract class NumericAmountAlgebra<U : UnitsOfMeasurement>() : AmountAlgebra<U, NumericAmount<U>> {
+
+    public abstract val units: U
 
     override val converter: MetaConverter<NumericAmount<U>> = MetaConverter.numeric(units)
 
@@ -84,6 +86,7 @@ public open class NumericAmountAlgebra<U : UnitsOfMeasurement>(public val units:
 
     override val zero: NumericAmount<U> = NumericAmount(0.0)
 }
+
 
 public fun <U : UnitsOfMeasurement, T : Amount<U>> T.coerceValueIn(
     algebra: AmountAlgebra<U, T>,
