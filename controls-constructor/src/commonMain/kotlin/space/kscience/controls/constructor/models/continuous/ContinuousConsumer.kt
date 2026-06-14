@@ -62,11 +62,6 @@ public class ContinuousConsumerDevice<U : UnitsOfMatter, T : Amount<U>>(
     override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
         LateBindValueState(consumerAlgebra.zero.perSecond)
 
-    init {
-        registerState(consumationCapacity, "consumation.capacity".parseAsName(true))
-        registerState(supplyRequest, "supply.request".parseAsName(true))
-    }
-
     override val consumation: ValueState<PerSecond<U, T>> = combineState(
         first = supplyRequest,
         second = consumationCapacity,
@@ -88,6 +83,11 @@ public class ContinuousConsumerDevice<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
+
+    init {
+        registerState(consumationCapacity, "consumation.capacity".parseAsName(true))
+        registerState(supplyRequest, "supply.request".parseAsName(true))
+    }
 }
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer(
@@ -111,8 +111,8 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.consumer(
 /**
  * An interface designating a model capable of consuming material from multiple consumers.
  */
-public interface ContinuousMultiConsumer<U : UnitsOfMatter, T : Amount<U>>{
-    public fun asConsumer(key: String): ContinuousConsumer<U,T>
+public interface ContinuousMultiConsumer<U : UnitsOfMatter, T : Amount<U>> {
+    public fun asConsumer(key: String): ContinuousConsumer<U, T>
 }
 
 /**

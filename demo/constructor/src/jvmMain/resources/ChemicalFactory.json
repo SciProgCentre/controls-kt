@@ -1,0 +1,93 @@
+{
+  "type": "flowModel",
+  "name": "ChemicalFactory",
+  "parameters": {
+    "models": {
+      "aProducer": {
+        "type": "producer",
+        "parameters": {
+          "productionCapacity": 1.0
+        }
+      },
+      "bProducer": {
+        "type": "producer",
+        "parameters": {
+          "productionCapacity": 1.5
+        }
+      },
+      "mixer": {
+        "type": "mix",
+        "parameters": {
+          "supplyKeys": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "abBuffer": {
+        "type": "buffer",
+        "parameters": {
+          "capacity": 10.0
+        }
+      },
+      "cProducer": {
+        "type": "producer",
+        "parameters": {
+          "productionCapacity": 10.0
+        }
+      },
+      "cBuffer": {
+        "type": "buffer",
+        "parameters": {
+          "capacity": 50.0
+        }
+      },
+      "reactor": {
+        "type": "reaction",
+        "parameters": {
+          "formula": {
+            "ab": 1.0,
+            "c": 1.0
+          },
+          "productionCapacity": 1.0
+        }
+      },
+      "consumer": {
+        "type": "consumer",
+        "parameters": {
+          "consumationCapacity": 2.0
+        }
+      }
+    },
+    "flowBindings": [
+      {
+        "producer": "aProducer",
+        "consumer": "mixer.a"
+      },
+      {
+        "producer": "bProducer",
+        "consumer": "mixer.b"
+      },
+      {
+        "producer": "mixer",
+        "consumer": "abBuffer"
+      },
+      {
+        "producer": "cProducer",
+        "consumer": "cBuffer"
+      },
+      {
+        "producer": "abBuffer",
+        "consumer": "reactor.ab"
+      },
+      {
+        "producer": "cBuffer",
+        "consumer": "reactor.c"
+      },
+      {
+        "producer": "reactor",
+        "consumer": "consumer"
+      }
+    ]
+  }
+}

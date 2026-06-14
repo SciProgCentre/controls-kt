@@ -21,7 +21,10 @@ public interface DeviceFactory : DeviceTreeFactory {
 
     public fun buildDevice(context: Context, meta: Meta): Device
 
-    override fun build(context: Context, meta: Meta): DeviceTree = DeviceTree(buildDevice(context, meta))
+    override fun build(context: Context, meta: Meta): DeviceTree {
+        val device = buildDevice(context, meta)
+        return device as? DeviceTree ?: DeviceTree(device)
+    }
 }
 
 /**

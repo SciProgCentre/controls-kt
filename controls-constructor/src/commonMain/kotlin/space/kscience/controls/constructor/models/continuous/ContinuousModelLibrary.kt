@@ -152,16 +152,14 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
 
         val modelConfiguration = parameters["models"] ?: error("Models parameter is required")
 
-        val flowBindings = parameters["flowBindings"]
-
 
         object : ContinuousFlowModel(context) {
             init {
                 val models = modelConfiguration.items.mapValues { (token, modelMeta) ->
-                    installTree(token.toString(), deviceManager.createDeviceTree(modelMeta))
+                    installTree(token.toString(), deviceManager.createDeviceTree(modelMeta, factories))
                 }
 
-                flowBindings?.items?.forEach { (token, bindingMeta) ->
+                parameters.getIndexed("flowBindings").forEach { (token, bindingMeta) ->
                     val producerName = bindingMeta[FlowBindingMetaSpec.producer]?.let { Name.parse(it) }
                         ?: error("Producer is required for binding $token")
                     val consumerName = bindingMeta[FlowBindingMetaSpec.consumer]?.let { Name.parse(it) }

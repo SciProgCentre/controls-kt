@@ -8,7 +8,6 @@ import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.parseAsName
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -151,13 +150,21 @@ public inline fun <D : DeviceTree> DeviceManager.installing(
 
 /**
  * Create (but not start or attach) a device using given [configuration] and registered factories
+ *
+ * @param additionalFactories additional factories to use when creating the device when they are not defined in the context
  */
 @OptIn(DFExperimental::class)
-public fun DeviceManager.createDeviceTree(configuration: Meta): DeviceTree {
+public fun DeviceManager.createDeviceTree(
+    configuration: Meta,
+    additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()
+): DeviceTree {
 //    DeviceLibraryMetaSpec.validate(configuration)
     val type = configuration[DeviceLibraryMetaSpec.type] ?: error("Device type is not specified")
     val parameters = configuration[DeviceLibraryMetaSpec.parameters] ?: Meta.EMPTY
-    return factories[type.parseAsName()]?.invoke(parameters, context) ?: error("Device type $type is not registered")
+    val allFactories = factories.mapKeys { it.toString() } + additionalFactories
+    val factory = allFactories[type] ?: error("Device type $type is not registered")
+    return factory(parameters, context)
+
 }
 
 
@@ -165,7 +172,10 @@ public fun DeviceManager.createDeviceTree(configuration: Meta): DeviceTree {
  * Create and install a device using given [configuration] and registered factories
  */
 @OptIn(DFExperimental::class)
-public fun DeviceManager.install(configuration: Meta): DeviceTree {
+public fun DeviceManager.install(
+    configuration: Meta,
+    additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()
+): DeviceTree {
     val name = configuration[DeviceLibraryMetaSpec.name] ?: error("Device name is not specified")
-    return installTree(name, createDeviceTree(configuration))
+    return installTree(name, createDeviceTree(configuration, additionalFactories))
 }
