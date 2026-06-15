@@ -8,6 +8,9 @@ import space.kscience.controls.manager.installNode
 import space.kscience.controls.modbus.ModbusRegistryKey
 import space.kscience.dataforge.context.Context
 
+/**
+ * A [ThermoSensorHub] implementation that uses Modbus to communicate with thermo sensors.
+ */
 class ModbusThermoSensorHub(
     val deviceManager: DeviceManager,
     val configuration: ThermoSensorHubConfig

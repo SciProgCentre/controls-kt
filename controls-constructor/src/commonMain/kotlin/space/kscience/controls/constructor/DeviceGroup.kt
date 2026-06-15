@@ -13,7 +13,6 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.get
@@ -89,15 +88,14 @@ public open class DeviceGroup(
     override val children: Map<String, DeviceTree> get() = _devices
 
     /**
-     * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group
+     * Register and initialize (synchronize child's lifecycle state with group state) a new device tree in this group.
      */
-    @OptIn(DFExperimental::class)
-    public open fun <D : Device> install(deviceName: String, device: D): D {
+    public fun <DN : DeviceTree> installNode(deviceName: String, node: DN): DN {
         require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
         //start the child device if this device is started
-        if (isStarted()) launch { device.start() }
-        _devices[deviceName] = DeviceTree(device)
-        return device
+        if (isStarted()) node.start()
+        _devices[deviceName] = node
+        return node
     }
 
     private val properties: MutableMap<Name, Property<*>> = hashMapOf()
@@ -220,6 +218,14 @@ public open class DeviceGroup(
     override val clock: Clock = context.clock
 
     public companion object
+}
+
+/**
+ * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group
+ */
+public fun <D : Device> DeviceGroup.install(deviceName: String, device: D): D {
+    installNode(deviceName, device as? DeviceTree ?: DeviceTree(device))
+    return device
 }
 
 public fun <T> DeviceGroup.registerAsProperty(propertySpec: DevicePropertySpec<T>, state: ValueState<T>) {

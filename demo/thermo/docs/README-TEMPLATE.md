@@ -19,6 +19,17 @@ The module consists of several key components:
 2. **ThermoSensorHub** - Manages multiple sensors and provides access to their data
 3. **Dashboard UI** - Compose-based UI for visualizing sensor data
 
+### Device Tree
+
+The hierarchy of devices in the thermo module is as follows:
+
+- **ModbusThermoSensorHub** (Root)
+    - **ThermoSensorAnalyzer** (Individual sensor analyzer)
+        - **ModbusThermoSensor** (Physical Modbus device)
+    - **ThermoSensorGroupAnalyzer** (Aggregates multiple sensors)
+
+A detailed diagram of the device tree can be found in [device-tree.drawio](./device-tree.drawio).
+
 ## Running the Demo
 
 The demo creates a simulated Modbus TCP server with 100 virtual temperature sensors (10 units × 10 addresses). The sensors generate random temperature values that fluctuate around the warning threshold.

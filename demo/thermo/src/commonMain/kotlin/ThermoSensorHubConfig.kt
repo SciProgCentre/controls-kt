@@ -10,6 +10,9 @@ import kotlin.time.Clock
 
 internal fun normalize(d: Double): Double = (floor(d * 10.0) / 10.0).takeIf { it.isFinite() } ?: 0.0
 
+/**
+ * Correction for temperature sensor analyzer
+ */
 @OptIn(DFExperimental::class)
 class ThermoSensorAnalyzerCorrectionConfig : Scheme() {
     var daily: Map<Int, Double>? by convertable(MetaConverter.serializable<Map<Int, Double>>())

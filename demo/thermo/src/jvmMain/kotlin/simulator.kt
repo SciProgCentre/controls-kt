@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.invoke
+import kotlin.time.Duration.Companion.milliseconds
 
 internal fun randomWalk(
     initialValue: Double,
@@ -21,7 +22,7 @@ internal fun randomWalk(
 ): Flow<Double> = flow {
     var currentValue = initialValue
     while (true) {
-        delay(100)
+        delay(100.milliseconds)
         emit(currentValue)
         val randomStep = (Math.random() * 2 - 1) * stepSize
         currentValue = (currentValue + randomStep)
@@ -29,6 +30,12 @@ internal fun randomWalk(
 }
 
 
+/**
+ * Launches a Modbus simulator as a coroutine within the given `CoroutineScope`.
+ *
+ * @param configuration The configuration object containing Modbus and sensor details required for setting up the simulator.
+ * @return The [Job] instance representing the coroutine that runs the Modbus simulator.
+ */
 fun CoroutineScope.launchModbusSimulator(configuration: ThermoSensorHubConfig): Job {
     val slave = ModbusSlaveFactory.createTCPSlave(configuration.modbusDefault.port ?: 9090, configuration.sensors.size)
 

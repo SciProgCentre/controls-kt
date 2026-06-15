@@ -24,7 +24,8 @@ kscience {
 
     commonMain {
         api(libs.dataforge.io)
-        api(spclibs.kotlinx.datetime)
+        api("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0-0.6.x-compat")
+        //api(spclibs.kotlinx.datetime)
     }
 
     jvmTest{
@@ -69,6 +70,12 @@ readme{
     feature("ports", ref = "src/commonMain/kotlin/space/kscience/controls/ports"){
         """
             Working with asynchronous data sending and receiving raw byte arrays
+        """.trimIndent()
+    }
+
+    feature("clock", ref = "src/commonMain/kotlin/space/kscience/controls/time"){
+        """
+            Clock management and time manipulation (virtual and compressed time)
         """.trimIndent()
     }
 }

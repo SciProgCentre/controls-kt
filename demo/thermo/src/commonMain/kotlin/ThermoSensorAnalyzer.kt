@@ -9,6 +9,8 @@ import kotlinx.serialization.Serializable
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.valueType
 import space.kscience.controls.constructor.*
+import space.kscience.controls.spec.AbstractDeviceSpec
+import space.kscience.controls.spec.verify
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
@@ -17,6 +19,9 @@ import kotlin.math.abs
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * An enumeration representing the operational status of a thermo sensor.
+ */
 @Serializable
 enum class ThermoSensorStatus {
     NotConnected,
@@ -26,35 +31,41 @@ enum class ThermoSensorStatus {
     // TODO consider adding explicit messages
 }
 
+/**
+ * A class for analyzing temperature data from a thermo sensor device. This class interacts with a device
+ * providing temperature readings and computes various metrics such as average temperature and sensor status
+ * based on thresholds and correction factors.
+ *
+ * @property sensor The thermo sensor device to be analyzed.
+ * @property analyzerConfig Configuration settings for the analyzer, including thresholds and correction values.
+ *
+ * Main functionalities:
+ * - Provides the current temperature reading from the sensor.
+ * - Calculates the averaged temperature over a sliding time window.
+ * - Determines the operational status of the sensor based on thresholds.
+ * - Applies daily and yearly correction factors to thresholds.
+ */
 class ThermoSensorAnalyzer(
     val sensor: Device,
     val analyzerConfig: ThermoSensorAnalyzerConfig
 ) : DeviceConstructor(sensor.context, analyzerConfig.meta) {
     init {
+        check(ThermoSensorSpec.verify(sensor)) { "Sensor is not a thermo sensor" }
         install("sensor", sensor)
     }
 
-    val temperature by property(
-        converter = MetaConverter.Companion.double,
-        state = sensor.propertyAsState(ThermoSensorSpec.temperature, Double.NaN),
-        descriptorBuilder = {
-            valueType(ValueType.NUMBER)
-        }
+    val temperature = registerAsProperty(
+        Companion.temperature,
+        sensor.propertyAsState(ThermoSensorSpec.temperature, Double.NaN)
     )
 
     private val statusState = MutableValueState(ThermoSensorStatus.NotConnected)
 
-    val status: ValueState<ThermoSensorStatus> by property(MetaConverter.enum<ThermoSensorStatus>(), statusState)
+    val status = registerAsProperty(Companion.status, statusState)
 
     private val averagedTemperatureState = MutableValueState(Double.NaN)
 
-    val averageTemperature: ValueState<Double> by property(
-        converter = MetaConverter.double,
-        state = averagedTemperatureState,
-        descriptorBuilder = {
-            valueType(ValueType.NUMBER)
-        }
-    )
+    val averageTemperature = registerAsProperty(Companion.averageTemperature, averagedTemperatureState)
 
     private val history = ArrayList<ValueWithTime<Double>>()
 
@@ -66,11 +77,11 @@ class ThermoSensorAnalyzer(
 
     private val yearly = analyzerConfig.correction.yearly
 
-    private fun computeCorrection(time: LocalDateTime): Double{
+    private fun computeCorrection(time: LocalDateTime): Double {
         val dailyCorrection = if (daily.isNullOrEmpty()) {
             0.0
         } else {
-            daily.entries.filter { it.key <= time.hour }.maxByOrNull{ it.key }?.value ?: 0.0
+            daily.entries.filter { it.key <= time.hour }.maxByOrNull { it.key }?.value ?: 0.0
         }
 
         val yearlyCorrection = if (yearly.isNullOrEmpty()) {
@@ -122,6 +133,20 @@ class ThermoSensorAnalyzer(
             statusState.value = newStatus
         }
     }
+
+    companion object : AbstractDeviceSpec() {
+        // LLM generated code: device spec for ThermoSensorAnalyzer
+        val temperature by property(MetaConverter.double) {
+            valueType(ValueType.NUMBER)
+            description = "Temperature reading in degrees Celsius"
+        }
+
+        val status by property(MetaConverter.enum<ThermoSensorStatus>())
+
+        val averageTemperature by property(MetaConverter.double) {
+            valueType(ValueType.NUMBER)
+        }
+    }
 }
 
 /**
@@ -152,19 +177,16 @@ class ThermoSensorGroupAnalyzer(
     val config: ThermoSensorGroupConfig
 ) : DeviceConstructor(context, config.meta) {
 
-    val discrepancy by property(
-        converter = MetaConverter.double,
+    val discrepancy = registerAsProperty(
+        spec = Companion.discrepancy,
         state = combineState(sensors.map { it.temperature }) { values ->
             val average = values.average()
             values.maxOf { abs(average - it) }
-        },
-        descriptorBuilder = {
-            valueType(ValueType.NUMBER)
         }
     )
 
-    val status by property(
-        converter = MetaConverter.enum<ThermoSensorStatus>(),
+    val status = registerAsProperty(
+        spec = Companion.status,
         state = discrepancy.map { discrepancy ->
             when {
                 discrepancy >= config.discrepancyThreshold -> ThermoSensorStatus.Alarm
@@ -172,4 +194,13 @@ class ThermoSensorGroupAnalyzer(
             }
         }
     )
+
+    companion object : AbstractDeviceSpec() {
+        // LLM generated code: device spec for ThermoSensorGroupAnalyzer
+        val discrepancy by property(MetaConverter.double) {
+            valueType(ValueType.NUMBER)
+        }
+
+        val status by property(MetaConverter.enum<ThermoSensorStatus>())
+    }
 }

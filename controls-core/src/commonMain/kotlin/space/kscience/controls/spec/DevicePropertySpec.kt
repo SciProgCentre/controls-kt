@@ -31,6 +31,17 @@ public interface DevicePropertySpec<T> {
      * Property descriptor
      */
     public val descriptor: PropertyDescriptor
+
+    public companion object {
+        /**
+         * A property spec for device own meta
+         */
+        public val deviceMeta: DevicePropertySpec<Meta> = object : DevicePropertySpec<Meta> {
+            override val descriptor: PropertyDescriptor = PropertyDescriptor("@meta")
+
+            override val converter: MetaConverter<Meta> = MetaConverter.meta
+        }
+    }
 }
 
 public val DevicePropertySpec<*>.isReadable: Boolean get() = descriptor.readable

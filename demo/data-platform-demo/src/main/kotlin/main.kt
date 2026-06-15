@@ -1,173 +1,122 @@
-@file:OptIn(ExperimentalAtomicApi::class)
+@file:OptIn(ExperimentalAtomicApi::class, ExperimentalSerializationApi::class)
 
 package space.kscience.controls.demo
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import space.kscience.controls.api.Device
 import space.kscience.controls.api.onPropertyChange
-import space.kscience.controls.dataplatform.*
-import space.kscience.controls.dataplatform.storage.RowsCompression
-import space.kscience.controls.dataplatform.storage.launchStorageProcess
+import space.kscience.controls.constructor.DeviceConfiguration
+import space.kscience.controls.dataplatform.DataPlatform
+import space.kscience.controls.dataplatform.DataPlatformConfiguration
+import space.kscience.controls.dataplatform.DataPlatformDevice
+import space.kscience.controls.dataplatform.buildDeviceGroup
+import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installNode
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
+import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.parseAsName
-import space.kscience.dataforge.names.plus
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.io.path.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.writeText
+import kotlin.io.path.inputStream
 import kotlin.time.Duration.Companion.seconds
+
+internal val json = Json { prettyPrint = true }
+
+/**
+ * Console monitoring of device updates
+ */
+private fun Device.monitorDeviceChanges(): Job = launch {
+
+    val mutex = Mutex()
+    val values = mutableMapOf<String, Meta>()
+
+    this@monitorDeviceChanges.onPropertyChange(this) {
+        mutex.withLock {
+            values[property] = value
+        }
+    }
+
+    launch {
+        while (isActive) {
+            delay(1.seconds)
+            mutex.withLock {
+                if (values.isNotEmpty()) {
+                    println("Changed in a last second: ${values.size}")
+                    values.clear()
+                }
+            }
+        }
+    }
+}
+
 
 // IMPORTANT: run in blocking mode
 fun main() {
     val context = Context {
+        plugin(IOPlugin)
         plugin(DeviceManager)
         plugin(SlfLogManager)
     }
     val deviceManager = context.request(DeviceManager)
 
-    val numberOfOpcDevices = 6
 
-    val numberOfModbusDevices = 4
-
-    val propertiesPerDevice = 30
-
-    val registryMap = TestDeviceRegistryMap(
-        List(propertiesPerDevice) { "property[$it]"}
+    //setup data sources and data config
+    val platformDataDirectory = deviceManager.setupPlatformTestStand(
+        numberOfOpcDevices = 6,
+        numberOfModbusDevices = 4,
+        propertiesPerDevice = 30
     )
 
-    deviceManager.setupTestDevices(
-        propertiesPerDevice = propertiesPerDevice,
-        numberOfOpcDevices = numberOfOpcDevices,
-        numberOfModbusDevices = numberOfModbusDevices,
-        registryMap = registryMap,
-        scope = context
-    )
-
-    Thread.sleep(1000)
-
-    val opcSourceName = "opc"
-    val modbusSourceName = "modbus"
-
-    val sources = mapOf(
-        opcSourceName to OpcUaConfig("opc.tcp://localhost:9091"),
-        modbusSourceName to ModbusTcpConfig("localhost", 9093)
-    )
-
-    val timerName = "default"
-
-    val timers = mapOf(timerName to FixedRateTimer(1.seconds))
-
-    val platformProperties = buildMap<Name, PlatformProperty> {
-        repeat(numberOfOpcDevices) { opcDeviceNum ->
-            repeat(propertiesPerDevice) { propertyNum ->
-                put(
-                    key = "opc[${opcDeviceNum}].property[${propertyNum}]".parseAsName(),
-                    value = OpcPlatformProperty(
-                        source = opcSourceName,
-                        timer = timerName,
-                        nodeId = "ns=2;s=opc/device[$opcDeviceNum]/property[$propertyNum]"
-                    )
-                )
-            }
-        }
-
-        repeat(numberOfModbusDevices) { modbusDeviceNum ->
-
-            registryMap.keys.forEach { (name, key) ->
-                put(
-                    key = "modbus[${modbusDeviceNum}]".parseAsName() + name,
-                    value = ModbusPlatformProperty(
-                        source = modbusSourceName,
-                        timer = timerName,
-                        reader = ModbusDoubleReader,
-                        address = key.address,
-                        unitId = modbusDeviceNum + 1
-                    )
-                )
-            }
-        }
+    //read platform config
+    val configuration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
+        json.decodeFromStream(DataPlatformConfiguration.serializer(), it)
     }
 
-    val configuration = DataPlatformConfiguration(
-        sources = sources,
-        timers = timers,
-        properties = platformProperties.mapKeys { it.key.toString() }
-    )
-
-    Path("data/platform-config.json").writeText(
-        Json { prettyPrint = true }.encodeToString(DataPlatformConfiguration.serializer(), configuration)
-    )
 
     val platform = DataPlatform(context, configuration)
 
+    //setup platform device (optional)
     val platformDevice = DataPlatformDevice(platform)
-
     deviceManager.install("platform", platformDevice)
 
-    val deviceHub = deviceManager.installFromConfiguration(platform, configuration, "devices")
+    // monitor changes
+    platformDevice.monitorDeviceChanges()
 
 
+    //read device config
+    val deviceConfig = platformDataDirectory.resolve("device-config.json").inputStream().use {
+        json.decodeFromStream(DeviceConfiguration.serializer(), it)
+    }
+    //setup devices from config
+    val devices = platform.buildDeviceGroup(deviceConfig)
+    deviceManager.installNode("devices", devices)
 
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 
-    val dataDirectory = Path("data").also {
-        it.createDirectories()
-    }
 
-    //store all data from the platform
-    val storageJob = platform.launchStorageProcess(
-        directory = dataDirectory,
-        readInterval = 1.seconds,
-        maxDuration = 30.seconds,
-        compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05)
-    )
-
-    // monitor changes
-    context.launch {
-
-        val mutex = Mutex()
-        val values = mutableMapOf<String, Meta>()
-
-        platformDevice.onPropertyChange(this) {
-            mutex.withLock {
-                values[property] = value
-            }
-        }
-
-        launch {
-            while (isActive) {
-                delay(1.seconds)
-                mutex.withLock {
-                    if (values.isNotEmpty()) {
-                        println("Changed in a last second: ${values.size}")
-                        values.clear()
-                    }
-                }
-            }
-        }
-    }
-
+    //launch visualization app
     application {
         Window(onCloseRequest = {
             context.close()
             exitApplication()
         }, title = "Data Platform Demo") {
             MaterialTheme {
-                DeviceVisualisation(deviceHub)
+                DeviceVisualisation(devices)
             }
         }
     }

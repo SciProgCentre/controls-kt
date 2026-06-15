@@ -54,8 +54,9 @@ private class CompressedClock(
     }
 }
 
-internal expect fun resolveClock(meta: Meta): Clock?
-
+/**
+ * Represents the mode of operation for a clock, defining its time source or behavior.
+ */
 public sealed interface ClockMode {
     public data object System : ClockMode
     public data class Custom(public val clock: Clock) : ClockMode
@@ -63,15 +64,39 @@ public sealed interface ClockMode {
     public data class Virtual(public val scheduler: VirtualTimeDispatcher) : ClockMode
 }
 
+/**
+ * Manages clock-related functionality and provides different modes of clock operation
+ * based on the provided metadata. This includes system clocks, virtual clocks,
+ * compressed time clocks, and custom-defined clocks.
+ *
+ * @constructor Initializes the `ClockManager` with the given metadata.
+ *
+ * @property clockMode Specifies the operational mode of the clock. The mode is resolved
+ * based on the metadata, and it can be one of the following: system clock, virtual clock,
+ * compressed time clock, or a custom clock.
+ *
+ * @property clock Provides the actual clock instance based on the resolved `clockMode`.
+ * Supports a variety of clock implementations, such as system, virtual, compressed, or
+ * custom clocks based on the configuration.
+ *
+ * @property simulationDispatcher Provides a `CoroutineDispatcher` to manage coroutine
+ * execution for simulations using the same time management methodology as dictated by
+ * the `clockMode`.
+ *
+ * @function scheduleWithFixedDelay Launches a coroutine that executes a given block
+ * repeatedly with a fixed delay between executions. The delay is compatible with the
+ * managed time provided by the clock in `simulationDispatcher`.
+ */
 public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     override val tag: PluginTag get() = Companion.tag
+
 
     public val clockMode: ClockMode by lazy {
         when (meta["clock.mode"].string) {
             null, "system" -> ClockMode.System
             "virtual" -> ClockMode.Virtual(VirtualTimeDispatcher(context))
             "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
-            else -> ClockMode.Custom(resolveClock(meta) ?: error("Can't resolve clock for $meta"))
+            else -> error("Can't resolve clock for $meta")
         }
     }
 
@@ -101,12 +126,13 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
         }
     }
 
-    public fun scheduleWithFixedDelay(tick: Duration, block: suspend () -> Unit): Job = context.launch(simulationDispatcher) {
-        while (isActive) {
-            delay(tick)
-            block()
+    public fun scheduleWithFixedDelay(tick: Duration, block: suspend () -> Unit): Job =
+        context.launch(simulationDispatcher) {
+            while (isActive) {
+                delay(tick)
+                block()
+            }
         }
-    }
 
     override fun detach() {
         (clockMode as? ClockMode.Virtual)?.scheduler?.close()
@@ -116,12 +142,24 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     public companion object : PluginFactory<ClockManager> {
         override val tag: PluginTag = PluginTag("clock", group = PluginTag.DATAFORGE_GROUP)
 
+        /**
+         * The default instance of [ClockManager].
+         *
+         * This instance is configured with an empty meta configuration ([Meta.EMPTY]) and is
+         * associated with the global clock context ([Global]).
+         * It serves as the default clock management utility within the system and provides
+         * functionality for scheduling and managing tasks related to time.
+         */
+        public val DEFAULT: ClockManager = ClockManager(Meta.EMPTY).apply { attach(Global) }
+
         override fun build(
             context: Context,
             meta: Meta
         ): ClockManager = ClockManager(Laminate(meta, context.properties))
     }
 }
+
+public val Context.clockManager: ClockManager get() = plugins[ClockManager] ?: ClockManager.DEFAULT
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
 

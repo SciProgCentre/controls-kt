@@ -9,6 +9,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -24,7 +25,7 @@ public class TimerState(
     public val clockManager: ClockManager,
     public val tick: Duration,
     initialValue: Instant = Instant.DISTANT_PAST,
-) : ValueState<Instant> {
+) : ValueState<Instant>, Clock {
 
     private val timeFlow = MutableStateFlow(initialValue)
 
@@ -40,6 +41,8 @@ public class TimerState(
     override fun subscribeWithTime(): Flow<ValueWithTime<Instant>> = timeFlow.map { ValueWithTime(it,it) }
 
     override val value: Instant get() = timeFlow.value
+
+    override fun now(): Instant =value
 
     override val valueWithTime: ValueWithTime<Instant> get() = ValueWithTime(value, value)
 
