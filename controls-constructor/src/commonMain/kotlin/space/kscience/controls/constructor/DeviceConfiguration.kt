@@ -1,7 +1,7 @@
 package space.kscience.controls.constructor
 
 import kotlinx.serialization.Serializable
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -39,10 +39,10 @@ public fun interface ValueStateProvider {
 public fun Context.buildDeviceGroupByScheme(
     scheme: DeviceConfiguration,
     stateFactories: Map<String, ValueStateProvider> = ValueState.defaultValueStateFactories
-): DeviceGroup = DeviceGroup(this, scheme.parameters).apply {
+): DeviceConstructor = DeviceConstructor(this, scheme.parameters).apply {
     scheme.devices.forEach { (name, scheme) -> install(name, buildDeviceGroupByScheme(scheme, stateFactories)) }
     scheme.properties.forEach { (name, stateScheme) ->
-        registerAsProperty(
+        registerProperty(
             name = name,
             converter = MetaConverter.meta,
             state = stateFactories[stateScheme.type]?.buildValueState(context, stateScheme.parameters)
@@ -58,5 +58,5 @@ public fun Context.install(
     name: String,
     scheme: DeviceConfiguration,
     stateFactories: Map<String, ValueStateProvider>
-): DeviceGroup = installNode(name, buildDeviceGroupByScheme(scheme, stateFactories))
+): DeviceConstructor = install(name, buildDeviceGroupByScheme(scheme, stateFactories))
 

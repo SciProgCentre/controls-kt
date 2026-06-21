@@ -78,7 +78,7 @@ public class ContinuousReaction<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
     public val reaction: ReactionRule<U, T>,
-) : ModelConstructor(context), ContinuousProducer<U, T> {
+) : DeviceConstructor(context), ContinuousProducer<U, T>, ContinuousMultiConsumer<U, T> {
 
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
     public val supplyRequest: Map<String, LateBindValueState<PerSecond<U, T>>> = reaction.supplyKeys.associateWith {
@@ -167,38 +167,30 @@ public class ContinuousReaction<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
+    /**
+     * Creates a consumer instance for a specific supply key from a continuous mix instance.
+     *
+     * @param key The unique identifier of the supply for which the consumer is to be created.
+     * @return A [ContinuousConsumer] instance associated with the specified key, capable of consuming material flow
+     * based on its capacity and the corresponding supply request.
+     * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
+     */
+    override fun asConsumer(
+        key: String
+    ): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
+        object : ContinuousConsumer<U, T> {
+            override val consumerAlgebra: AmountAlgebra<U, T> get() = this@ContinuousReaction.producerAlgebra
+
+            override val consumation: ValueState<PerSecond<U, T>> get() = individualConsumation[key]!!
+            override val consumationCapacity: ValueState<AmountPerSecond<U>> get() = individualConsumationCapacity[key]!!
+            override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
+        }
+    } ?: error("No supplier with key $key found")
 
     override fun toString(): String =
         "ContinuousReaction(reaction=$reaction, consumation=${consumation.value}, production=${production.value})"
 }
 
-/**
- * Creates a consumer instance for a specific supply key from a continuous mix instance.
- *
- * @param key The unique identifier of the supply for which the consumer is to be created.
- * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material flow
- * based on its capacity and the corresponding supply request.
- * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
- */
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.asConsumer(
-    key: String
-): ContinuousConsumer<U, T> = supplyRequest[key]?.let { input ->
-    object : ContinuousConsumer<U, T> {
-        override val consumerAlgebra: AmountAlgebra<U, T> get() = this@asConsumer.producerAlgebra
-
-        override val consumation: ValueState<PerSecond<U, T>> get() = individualConsumation[key]!!
-        override val consumationCapacity: ValueState<AmountPerSecond<U>> get() = individualConsumationCapacity[key]!!
-        override val supplyRequest: LateBindValueState<PerSecond<U, T>> get() = input
-    }
-} ?: error("No supplier with key $key found")
-
-
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
-    key: String,
-    producer: ContinuousProducer<U, T>
-) {
-    ContinuousFlowModel.connect(producer, this.asConsumer(key))
-}
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousReaction<U, T>.connectProducer(
     key: String,
@@ -211,7 +203,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
     reaction: ReactionRule<U, T>,
     modelName: Name? = null
-): ContinuousReaction<U, T> = model(ContinuousReaction(context, algebra, reaction), modelName)
+): ContinuousReaction<U, T> = child(ContinuousReaction(context, algebra, reaction), modelName)
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     algebra: AmountAlgebra<U, T>,
@@ -219,7 +211,7 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.reaction(
     production: PerSecond<U, T>,
     productKey: String = "@product",
     modelName: Name? = null
-): ContinuousReaction<U, T> = model(
+): ContinuousReaction<U, T> = child(
     ContinuousReaction(
         context, algebra,
         reaction = formula(

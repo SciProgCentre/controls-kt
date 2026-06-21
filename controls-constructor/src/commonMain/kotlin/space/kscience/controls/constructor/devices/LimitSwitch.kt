@@ -3,7 +3,7 @@ package space.kscience.controls.constructor.devices
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
-import space.kscience.controls.constructor.registerAsProperty
+import space.kscience.controls.constructor.registerProperty
 import space.kscience.controls.constructor.units.Direction
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
@@ -21,7 +21,7 @@ public class LimitSwitch(
     locked: ValueState<Boolean>,
 ) : DeviceConstructor(context) {
 
-    public val locked: ValueState<Boolean> = registerAsProperty(LimitSwitch.locked, locked)
+    public val locked: ValueState<Boolean> = registerProperty(LimitSwitch.locked, locked)
 
     public companion object : AbstractDeviceSpec() {
         public val locked: DevicePropertySpec<Boolean> by property(MetaConverter.boolean)

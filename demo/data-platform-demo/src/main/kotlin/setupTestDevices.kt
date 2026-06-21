@@ -6,9 +6,12 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.onLifecycleEvent
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.install
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.install
 import space.kscience.controls.modbus.ModbusRegistryMap
 import space.kscience.controls.modbus.bindProcessImage
 import space.kscience.controls.opcua.server.OpcUaServer
@@ -54,10 +57,10 @@ private fun DeviceManager.setupOpcTestDevices(
     numberOfOpcDevices: Int,
     propertiesPerDevice: Int,
     properties: MutableMap<Name, MutableValueState<Double>>
-): DeviceGroup {
+): DeviceConstructor {
 
     //create opc device group
-    val opcGroup = DeviceGroup(context, Meta.EMPTY)
+    val opcGroup = DeviceConstructor(context, Meta.EMPTY)
     //fill opc device group
     repeat(numberOfOpcDevices) { deviceNum ->
         val deviceName = "device[${deviceNum}]"
@@ -74,7 +77,7 @@ private fun DeviceManager.setupOpcTestDevices(
         opcGroup.install(deviceName, testDevice)
     }
 
-    installNode("opc", opcGroup)
+    install("opc", opcGroup)
 
     //start opc server
     val opcServer = OpcUaServer {
@@ -102,9 +105,9 @@ private fun DeviceManager.setupModbusDevices(
     numberOfModbusDevices: Int,
     registryMap: TestDeviceRegistryMap,
     properties: MutableMap<Name, MutableValueState<Double>>
-): DeviceGroup {
+): DeviceConstructor {
     //create opc device group
-    val modbusGroup = DeviceGroup(context, Meta.EMPTY)
+    val modbusGroup = DeviceConstructor(context, Meta.EMPTY)
 
     val modbusSlave = ModbusSlaveFactory.createTCPSlave(9093, 2)
 
@@ -129,7 +132,7 @@ private fun DeviceManager.setupModbusDevices(
         modbusSlave.addProcessImage(deviceNum + 1, processImage)
     }
 
-    installNode("modbus", modbusGroup)
+    install("modbus", modbusGroup)
 
     modbusSlave.open()
 

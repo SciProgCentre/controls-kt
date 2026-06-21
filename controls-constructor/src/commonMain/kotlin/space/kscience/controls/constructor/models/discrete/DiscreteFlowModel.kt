@@ -30,7 +30,7 @@ public data class DiscreteFlowPacket<U : UnitsOfMeasurement>(
 )
 
 @ExperimentalControlsApi
-public abstract class DiscreteFlowModel(context: Context) : ModelConstructor(context)
+public abstract class DiscreteFlowModel(context: Context) : DeviceConstructor(context)
 
 
 /**
@@ -113,9 +113,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
     context: Context,
     public val capacity: ValueState<NumericAmount<U>>,
     public var target: FlowCollector<DiscreteFlowPacket<U>>? = null
-) : ModelConstructor(context), DiscreteActor<U> {
-
-    override val modelType: Name = NameToken("consumer", hashCode().toHexString()).asName()
+) : DeviceConstructor(context), DiscreteActor<U> {
 
     private val channel = Channel<DiscreteFlowPacket<U>>()
 
@@ -131,8 +129,6 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         registerState(consumation, "consumation".asName())
         registerState(capacity, "capacity".asName())
     }
-
-    private val clock: Clock = context.clock
 
     private val collectionJob = channel.consumeAsFlow()
         .limitFlow(clock) { capacity.value }
@@ -150,7 +146,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
 public fun <U : UnitsOfMeasurement> DiscreteFlowModel.registerConsumer(
     capacity: ValueState<NumericAmount<U>>,
     target: FlowCollector<DiscreteFlowPacket<U>>? = null
-): DiscreteConsumer<U> = model(DiscreteConsumer(context, capacity, target))
+): DiscreteConsumer<U> = child(DiscreteConsumer(context, capacity, target))
 
 @ExperimentalControlsApi
 public class DiscreateProducer<U : UnitsOfMeasurement>(
@@ -158,8 +154,9 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
     public val capacity: ValueState<NumericAmount<U>>,
     public var target: DiscreteActor<U>,
     private val packageInterval: Duration = 0.1.seconds,
-) : ModelConstructor(context) {
-    override val modelType: Name = NameToken("producer", hashCode().toHexString()).asName()
+) : DeviceConstructor(context) {
+
+    public val producerId: Name = NameToken("producer", hashCode().toHexString()).asName()
 
     private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
@@ -170,13 +167,11 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
         registerState(capacity, "capacity".asName())
     }
 
-    private val clock: Clock = context.clock
-
     private val productionJob = flow {
         while (true) {
             delay(packageInterval)
             val amountPerPackage = capacity.value * (packageInterval / 1.seconds)
-            emit(DiscreteFlowPacket(modelType, amountPerPackage, clock.now()))
+            emit(DiscreteFlowPacket(producerId, amountPerPackage, clock.now()))
         }
     }.onEach {
         target.emit(it)
@@ -191,4 +186,4 @@ public fun <U : UnitsOfMeasurement> DiscreteFlowModel.registerProducer(
     capacity: ValueState<NumericAmount<U>>,
     target: DiscreteActor<U>,
     packageInterval: Duration = 0.1.seconds
-): DiscreateProducer<U> = model(DiscreateProducer(context, capacity, target, packageInterval))
+): DiscreateProducer<U> = child(DiscreateProducer(context, capacity, target, packageInterval))

@@ -31,15 +31,14 @@ import kotlin.time.Duration.Companion.seconds
 private class EnrichmentFacility(
     context: Context,
 ) : ContinuousFlowModel(context) {
+    val one =  Mixture.ofFractions<Kilograms>(component1 to 1.0, component2 to 1.0)
 
-    val mixture = MixtureAlgebra(Kilograms)
+    val mixture = MixtureAlgebra(Kilograms, one)
 
     val productionValue = MutableValueState(AmountPerSecond<Kilograms>(1.0))
 
     val production = productionValue.map {
-        with(mixture) {
-            Mixture.ofFractions<Kilograms>(component1 to 1.0, component2 to 1.0) * it.value
-        }.perSecond
+        mixture.valueOf(it.value).perSecond
     }
 
     val producer = producer(mixture, production)

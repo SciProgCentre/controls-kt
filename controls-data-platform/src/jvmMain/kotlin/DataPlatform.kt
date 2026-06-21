@@ -394,7 +394,7 @@ public class DataPlatform(
  */
 public fun DataPlatform.buildDeviceGroup(
     scheme: DeviceConfiguration
-): DeviceGroup {
+): DeviceConstructor {
     val valueStateFactories = ValueState.defaultValueStateFactories + (DataPlatform.PLATFORM_VALUE_FACTORY_TYPE to this)
     return context.buildDeviceGroupByScheme(scheme, valueStateFactories)
 }

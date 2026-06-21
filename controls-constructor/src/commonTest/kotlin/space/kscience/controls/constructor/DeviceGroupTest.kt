@@ -3,13 +3,13 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.Device
+import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.api.DeviceLifeCycleMessage
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.doRecurring
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
@@ -21,8 +21,8 @@ class DeviceGroupTest {
 
     class TestDevice(context: Context) : DeviceConstructor(context) {
 
-        companion object : Factory<Device> {
-            override fun build(context: Context, meta: Meta): Device = TestDevice(context)
+        companion object : DeviceFactory {
+            override fun buildDevice(context: Context, meta: Meta): Device = TestDevice(context)
         }
     }
 

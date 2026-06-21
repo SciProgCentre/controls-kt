@@ -5,7 +5,7 @@ import org.eclipse.milo.opcua.sdk.client.OpcUaClientConfigBuilder
 import org.eclipse.milo.opcua.sdk.client.identity.UsernameProvider
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy
 import space.kscience.controls.spec.DeviceBase
-import space.kscience.controls.spec.DeviceFactory
+import space.kscience.controls.spec.DeviceWithStateFactory
 import space.kscience.dataforge.meta.*
 
 
@@ -41,7 +41,7 @@ public class MiloConfiguration : Scheme() {
     public companion object : SchemeSpec<MiloConfiguration>(::MiloConfiguration)
 }
 
-public abstract class OpcUaDeviceFactory : DeviceFactory<OpcUaClient>() {
+public abstract class OpcUaDeviceFactory : DeviceWithStateFactory<OpcUaClient>() {
     context(device: DeviceBase)
     override suspend fun createState(): OpcUaClient {
         val config = MiloConfiguration.read(device.meta)

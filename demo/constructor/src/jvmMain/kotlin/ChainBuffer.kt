@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import kotlinx.coroutines.flow.map
+import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
@@ -66,6 +67,7 @@ private class ChainBufferModel(
     }
 }
 
+@OptIn(ExperimentalSplitPaneApi::class)
 fun main() {
     val context = Context {
         plugin(DeviceManager)

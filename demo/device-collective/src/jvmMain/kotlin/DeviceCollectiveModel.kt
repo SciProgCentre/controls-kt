@@ -8,9 +8,12 @@ import space.kscience.controls.api.PropertySetMessage
 import space.kscience.controls.client.DeviceClient
 import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.write
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.install
 import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.peer.PeerConnection
 import space.kscience.controls.spec.name
@@ -67,7 +70,7 @@ internal class DeviceCollectiveModel(
     val deviceStates: Collection<CollectiveDeviceState>,
     val visibilityRange: Distance = 0.5.kilometers,
     val radioRange: Distance = 1.kilometers,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
 
     /**
      * Propagate movement
@@ -191,7 +194,7 @@ internal fun CoroutineScope.launchCollectiveMagixServer(
             plugin(DeviceManager)
         }
 
-        deviceContext.installNode(id, device)
+        deviceContext.install(id, device)
 
 //        val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 

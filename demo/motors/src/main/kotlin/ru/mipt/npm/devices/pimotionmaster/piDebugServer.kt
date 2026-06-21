@@ -61,7 +61,7 @@ fun main() {
     val port = 10024
     runBlocking(Dispatchers.Default) {
         val serverJob = Global.launchPiDebugServer(port, listOf("1", "2"))
-        readLine()
+        readlnOrNull()
         serverJob.cancel()
     }
 }

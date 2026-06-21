@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Timeout
 import space.kscience.controls.api.DescriptionMessage
 import space.kscience.controls.client.RemoteDeviceConnect.TestDevice
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installTree
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.magix.api.MagixEndpoint
@@ -42,7 +42,7 @@ class MagixLoopTest {
 
         context.launch {
             repeat(10) {
-                deviceManager.install("test[$it]", TestDevice)
+                deviceManager.installTree("test[$it]", TestDevice)
             }
         }
 

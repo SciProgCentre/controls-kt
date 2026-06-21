@@ -45,7 +45,7 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val consumerAlgebra: AmountAlgebra<U, T>,
     public val rule: SeparationRule<U, T>,
-) : ModelConstructor(context), ContinuousConsumer<U, T> {
+) : DeviceConstructor(context), ContinuousConsumer<U, T>, ContinuousMultiProducer<U, T> {
 
     override val supplyRequest: LateBindValueState<PerSecond<U, T>> =
         LateBindValueState(consumerAlgebra.zero.perSecond)
@@ -119,22 +119,22 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
         rule.backward(it)
     }
 
-}
+    override fun asProducer(
+        key: String
+    ): ContinuousProducer<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
+        object : ContinuousProducer<U, T> {
+            override val producerAlgebra: AmountAlgebra<U, T> get() = this@ContinuousSeparate.consumerAlgebra
+            override val production: ValueState<PerSecond<U, T>> get() = individualProduction[key]!!
+            override val productionCapacity: ValueState<PerSecond<U, T>> = individualProductionCapacity[key]!!
+            override val consumerRequest: LateBindValueState<AmountPerSecond<U>> get() = specificConsumationRequest
+        }
+    } ?: error("No supplier with key $key found")
 
-public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousSeparate<U, T>.asProducer(
-    key: String
-): ContinuousProducer<U, T> = consumationRequest[key]?.let { specificConsumationRequest ->
-    object : ContinuousProducer<U, T> {
-        override val producerAlgebra: AmountAlgebra<U, T> get() = this@asProducer.consumerAlgebra
-        override val production: ValueState<PerSecond<U, T>> get() = individualProduction[key]!!
-        override val productionCapacity: ValueState<PerSecond<U, T>> = individualProductionCapacity[key]!!
-        override val consumerRequest: LateBindValueState<AmountPerSecond<U>> get() = specificConsumationRequest
-    }
-} ?: error("No supplier with key $key found")
+}
 
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.separator(
     algebra: AmountAlgebra<U, T>,
     separationRule: SeparationRule<U, T>,
     modelName: Name? = null
-): ContinuousSeparate<U, T> = model(ContinuousSeparate<U, T>(context, algebra, separationRule), modelName)
+): ContinuousSeparate<U, T> = child(ContinuousSeparate<U, T>(context, algebra, separationRule), modelName)

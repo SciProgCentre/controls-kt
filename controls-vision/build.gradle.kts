@@ -10,7 +10,6 @@ description = """
 kscience {
     fullStack("js/controls-vision.js")
     useSerialization()
-    useContextParameters()
     commonMain {
         api(projects.controlsCore)
         api(projects.controlsConstructor)

@@ -48,7 +48,7 @@ class DemoDeviceState(
     fun cosValue(): Double = cos(time().toEpochMilli().toDouble() / timeScale) * cosScale
 }
 
-object DemoDevice : DeviceFactory<DemoDeviceState>() {
+object DemoDevice : DeviceWithStateFactory<DemoDeviceState>() {
 
     val timeScale by mutableDoubleProperty(
         descriptorBuilder = {
@@ -143,7 +143,7 @@ val res = device.read(DemoDevice.sin)
 
 ## Other ways to create a device
 
-It is not obligatory to use `DeviceFactory` to define a `Device`. One could use `DeviceBuilder` to create a device from an existing `DeviceSpec` or even without one.
+It is not obligatory to use `DeviceWithStateFactory` to define a `Device`. One could use `DeviceBuilder` to create a device from an existing `DeviceSpec` or even without one.
 
 See [Device Builder](DeviceBuilder.md) for more details.
 

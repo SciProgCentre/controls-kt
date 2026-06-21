@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.models.continuous
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
@@ -55,23 +56,18 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer<U, T>.connectCo
  * @property efficiency A state representing the production efficiency, calculated as the ratio of
  * the actual production to the defined capacity.
  */
-private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
+public class ContinuousProducerDevice<U : UnitsOfMatter, T : Amount<U>>(
     context: Context,
     override val producerAlgebra: AmountAlgebra<U, T>,
-    override val productionCapacity: ValueState<PerSecond<U,T>>,
+    override val productionCapacity: ValueState<PerSecond<U, T>>,
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero()),
-) : ModelConstructor(context), ContinuousProducer<U, T> {
+) : DeviceConstructor(context), ContinuousProducer<U, T> {
 
-    init {
-        registerState(productionCapacity, "production.capacity".parseAsName(true))
-        registerState(consumerRequest, "consumer.request".parseAsName(true))
-    }
-
-    override val production: ValueState<PerSecond<U,T>> = combineState(
+    override val production: ValueState<PerSecond<U, T>> = combineState(
         first = consumerRequest,
         second = productionCapacity,
         name = "production".asName()
-    ) { request: AmountPerSecond<U>, capacity: PerSecond<U,T> ->
+    ) { request: AmountPerSecond<U>, capacity: PerSecond<U, T> ->
         with(producerAlgebra) {
             capacity.coerceValueIn(NumericAmount.zero<U>()..request)
         }
@@ -88,23 +84,40 @@ private class ContinuousProducerImpl<U : UnitsOfMatter, T : Amount<U>>(
         }
     }
 
+
+    init {
+        registerState(productionCapacity, "production.capacity".parseAsName(true))
+        registerState(consumerRequest, "consumer.request".parseAsName(true))
+
+        registerProperty("production", MetaConverter.perSecond(producerAlgebra.converter), production)
+        registerProperty("efficiency", MetaConverter.double, efficiency)
+    }
+
+
 }
 
 public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousProducer(
     context: Context,
     producerAlgebra: AmountAlgebra<U, T>,
-    productionCapacity: ValueState<PerSecond<U,T>>,
+    productionCapacity: ValueState<PerSecond<U, T>>,
     consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(PerSecond.zero())
-): ContinuousProducer<U, T> = ContinuousProducerImpl(context, producerAlgebra, productionCapacity, consumerRequest)
+): ContinuousProducer<U, T> = ContinuousProducerDevice(context, producerAlgebra, productionCapacity, consumerRequest)
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: ValueState<PerSecond<U,T>>,
+    capacity: ValueState<PerSecond<U, T>>,
     modelName: Name? = null
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, capacity), modelName)
+): ContinuousProducer<U, T> = child(ContinuousProducerDevice(context, algebra, capacity), modelName)
 
-public fun <U : UnitsOfMatter, T: Amount<U>> ContinuousFlowModel.producer(
+public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousFlowModel.producer(
     algebra: AmountAlgebra<U, T>,
-    capacity: PerSecond<U,T>,
+    capacity: PerSecond<U, T>,
     modelName: Name? = null
-): ContinuousProducer<U, T> = model(ContinuousProducerImpl(context, algebra, ValueState(capacity)), modelName)
+): ContinuousProducer<U, T> = child(ContinuousProducerDevice(context, algebra, ValueState(capacity)), modelName)
+
+/**
+ * An interface designating a model capable of producing material to multiple consumers.
+ */
+public interface ContinuousMultiProducer<U : UnitsOfMatter, T : Amount<U>> {
+    public fun asProducer(key: String): ContinuousProducer<U, T>
+}

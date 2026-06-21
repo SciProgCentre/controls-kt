@@ -44,7 +44,7 @@ public class ContinuousTransformer<U1 : UnitsOfMatter, T : Amount<U1>, U2 : Unit
     override val consumerAlgebra: AmountAlgebra<U1, T>,
     override val producerAlgebra: AmountAlgebra<U2, R>,
     public val rule: ContinuousTransformationRule<U1, T, U2, R>,
-) : ModelConstructor(context), ContinuousProducer<U2, R>, ContinuousConsumer<U1, T> {
+) : DeviceConstructor(context), ContinuousProducer<U2, R>, ContinuousConsumer<U1, T> {
 
     override val supplyRequest: LateBindValueState<PerSecond<U1, T>> =
         LateBindValueState(consumerAlgebra.zero.perSecond)
@@ -82,14 +82,14 @@ public fun <U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U
     producerAlgebra: AmountAlgebra<U2, R>,
     rule: ContinuousTransformationRule<U1, T, U2, R>,
     modelName: Name? = null
-): ContinuousTransformer<U1, T, U2, R> = model(ContinuousTransformer(context, consumerAlgebra, producerAlgebra, rule), modelName)
+): ContinuousTransformer<U1, T, U2, R> = child(ContinuousTransformer(context, consumerAlgebra, producerAlgebra, rule), modelName)
 
 public fun <U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>> ContinuousFlowModel.linearTransformer(
     consumerAlgebra: AmountAlgebra<U1, T>,
     producerAlgebra: AmountAlgebra<U2, R>,
     production: PerSecond<U2, R>,
     modelName: Name? = null
-): ContinuousTransformer<U1, T, U2, R> = model(
+): ContinuousTransformer<U1, T, U2, R> = child(
     ContinuousTransformer(
         context = context,
         producerAlgebra = producerAlgebra,

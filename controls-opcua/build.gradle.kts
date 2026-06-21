@@ -24,10 +24,6 @@ dependencies {
     testImplementation(spclibs.logback.classic)
 }
 
-kscience{
-    useContextParameters()
-}
-
 readme {
     maturity = Maturity.EXPERIMENTAL
 

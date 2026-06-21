@@ -1,14 +1,18 @@
-package space.kscience.controls.constructor.expressions
+package space.kscience.controls.constructor
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.awaitLifecycleState
-import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.virtualProperty
+import space.kscience.controls.constructor.expressions.StateExpression
+import space.kscience.controls.constructor.expressions.StateExpressionContext
+import space.kscience.controls.constructor.expressions.expression
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.asName
 import kotlin.math.PI
@@ -24,7 +28,7 @@ class StateExpressionTest {
         val context = Context("test")
         val stateExpressionContext = StateExpressionContext(DeviceTree(), backgroundScope)
 
-        val a = StateExpression.Constant("pi", space.kscience.dataforge.meta.Meta.EMPTY)
+        val a = StateExpression.Constant("pi", Meta.EMPTY)
         val state = stateExpressionContext.computeState(a)
         assertEquals(PI, state.value)
 
@@ -49,15 +53,20 @@ class StateExpressionTest {
     @Test
     fun testDeviceConstructorWithExpression() = runTest(timeout = 500.milliseconds) {
         val context = Context("test") {
-            plugin(DeviceManager)
+            plugin(DeviceManager.Companion)
         }
         val device = TestDevice(context)
 
-        context.installNode("test", device)
-        device.awaitLifecycleState(LifecycleState.STARTING)
+        launch {
+            device.awaitLifecycleState(LifecycleState.STARTING)
 
-        assertEquals(3.0, device.zState.value)
+            assertEquals(3.0, device.zState.value)
 
-        context.close()
+            context.close()
+        }
+        delay(10.milliseconds)
+
+        context.install("test", device)
+
     }
 }

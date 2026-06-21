@@ -18,7 +18,7 @@ public class MaterialPoint(
     mass: NumericAmount<Kilograms>,
     public val position: MutableValueState<XYZ<Meters>>,
     public val velocity: MutableValueState<XYZ<MetersPerSecond>>,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
 
     init {
         registerState(position, "position".asName())

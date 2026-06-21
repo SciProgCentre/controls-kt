@@ -1,12 +1,13 @@
 package space.kscience.controls.manager
 
 import kotlinx.coroutines.launch
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.DeviceTree
-import space.kscience.controls.api.id
+import space.kscience.controls.api.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.misc.DFExperimental
+import space.kscience.dataforge.names.Name
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -18,30 +19,45 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     override val device: Device? get() = null
 
     /**
+     * Device factories available in the context
+     */
+    public val factories: Map<Name, DeviceTreeFactory> by lazy {
+        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class)
+    }
+
+    /**
      * Actual list of connected devices
      */
     private val _children = HashMap<String, DeviceTree>()
     override val children: Map<String, DeviceTree> get() = _children
 
-    public fun registerNode(name: String, hub: DeviceTree) {
-        _children[name] = hub
+    public fun registerDeviceTree(name: String, tree: DeviceTree) {
+        _children[name] = tree
     }
 
+    /**
+     * Register a device with the given name and device instance
+     */
     public fun registerDevice(name: String, device: Device) {
         if (device is DeviceTree) {
-            registerNode(name, device)
+            registerDeviceTree(name, device)
         } else {
-            registerNode(name, DeviceTree(device))
+            registerDeviceTree(name, DeviceTree(device))
         }
     }
 
     public companion object : PluginFactory<DeviceManager> {
         override val tag: PluginTag = PluginTag("devices", group = PluginTag.DATAFORGE_GROUP)
 
+        public const val DEVICE_FACTORY_TARGET: String = "deviceFactory"
+
         override fun build(context: Context, meta: Meta): DeviceManager = DeviceManager()
     }
 }
 
+/**
+ * Register and start device with given name
+ */
 public fun <D : Device> DeviceManager.install(name: String, device: D): D {
     registerDevice(name, device)
     device.launch {
@@ -50,8 +66,11 @@ public fun <D : Device> DeviceManager.install(name: String, device: D): D {
     return device
 }
 
-public fun <DN : DeviceTree> DeviceManager.installNode(name: String, node: DN): DN {
-    registerNode(name, node)
+/**
+ * Register and start device tree with given name
+ */
+public fun <DT : DeviceTree> DeviceManager.installTree(name: String, node: DT): DT {
+    registerDeviceTree(name, node)
 
     fun DeviceTree.start() {
         context.launch {
@@ -65,13 +84,25 @@ public fun <DN : DeviceTree> DeviceManager.installNode(name: String, node: DN): 
     return node
 }
 
+/**
+ * Install the device using its default id as name
+ */
 public fun <D : Device> DeviceManager.install(device: D): D = install(device.id, device)
 
+/**
+ * Install the in context's [DeviceManager]
+ */
 public fun <D : Device> Context.install(name: String, device: D): D = request(DeviceManager).install(name, device)
 
-public fun <DN : DeviceTree> Context.installNode(name: String, node: DN): DN =
-    request(DeviceManager).installNode(name, node)
+/**
+ * Install the device tree in context's [DeviceManager]
+ */
+public fun <DT : DeviceTree> Context.installTree(name: String, tree: DT): DT =
+    request(DeviceManager).installTree(name, tree)
 
+/**
+ * Install the device in context's [DeviceManager] using it default id as name
+ */
 public fun <D : Device> Context.install(device: D): D = request(DeviceManager).install(device.id, device)
 
 /**
@@ -83,16 +114,22 @@ public fun <D : Device> DeviceManager.install(
     meta: Meta = Meta.EMPTY
 ): D = install(name, factory(meta, context))
 
-public fun DeviceManager.installNode(
+public fun DeviceManager.install(
     name: String,
-    factory: Factory<DeviceTree>,
+    factory: DeviceFactory,
     meta: Meta = Meta.EMPTY
-): DeviceTree = installNode(name, factory(meta, context))
+): Device = install(name, factory.buildDevice(context, meta))
+
+public fun <DT : DeviceTree> DeviceManager.installTree(
+    name: String,
+    factory: Factory<DT>,
+    meta: Meta = Meta.EMPTY
+): DT = installTree(name, factory(meta, context))
 
 /**
  * A delegate that initializes device on the first use
  */
-public inline fun <D : Device> DeviceManager.installing(
+public inline fun <D : DeviceTree> DeviceManager.installing(
     factory: Factory<D>,
     builder: MutableMeta.() -> Unit = {},
 ): ReadOnlyProperty<Any?, D> {
@@ -101,7 +138,7 @@ public inline fun <D : Device> DeviceManager.installing(
         val name = property.name
         val current = children[name]?.device
         if (current == null) {
-            install(name, factory, meta)
+            installTree(name, factory, meta)
         } else if (current.meta != meta) {
             error("Meta mismatch. Current device meta: ${current.meta}, but factory meta is $meta")
         } else {
@@ -109,4 +146,36 @@ public inline fun <D : Device> DeviceManager.installing(
             current as D
         }
     }
+}
+
+/**
+ * Create (but not start or attach) a device using given [configuration] and registered factories
+ *
+ * @param additionalFactories additional factories to use when creating the device when they are not defined in the context
+ */
+@OptIn(DFExperimental::class)
+public fun DeviceManager.createDeviceTree(
+    configuration: Meta,
+    additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()
+): DeviceTree {
+//    DeviceLibraryMetaSpec.validate(configuration)
+    val type = configuration[DeviceLibraryMetaSpec.type] ?: error("Device type is not specified")
+    val parameters = configuration[DeviceLibraryMetaSpec.parameters] ?: Meta.EMPTY
+    val allFactories = factories.mapKeys { it.toString() } + additionalFactories
+    val factory = allFactories[type] ?: error("Device type $type is not registered")
+    return factory(parameters, context)
+
+}
+
+
+/**
+ * Create and install a device using given [configuration] and registered factories
+ */
+@OptIn(DFExperimental::class)
+public fun DeviceManager.install(
+    configuration: Meta,
+    additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()
+): DeviceTree {
+    val name = configuration[DeviceLibraryMetaSpec.name] ?: error("Device name is not specified")
+    return installTree(name, createDeviceTree(configuration, additionalFactories))
 }

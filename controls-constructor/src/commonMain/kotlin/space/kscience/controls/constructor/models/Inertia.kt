@@ -18,7 +18,7 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
     inertia: Double,
     public val position: MutableValueState<NumericAmount<U>>,
     public val velocity: MutableValueState<NumericAmount<V>>,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
 
     init {
         registerState(position, "position".asName())

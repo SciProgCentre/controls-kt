@@ -14,15 +14,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import space.kscience.controls.compose.asComposeState
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.Constructor
+import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.AmountPerSecond
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.constructor.useValue
+import space.kscience.controls.time.clock
 import kotlin.time.Duration.Companion.seconds
 
 internal fun Constructor.debugState(name: String, state: ValueState<Amount<*>>): Job =
     state.useValue(this) { value ->
-        println("(${clock.now()}) $name: ${value.value}")
+        println("(${context.clock.now()}) $name: ${value.value}")
     }
 
 

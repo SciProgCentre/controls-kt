@@ -12,8 +12,6 @@ import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.time.withVirtualTime
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +34,6 @@ class DiscreteFlowTest {
         val consumation = MutableValueState(NumericAmount<Kilograms>(1.0))
 
         object : DiscreteFlowModel(context) {
-            override val modelType: Name = "test".asName()
 
             val consumer = registerConsumer(consumation)
 

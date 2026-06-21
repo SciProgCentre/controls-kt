@@ -17,7 +17,6 @@ kscience {
 
     useCoroutines()
     useSerialization()
-    useContextParameters()
 
     commonMain {
         api(projects.controlsCore)

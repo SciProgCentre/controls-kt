@@ -10,7 +10,6 @@ plugins {
 kscience {
     jvm()
     useSerialization()
-    useContextParameters()
     commonMain {
         implementation(projects.controlsVisualisationCompose)
 //        implementation(projects.controlsVision)

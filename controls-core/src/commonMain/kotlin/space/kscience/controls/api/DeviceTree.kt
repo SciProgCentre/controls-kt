@@ -72,6 +72,8 @@ public fun DeviceTree.resolveDevice(name: Name): Device = when (name.length) {
         ?: error("Device $name not found in $this")
 }
 
+public fun DeviceTree.resolveDevice(name: String): Device = resolveDevice(name.parseAsName())
+
 
 ///**
 // * Create a device hub from a map of devices including subdevices

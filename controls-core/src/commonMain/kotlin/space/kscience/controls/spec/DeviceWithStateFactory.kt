@@ -1,17 +1,14 @@
 package space.kscience.controls.spec
 
 import kotlinx.coroutines.CompletableDeferred
-import space.kscience.controls.api.ActionDescriptor
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.controls.api.metaDescriptor
+import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.descriptors.node
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KMutableProperty1
@@ -225,6 +222,7 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
             }
         }
 
+
     /**
      * Build a device with the given context and meta, using the provided state creation and destruction functions.
      */
@@ -272,17 +270,15 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
             state.cancel()
         }
     }
-
-
 }
 
 
 /**
- * A device specification that provides a builder for device instance that adheres to this specification
+ * A device specification that provides a builder for a device instance that adheres to this specification
  *
  * @param S the type of device state
  */
-public abstract class DeviceFactory<S : Any> : DeviceWithStateBuilder<S>(), Factory<Device> {
+public abstract class DeviceWithStateFactory<S : Any> : DeviceWithStateBuilder<S>(), DeviceFactory {
 
     context(device: DeviceBase)
     public abstract suspend fun createState(): S
@@ -292,12 +288,16 @@ public abstract class DeviceFactory<S : Any> : DeviceWithStateBuilder<S>(), Fact
 
     }
 
+    override val descriptor: MetaDescriptor = MetaDescriptor {
+        node(DevicePropertySpec.deviceMeta.name, MetaDescriptor())
+    }
+
     /**
      * Create an instance of a device that adheres to this specification.
      *
      * The instance incapsulates the state [S], which is created and destroyed on device start and stop.
      */
-    override fun build(context: Context, meta: Meta): Device = build(
+    override fun buildDevice(context: Context, meta: Meta): Device = build(
         context = context,
         meta = meta,
         destroyState = { destroyState(it) },
@@ -486,7 +486,7 @@ public fun <S : Any> DeviceWithStateBuilder<S>.mutableMetaProperty(
  * A device specification base that uses [MutableMeta] as device state.
  *
  */
-public abstract class MetaDeviceFactory : DeviceFactory<MutableMeta>() {
+public abstract class MetaDeviceFactory : DeviceWithStateFactory<MutableMeta>() {
     context(device: DeviceBase)
     override suspend fun createState(): MutableMeta = MutableMeta {
         "@device" put device.meta
@@ -496,7 +496,7 @@ public abstract class MetaDeviceFactory : DeviceFactory<MutableMeta>() {
 /**
  *  A device specification base that uses [Unit] as device state.
  */
-public abstract class StatelessDeviceFactory : DeviceFactory<Unit>() {
+public abstract class StatelessDeviceFactory : DeviceWithStateFactory<Unit>() {
     context(device: DeviceBase)
     override suspend fun createState(): Unit = Unit
 }

@@ -1,26 +1,41 @@
 package space.kscience.controls.constructor
 
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyDescriptor
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import space.kscience.controls.api.*
+import space.kscience.controls.api.LifecycleState.*
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
+import space.kscience.controls.spec.InternalDeviceAPI
+import space.kscience.controls.time.clock
+import space.kscience.controls.time.deviceDispatcher
+import space.kscience.dataforge.context.*
+import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.get
+import space.kscience.dataforge.names.parseAsName
+import kotlin.coroutines.CoroutineContext
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
+import kotlin.time.Clock
 import kotlin.time.Duration
 
+
 /**
- * A base for a strongly typed device constructor block. Has additional delegates for type-safe devices
+ * A mutable group of devices and properties to be used for lightweight design and simulations.
  */
-public abstract class DeviceConstructor(
-    context: Context,
-    meta: Meta = Meta.EMPTY,
-) : DeviceGroup(context, meta), MutableConstructor {
+public open class DeviceConstructor(
+    final override val context: Context,
+    override val meta: Meta = Meta.EMPTY,
+) : Device, DeviceTree, CachingDevice, MutableConstructor {
+
+    override val device: Device? get() = this
+
     private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf()
     override val constructorElements: Set<ConstructorElement> get() = _constructorElements
 
@@ -32,19 +47,309 @@ public abstract class DeviceConstructor(
         _constructorElements.remove(constructorElement)
     }
 
-    override fun <T, S : ValueState<T>> registerProperty(
+    private class Property<T>(
+        val state: ValueState<T>,
+        val converter: MetaConverter<T>,
+        val descriptor: PropertyDescriptor,
+    ) {
+        val valueAsMeta get() = converter.convert(state.value)
+
+        fun asMetaValueState() = state.map(converter::convert)
+
+        fun setMeta(meta: Meta) {
+            check(state is MutableValueState) { "Can't write to read-only property" }
+
+            state.value = converter.read(meta)
+        }
+    }
+
+    private class Action<T, R>(
+        val inputConverter: MetaConverter<T>,
+        val outputConverter: MetaConverter<R>,
+        val descriptor: ActionDescriptor,
+        val action: suspend (T) -> R,
+    ) {
+        suspend operator fun invoke(argument: Meta?): Meta? = argument?.let { inputConverter.readOrNull(it) }
+            ?.let { action(it)?.let { outputConverter.convert(it) } }
+    }
+
+
+    private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
+
+    override val messageFlow: Flow<DeviceMessage>
+        get() = sharedMessageFlow
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val coroutineContext: CoroutineContext = context.newCoroutineContext(
+        SupervisorJob(context.coroutineContext[Job]) +
+                context.deviceDispatcher +
+                CoroutineName("Device $id") +
+                CoroutineExceptionHandler { _, throwable ->
+                    context.launch {
+                        sharedMessageFlow.emit(
+                            DeviceErrorMessage(
+                                time = clock.now(),
+                                errorMessage = throwable.message,
+                                errorType = throwable::class.simpleName,
+                                errorStackTrace = throwable.stackTraceToString()
+                            )
+                        )
+                    }
+                    logger.error(throwable) { "Exception in device $id" }
+                }
+    )
+
+
+    private val _devices = hashMapOf<String, DeviceTree>()
+
+    override val children: Map<String, DeviceTree> get() = _devices
+
+    /**
+     * Register and initialize (synchronize child's lifecycle state with group state) a new device tree in this group.
+     */
+    public fun <DT : DeviceTree> installTree(deviceName: String, child: DT): DT {
+        require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
+        //start the child device if this device is started
+        if (isStarted()) child.start()
+        _devices[deviceName] = child
+        if (child is Constructor) {
+            registerElement(ChildConstructorElement(deviceName.asName(), child))
+        }
+        return child
+    }
+
+    private val properties: MutableMap<Name, Property<*>> = hashMapOf()
+
+    /**
+     * Get property with given [propertyName] as a [ValueState]. If the property is not found, throws an error.
+     */
+    public fun <T> propertyAsState(propertyName: String, converter: MetaConverter<T>): ValueState<T> {
+        val prop = properties[propertyName.parseAsName()] ?: error("Property with name $propertyName not found")
+        return if (prop.converter == converter) {
+            @Suppress("UNCHECKED_CAST")
+            prop.state as ValueState<T>
+        } else {
+            //perform double meta conversion on read if inner converter and outer converter are different
+            prop.asMetaValueState().map(converter::read)
+        }
+    }
+
+    /**
+     * Register a new property based on [ValueState]. Properties could be modified dynamically
+     */
+    public fun <T, S : ValueState<T>> registerProperty(
         converter: MetaConverter<T>,
         descriptor: PropertyDescriptor,
         state: S,
     ): S {
-        val res = super.registerProperty(converter, descriptor, state)
+        val name = descriptor.name.parseAsName()
+        require(properties[name] == null) { "Can't add property with name $name. It already exists." }
+        properties[name] = Property(state, converter, descriptor)
+        state.subscribe().map(converter::convert).onEach {
+            sharedMessageFlow.emit(
+                PropertyChangedMessage(
+                    time = clock.now(),
+                    property = descriptor.name,
+                    value = it
+                )
+            )
+        }.launchIn(this)
         registerElement(PropertyConstructorElement(this, descriptor.name, state))
-        return res
+        return state
     }
+
+    private val actions: MutableMap<Name, Action<*, *>> = hashMapOf()
+
+    public fun <T, R> registerAction(
+        inputConverter: MetaConverter<T>,
+        outputConverter: MetaConverter<R>,
+        descriptor: ActionDescriptor,
+        action: suspend (T) -> R,
+    ): suspend (T) -> R {
+        val name = descriptor.name.parseAsName()
+        require(actions[name] == null) { "Can't add action with name $name. It already exists." }
+        actions[name] = Action(
+            inputConverter = inputConverter,
+            outputConverter = outputConverter,
+            descriptor = descriptor,
+            action = action
+        )
+        return {
+            action(it)
+        }
+    }
+
+    override val propertyDescriptors: Collection<PropertyDescriptor>
+        get() = properties.values.map { it.descriptor }
+
+    override val actionDescriptors: Collection<ActionDescriptor>
+        get() = actions.values.map { it.descriptor }
+
+    override suspend fun readProperty(propertyName: String): Meta =
+        properties[propertyName.parseAsName()]?.valueAsMeta
+            ?: error("Property with name $propertyName not found")
+
+    override fun getCachedProperty(propertyName: String): Meta? = properties[propertyName.parseAsName()]?.valueAsMeta
+
+    @InternalDeviceAPI
+    override fun setCachedProperty(propertyName: String, value: Meta?) {
+        //does nothing for this implementation
+    }
+
+    override suspend fun writeProperty(propertyName: String, value: Meta) {
+        val property = properties[propertyName.parseAsName()] ?: error("Property with name $propertyName not found")
+        property.setMeta(value)
+    }
+
+
+    override suspend fun execute(actionName: String, argument: Meta?): Meta? {
+        val action: Action<*, *> = actions[actionName] ?: error("Action with name $actionName not found")
+        return action(argument)
+    }
+
+    final override var lifecycleState: LifecycleState = LifecycleState.STOPPED
+        private set
+
+
+    private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
+        this.lifecycleState = lifecycleState
+        sharedMessageFlow.emit(
+            DeviceLifeCycleMessage(clock.now(), lifecycleState)
+        )
+    }
+
+
+    override suspend fun start() {
+        super<CachingDevice>.start()
+        setLifecycleState(STARTING)
+        children.values.forEach {
+            it.device?.start()
+        }
+        setLifecycleState(STARTED)
+    }
+
+    override suspend fun stop() {
+        children.values.forEach {
+            it.device?.stop()
+        }
+        setLifecycleState(STOPPED)
+        super<CachingDevice>.stop()
+    }
+
+    override val clock: Clock = context.clock
+
+    public companion object
 }
 
 /**
- * Register a device, provided by a given [factory] and
+ * Register [child] as a [ChildConstructorElement] relative to this one
+ */
+public fun <T : Constructor> MutableConstructor.child(child: T, name: Name? = null): T {
+    registerElement(ChildConstructorElement(name, child))
+    return child
+}
+
+/**
+ * Register and initialize (synchronize child's lifecycle state with group state) a new device in this group
+ */
+public fun <D : Device> DeviceConstructor.install(deviceName: String, device: D): D {
+    installTree(deviceName, device as? DeviceTree ?: DeviceTree(device))
+    return device
+}
+
+public fun DeviceManager.install(
+    name: String = "@group",
+    meta: Meta = Meta.EMPTY,
+    block: DeviceConstructor.() -> Unit,
+): DeviceConstructor {
+    val group = DeviceConstructor(context, meta).apply(block)
+    install(name, group)
+
+    return group
+}
+
+public fun Context.install(
+    name: String = "@group",
+    meta: Meta = Meta.EMPTY,
+    block: DeviceConstructor.() -> Unit,
+): DeviceConstructor = request(DeviceManager).install(name, meta, block)
+
+public fun <D : Device> DeviceConstructor.install(device: D): D = install(device.id, device)
+
+/**
+ * Add a device creating intermediate groups if necessary. If device with given [name] already exists, throws an error.
+ * @param name the name of the device in the group
+ * @param factory a factory used to create a device
+ * @param deviceMeta meta override for this specific device
+ * @param metaLocation location of the template meta in parent group meta
+ */
+public fun <D : Device> DeviceConstructor.install(
+    name: String,
+    factory: Factory<D>,
+    deviceMeta: Meta? = null,
+    metaLocation: Name = name.asName(),
+): D {
+    val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
+    install(name, newDevice)
+    return newDevice
+}
+
+/**
+ * Create or edit a group with a given [name].
+ */
+public fun DeviceConstructor.install(name: String, block: DeviceConstructor.() -> Unit): DeviceConstructor =
+    install(name, DeviceConstructor(context, meta).apply(block))
+
+/**
+ * Register read-only property based on [state]
+ */
+public fun <T : Any> DeviceConstructor.registerProperty(
+    name: String,
+    converter: MetaConverter<T>,
+    state: ValueState<T>,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+) {
+    registerProperty(
+        converter,
+        PropertyDescriptor(name).apply(descriptorBuilder),
+        state
+    )
+}
+
+/**
+ * Register a mutable property based on mutable [state]
+ */
+public fun <T : Any> DeviceConstructor.registerMutableProperty(
+    name: String,
+    converter: MetaConverter<T>,
+    state: MutableValueState<T>,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+) {
+    registerProperty(
+        converter,
+        PropertyDescriptor(name).apply(descriptorBuilder),
+        state
+    )
+}
+
+
+/**
+ * Create a new virtual mutable state and a property based on it.
+ * @return the mutable state used in property
+ */
+public fun <T : Any> DeviceConstructor.registerVirtualProperty(
+    name: String,
+    initialValue: T,
+    converter: MetaConverter<T>,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): MutableValueState<T> {
+    val state = MutableValueState<T>(initialValue)
+    registerMutableProperty(name, converter, state, descriptorBuilder)
+    return state
+}
+
+/**
+ * Register a child device using a delegate provider
  */
 public fun <D : Device> DeviceConstructor.device(
     factory: Factory<D>,
@@ -151,10 +456,31 @@ public fun <T> DeviceConstructor.virtualProperty(
     nameOverride = nameOverride,
 )
 
-public fun <T, S : ValueState<T>> DeviceConstructor.registerAsProperty(
-    spec: DevicePropertySpec<T>,
+/**
+ * Registers a property for this device group. The property is specified using the given
+ * [DevicePropertySpec] which includes the type converter and descriptor, and a [ValueState] that
+ * represents the property's state. Once registered, the property can be dynamically modified or
+ * observed.
+ *
+ * @param T The type of the property value.
+ * @param propertySpec Specifies the details of the property, including its converter and descriptor.
+ * @param state Represents the current state of the property.
+ */
+public fun <T, S : ValueState<T>> DeviceConstructor.registerProperty(
+    propertySpec: DevicePropertySpec<T>,
     state: S,
 ): S {
-    registerProperty(spec.converter, spec.descriptor, state)
+    registerProperty(propertySpec.converter, propertySpec.descriptor, state)
     return state
+}
+
+/**
+ * Run a simulation using a context simulation dispatcher
+ */
+public suspend fun <C : Constructor> C.runSimulation(
+    block: suspend C.() -> Unit
+) {
+    withContext(context.deviceDispatcher) {
+        block()
+    }
 }

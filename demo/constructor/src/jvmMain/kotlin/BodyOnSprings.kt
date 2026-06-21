@@ -24,7 +24,7 @@ private class Spring(
     val l0: NumericAmount<Meters>,
     val begin: ValueState<XYZ<Meters>>,
     val end: ValueState<XYZ<Meters>>,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
 
     /**
      * Tension at the beginning point
@@ -57,13 +57,13 @@ private class BodyOnSprings(
 
     private val leftAnchor: MutableValueState<XYZ<Meters>> = stateOf(XYZ<Meters>(xLeft, (yTop + yBottom) / 2, 0.0))
 
-    val leftSpring = model(
+    val leftSpring = child(
         Spring(context, k, l0, leftAnchor, position)
     )
 
     private val rightAnchor: MutableValueState<XYZ<Meters>> = stateOf(XYZ<Meters>(xRight, (yTop + yBottom) / 2, 0.0))
 
-    val rightSpring = model(
+    val rightSpring = child(
         Spring(context, k, l0, rightAnchor, position)
     )
 
@@ -75,7 +75,7 @@ private class BodyOnSprings(
     }
 
 
-    val body = model(
+    val body = child(
         MaterialPoint(
             context = context,
             mass = mass,
