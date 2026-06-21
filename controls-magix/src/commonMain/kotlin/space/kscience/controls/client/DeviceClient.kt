@@ -18,6 +18,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.isEmpty
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
@@ -187,14 +188,15 @@ public suspend fun MagixEndpoint.remoteDevice(
 }
 
 /**
- * Create a dynamic [DeviceHub] from incoming messages
+ * Create a dynamic [DeviceTree] from incoming messages
  */
 public suspend fun MagixEndpoint.remoteDeviceHub(
     context: Context,
     thisEndpoint: String,
     deviceEndpoint: String,
-): DeviceHub {
+): DeviceTree {
     val devices = mutableMapOf<Name, DeviceClient>()
+
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
@@ -229,7 +231,15 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
         id = stringUID()
     )
 
-    return DeviceHub(devices)
+    return object : DeviceTree {
+        override val device: Device? get() = devices[Name.EMPTY]
+        override val children: Map<String, DeviceTree>
+            get() = devices.entries //capture current map state in a closure
+                .filter { !it.key.isEmpty() }
+                .associate { (name, tree) ->
+                    name.toString() to DeviceTree(tree)
+                }
+    }
 }
 
 /**
@@ -254,7 +264,7 @@ public suspend fun MagixEndpoint.requestDeviceUpdate(
 public fun <T> MagixEndpoint.controlsPropertyFlow(
     endpointName: String,
     deviceName: Name,
-    propertySpec: DevicePropertySpec<*, T>,
+    propertySpec: DevicePropertySpec<T>,
 ): Flow<T> {
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
 
@@ -270,7 +280,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
     sourceEndpointName: String,
     targetEndpointName: String,
     deviceName: Name,
-    propertySpec: DevicePropertySpec<*, T>,
+    propertySpec: DevicePropertySpec<T>,
     value: T,
 ) {
     val message = PropertySetMessage(
@@ -288,7 +298,7 @@ public suspend fun <T> MagixEndpoint.sendControlsPropertyChange(
 public fun <T> MagixEndpoint.controlsPropertyMessageFlow(
     endpointName: String,
     deviceName: Name,
-    propertySpec: DevicePropertySpec<*, T>,
+    propertySpec: DevicePropertySpec<T>,
 ): Flow<Pair<PropertyChangedMessage, T>> {
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(endpointName)).map { it.second }
 

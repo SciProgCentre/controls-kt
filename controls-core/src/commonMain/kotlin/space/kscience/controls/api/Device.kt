@@ -22,7 +22,7 @@ import kotlin.time.Clock
  *  When canceled, cancels all running processes.
  */
 @DfType(DEVICE_TARGET)
-public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
+public interface Device : ContextAware, WithLifeCycle, CoroutineScope, DeviceMessageSource {
 
     /**
      * Initial configuration meta for the device
@@ -53,10 +53,10 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
     public suspend fun writeProperty(propertyName: String, value: Meta)
 
     /**
-     * A subscription-based [Flow] of [DeviceMessage] provided by device. The discrete is guaranteed to be readable
+     * A subscription-based [Flow] of [DeviceMessage] provided by device. The flow is guaranteed to be readable
      * multiple times.
      */
-    public val messageFlow: Flow<DeviceMessage>
+    override val messageFlow: Flow<DeviceMessage>
 
     /**
      * Send an action request and suspend caller while request is being processed.
@@ -68,7 +68,9 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
      * Initialize the device. This function suspends until the device is finished initialization.
      * Does nothing if the device is started or is starting
      */
-    override suspend fun start(): Unit = Unit
+    override suspend fun start(): Unit {
+        logger.info { "Device $this is started" }
+    }
 
     /**
      * Clock associated with this device
@@ -80,7 +82,7 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope {
      */
     override suspend fun stop() {
         coroutineContext[Job]?.cancel("The device is closed")
-        logger.info { "Device $this is closed" }
+        logger.info { "Device $this is stopped" }
     }
 
     public companion object {
@@ -163,3 +165,11 @@ public fun Device.onLifecycleEvent(
 ): Job = messageFlow.filterIsInstance<DeviceLifeCycleMessage>().onEach {
     block(it.state)
 }.launchIn(this)
+
+/**
+ * Wait for a specific device lifecycle state event. If the device is already in the state, the method returns immediately.
+ */
+public suspend fun Device.awaitLifecycleState(state: LifecycleState) {
+    if (lifecycleState == state) return
+    messageFlow.filterIsInstance<DeviceLifeCycleMessage>().first { it.state == state }
+}

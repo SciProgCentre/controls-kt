@@ -15,7 +15,7 @@ import kotlin.time.DurationUnit
 import kotlin.time.Instant
 import kotlin.time.toDuration
 
-public fun Double.asMeta(): Meta = Meta(asValue())
+public fun Number.asMeta(): Meta = Meta(asValue())
 
 /**
  * Generate a nullable [MetaConverter] from non-nullable one
@@ -88,3 +88,12 @@ private object DoubleRangeConverter : MetaConverter<ClosedFloatingPointRange<Dou
 }
 
 public val MetaConverter.Companion.doubleRange: MetaConverter<ClosedFloatingPointRange<Double>> get() = DoubleRangeConverter
+
+public object UnitMetaConverter : MetaConverter<Unit> {
+
+    override fun readOrNull(source: Meta): Unit = Unit
+
+    override fun convert(obj: Unit): Meta = Meta.EMPTY
+}
+
+public val MetaConverter.Companion.unit: MetaConverter<Unit> get() = UnitMetaConverter

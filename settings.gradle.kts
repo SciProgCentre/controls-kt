@@ -68,10 +68,13 @@ include(
 //    ":controls-mongo",
     ":controls-storage",
     ":controls-storage:controls-xodus",
+    ":controls-storage:controls-exposed",
     ":controls-constructor",
     ":controls-visualisation-compose",
     ":controls-vision",
     ":controls-jupyter",
+    ":controls-data-platform",
+    ":controls-plc-emulator",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-utils",
@@ -94,5 +97,6 @@ include(
     ":demo:constructor",
     ":demo:device-collective",
     ":demo:thermo",
+    ":demo:data-platform-demo",
 //    ":demo:thermo:thermo-desktop"
 )

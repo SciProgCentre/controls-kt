@@ -7,6 +7,7 @@ import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
+import space.kscience.controls.time.ValueWithTime
 
 /**
  *  A state describing a [T] value in the [range]
@@ -18,8 +19,14 @@ public open class RangeState<T : Comparable<T>>(
 
     override val value: T get() = input.value.coerceIn(range)
 
-    override fun subscribe(): Flow<T>  = input.subscribe().map {
+    override val valueWithTime: ValueWithTime<T> get() = input.valueWithTime.copy(value = value.coerceIn(range))
+
+    override fun subscribe(): Flow<T> = input.subscribe().map {
         it.coerceIn(range)
+    }
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<T>> = input.subscribeWithTime().map {
+        it.copy(value = it.value.coerceIn(range))
     }
 
     /**

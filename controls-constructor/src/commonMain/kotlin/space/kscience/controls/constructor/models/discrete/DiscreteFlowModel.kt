@@ -46,7 +46,7 @@ public interface DiscreteActor<U : UnitsOfMeasurement> : FlowCollector<DiscreteF
 }
 
 /**
- * Non-invasive measurement of discrete rate. Writes values to [target]
+ * Non-invasive measurement of flow rate. Writes values to [target]
  */
 @ExperimentalControlsApi
 internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
@@ -77,7 +77,7 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.measureFlow(
 }
 
 /**
- * Limits input of the incoming discrete to [limit] per second
+ * Limits input of the incoming flow to [limit] per second
  */
 @ExperimentalControlsApi
 internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
@@ -106,7 +106,7 @@ internal fun <U : UnitsOfMeasurement> Flow<DiscreteFlowPacket<U>>.limitFlow(
 
 
 /**
- * A consumer for discrete material discrete
+ * A consumer for discrete material flow
  */
 @ExperimentalControlsApi
 public class DiscreteConsumer<U : UnitsOfMeasurement>(
@@ -123,7 +123,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         channel.send(value)
     }
 
-    private val _consumation = MutableValueState<Amount<U>>(NumericAmount(0.0))
+    private val _consumation = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
     override val consumation: ValueState<Amount<U>> get() = _consumation
 
@@ -161,7 +161,7 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
 ) : ModelConstructor(context) {
     override val modelType: Name = NameToken("producer", hashCode().toHexString()).asName()
 
-    private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0))
+    private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
     public val production: ValueState<Amount<U>> get() = _production
 

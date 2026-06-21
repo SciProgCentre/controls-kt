@@ -34,6 +34,7 @@ import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
 import java.awt.Dimension
 import kotlin.random.Random
 
@@ -198,7 +199,7 @@ suspend fun main() = application {
 
                 }
                 second {
-                    Device2DCanvas(modifier = Modifier.fillMaxSize()) {
+                    Controls2DCanvas(modifier = Modifier.fillMaxSize()) {
                         fun xToPx(x: NumericAmount<Meters>): Float =
                             ((x - xRange.start) / (xRange.endInclusive - xRange.start) * size.width).toFloat()
 
@@ -208,7 +209,7 @@ suspend fun main() = application {
 
                         fun toOffset(xy: XY<Meters>): Offset = Offset(xToPx(xy.x), yToPx(xy.y))
 
-                        observeState(plotterModel.y, "beam") { y ->
+                        observeState(plotterModel.y, "beam".asName()) { y ->
                             RectangleDrawable2D(
                                 position = Offset(size.width / 2, yToPx(y)),
                                 rectangleSize = Size(size.width, 10f),
@@ -216,7 +217,7 @@ suspend fun main() = application {
                             )
                         }
 
-                        observeState(plotterModel.xy, "head") { xy ->
+                        observeState(plotterModel.xy, "head".asName()) { xy ->
                             CircleDrawable2D(
                                 position = toOffset(xy),
                                 radius = 10f,

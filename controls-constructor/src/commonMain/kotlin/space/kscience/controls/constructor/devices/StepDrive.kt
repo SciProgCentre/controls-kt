@@ -5,6 +5,7 @@ import space.kscience.controls.constructor.units.Degrees
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.constructor.units.plus
 import space.kscience.controls.constructor.units.times
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import kotlin.math.max
@@ -17,41 +18,41 @@ import kotlin.time.DurationUnit
  * A step drive
  *
  * @param ticksPerSecond ticks per second
- * @param target target ticks state
  * @param writeTicks a hardware callback
  */
 public class StepDrive(
     context: Context,
     ticksPerSecond: Double,
-    position: MutableValueState<Long> = MutableValueState(0),
+    position: MutableValueState<Long> = MutableValueState(0, clock = context.clock),
     private val writeTicks: suspend (ticks: Long, speed: Double) -> Unit = { _, _ -> },
 ) : DeviceConstructor(context) {
 
     public val target: MutableValueState<Long> by property(
         MetaConverter.long,
-        MutableValueState<Long>(position.value)
+        MutableValueState<Long>(position.value, clock)
     )
 
     public val speed: MutableValueState<Double> by property(
         MetaConverter.double,
-        MutableValueState<Double>(ticksPerSecond)
+        MutableValueState<Double>(ticksPerSecond, clock)
     )
 
     public val position: ValueState<Long> by property(MetaConverter.long, position)
 
     //FIXME round to zero problem
-    private val ticker = onTimer(20.milliseconds, reads = setOf(target, position), writes = setOf(position)) { prev, next ->
-        val tickSpeed = speed.value
-        val timeDelta = (next - prev).toDouble(DurationUnit.SECONDS)
-        val ticksDelta: Long = target.value - position.value
-        val steps: Long = when {
-            ticksDelta > 0 -> min(ticksDelta, (timeDelta * tickSpeed).roundToLong())
-            ticksDelta < 0 -> max(ticksDelta, -(timeDelta * tickSpeed).roundToLong())
-            else -> return@onTimer
+    private val ticker =
+        onTimer(20.milliseconds, reads = setOf(target, position), writes = setOf(position)) { prev, next ->
+            val tickSpeed = speed.value
+            val timeDelta = (next - prev).toDouble(DurationUnit.SECONDS)
+            val ticksDelta: Long = target.value - position.value
+            val steps: Long = when {
+                ticksDelta > 0 -> min(ticksDelta, (timeDelta * tickSpeed).roundToLong())
+                ticksDelta < 0 -> max(ticksDelta, -(timeDelta * tickSpeed).roundToLong())
+                else -> return@onTimer
+            }
+            writeTicks(steps, tickSpeed)
+            position.value += steps
         }
-        writeTicks(steps, tickSpeed)
-        position.value += steps
-    }
 }
 
 /**

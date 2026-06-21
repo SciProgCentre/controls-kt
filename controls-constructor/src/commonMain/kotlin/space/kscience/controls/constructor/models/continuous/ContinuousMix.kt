@@ -15,17 +15,17 @@ public enum class JoinManagementStrategy {
 
 
 /**
- * A class responsible for managing material discrete by combining supply and consumer requests with specific
+ * A class responsible for managing material flow by combining supply and consumer requests with specific
  * strategies. The resulting flows are calculated based on the defined management strategy.
  *
- * @param context The context in which the material discrete is managed.
+ * @param context The context in which the material flow is managed.
  * @param consumerRequest The state representing the total amount requested by consumers.
  * @param supplyRequest The map of supplier identifiers to their respective supply states.
  * @param joinManagementStrategy The strategy used to manage the distribution of available supply to the consumer.
  * Defaults to the proportional strategy.
  *
  * @property consumation A state representing the consumption calculation, resulting in a distribution map
- * of available material discrete across suppliers.
+ * of available material flow across suppliers.
  * @property production A state representing the total production as a numerical value derived from the consumation map.
  */
 public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
@@ -131,7 +131,7 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
  * Creates a consumer instance for a specific supply key from a continuous mix instance.
  *
  * @param key The unique identifier of the supply for which the consumer is to be created.
- * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material discrete
+ * @return A [ContinuousConsumerImpl] instance associated with the specified key, capable of consuming material flow
  * based on its capacity and the corresponding supply request.
  * @throws IllegalStateException If no supplier with the specified key is found in the supply requests.
  */

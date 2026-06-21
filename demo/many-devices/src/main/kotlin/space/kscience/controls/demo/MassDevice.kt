@@ -19,7 +19,6 @@ import space.kscience.controls.spec.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
@@ -46,32 +45,31 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 
-class MassDevice(context: Context, meta: Meta) : DeviceBySpec<MassDevice>(MassDevice, context, meta) {
-    private val rng = Random(meta["seed"].int ?: 0)
-
-    private val randomValue get() = rng.nextDouble()
+class MassDeviceState(seed: Int = 0) {
+    private val rng = Random(seed)
 
     private var counter: Long = 1
 
-    private val incrementValue: Double get() = (counter++).toDouble()
+    val randomValue get() = rng.nextDouble()
 
-    companion object : DeviceSpec<MassDevice>(), Factory<MassDevice> {
+    val incrementValue: Double get() = (counter++).toDouble()
+}
 
-        override fun build(context: Context, meta: Meta): MassDevice = MassDevice(context, meta)
+object MassDevice : DeviceFactory<MassDeviceState>() {
 
-        val value by doubleProperty { randomValue }
+    val value by doubleProperty { incrementValue }
 
-        override suspend fun MassDevice.onOpen() {
-            doRecurring((meta["delay"].int ?: 5).milliseconds) {
-                read(value)
-            }
+    context(device: DeviceBase)
+    override suspend fun createState(): MassDeviceState = MassDeviceState(device.meta["seed"].int ?: 0).also {
+        device.doRecurring((device.meta["delay"].int ?: 5).milliseconds) {
+            device.read(value)
         }
     }
 }
 
 suspend fun main() {
-    val context = Context("Mass"){
-        plugin(ClockManager){
+    val context = Context("Mass") {
+        plugin(ClockManager) {
             "clock.mode" put "jvm"
         }
     }
@@ -87,7 +85,7 @@ suspend fun main() {
 
 
     repeat(numDevices) {
-        delay(1)
+        delay(1.milliseconds)
         val deviceContext = Context("Device${it}") {
             plugin(DeviceManager)
         }
@@ -113,7 +111,7 @@ suspend fun main() {
 //            val counters = hashMapOf<String, Double>()
 
             monitorEndpoint.subscribe(DeviceManager.magixFormat).onEach { (magixMessage, payload) ->
-                if(payload is PropertyChangedMessage) {
+                if (payload is PropertyChangedMessage) {
                     val delay = clock.now() - payload.time
                     mutex.withLock {
 //                        val deviceName = payload.sourceDevice.toString()

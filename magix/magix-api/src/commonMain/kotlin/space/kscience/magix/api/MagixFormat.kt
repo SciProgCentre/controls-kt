@@ -21,7 +21,7 @@ public data class MagixFormat<T>(
 /**
  * Subscribe for messages in given endpoint using [format] to declare format filter as well as automatic decoding.
  *
- * @return a discrete of pairs (raw message, decoded message). Raw messages are to be used to extract headers.
+ * @return a flow of pairs (raw message, decoded message). Raw messages are to be used to extract headers.
  */
 public fun <T> MagixEndpoint.subscribe(
     format: MagixFormat<T>,

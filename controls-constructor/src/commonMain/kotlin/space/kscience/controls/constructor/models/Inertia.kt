@@ -2,6 +2,7 @@ package space.kscience.controls.constructor.models
 
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.asName
 import kotlin.math.pow
@@ -46,7 +47,10 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
             force: ValueState<NumericAmount<Newtons>>,
             mass: NumericAmount<Kilograms>,
             position: MutableValueState<NumericAmount<Meters>>,
-            velocity: MutableValueState<NumericAmount<MetersPerSecond>> = MutableValueState(NumericAmount(0.0)),
+            velocity: MutableValueState<NumericAmount<MetersPerSecond>> = MutableValueState(
+                NumericAmount(0.0),
+                context.clock
+            ),
         ): Inertia<Meters, MetersPerSecond> = Inertia(
             context = context,
             force = force.values(),
@@ -60,7 +64,10 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
             force: ValueState<NumericAmount<NewtonsMeters>>,
             momentOfInertia: NumericAmount<KgM2>,
             position: MutableValueState<NumericAmount<Degrees>>,
-            velocity: MutableValueState<NumericAmount<DegreesPerSecond>> = MutableValueState(NumericAmount(0.0)),
+            velocity: MutableValueState<NumericAmount<DegreesPerSecond>> = MutableValueState(
+                NumericAmount(0.0),
+                context.clock
+            ),
         ): Inertia<Degrees, DegreesPerSecond> = Inertia(
             context = context,
             force = force.values(),

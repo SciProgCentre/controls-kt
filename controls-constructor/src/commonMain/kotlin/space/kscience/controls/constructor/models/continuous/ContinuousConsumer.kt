@@ -41,15 +41,15 @@ public fun <U : UnitsOfMatter, T : Amount<U>> ContinuousConsumer<U, T>.connectPr
 }
 
 /**
- * Represents a model for a material discrete consumer capable of consuming material discrete based on its defined capacity
- * and requested supply. This class calculates the actual material discrete consumed and the efficiency of consumption.
+ * Represents a model for a material flow consumer capable of consuming material flow based on its defined capacity
+ * and requested supply. This class calculates the actual material flow consumed and the efficiency of consumption.
  *
- * @param U The type of units of measurement for the material discrete.
+ * @param U The type of units of measurement for the material flow.
  * @param context The execution context used for state management and operations.
- * @param consumationCapacity The maximum capacity for material discrete consumption of the consumer.
- * @param supplyRequest The state representing the requested material discrete to be supplied.
+ * @param consumationCapacity The maximum capacity for material flow consumption of the consumer.
+ * @param supplyRequest The state representing the requested material flow to be supplied.
  *
- * @property consumation A device state representing the actual material discrete consumed,
+ * @property consumation A device state representing the actual material flow consumed,
  * calculated as the minimum of the requested supply and the consumer's capacity.
  * @property efficiency A device state representing the efficiency of the consumer, calculated
  * as the ratio of the actual consumption to the capacity.

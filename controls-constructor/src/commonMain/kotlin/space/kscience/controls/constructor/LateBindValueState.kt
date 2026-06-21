@@ -4,6 +4,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import space.kscience.controls.time.ValueWithTime
+import kotlin.time.Instant
 
 /**
  * A device state implementation that supports deferred binding to another [ValueState] instance.
@@ -14,7 +16,8 @@ import kotlinx.coroutines.flow.flow
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 public class LateBindValueState<T>(
-    private val initialValue: T
+    private val initialValue: T,
+    private val initialTime: Instant = Instant.DISTANT_PAST,
 ) : ValueState<T> {
 
     private var binding = CompletableDeferred<ValueState<T>>()
@@ -33,6 +36,13 @@ public class LateBindValueState<T>(
             initialValue
         }
 
+    override val valueWithTime: ValueWithTime<T>
+        get() = if (isBound) {
+            binding.getCompleted().valueWithTime
+        } else {
+            ValueWithTime(initialValue, initialTime)
+        }
+
     override fun subscribe(): Flow<T> = if (isBound) {
         binding.getCompleted().subscribe()
     } else {
@@ -44,6 +54,16 @@ public class LateBindValueState<T>(
         }
     }
 
+    override fun subscribeWithTime(): Flow<ValueWithTime<T>> = if (isBound) {
+        binding.getCompleted().subscribeWithTime()
+    } else {
+        flow {
+            emit(ValueWithTime(initialValue, initialTime))
+            binding.await().subscribeWithTime().collect {
+                emit(it)
+            }
+        }
+    }
 
     override fun toString(): String = if (isBound) {
         "LateBindDeviceState(binding=${binding.getCompleted()})"

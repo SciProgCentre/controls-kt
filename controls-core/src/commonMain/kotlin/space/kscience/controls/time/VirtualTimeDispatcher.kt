@@ -3,7 +3,6 @@
 
 package space.kscience.controls.time
 
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
@@ -12,6 +11,9 @@ import kotlinx.coroutines.internal.ThreadSafeHeap
 import kotlinx.coroutines.internal.ThreadSafeHeapNode
 import kotlinx.coroutines.internal.synchronized
 import kotlinx.coroutines.selects.SelectClause1
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.fetchAndIncrement
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.*
 import kotlin.time.Duration.Companion.milliseconds
@@ -43,6 +45,7 @@ private class CancellableContinuationRunnable(
  * virtual time as needed (via [advanceUntilIdle]), or run the tasks that are scheduled to run as soon as possible but
  * haven't yet been dispatched (via [runCurrent]).
  */
+@OptIn(ExperimentalAtomicApi::class)
 public class VirtualTimeDispatcher(
     parentScope: CoroutineScope
 ) : CoroutineDispatcher(), Delay, AutoCloseable {
@@ -55,7 +58,7 @@ public class VirtualTimeDispatcher(
     private val lock = SynchronizedObject()
 
     /** This counter establishes some order on the events that happen at the same virtual time. */
-    private val count = atomic(0L)
+    private val count = AtomicLong(0L)
 
     /** The current virtual time in milliseconds. */
     public var currentTime: Long = 0
@@ -69,7 +72,7 @@ public class VirtualTimeDispatcher(
     private val dispatchEvents: Channel<Unit> = Channel(CONFLATED)
 
     /**
-     * Registers a request for the scheduler to notify [dispatcher] at a virtual moment [timeDeltaMillis] milliseconds
+     * Registers a request for the scheduler at a virtual moment [timeDeltaMillis] milliseconds
      * later via [VirtualTimeDispatcher.processEvent], which will be called with the provided [marker] object.
      *
      * Returns the handler which can be used to cancel the registration.
@@ -81,7 +84,7 @@ public class VirtualTimeDispatcher(
     ): DisposableHandle {
         require(timeDeltaMillis >= 0) { "Attempted scheduling an event earlier in time (with the time delta $timeDeltaMillis)" }
 //        checkSchedulerInContext(this, context)
-        val count = count.getAndIncrement()
+        val count = count.fetchAndIncrement()
         val isForeground = context[BackgroundWork] === null
         return synchronized(lock) {
             val time = addClamping(currentTime, timeDeltaMillis)

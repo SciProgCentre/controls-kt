@@ -1,33 +1,38 @@
 [versions]
 
-dataforge = "0.10.1"
+dataforge = "0.10.3"
 rsocket = "0.20.0"
 xodus = "2.0.1"
+parsus = "0.6.1"
 
 uuid = "0.8.0"
 
-fazecast = "2.10.3"
+jSerialComm = "2.11.4"
 
 tornadofx = "1.7.20"
 
 logback = "1.2.11"
 
-hivemq = "1.3.1"
+hivemq = "1.3.12"
 
 rabbitmq = "5.14.2"
 
+exposed = "1.1.1"
+
 kmongo = "4.5.1"
 
-j2mod = "3.2.1"
+j2mod = "3.3.0"
 
-milo = "1.0.2"
+milo = "1.1.1"
 
-pi4j = "2.3.0"
-pi4j-ktx = "2.4.0"
+pi4j = "4.0.0"
+#pi4j-ktx = "4.0.0"
 
-plc4j = "0.12.0"
+plc4j = "0.13.1"
 
-visionforge = "0.5.0"
+visionforge = "0.5.1"
+
+kmath = "0.5.0"
 
 testcontainers = "1.21.0"
 
@@ -35,8 +40,10 @@ testcontainers = "1.21.0"
 
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
 dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "dataforge" }
+tables-kt = { module = "space.kscience:tables-kt", version.ref = "dataforge" }
 
 uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }
+parsus = { module = "me.alllex.parsus:parsus", version.ref = "parsus" }
 
 xodus-entity-store = { module = "org.jetbrains.xodus:xodus-entity-store", version.ref = "xodus" }
 xodus-environment = { module = "org.jetbrains.xodus:xodus-environment", version.ref = "xodus" }
@@ -46,7 +53,7 @@ rsocket-ktor-client = { module = "io.rsocket.kotlin:ktor-client-rsocket", versio
 rsocket-ktor-server = { module = "io.rsocket.kotlin:ktor-server-rsocket", version.ref = "rsocket" }
 rsocket-transport-ktor-tcp = { module = "io.rsocket.kotlin:rsocket-transport-ktor-tcp", version.ref = "rsocket" }
 
-jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "fazecast" }
+jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "jSerialComm" }
 
 tornadofx = { module = "no.tornado:tornadofx", version.ref = "tornadofx" }
 
@@ -62,6 +69,13 @@ rabbitmq-amqp-client = { module = "com.rabbitmq:amqp-client", version.ref = "rab
 
 j2mod = { module = "com.ghgande:j2mod", version.ref = "j2mod" }
 
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
+
+h2 = "com.h2database:h2:2.3.232"
+
 kmongo-coroutine-serialization = { module = "org.litote.kmongo:kmongo-coroutine-serialization", version.ref = "kmongo" }
 
 milo-client = { module = "org.eclipse.milo:milo-sdk-client", version.ref = "milo" }
@@ -69,7 +83,7 @@ milo-sdk-core = { module = "org.eclipse.milo:milo-sdk-core", version.ref = "milo
 milo-dtd-core = { module = "org.eclipse.milo:milo-dtd-core", version.ref = "milo" }
 milo-server = { module = "org.eclipse.milo:milo-sdk-server", version.ref = "milo" }
 
-pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
+#pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
 pi4j-core = { module = "com.pi4j:pi4j-core", version.ref = "pi4j" }
 pi4j-plugin-raspberrypi = { module = "com.pi4j:pi4j-plugin-raspberrypi", version.ref = "pi4j" }
 pi4j-plugin-pigpio = { module = "com.pi4j:pi4j-plugin-pigpio", version.ref = "pi4j" }
@@ -83,7 +97,12 @@ visionforge-compose-html = { module = "space.kscience:visionforge-compose-html",
 
 sciprog-maps-compose = { module = "space.kscience:maps-kt-compose", version = "0.3.0" }
 
-koala-plots = { module = "io.github.koalaplot:koalaplot-core", version = "0.9.0" }
+lets-plot-kotlin-kernel = "org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.13.0"
+lets-plot-common = "org.jetbrains.lets-plot:lets-plot-common:4.9.0"
+lets-plot-compose = "org.jetbrains.lets-plot:lets-plot-compose:3.1.0"
+
+kmath-core = { module = "space.kscience:kmath-core", version.ref = "kmath" }
+kmath-stat = { module = "space.kscience:kmath-stat", version.ref = "kmath" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }

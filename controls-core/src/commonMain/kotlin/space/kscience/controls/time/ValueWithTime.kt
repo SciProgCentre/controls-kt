@@ -14,7 +14,7 @@ import kotlin.time.Instant
 /**
  * A value coupled to a time it was obtained at
  */
-public data class ValueWithTime<T>(val value: T, val time: Instant) {
+public data class ValueWithTime<out T>(val value: T, val time: Instant) {
     public companion object {
         /**
          * Create a [ValueWithTime] format for given value value [IOFormat]

@@ -2,8 +2,12 @@ package space.kscience.controls.constructor
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.controls.time.clock
+import space.kscience.dataforge.context.ContextAware
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * A [MutableValueState] that does not correspond to a physical state
@@ -11,23 +15,30 @@ import kotlinx.coroutines.flow.flowOf
  */
 private class VirtualValueState<T>(
     initialValue: T,
+    val clock: Clock = Clock.System,
 ) : MutableValueState<T> {
 
-    private val flow = MutableStateFlow(initialValue)
+    private val flow = MutableStateFlow(ValueWithTime(initialValue, clock.now()))
 
-    override fun subscribe(): StateFlow<T> = flow
+    override fun subscribeWithTime(): Flow<ValueWithTime<T>> = flow
 
-    override var value: T
+    override var valueWithTime: ValueWithTime<T>
         get() = flow.value
         set(value) {
             flow.value = value
         }
 
+    override var value: T
+        get() = flow.value.value
+        set(value) {
+            flow.value = ValueWithTime(value, clock.now())
+        }
+
     override suspend fun emit(value: T) {
-        flow.emit(value)
+        flow.emit(ValueWithTime(value, clock.now()))
     }
 
-    override fun toString(): String = "VirtualDeviceState($value)"
+    override fun toString(): String = "ValueState.virtual($value)"
 }
 
 
@@ -37,19 +48,36 @@ private class VirtualValueState<T>(
  */
 public fun <T> MutableValueState(
     initialValue: T,
-): MutableValueState<T> = VirtualValueState(initialValue)
+    clock: Clock = Clock.System,
+): MutableValueState<T> = VirtualValueState(initialValue, clock)
+
+/**
+ * A [MutableValueState] that does not correspond to a physical state
+ *
+ * Inherits the context clock
+ */
+public fun <T> ContextAware.MutableValueState(
+    initialValue: T,
+): MutableValueState<T> = VirtualValueState(initialValue, context.clock)
 
 
 /**
  * Create a [ValueState] with constant value
  */
 public fun <T> ValueState(
-    value: T
+    value: T,
+    time: Instant = Instant.DISTANT_PAST,
 ): ValueState<T> = object : ValueState<T> {
     override val value: T get() = value
 
+    override val time: Instant = time
+
+    override val valueWithTime: ValueWithTime<T> get() = ValueWithTime(value, time)
+
     override fun subscribe(): Flow<T> = flowOf(value)
 
-    override fun toString(): String = "ConstDeviceState($value)"
+    override fun subscribeWithTime(): Flow<ValueWithTime<T>> = flowOf(valueWithTime)
+
+    override fun toString(): String = "ValueState.Const($value)"
 
 }

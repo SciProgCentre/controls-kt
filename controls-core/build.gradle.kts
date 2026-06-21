@@ -2,7 +2,8 @@ import space.kscience.gradle.Maturity
 
 plugins {
     id("space.kscience.gradle.mpp")
-    id("org.jetbrains.kotlinx.atomicfu") version "0.28.0"
+    alias(spclibs.plugins.atomicfu)
+
     `maven-publish`
 }
 
@@ -20,9 +21,11 @@ kscience {
         json()
     }
     useContextParameters()
+
     commonMain {
         api(libs.dataforge.io)
-        api(spclibs.kotlinx.datetime)
+        api("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0-0.6.x-compat")
+        //api(spclibs.kotlinx.datetime)
     }
 
     jvmTest{
@@ -67,6 +70,12 @@ readme{
     feature("ports", ref = "src/commonMain/kotlin/space/kscience/controls/ports"){
         """
             Working with asynchronous data sending and receiving raw byte arrays
+        """.trimIndent()
+    }
+
+    feature("clock", ref = "src/commonMain/kotlin/space/kscience/controls/time"){
+        """
+            Clock management and time manipulation (virtual and compressed time)
         """.trimIndent()
     }
 }

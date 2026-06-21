@@ -8,8 +8,10 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.sample
 import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.time.ValueWithTime
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Clock
 import kotlin.time.Duration
 
 
@@ -22,7 +24,7 @@ public fun <T> ValueState<T>.asComposeState(
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
     sampleInterval: Duration? = null
 ): State<T> = subscribe().let {
-    if(sampleInterval != null){
+    if (sampleInterval != null) {
         it.sample(sampleInterval)
     } else {
         it
@@ -33,10 +35,14 @@ public fun <T> ValueState<T>.asComposeState(
 /**
  * Represent this Compose [State] as [ValueState]
  */
-public fun <T> State<T>.asDeviceState(): ValueState<T> = object : ValueState<T> {
+public fun <T> State<T>.asDeviceState(clock: Clock = Clock.System): ValueState<T> = object : ValueState<T> {
     override val value: T get() = this@asDeviceState.value
 
+    override val valueWithTime: ValueWithTime<T> get() = ValueWithTime(value, clock.now())
+
     override fun subscribe(): Flow<T> = snapshotFlow { this@asDeviceState.value }
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<T>> = snapshotFlow { ValueWithTime(value, clock.now()) }
 
     override fun toString(): String = "ComposeState(value=$value)"
 }

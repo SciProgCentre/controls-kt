@@ -31,15 +31,22 @@ kscience {
 //        development = true
     )
 
+    useContextParameters()
+
     useSerialization {
         json()
     }
 
     commonMain {
+        implementation(
+            project.dependencies.platform(spclibs.kotlin.js.wrappers)
+        )
         implementation(projects.controlsCore)
         implementation(projects.controlsConstructor)
         implementation(projects.controlsVision)
         implementation(compose.runtime)
+
+        api(project.dependencies.platform(spclibs.ktor.bom))
 
         implementation(libs.plotlykt.core)
     }
@@ -52,7 +59,6 @@ kscience {
 
         implementation(libs.visionforge.server)
         implementation("org.jetbrains.kotlin-wrappers:kotlin-css")
-        implementation(spclibs.ktor.server.cio)
 
         implementation(spclibs.logback.classic)
     }

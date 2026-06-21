@@ -15,6 +15,7 @@ kscience {
     native()
 //    wasm()
     useCoroutines()
+    useContextParameters()
     useSerialization {
         json()
     }
@@ -38,13 +39,13 @@ kscience {
 readme {
     maturity = Maturity.EXPERIMENTAL
 
-    feature("controlsMagix", ref = "src/commonMain/kotlin/space/kscience/controls/client/controlsMagix.kt"){
+    feature("magixService", ref = "src/commonMain/kotlin/space/kscience/controls/client/controlsMagix.kt"){
         """
-            Connect a `DeviceManage` with one or many devices to the Magix endpoint
+            Connect a `DeviceManager` with one or many devices to the Magix endpoint
         """.trimIndent()
     }
 
-    feature("DeviceClient", ref = "src/commonMain/kotlin/space/kscience/controls/client/DeviceClient.kt"){
+    feature("deviceClient", ref = "src/commonMain/kotlin/space/kscience/controls/client/DeviceClient.kt"){
         """
             A remote connector to Controls-kt device via Magix
         """.trimIndent()

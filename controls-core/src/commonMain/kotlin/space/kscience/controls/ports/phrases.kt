@@ -75,11 +75,11 @@ public fun Flow<ByteArray>.withStringDelimiter(delimiter: String): Flow<String> 
 }
 
 /**
- * A discrete of delimited phrases
+ * A flow of delimited phrases
  */
 public fun AsynchronousPort.delimitedIncoming(delimiter: ByteArray): Flow<ByteArray> = subscribe().withDelimiter(delimiter)
 
 /**
- * A discrete of delimited phrases with string content
+ * A flow of delimited phrases with string content
  */
 public fun AsynchronousPort.stringsDelimitedIncoming(delimiter: String): Flow<String> = subscribe().withStringDelimiter(delimiter)
