@@ -50,7 +50,7 @@ private fun Application.deviceServerModule(manager: DeviceManager) {
             call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
         }
     }
-    deviceManagerModule(manager)
+    deviceTreeModule(manager)
     routing {
         get("/") {
             call.respondRedirect("/dashboard")
@@ -91,10 +91,10 @@ private fun JsonObjectBuilder.deviceTree(tree: DeviceTree, namePrefix: Name, exp
 
 public val WEB_SERVER_TARGET: Name = "@webServer".asName()
 
-public fun Application.deviceManagerModule(
-    manager: DeviceManager,
+public fun Application.deviceTreeModule(
+    deviceTree: DeviceTree,
     vararg plugins: MagixFlowPlugin,
-    deviceNames: Collection<Name> = manager.descendantDevices().keys,
+    deviceNames: Collection<Name> = deviceTree.descendantDevices().keys,
     route: String = "/",
     buffer: Int = 100,
 ) {
@@ -127,7 +127,7 @@ public fun Application.deviceManagerModule(
                             +"Device server dashboard"
                         }
                         deviceNames.forEach { deviceName: Name ->
-                            val device = manager.resolveDevice(deviceName)
+                            val device = deviceTree.resolveDevice(deviceName)
                             div {
                                 id = deviceName.toString()
                                 h2 { +deviceName.toString() }
@@ -157,6 +157,8 @@ public fun Application.deviceManagerModule(
                         }
                     }
                 }
+            }.describe {
+                description = "Device server dashboard"
             }
 
             /**
@@ -165,7 +167,7 @@ public fun Application.deviceManagerModule(
             get("tree") {
                 val expand = call.queryParameters["expand"]?.toBoolean() ?: false
                 val json = buildJsonObject {
-                    deviceTree(manager, Name.EMPTY, expand)
+                    deviceTree(deviceTree, Name.EMPTY, expand)
                 }
                 call.respond(json)
             }.describe {
@@ -185,8 +187,10 @@ public fun Application.deviceManagerModule(
              */
             post("send") {
                 val message = call.receive<DeviceMessage>()
-                val response = manager.respondMessage(message)
+                val response = deviceTree.respondMessage(message)
                 call.respond(response)
+            }.describe {
+                description = "Send a single message to the DeviceManager"
             }
 
             route("devices/{target}") {
@@ -206,8 +210,10 @@ public fun Application.deviceManagerModule(
                         sourceDevice = WEB_SERVER_TARGET,
                         targetDevice = name
                     )
-                    val response = manager.respondMessage(request)
+                    val response = deviceTree.respondMessage(request)
                     call.respond(response)
+                }.describe {
+                    description = "Get description for device with given name"
                 }
 
                 /**
@@ -226,12 +232,14 @@ public fun Application.deviceManagerModule(
                         property = property,
                     )
 
-                    val responses = manager.respondMessage(request)
+                    val responses = deviceTree.respondMessage(request)
                     if (responses.isNotEmpty()) {
                         call.respond(responses)
                     } else {
                         call.respond(HttpStatusCode.NotFound)
                     }
+                }.describe {
+                    description = "Get a property value for given device"
                 }
 
                 /**
@@ -256,12 +264,14 @@ public fun Application.deviceManagerModule(
                         value = json.toMeta()
                     )
 
-                    val responses = manager.respondMessage(request)
+                    val responses = deviceTree.respondMessage(request)
                     if (responses.isNotEmpty()) {
                         call.respond(responses)
                     } else {
                         call.respond(HttpStatusCode.NotFound)
                     }
+                }.describe {
+                    description = "Tries to set value of the property"
                 }
 
                 /**
@@ -272,7 +282,7 @@ public fun Application.deviceManagerModule(
                 webSocket("subscribe/{property}") {
                     val target: String by call.parameters
                     val property: String by call.parameters
-                    val device = manager.resolveDevice(target)
+                    val device = deviceTree.resolveDevice(target)
 
                     val request = PropertyGetMessage(
                         time = Clock.System.now(),
@@ -281,7 +291,7 @@ public fun Application.deviceManagerModule(
                         property = property,
                     )
 
-                    manager.respondMessage(request).forEach {
+                    deviceTree.respondMessage(request).forEach {
                         outgoing.send(
                             Frame.Text(
                                 MagixEndpoint.magixJson.encodeToString(

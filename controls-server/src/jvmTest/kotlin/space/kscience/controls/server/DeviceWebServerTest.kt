@@ -58,7 +58,7 @@ class DeviceWebServerTest {
         })
 
         application {
-            deviceManagerModule(manager)
+            deviceTreeModule(manager)
         }
 
         val client = createClient {
