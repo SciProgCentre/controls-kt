@@ -5,9 +5,11 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.DeviceMessageSource
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.ValueStateProvider
+import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.parseAsName
@@ -39,30 +41,38 @@ public interface Replay : DeviceMessageSource, AutoCloseable {
 }
 
 /**
- * Create a [ValueStateProvider] from a [DeviceMessageSource]
+ * Create a [ValueStateFactory] from a [DeviceMessageSource]
  */
 public fun DeviceMessageSource.asValueStateProvider(
     scope: CoroutineScope
-): ValueStateProvider = ValueStateProvider { context, parameters->
-    val deviceName = parameters["deviceName"].string?.parseAsName() ?: error("Device name is not specified")
-    val propertyName = parameters["propertyName"].string ?: error("Property name is not specified")
-    val defaultValue = parameters["defaultValue"] ?: Meta.EMPTY
+): ValueStateFactory = object : ValueStateFactory {
+    override fun build(
+        context: Context,
+        meta: Meta
+    ): ValueState<Meta> {
+        val deviceName = meta["deviceName"].string?.parseAsName() ?: error("Device name is not specified")
+        val propertyName = meta["propertyName"].string ?: error("Property name is not specified")
+        val defaultValue = meta["defaultValue"] ?: Meta.EMPTY
 
-    val defaultValueWithTime = ValueWithTime(defaultValue, Instant.DISTANT_PAST)
+        val defaultValueWithTime = ValueWithTime(defaultValue, Instant.DISTANT_PAST)
 
-    val valueFlow: StateFlow<ValueWithTime<Meta>> = messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
-        it.sourceDevice == deviceName && it.property == propertyName
-    }.map {
-        ValueWithTime(it.value, it.time)
-    }.stateIn(scope, SharingStarted.Eagerly,defaultValueWithTime)
+        val valueFlow: StateFlow<ValueWithTime<Meta>> = messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
+            it.sourceDevice == deviceName && it.property == propertyName
+        }.map {
+            ValueWithTime(it.value, it.time)
+        }.stateIn(scope, SharingStarted.Eagerly,defaultValueWithTime)
 
-    object : ValueState<Meta>{
-        override val valueWithTime: ValueWithTime<Meta>
-            get() = valueFlow.value
+        return object : ValueState<Meta>{
+            override val valueWithTime: ValueWithTime<Meta>
+                get() = valueFlow.value
 
-        override fun subscribeWithTime(): Flow<ValueWithTime<Meta>>  = valueFlow
+            override fun subscribeWithTime(): Flow<ValueWithTime<Meta>>  = valueFlow
 
-        override fun toString(): String = "ValueState.fromDeviceMessageSource($deviceName, $propertyName)"
+            override fun toString(): String = "ValueState.fromDeviceMessageSource($deviceName, $propertyName)"
 
+        }
     }
+
+    override val descriptor: MetaDescriptor? = null
+
 }

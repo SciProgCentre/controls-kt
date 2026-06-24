@@ -14,7 +14,7 @@ import space.kscience.dataforge.meta.Meta
  */
 @Serializable
 @SerialName("modbus")
-public class ModbusPlatformProperty(
+public class ModbusTagTableColumn(
     override val source: String,
     override val timer: String,
     public val reader: ModbusPropertyReader,
@@ -22,7 +22,7 @@ public class ModbusPlatformProperty(
     public val unitId: Int = 1,
     override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
-) : PlatformProperty
+) : TagTableColumn
 
 @Serializable
 public sealed interface ModbusPropertyReader {

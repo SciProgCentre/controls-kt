@@ -37,7 +37,7 @@ class DataPlatformStorageIndexTest {
             val operations = NativeFileEnvelopeOperations(io)
 
             val headers = listOf(
-                DataPlatform.timeColumnHeader,
+                TagTable.timeColumnHeader,
                 SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY)
             )
 
@@ -53,7 +53,7 @@ class DataPlatformStorageIndexTest {
                     val rows = (0 until rowsPerFile).map { j ->
                         MapRow(
                             mapOf(
-                                DataPlatform.timeColumnHeader.name to space.kscience.controls.dataplatform.timeseries.Meta(
+                                TagTable.timeColumnHeader.name to space.kscience.controls.dataplatform.timeseries.Meta(
                                     fileStartTime + j.milliseconds
                                 ),
                                 "value" to (i * rowsPerFile + j).asMeta()

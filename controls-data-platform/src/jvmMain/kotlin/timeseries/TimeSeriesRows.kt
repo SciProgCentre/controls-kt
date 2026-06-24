@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import space.kscience.attributes.SafeType
 import space.kscience.attributes.safeTypeOf
-import space.kscience.controls.dataplatform.DataPlatform.Companion.timeColumnHeader
+import space.kscience.controls.dataplatform.TagTable.Companion.timeColumnHeader
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter

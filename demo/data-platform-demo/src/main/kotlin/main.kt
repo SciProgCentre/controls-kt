@@ -17,12 +17,11 @@ import kotlinx.serialization.json.decodeFromStream
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.constructor.DeviceConfiguration
-import space.kscience.controls.dataplatform.DataPlatform
-import space.kscience.controls.dataplatform.DataPlatformConfiguration
-import space.kscience.controls.dataplatform.DataPlatformDevice
-import space.kscience.controls.dataplatform.buildDeviceGroup
+import space.kscience.controls.constructor.install
+import space.kscience.controls.dataplatform.TagTableConfiguration
+import space.kscience.controls.dataplatform.TagTableDevice
+import space.kscience.controls.dataplatform.TagTablePlugin
 import space.kscience.controls.demo.visual.DeviceVisualisation
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
@@ -67,10 +66,13 @@ private fun Device.monitorDeviceChanges(): Job = launch {
 fun main() {
     val context = Context {
         plugin(IOPlugin)
-        plugin(DeviceManager)
+        plugin(TagTablePlugin)
         plugin(SlfLogManager)
     }
-    val deviceManager = context.request(DeviceManager)
+
+    val tagTablePlugin = context.request(TagTablePlugin)
+
+    val deviceManager = tagTablePlugin.deviceManager
 
 
     //setup data sources and data config
@@ -82,14 +84,14 @@ fun main() {
 
     //read platform config
     val configuration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
-        json.decodeFromStream(DataPlatformConfiguration.serializer(), it)
+        json.decodeFromStream(TagTableConfiguration.serializer(), it)
     }
 
 
-    val platform = DataPlatform(context, configuration)
+    val platform = tagTablePlugin.install(configuration)
 
     //setup platform device (optional)
-    val platformDevice = DataPlatformDevice(platform)
+    val platformDevice = TagTableDevice(platform)
     deviceManager.install("platform", platformDevice)
 
     // monitor changes
@@ -101,9 +103,7 @@ fun main() {
         json.decodeFromStream(DeviceConfiguration.serializer(), it)
     }
     //setup devices from config
-    val devices = platform.buildDeviceGroup(deviceConfig)
-    deviceManager.install("devices", devices)
-
+    val devices = deviceManager.install("devices", deviceConfig)
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 

@@ -9,8 +9,8 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.RowsCompression
+import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.instant
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
@@ -84,7 +84,7 @@ public sealed interface DataPlatformFileSplit {
  *
  * @return a [Job] representing the lifecycle of the data collection and storage process. This job can be canceled to stop the operation.
  */
-public fun DataPlatform.storeData(
+public fun TagTable.storeData(
     directory: Path,
     readInterval: Duration,
     maxRowsPerEnvelope: Int = 10000,

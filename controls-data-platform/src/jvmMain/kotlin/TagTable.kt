@@ -17,7 +17,9 @@ import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.controls.dataplatform.storage.storeData
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
@@ -29,11 +31,8 @@ import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.MetaRef
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -45,7 +44,7 @@ import kotlin.time.Duration
 import kotlin.time.toKotlinInstant
 
 /**
- * The [DataPlatform] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
+ * The [TagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
  * It provides methods to resolve clients for each source type based on their configurations.
  * The class also supports time zone and clock customization and implements the `AutoCloseable` interface for resource management.
  *
@@ -53,12 +52,12 @@ import kotlin.time.toKotlinInstant
  * @param timeZone The time zone setting for the platform, defaulting to the system's current time zone.
  * @param clock The clock instance used for time-related operations, defaulting to the system clock.
  */
-public class DataPlatform(
+public class TagTable(
     override val context: Context,
-    public val configuration: DataPlatformConfiguration,
+    public val configuration: TagTableConfiguration,
     public val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     public val clock: Clock = context.clock,
-) : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope, ValueStateProvider {
+) : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope, ValueStateFactory {
 
 
     override val coroutineContext: CoroutineContext =
@@ -110,8 +109,8 @@ public class DataPlatform(
     }
 
 
-    internal suspend fun read(propertyConfig: PlatformProperty): ValueWithTime<Meta> = when (propertyConfig) {
-        is ModbusPlatformProperty -> with(propertyConfig) {
+    internal suspend fun read(propertyConfig: TagTableColumn): ValueWithTime<Meta> = when (propertyConfig) {
+        is ModbusTagTableColumn -> with(propertyConfig) {
             val client = resolveModbusClient(source)
 
             val meta = reader.read(client, unitId, address)
@@ -119,12 +118,12 @@ public class DataPlatform(
             ValueWithTime(meta, clock.now())
         }
 
-        is OpcPlatformProperty -> with(propertyConfig) {
+        is OpcTagTableColumn -> with(propertyConfig) {
             val client = resolveOpcClient(source)
             client.readMetaWithTime(NodeId.parse(nodeId))
         }
 
-        is PlcPlatformProperty -> with(propertyConfig) {
+        is PlcTagTableColumn -> with(propertyConfig) {
             val connection = resolvePlcClient(source)
 
             require(connection.metadata.isReadSupported) { "Read actions are not supported on connections" }
@@ -146,7 +145,7 @@ public class DataPlatform(
      */
     private suspend fun readMultipleOpc(
         source: String,
-        properties: List<Map.Entry<String, OpcPlatformProperty>>,
+        properties: List<Map.Entry<String, OpcTagTableColumn>>,
         maxAge: Double = 500.0,
     ): List<Pair<String, ValueWithTime<Meta>>> {
         check(properties.all { it.value.source == source }) { "All properties must have the same source" }
@@ -202,7 +201,7 @@ public class DataPlatform(
     /**
      * Read all properties on trigger
      */
-    private suspend fun readAllProperties(properties: List<Map.Entry<String, PlatformProperty>>): Unit =
+    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit =
         coroutineScope {
             properties.groupBy { it.value.source }.forEach { (source, entries) ->
                 //launch reading process for each separate source
@@ -210,13 +209,13 @@ public class DataPlatform(
                     //TODO maybe partition properties beforehand to avoid unnecessary computations
                     val timeout = entries.maxOf { it.value.timeout }
 
-                    if (entries.all { it.value is OpcPlatformProperty }) {
+                    if (entries.all { it.value is OpcTagTableColumn }) {
                         //optimization to read multiple OPC properties at once
                         withTimeout(timeout) {
                             @Suppress("UNCHECKED_CAST")
                             readMultipleOpc(
                                 source,
-                                entries as List<Map.Entry<String, OpcPlatformProperty>>
+                                entries as List<Map.Entry<String, OpcTagTableColumn>>
                             ).forEach { (propertyName, value) ->
                                 values[propertyName] = value.value
                                 _messageFlow.emit(
@@ -262,7 +261,7 @@ public class DataPlatform(
         //start read job
         readJob = launch {
             configuration.properties.entries.groupBy { it.value.timer }
-                .forEach { (timerName, properties: List<Map.Entry<String, PlatformProperty>>) ->
+                .forEach { (timerName, properties: List<Map.Entry<String, TagTableColumn>>) ->
                     val timer = configuration.timers[timerName]?.createTimerState(clockManager)
                         ?: error("Timer $timerName not found")
                     timer.subscribe().onEach {
@@ -346,7 +345,7 @@ public class DataPlatform(
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
-        }.shareIn(this@DataPlatform, SharingStarted.WhileSubscribed())
+        }.shareIn(this@TagTable, SharingStarted.WhileSubscribed())
 
         override fun subscribe() = rowFlow
     }
@@ -354,7 +353,7 @@ public class DataPlatform(
     private val stateCache = mutableMapOf<String, ValueState<Meta>>()
 
     /**
-     * Create a [ValueState] for a property of a [DataPlatform].
+     * Create a [ValueState] for a property of a [TagTable].
      */
     public fun valueState(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
         object : ValueState<Meta> {
@@ -370,41 +369,47 @@ public class DataPlatform(
         }
     }
 
-    override fun buildValueState(context: Context, parameters: Meta): ValueState<Meta> {
-        val tag = parameters[tag] ?: error("No tag specified")
+
+    override fun build(context: Context, meta: Meta): ValueState<Meta> {
+        val tag = meta[ValueFactorySpec.tag] ?: error("No tag specified")
         return valueState(tag)
     }
 
+    public object ValueFactorySpec : MetaSpec() {
+        public val tag: MetaRef<String> by string()
+    }
+
+    override val descriptor: MetaDescriptor get() = ValueFactorySpec.descriptor
+
     public companion object {
-        public val tag: MetaRef<String> = MetaRef("tag".asName(), MetaConverter.string)
 
         internal val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
             title = "Time"
         }
 
-        public const val PLATFORM_VALUE_FACTORY_TYPE: String = "platform"
+        public const val TAG_TABLE_FACTORY_TYPE: String = "tagTable"
     }
 }
 
-/**
- * Builds a device group using the provided constructor device scheme.
- *
- * @param scheme The construction scheme that defines the configuration and structure of the device group.
- * @return A new instance of DeviceGroup created based on the provided scheme and associated state factories.
- */
-public fun DataPlatform.buildDeviceGroup(
-    scheme: DeviceConfiguration
-): DeviceConstructor {
-    val valueStateFactories = ValueState.defaultValueStateFactories + (DataPlatform.PLATFORM_VALUE_FACTORY_TYPE to this)
-    return context.buildDeviceGroupByScheme(scheme, valueStateFactories)
-}
+///**
+// * Builds a device group using the provided constructor device scheme.
+// *
+// * @param scheme The construction scheme that defines the configuration and structure of the device group.
+// * @return A new instance of DeviceGroup created based on the provided scheme and associated state factories.
+// */
+//public fun TagDataTable.buildDeviceGroup(
+//    scheme: DeviceConfiguration
+//): DeviceConstructor {
+//    val valueStateFactories = ValueState.defaultValueStateFactories + (TagDataTable.PLATFORM_VALUE_FACTORY_TYPE to this)
+//    return context.request(Construc)buildDeviceGroupByScheme(scheme, valueStateFactories)
+//}
 
 
 /**
- * Register a device property that is bound to a [DataPlatform] source.
+ * Register a device property that is bound to a [TagTable] source.
  */
 public fun DeviceConstructor.dataPlatformProperty(
-    platform: DataPlatform,
+    platform: TagTable,
     propertyName: String,
     dataPlatformTag: String = propertyName,
     description: String? = null,

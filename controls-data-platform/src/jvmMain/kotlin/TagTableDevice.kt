@@ -4,14 +4,16 @@ import kotlinx.coroutines.flow.SharedFlow
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 
 /**
  * A device that exposes property values in a data platform
  */
-public class DataPlatformDevice(
-    public val platform: DataPlatform
+public class TagTableDevice(
+    public val platform: TagTable
 ) : Device {
 
     override val context: Context get() = platform.context
@@ -51,6 +53,19 @@ public class DataPlatformDevice(
         platform.stop()
     }
 
+    public companion object : DeviceFactory {
+        override fun buildDevice(
+            context: Context,
+            meta: Meta
+        ): Device {
+            val tagTableName = meta["tagTable"].string
+            val tagTable = context.plugins[TagTablePlugin]?.tagTables?.get(tagTableName)
+                ?: error("Tag table not found for tagTable name $tagTableName")
+
+            return TagTableDevice(tagTable)
+        }
+    }
+
 }
 
-public fun DataPlatform.asDevice(): Device = DataPlatformDevice(this)
+public fun TagTable.asDevice(): Device = TagTableDevice(this)

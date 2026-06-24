@@ -7,8 +7,10 @@ import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.*
-import space.kscience.dataforge.misc.DFExperimental
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.ValueType
+import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.isEmpty
 import kotlin.math.*
@@ -71,19 +73,7 @@ public sealed interface StateExpression {
     }
 
     public companion object{
-        /**
-         * A factory for [ValueState] that can evaluate [StateExpression]
-         */
-        @OptIn(DFExperimental::class)
-        public val valueStateFactory: ValueStateProvider = ValueStateProvider{ context, parameters->
-            val expression by parameters.serializable<StateExpression>()
 
-            val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
-
-            val expressionScope = StateExpressionContext(deviceManager, context)
-
-            return@ValueStateProvider expressionScope.computeState(expression ?: error("Expression not defined")).map { Meta(it) }
-        }
     }
 }
 

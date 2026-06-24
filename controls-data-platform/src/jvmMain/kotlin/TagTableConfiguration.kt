@@ -61,7 +61,7 @@ public data class PlcConfig(
  * Represents a platform-specific property that can be read from a data platform.
  */
 @Serializable
-public sealed interface PlatformProperty {
+public sealed interface TagTableColumn {
     /**
      * The name of the source
      */
@@ -94,20 +94,20 @@ public sealed interface PlatformProperty {
  */
 @Serializable
 @SerialName("opc")
-public class OpcPlatformProperty(
+public class OpcTagTableColumn(
     override val source: String,
     override val timer: String,
     public val nodeId: String,
     override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
-) : PlatformProperty
+) : TagTableColumn
 
 /**
  * A property that is read from a Plc4X compatible source
  */
 @Serializable
 @SerialName("plc")
-public class PlcPlatformProperty(
+public class PlcTagTableColumn(
     override val source: String,
     override val timer: String,
     public val address: String,
@@ -115,7 +115,7 @@ public class PlcPlatformProperty(
     public val name: String = "@default",
     override val compression: ColumnCompression? = null,
     override val meta: Meta = Meta.EMPTY,
-) : PlatformProperty
+) : TagTableColumn
 
 @Serializable
 public sealed interface TimerConfiguration {
@@ -145,7 +145,7 @@ public class FixedRateTimer(
  * @property splitStrategy The strategy for organizing data into subdirectories, such as by date or by hour.
  */
 @Serializable
-public data class PlatformStorageConfiguration(
+public data class TagTableStorageConfiguration(
     val path: String,
     val readInterval: Duration,
     val maxRowsPerEnvelope: Int = 10000,
@@ -170,10 +170,10 @@ public data class PlatformStorageConfiguration(
  *                   split strategies.
  */
 @Serializable
-public class DataPlatformConfiguration(
+public class TagTableConfiguration(
     public val sources: Map<String, PlatformSourceConfiguration>,
     public val timers: Map<String, TimerConfiguration>,
-    public val properties: Map<String, PlatformProperty>,
-    public val storage: PlatformStorageConfiguration? = null,
+    public val properties: Map<String, TagTableColumn>,
+    public val storage: TagTableStorageConfiguration? = null,
 )
 

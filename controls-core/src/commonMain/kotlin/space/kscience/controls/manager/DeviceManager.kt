@@ -7,7 +7,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.misc.DFExperimental
-import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.last
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -21,8 +21,8 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     /**
      * Device factories available in the context
      */
-    public val factories: Map<Name, DeviceTreeFactory> by lazy {
-        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class)
+    public val factories: Map<String, DeviceTreeFactory> by lazy {
+        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class).mapKeys { it.key.last().toString() }
     }
 
     /**

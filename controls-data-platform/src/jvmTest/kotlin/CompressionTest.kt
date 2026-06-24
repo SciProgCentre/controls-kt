@@ -18,7 +18,7 @@ import kotlin.time.Instant
 class CompressionTest {
 
     private val testHeaders: TableHeader<Meta> = listOf(
-        DataPlatform.timeColumnHeader,
+        TagTable.timeColumnHeader,
         SimpleColumnHeader("v1", typeOf<Meta>(), Meta.EMPTY),
         SimpleColumnHeader("v2", typeOf<Meta>(), Meta.EMPTY)
     )

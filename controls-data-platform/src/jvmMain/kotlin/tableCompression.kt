@@ -3,7 +3,7 @@ package space.kscience.controls.dataplatform
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
-import space.kscience.controls.dataplatform.DataPlatform.Companion.timeColumnHeader
+import space.kscience.controls.dataplatform.TagTable.Companion.timeColumnHeader
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime

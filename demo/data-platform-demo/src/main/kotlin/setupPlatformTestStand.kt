@@ -47,12 +47,12 @@ internal fun DeviceManager.setupPlatformTestStand(
 
     Thread.sleep(1000)
 
-    val platformProperties = buildMap<Name, PlatformProperty> {
+    val platformProperties = buildMap<Name, TagTableColumn> {
         repeat(numberOfOpcDevices) { opcDeviceNum ->
             repeat(propertiesPerDevice) { propertyNum ->
                 put(
                     key = "opc[${opcDeviceNum}].property[${propertyNum}]".parseAsName(),
-                    value = OpcPlatformProperty(
+                    value = OpcTagTableColumn(
                         source = opcSourceName,
                         timer = timerName,
                         nodeId = "ns=2;s=device[$opcDeviceNum]/property[$propertyNum]"
@@ -66,7 +66,7 @@ internal fun DeviceManager.setupPlatformTestStand(
             registryMap.keys.forEach { (name, key) ->
                 put(
                     key = "modbus[${modbusDeviceNum}]".parseAsName() + name,
-                    value = ModbusPlatformProperty(
+                    value = ModbusTagTableColumn(
                         source = modbusSourceName,
                         timer = timerName,
                         reader = ModbusDoubleReader,
@@ -81,11 +81,11 @@ internal fun DeviceManager.setupPlatformTestStand(
     val dataDirectory = Path("data")
     dataDirectory.createDirectories()
 
-    val configuration = DataPlatformConfiguration(
+    val configuration = TagTableConfiguration(
         sources = sources,
         timers = timers,
         properties = platformProperties.mapKeys { it.key.toString() },
-        storage = PlatformStorageConfiguration(
+        storage = TagTableStorageConfiguration(
             path = dataDirectory.toString(),
             readInterval = 1.seconds,
             maxDuration = 30.seconds,
@@ -95,7 +95,7 @@ internal fun DeviceManager.setupPlatformTestStand(
 
 
     dataDirectory.resolve("platform-config.json").writeText(
-        json.encodeToString(DataPlatformConfiguration.serializer(), configuration)
+        json.encodeToString(TagTableConfiguration.serializer(), configuration)
     )
 
     val deviceConfiguration = createDeviceConfiguration(configuration)

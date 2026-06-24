@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import space.kscience.controls.dataplatform.DataPlatform
 import space.kscience.controls.dataplatform.RowsCompression
+import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.dataplatform.compress
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.dataplatform.timeseries.toRow
@@ -33,7 +33,7 @@ import kotlin.time.Instant
  * @param compression optional compression settings for rows.
  * @return a flow of envelopes generated from the rows.
  */
-public fun DataPlatform.flowBinaryData(
+public fun TagTable.flowBinaryData(
     readInterval: Duration,
     converter: RowsEnvelopeConverter<Meta>,
     maxRows: Int = 10000,
