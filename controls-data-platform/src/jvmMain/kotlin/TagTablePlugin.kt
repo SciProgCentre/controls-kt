@@ -39,8 +39,8 @@ public class TagTablePlugin : AbstractPlugin() {
         return tagTable
     }
 
-    public fun install(configuration: TagTableConfiguration, name: String? = null): TagTable =
-        install(TagTable(context, configuration), name)
+    public fun install(configuration: PlcTableConfiguration, name: String? = null): TagTable =
+        install(PlcTagTable(context, configuration), name)
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> tagTables.entries.associate { (name, table) ->

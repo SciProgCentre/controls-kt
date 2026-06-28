@@ -18,7 +18,7 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.constructor.DeviceConfiguration
 import space.kscience.controls.constructor.install
-import space.kscience.controls.dataplatform.TagTableConfiguration
+import space.kscience.controls.dataplatform.PlcTableConfiguration
 import space.kscience.controls.dataplatform.TagTableDevice
 import space.kscience.controls.dataplatform.TagTablePlugin
 import space.kscience.controls.demo.visual.DeviceVisualisation
@@ -84,7 +84,7 @@ fun main() {
 
     //read platform config
     val configuration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
-        json.decodeFromStream(TagTableConfiguration.serializer(), it)
+        json.decodeFromStream(PlcTableConfiguration.serializer(), it)
     }
 
 

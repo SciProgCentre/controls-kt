@@ -43,6 +43,5 @@ readme {
 kotlin {
     compilerOptions {
         optIn.add("space.kscience.dataforge.misc.DFExperimental")
-        freeCompilerArgs.add("-Xcontext-parameters")
     }
 }

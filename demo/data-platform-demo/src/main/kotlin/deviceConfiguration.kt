@@ -3,9 +3,9 @@ package space.kscience.controls.demo
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.constructor.DeviceConfiguration
 import space.kscience.controls.constructor.PropertyConfiguration
+import space.kscience.controls.dataplatform.PlcTableConfiguration
 import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.dataplatform.TagTableColumn
-import space.kscience.controls.dataplatform.TagTableConfiguration
 import space.kscience.controls.opcua.server.read
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
@@ -14,7 +14,7 @@ import space.kscience.dataforge.names.*
 
 
 @OptIn(DFExperimental::class)
-internal fun createDeviceConfiguration(configuration: TagTableConfiguration): DeviceConfiguration {
+internal fun createDeviceConfiguration(configuration: PlcTableConfiguration): DeviceConfiguration {
     val blocks = configuration.properties.mapKeys { it.key.parseAsName() }.entries
         .groupBy { (tag, property) ->
             tag.first()

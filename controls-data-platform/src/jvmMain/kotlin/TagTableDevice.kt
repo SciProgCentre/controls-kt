@@ -1,6 +1,6 @@
 package space.kscience.controls.dataplatform
 
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
@@ -18,21 +18,19 @@ public class TagTableDevice(
 
     override val context: Context get() = platform.context
 
-    override val propertyDescriptors: Collection<PropertyDescriptor> =
-        platform.configuration.properties.map { (name, platformProperty) ->
-            PropertyDescriptor(name)
-            //TODO add type descriptors
-        }
+    override val propertyDescriptors: Collection<PropertyDescriptor> = platform.tags.map { (name, descriptor) ->
+        PropertyDescriptor(name, metaDescriptor = descriptor)
+    }
 
     override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 
-    override suspend fun readProperty(propertyName: String): Meta = platform.readProperty(propertyName)
+    override suspend fun readProperty(propertyName: String): Meta = platform.read(propertyName)
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         error("Write is not supported")
     }
 
-    override val messageFlow: SharedFlow<DeviceMessage> get() = platform.messageFlow
+    override val messageFlow: Flow<DeviceMessage> get() = platform.messageFlow
 
     override suspend fun execute(
         actionName: String,

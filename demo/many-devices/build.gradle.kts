@@ -27,7 +27,7 @@ kotlin{
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xcontext-parameters")
+        freeCompilerArgs.addAll("-Xjvm-default=all")
     }
 }
 

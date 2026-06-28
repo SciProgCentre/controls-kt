@@ -44,7 +44,64 @@ import kotlin.time.Duration
 import kotlin.time.toKotlinInstant
 
 /**
- * The [TagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
+ * Represents a table of tags that provides a mechanism to interact with
+ * dynamically changing values in a data platform. This interface enables
+ * reading, monitoring, and managing these values as time series data or
+ * stateful properties.
+ *
+ * It extends the following:
+ * - `ContextAware`: Ensures access to a `Context` for configuration and operation.
+ * - `WithLifeCycle`: Provides lifecycle management such as starting and stopping the table.
+ * - `DeviceMessageSource`: Allows access to device messages via a shared flow.
+ * - `ValueStateFactory`: Enables the creation and management of observable value states.
+ */
+public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, ValueStateFactory, CoroutineScope {
+    /**
+     * Read a value of a single column in the table
+     */
+    public suspend fun read(tag: String): Meta
+
+    /**
+     * Read current values of all tags
+     */
+    public fun readAll(): Map<String, Meta>
+
+    /**
+     * Starts generating a flow of rows for the current data platform with a specified interval.
+     *
+     * @param interval the interval between row generation.
+     */
+    public fun readTimeSeries(interval: Duration): TimeSeriesRows<Meta>
+
+    /**
+     * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
+     */
+    public fun valueState(tag: String): ValueState<Meta>
+
+    /**
+     * List all available tags and their descriptors
+     */
+    public val tags: Map<String, MetaDescriptor>
+
+    public val clock: Clock
+
+
+    public object ValueFactorySpec : MetaSpec() {
+        public val tag: MetaRef<String> by string()
+    }
+
+    public companion object {
+
+        internal val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
+            title = "Time"
+        }
+
+        public const val TAG_TABLE_FACTORY_TYPE: String = "tagTable"
+    }
+}
+
+/**
+ * The [PlcTagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
  * It provides methods to resolve clients for each source type based on their configurations.
  * The class also supports time zone and clock customization and implements the `AutoCloseable` interface for resource management.
  *
@@ -52,12 +109,12 @@ import kotlin.time.toKotlinInstant
  * @param timeZone The time zone setting for the platform, defaulting to the system's current time zone.
  * @param clock The clock instance used for time-related operations, defaulting to the system clock.
  */
-public class TagTable(
+public class PlcTagTable(
     override val context: Context,
-    public val configuration: TagTableConfiguration,
+    public val configuration: PlcTableConfiguration,
     public val timeZone: TimeZone = TimeZone.currentSystemDefault(),
-    public val clock: Clock = context.clock,
-) : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope, ValueStateFactory {
+    override val clock: Clock = context.clock,
+) : TagTable, CoroutineScope {
 
 
     override val coroutineContext: CoroutineContext =
@@ -67,7 +124,7 @@ public class TagTable(
 
     //FIXME process connection errors
 
-    public suspend fun resolveOpcClient(source: String): OpcUaClient = opcClients.getOrPut(source) {
+    private fun resolveOpcClient(source: String): OpcUaClient = opcClients.getOrPut(source) {
         val config = configuration.sources[source] as? OpcUaConfig ?: error("No OPC source found for $source")
         OpcUaClient.create(config.host).apply {
             connect()
@@ -76,7 +133,7 @@ public class TagTable(
 
     private val plcClients = mutableMapOf<String, PlcConnection>()
 
-    public suspend fun resolvePlcClient(source: String): PlcConnection = plcClients.getOrPut(source) {
+    private fun resolvePlcClient(source: String): PlcConnection = plcClients.getOrPut(source) {
         val config = configuration.sources[source] as? PlcConfig ?: error("No PLC source found for $source")
         DefaultPlcDriverManager().getConnection(config.address).apply {
             connect()
@@ -86,7 +143,7 @@ public class TagTable(
 
     private val modbusClients = mutableMapOf<String, AbstractModbusMaster>()
 
-    public suspend fun resolveModbusClient(source: String): AbstractModbusMaster = modbusClients.getOrPut(source) {
+    private fun resolveModbusClient(source: String): AbstractModbusMaster = modbusClients.getOrPut(source) {
         val config = configuration.sources[source] as? ModbusConfig ?: error("No Modbus source found for $source")
         when (config) {
             is ModbusRtuConfig -> {
@@ -178,9 +235,9 @@ public class TagTable(
 
     private val propertyNames = configuration.properties.keys
 
-    public suspend fun readProperty(propertyName: String): Meta {
-        if (propertyName !in propertyNames) error("Property $propertyName not found")
-        return values[propertyName] ?: Meta.EMPTY
+    override suspend fun read(tag: String): Meta {
+        if (tag !in propertyNames) error("Property $tag not found")
+        return values[tag] ?: Meta.EMPTY
     }
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
@@ -314,26 +371,26 @@ public class TagTable(
         modbusClients.values.forEach { it.disconnect() }
     }
 
+    override val tags: Map<String, MetaDescriptor> by lazy {
+        configuration.properties.mapValues { MetaDescriptor() }
+    }
+
     private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.properties.map { (name, property) ->
         SimpleColumnHeader(name, typeOf<Meta>(), property.meta)
     }
 
     private val tableHeaders: TableHeader<Meta> = buildList {
-        add(timeColumnHeader)
+        add(TagTable.timeColumnHeader)
         addAll(propertyColumnHeaders)
     }
 
     /**
      * Read current values of all properties
      */
-    public fun readValues(): Map<String, Meta> = values
+    override fun readAll(): Map<String, Meta> = values
 
-    /**
-     * Starts generating a flow of rows for the current data platform with a specified interval.
-     *
-     * @param interval the interval between row generation.
-     */
-    public fun readTimeSeries(
+
+    public override fun readTimeSeries(
         interval: Duration,
     ): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
         override val headers: TableHeader<Meta> get() = tableHeaders
@@ -341,11 +398,11 @@ public class TagTable(
         private val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 //FIXME process read errors
-                val values = propertyColumnHeaders.associate { it.name to readProperty(it.name) }
+                val values = propertyColumnHeaders.associate { it.name to read(it.name) }
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
-        }.shareIn(this@TagTable, SharingStarted.WhileSubscribed())
+        }.shareIn(this@PlcTagTable, SharingStarted.WhileSubscribed())
 
         override fun subscribe() = rowFlow
     }
@@ -353,16 +410,16 @@ public class TagTable(
     private val stateCache = mutableMapOf<String, ValueState<Meta>>()
 
     /**
-     * Create a [ValueState] for a property of a [TagTable].
+     * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
      */
-    public fun valueState(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
+    override fun valueState(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
         object : ValueState<Meta> {
             override val valueWithTime: ValueWithTime<Meta>
-                get() = ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, clock.now())
+                get() = ValueWithTime(readAll().get(tag) ?: Meta.EMPTY, clock.now())
 
             override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> =
                 messageFlow.filterIsInstance<PropertyChangedMessage>().filter { it.property == tag }.map {
-                    ValueWithTime(readValues().get(tag) ?: Meta.EMPTY, it.time)
+                    ValueWithTime(readAll()[tag] ?: Meta.EMPTY, it.time)
                 }
 
             override fun toString(): String = "ValueState.dataPlatform(propertyName=$tag)"
@@ -371,24 +428,11 @@ public class TagTable(
 
 
     override fun build(context: Context, meta: Meta): ValueState<Meta> {
-        val tag = meta[ValueFactorySpec.tag] ?: error("No tag specified")
+        val tag = meta[TagTable.ValueFactorySpec.tag] ?: error("No tag specified")
         return valueState(tag)
     }
 
-    public object ValueFactorySpec : MetaSpec() {
-        public val tag: MetaRef<String> by string()
-    }
-
-    override val descriptor: MetaDescriptor get() = ValueFactorySpec.descriptor
-
-    public companion object {
-
-        internal val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
-            title = "Time"
-        }
-
-        public const val TAG_TABLE_FACTORY_TYPE: String = "tagTable"
-    }
+    override val descriptor: MetaDescriptor get() = TagTable.ValueFactorySpec.descriptor
 }
 
 ///**

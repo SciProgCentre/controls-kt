@@ -73,7 +73,7 @@ public fun TagTable.flowBinaryData(
 
             // put a line with all values at the beginning of each block to avoid having unknown start values in binary blocks
             if (compression != null) {
-                rowBuffer.add(ValueWithTime(readValues(), now))
+                rowBuffer.add(ValueWithTime(readAll(), now))
             }
 
             lastCollectionTime = now

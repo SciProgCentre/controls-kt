@@ -81,7 +81,7 @@ internal fun DeviceManager.setupPlatformTestStand(
     val dataDirectory = Path("data")
     dataDirectory.createDirectories()
 
-    val configuration = TagTableConfiguration(
+    val configuration = PlcTableConfiguration(
         sources = sources,
         timers = timers,
         properties = platformProperties.mapKeys { it.key.toString() },
@@ -95,7 +95,7 @@ internal fun DeviceManager.setupPlatformTestStand(
 
 
     dataDirectory.resolve("platform-config.json").writeText(
-        json.encodeToString(TagTableConfiguration.serializer(), configuration)
+        json.encodeToString(PlcTableConfiguration.serializer(), configuration)
     )
 
     val deviceConfiguration = createDeviceConfiguration(configuration)
