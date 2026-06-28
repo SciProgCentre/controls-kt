@@ -23,9 +23,9 @@ dependencies {
     implementation(libs.plotlykt.server)
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
 
-    implementation(compose.runtime)
+    implementation("org.jetbrains.compose.runtime:runtime:1.11.1")
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation("org.jetbrains.compose.material3:material3:1.9.0")
 //    implementation("org.pushing-pixels:aurora-window:1.3.0")
 //    implementation("org.pushing-pixels:aurora-component:1.3.0")
 //    implementation("org.pushing-pixels:aurora-theming:1.3.0")

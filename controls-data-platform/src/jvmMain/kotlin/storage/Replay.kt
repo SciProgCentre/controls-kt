@@ -6,7 +6,7 @@ import kotlin.time.Instant
 /**
  * An interface for replaying data from storage
  */
-public interface Replay : AutoCloseable {
+public interface Replay  {
 
     /**
      * Start playback.

@@ -14,16 +14,16 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 @Serializable
-public sealed interface PlcSourceConfiguration
+public sealed interface TagTableSourceConfiguration
 
 @Serializable
 @SerialName("opc")
 public data class OpcUaConfig(
     val host: String,
-) : PlcSourceConfiguration
+) : TagTableSourceConfiguration
 
 @Serializable
-public sealed interface ModbusConfig : PlcSourceConfiguration
+public sealed interface ModbusConfig : TagTableSourceConfiguration
 
 @Serializable
 @SerialName("modbus-tcp")
@@ -52,9 +52,9 @@ public data class ModbusRtuConfig(
 
 @Serializable
 @SerialName("plc")
-public data class PlcConfig(
+public data class TagTableConfig(
     val address: String
-) : PlcSourceConfiguration
+) : TagTableSourceConfiguration
 
 
 /**
@@ -171,7 +171,7 @@ public data class TagTableStorageConfiguration(
  */
 @Serializable
 public class PlcTableConfiguration(
-    public val sources: Map<String, PlcSourceConfiguration>,
+    public val sources: Map<String, TagTableSourceConfiguration>,
     public val timers: Map<String, TimerConfiguration>,
     public val properties: Map<String, TagTableColumn>,
     public val storage: TagTableStorageConfiguration? = null,

@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import kotlin.coroutines.CoroutineContext
@@ -20,7 +21,7 @@ public class TagTableDevice(
 
     override val propertyDescriptors: Collection<PropertyDescriptor> = platform.tags.map { (name, descriptor) ->
         PropertyDescriptor(name, metaDescriptor = descriptor)
-    }
+    } + PropertyDescriptor(TagTable.ROW_PROPERTY_NAME, metaDescriptor = MetaDescriptor())
 
     override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 

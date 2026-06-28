@@ -1,9 +1,6 @@
 package space.kscience.controls.dataplatform.timeseries
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.*
 import space.kscience.attributes.SafeType
 import space.kscience.attributes.safeTypeOf
 import space.kscience.controls.dataplatform.TagTable.Companion.timeColumnHeader
@@ -37,10 +34,17 @@ public interface TimeSeriesRows<T> {
     public fun subscribe(): Flow<TimeSeriesValues<T>>
 }
 
+public class TimeSeriesRowsFlow<T>(
+    override val headers: TableHeader<T>,
+    private val flow: SharedFlow<TimeSeriesValues<T>>
+) : TimeSeriesRows<T> {
+    override fun subscribe(): Flow<TimeSeriesValues<T>> = flow
+}
+
 /**
  * Collect [rowNum] rows from the source and represent them as a table
  */
-public suspend fun  TimeSeriesRows<Meta>.collectTable(rowNum: Int): RowTable<Meta> {
+public suspend fun TimeSeriesRows<Meta>.collectTable(rowNum: Int): RowTable<Meta> {
     val rows = subscribe().map {
         it.toRow()
     }.take(rowNum).toList()

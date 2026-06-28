@@ -102,10 +102,10 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  *    - Employs a coroutine-based lifecycle, ensuring safety and concurrency for operations.
  *    - Periodically scans for and removes outdated or deleted files from the index.
  */
-public class DataPlatformStorageIndex(
+public class DataStorageIndex(
     public val io: IOPlugin,
-    public val dataDirectory: Path,
-    public val cacheMetadata: Boolean = true,
+    private val dataDirectory: Path,
+    private val cacheMetadata: Boolean = true,
     private val operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(io),
     private val rowsConverter: RowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter.meta,
     private val scope: CoroutineScope = io.context,

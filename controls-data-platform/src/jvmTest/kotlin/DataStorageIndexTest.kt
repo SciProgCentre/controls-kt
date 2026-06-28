@@ -2,7 +2,7 @@ package space.kscience.controls.dataplatform
 
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
-import space.kscience.controls.dataplatform.storage.DataPlatformStorageIndex
+import space.kscience.controls.dataplatform.storage.DataStorageIndex
 import space.kscience.controls.dataplatform.storage.RowEnvelopeMetaSpec
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
@@ -24,7 +24,7 @@ import kotlin.time.measureTime
 /**
  * LLM generated code: Added tests for DataPlatformStorageIndex.
  */
-class DataPlatformStorageIndexTest {
+class DataStorageIndexTest {
 
     @Test
     fun testIndexAndRead() = runTest {
@@ -72,7 +72,7 @@ class DataPlatformStorageIndexTest {
             println("[DEBUG_LOG] Created $nFiles files in $creationTime")
 
             // 2. Index files
-            val index = DataPlatformStorageIndex(io, tempDir)
+            val index = DataStorageIndex(io, tempDir)
             val indexTime = measureTime {
                 index.open()
             }
