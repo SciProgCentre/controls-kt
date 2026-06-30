@@ -2,23 +2,26 @@ package space.kscience.controls.dataplatform.storage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
 import space.kscience.controls.api.DeviceLifeCycleMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.dataplatform.TagTableValueState
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
+import space.kscience.controls.instant
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
+import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.tables.ColumnHeader
-import space.kscience.tables.SimpleColumnHeader
-import space.kscience.tables.TableHeader
+import space.kscience.dataforge.meta.set
+import space.kscience.tables.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.typeOf
@@ -45,7 +48,7 @@ public class ReplayTagTable(
 
     override val coroutineContext: CoroutineContext get() = context.coroutineContext
 
-    private var values: Map<String, Meta> = ConcurrentHashMap()
+    private var values: MutableMap<String, Meta> = ConcurrentHashMap()
 
     /**
      * Read a value of a single column in the table
@@ -85,9 +88,61 @@ public class ReplayTagTable(
         return TimeSeriesRowsFlow(tableHeaders, rowFlow)
     }
 
-    override suspend fun play(from: Instant?, useOriginalTime: Boolean, timeScale: Double) {
-        TODO("Not yet implemented")
+    override suspend fun play(
+        from: Instant,
+        to: Instant,
+        startTime: Instant?,
+        timeScale: Double
+    ) {
+        require(timeScale > 0.0) { "timeScale must be greater than 0.0" }
+        require(from >= to) { "from must be less than or equal to to" }
+
+        suspend fun processRow(row: Row<Meta>, time: Instant) {
+            tags.keys.forEach { tag ->
+                val value = row.getOrNull(tag)
+                if (value != null) {
+                    values[tag] = value
+                    _messageFlow.emit(
+                        PropertyChangedMessage(
+                            time = time,
+                            property = tag,
+                            value = value,
+                        )
+                    )
+                }
+            }
+            _messageFlow.emit(
+                PropertyChangedMessage(
+                    time = time,
+                    property = TagTable.ROW_PROPERTY_NAME,
+                    value = Meta {
+                        values.forEach { (key, value) ->
+                            set(key, value)
+                        }
+                    },
+                )
+            )
+        }
+
+        val rows = storageIndex.selectRows(from..to)
+        var time: Instant = startTime ?: clock.now()
+
+        rows.rowSequence().zipWithNext().forEachIndexed { index, (prev, next) ->
+            val prevTime = prev[TagTable.timeColumnHeader].instant ?: error("Missing time column")
+            val nextTime = next[TagTable.timeColumnHeader].instant ?: error("Missing time column")
+            //send first element
+            if (index == 0) {
+                processRow(prev, time)
+            }
+            val duration = (nextTime - prevTime) / timeScale
+            withContext(context.deviceDispatcher) {
+                delay(duration)
+            }
+            time += duration
+            processRow(next, time)
+        }
     }
+
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
