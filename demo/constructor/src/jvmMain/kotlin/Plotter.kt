@@ -28,13 +28,9 @@ import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.combineState
 import space.kscience.controls.constructor.device
-import space.kscience.controls.constructor.devices.LimitSwitch
-import space.kscience.controls.constructor.devices.StepDrive
-import space.kscience.controls.constructor.devices.angle
-import space.kscience.controls.constructor.models.Leadscrew
-import space.kscience.controls.constructor.models.coerceIn
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.models.mechanical.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.asName

@@ -12,8 +12,8 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.models.MaterialPoint
 import space.kscience.controls.constructor.units.*
+import space.kscience.controls.models.mechanical.MaterialPoint
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
 
