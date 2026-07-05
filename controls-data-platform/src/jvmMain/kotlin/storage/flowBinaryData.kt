@@ -11,6 +11,7 @@ import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.dataplatform.compress
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.dataplatform.timeseries.toRow
+import space.kscience.controls.storage.RowsEnvelopeConverter
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta

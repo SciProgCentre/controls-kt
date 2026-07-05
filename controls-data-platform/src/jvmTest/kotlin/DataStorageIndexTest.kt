@@ -4,10 +4,11 @@ import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
 import space.kscience.controls.dataplatform.storage.DataStorageIndex
 import space.kscience.controls.dataplatform.storage.RowEnvelopeMetaSpec
+import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.io.io
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
 import space.kscience.tables.MapRow
@@ -28,13 +29,15 @@ class DataStorageIndexTest {
 
     @Test
     fun testIndexAndRead() = runTest {
-        val context = Context("TEST")
-        val io = context.io
+        val context = Context("TEST"){
+            plugin(ControlsStoragePlugin)
+        }
+        val storagePlugin = context.request(ControlsStoragePlugin)
         val tempDir = Files.createTempDirectory("dataplatform-index-test")
 
         try {
             val converter = ZipRowsEnvelopeConverter.meta
-            val operations = NativeFileEnvelopeOperations(io)
+            val operations = NativeFileEnvelopeOperations(storagePlugin.io)
 
             val headers = listOf(
                 TagTable.timeColumnHeader,
@@ -72,7 +75,7 @@ class DataStorageIndexTest {
             println("[DEBUG_LOG] Created $nFiles files in $creationTime")
 
             // 2. Index files
-            val index = DataStorageIndex(io, tempDir)
+            val index = DataStorageIndex(storagePlugin, tempDir)
             val indexTime = measureTime {
                 index.open()
             }

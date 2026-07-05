@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
 import space.kscience.controls.dataplatform.storage.DataPlatformFileSplit
+import space.kscience.controls.storage.RowsEnvelopeConverter
+import space.kscience.controls.storage.ZipRowsEnvelopeConverter
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -166,6 +168,7 @@ public data class TagTableStorageConfiguration(
     val maxPause: Duration? = null,
     val compression: RowsCompression? = null,
     val splitStrategy: DataPlatformFileSplit = DataPlatformFileSplit.ByDate(),
+    val rowsConverter: RowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter.meta,
 )
 
 /**

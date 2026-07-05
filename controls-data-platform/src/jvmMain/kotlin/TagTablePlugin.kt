@@ -4,6 +4,7 @@ import kotlinx.coroutines.launch
 import space.kscience.controls.constructor.ConstructorPlugin
 import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.dataforge.context.AbstractPlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.PluginFactory
@@ -21,6 +22,7 @@ import space.kscience.dataforge.names.asName
 public class TagTablePlugin : AbstractPlugin() {
     public val deviceManager: DeviceManager by require(DeviceManager)
     public val constructor: ConstructorPlugin by require(ConstructorPlugin)
+    public val storage: ControlsStoragePlugin by require(ControlsStoragePlugin)
 
     override val tag: PluginTag get() = Companion.tag
 

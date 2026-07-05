@@ -326,6 +326,7 @@ public class PlcTagTable(
                 maxPause = storageConfig.maxPause,
                 compression = compression,
                 strategy = storageConfig.splitStrategy,
+                rowsConverter = storageConfig.rowsConverter,
             )
         }
     }

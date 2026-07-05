@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.storage
 
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
@@ -29,5 +29,9 @@ public interface RowsEnvelopeConverter<T> {
      * @return An envelope created from the provided rows and metadata.
      */
     public fun writeRows(rows: Rows<T>, meta: Meta = Meta.EMPTY): Envelope
+
+    public companion object {
+        public const val ROWS_ENVELOPE_CONVERTER_TYPE: String = "enveolope.rows"
+    }
 }
 

@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.dataplatform.TagTable.Companion.timeColumnHeader
 import space.kscience.controls.instant
+import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
@@ -13,7 +14,7 @@ import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.warn
 import space.kscience.dataforge.io.Envelope
-import space.kscience.dataforge.io.IOPlugin
+import space.kscience.dataforge.io.dataType
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.names.Name
@@ -70,7 +71,7 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  * managing, querying, and maintaining intervals of stored data. The class organizes data by
  * intervals and supports both querying and real-time updates to the index.
  *
- * @property io The IOPlugin used for file system interactions such as reading or monitoring files.
+ * @property storage The IOPlugin used for file system interactions such as reading or monitoring files.
  * @property dataDirectory The directory where data files are stored and monitored.
  * @property cacheMetadata A flag indicating whether metadata should be cached for storage efficiency.
  * @property operations An instance of FileEnvelopeOperations to handle reading and writing envelope data.
@@ -103,16 +104,15 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  *    - Periodically scans for and removes outdated or deleted files from the index.
  */
 public class DataStorageIndex(
-    public val io: IOPlugin,
+    public val storage: ControlsStoragePlugin,
     private val dataDirectory: Path,
     private val cacheMetadata: Boolean = true,
-    private val operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(io),
-    private val rowsConverter: RowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter.meta,
-    private val scope: CoroutineScope = io.context,
+    private val operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
+    private val scope: CoroutineScope = storage.context,
     private val removeFilesCycleDuration: Duration = 10.minutes
 ) : ContextAware, AutoCloseable {
 
-    override val context: Context get() = io.context
+    override val context: Context get() = storage.context
 
     private data class Interval(var start: Instant, var end: Instant, val path: Path)
 
@@ -134,14 +134,17 @@ public class DataStorageIndex(
     public fun selectEnvelopes(range: ClosedRange<Instant>): List<Envelope> =
         search(range).sortedBy { it.start }.mapNotNull { operations.readEnvelope(it.path) }
 
-
     /**
      * Select all rows in a given range
      */
     public fun selectRows(range: ClosedRange<Instant>): Rows<Meta> {
         val parts = selectEnvelopes(range).sortedBy {
             it.meta[RowEnvelopeMetaSpec.startTime]
-        }.map { rowsConverter.readRows(it) }
+        }.map {
+            val envelopeType = it.dataType ?: ZipRowsEnvelopeConverter.ENVELOPE_TYPE
+            val converter = storage.rowEnvelopeConverters[envelopeType] ?:error("Can't find rows converter for envelope type $envelopeType")
+            converter.readRows(it)
+        }
 
         return object : Rows<Meta> {
             override val headers: TableHeader<Meta> = buildList {

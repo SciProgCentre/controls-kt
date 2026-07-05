@@ -14,10 +14,12 @@ import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.instant
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
+import space.kscience.controls.storage.RowsEnvelopeConverter
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.io
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import java.nio.file.Path
 import kotlin.io.path.Path
@@ -93,10 +95,11 @@ public fun TagTable.storeData(
     compression: RowsCompression? = null,
     operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(context.io),
     strategy: DataPlatformFileSplit = DataPlatformFileSplit.ByDate(),
+    rowsConverter: RowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter.meta,
     clock: Clock = context.clock,
 ): Job = flowBinaryData(
     readInterval = readInterval,
-    converter = ZipRowsEnvelopeConverter.meta,
+    converter = rowsConverter,
     maxRows = maxRowsPerEnvelope,
     maxDuration = maxDuration,
     maxPause = maxPause,
