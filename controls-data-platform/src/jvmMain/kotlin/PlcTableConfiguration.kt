@@ -9,21 +9,22 @@ import space.kscience.controls.constructor.TimerState
 import space.kscience.controls.dataplatform.storage.DataPlatformFileSplit
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 @Serializable
-public sealed interface TagTableSourceConfiguration
+public sealed interface TagTableSourceConfig
 
 @Serializable
 @SerialName("opc")
 public data class OpcUaConfig(
     val host: String,
-) : TagTableSourceConfiguration
+) : TagTableSourceConfig
 
 @Serializable
-public sealed interface ModbusConfig : TagTableSourceConfiguration
+public sealed interface ModbusConfig : TagTableSourceConfig
 
 @Serializable
 @SerialName("modbus-tcp")
@@ -51,11 +52,10 @@ public data class ModbusRtuConfig(
 
 
 @Serializable
-@SerialName("plc")
-public data class TagTableConfig(
+@SerialName("plc4x")
+public data class Plc4xConfig(
     val address: String
-) : TagTableSourceConfiguration
-
+) : TagTableSourceConfig
 
 /**
  * Represents a platform-specific property that can be read from a data platform.
@@ -117,6 +117,19 @@ public class PlcTagTableColumn(
     override val meta: Meta = Meta.EMPTY,
 ) : TagTableColumn
 
+
+@Serializable
+@SerialName("controls")
+public class InternalTagTableColumn(
+    override val timer: String,
+    public val deviceName: Name,
+    public val propertyName: String,
+    override val compression: ColumnCompression? = null,
+    override val meta: Meta = Meta.EMPTY,
+) : TagTableColumn{
+    override val source: String get() = "@controls"
+}
+
 @Serializable
 public sealed interface TimerConfiguration {
     public fun createTimerState(clockManager: ClockManager): TimerState
@@ -171,7 +184,7 @@ public data class TagTableStorageConfiguration(
  */
 @Serializable
 public class PlcTableConfiguration(
-    public val sources: Map<String, TagTableSourceConfiguration>,
+    public val sources: Map<String, TagTableSourceConfig>,
     public val timers: Map<String, TimerConfiguration>,
     public val properties: Map<String, TagTableColumn>,
     public val storage: TagTableStorageConfiguration? = null,

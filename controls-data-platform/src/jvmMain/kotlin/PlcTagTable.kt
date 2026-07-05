@@ -16,15 +16,13 @@ import org.apache.plc4x.java.api.PlcConnection
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
-import space.kscience.controls.api.DeviceLifeCycleMessage
-import space.kscience.controls.api.DeviceMessage
-import space.kscience.controls.api.LifecycleState
-import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.dataplatform.storage.storeData
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
+import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.client.readMetaWithTime
 import space.kscience.controls.opcua.server.fromOpc
 import space.kscience.controls.plc4x.Plc4xProperty
@@ -84,7 +82,7 @@ public class PlcTagTable(
     private val plcClients = mutableMapOf<String, PlcConnection>()
 
     private fun resolvePlcClient(source: String): PlcConnection = plcClients.getOrPut(source) {
-        val config = configuration.sources[source] as? TagTableConfig ?: error("No PLC source found for $source")
+        val config = configuration.sources[source] as? Plc4xConfig ?: error("No PLC source found for $source")
         DefaultPlcDriverManager().getConnection(config.address).apply {
             connect()
         }
@@ -142,8 +140,14 @@ public class PlcTagTable(
 
                 val time = response.getDateTime(name).toKotlinLocalDateTime().toInstant(timeZone)
                 val value = response.readProperty()
-                return ValueWithTime(value, time)
+                ValueWithTime(value, time)
             }
+        }
+
+        is InternalTagTableColumn -> {
+            val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in the context")
+            val value = deviceManager.readProperty(propertyConfig.deviceName, propertyConfig.propertyName)
+            ValueWithTime(value, clock.now())
         }
     }
 
