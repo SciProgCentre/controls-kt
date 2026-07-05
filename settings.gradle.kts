@@ -74,6 +74,7 @@ include(
     ":controls-vision",
     ":controls-jupyter",
     ":controls-data-platform",
+    ":controls-plc-emulator",
     ":magix",
     ":magix:magix-api",
     ":magix:magix-utils",
