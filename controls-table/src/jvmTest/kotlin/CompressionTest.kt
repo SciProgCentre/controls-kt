@@ -1,11 +1,11 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
+import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
+import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.tables.SimpleColumnHeader

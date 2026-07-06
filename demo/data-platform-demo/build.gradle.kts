@@ -11,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    implementation(projects.controlsDataPlatform)
+    implementation(projects.controlsTable)
     implementation(projects.controlsVisualisationCompose)
 
 //    implementation(libs.plotlykt.server)

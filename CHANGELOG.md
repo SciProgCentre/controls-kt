@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Controls-table module to work with compact data from PLC
 - Introduce separate classes for DeviceFactory and DeviceTreeFactory
 - Add DeviceTreeSpec
 - `TimerState` implements `Clock`.

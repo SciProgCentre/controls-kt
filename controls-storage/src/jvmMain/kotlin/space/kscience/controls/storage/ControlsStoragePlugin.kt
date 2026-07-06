@@ -12,11 +12,11 @@ public class ControlsStoragePlugin : AbstractPlugin() {
     override val tag: PluginTag get() = Companion.tag
 
     public val rowEnvelopeConverters: Map<String, RowsEnvelopeConverter<Meta>> by lazy {
-        context.gather<RowsEnvelopeConverter<Meta>>(RowsEnvelopeConverter.ROWS_ENVELOPE_CONVERTER_TYPE).values.associateBy { it.envelopeType }
+        context.gather<RowsEnvelopeConverter<Meta>>(RowsEnvelopeConverter.ROWS_ENVELOPE_CONVERTER_TARGET).values.associateBy { it.envelopeType }
     }
 
     override fun content(target: String): Map<Name, Any> = when (target) {
-        RowsEnvelopeConverter.ROWS_ENVELOPE_CONVERTER_TYPE -> mapOf(
+        RowsEnvelopeConverter.ROWS_ENVELOPE_CONVERTER_TARGET -> mapOf(
             "zip".asName() to ZipRowsEnvelopeConverter.meta,
             "plain".asName() to PlainRowsEnvelopeConverter.meta
         )

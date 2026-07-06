@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.launch
 import space.kscience.controls.constructor.ConstructorPlugin

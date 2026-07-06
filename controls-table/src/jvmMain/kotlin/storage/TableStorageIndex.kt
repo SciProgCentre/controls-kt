@@ -1,14 +1,14 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import space.kscience.controls.dataplatform.TagTable.Companion.timeColumnHeader
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
+import space.kscience.controls.tagtable.TagTable.Companion.timeColumnHeader
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.logger

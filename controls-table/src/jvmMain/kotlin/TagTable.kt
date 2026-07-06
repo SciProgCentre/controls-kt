@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +12,7 @@ import space.kscience.controls.api.WithLifeCycle
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.ValueStateFactory
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
+import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware

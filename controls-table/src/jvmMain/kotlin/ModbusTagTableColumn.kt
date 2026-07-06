@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import kotlinx.serialization.SerialName

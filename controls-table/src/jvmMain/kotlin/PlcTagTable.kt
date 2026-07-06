@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import com.ghgande.j2mod.modbus.facade.ModbusSerialMaster
@@ -18,15 +18,18 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.dataplatform.storage.storeData
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesRowsFlow
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.client.readMetaWithTime
 import space.kscience.controls.opcua.server.fromOpc
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
+import space.kscience.controls.storage.ControlsStoragePlugin
+import space.kscience.controls.storage.NativeFileEnvelopeOperations
+import space.kscience.controls.storage.SingleFileEnvelopeOperations
+import space.kscience.controls.tagtable.storage.storeData
+import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
+import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
+import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
@@ -34,6 +37,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.request
+import space.kscience.dataforge.io.io
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.set
@@ -300,6 +304,8 @@ public class PlcTagTable(
         //start storage job
         configuration.storage?.let { storageConfig ->
 
+            val storagePlugin = context.request(ControlsStoragePlugin)
+
             //merge global parameters and per-column configuration
             val columnCompression = configuration.properties.entries.mapNotNull { (key, value) ->
                 value.compression?.let { compression -> key to compression }
@@ -326,7 +332,13 @@ public class PlcTagTable(
                 maxPause = storageConfig.maxPause,
                 compression = compression,
                 strategy = storageConfig.splitStrategy,
-                rowsConverter = storageConfig.rowsConverter,
+                rowsConverter = storagePlugin.rowEnvelopeConverters[storageConfig.rowsConverterType]
+                    ?: error("No row envelope converter found for type ${storageConfig.rowsConverterType}"),
+                operations = if(storageConfig.separateMeta){
+                    NativeFileEnvelopeOperations(context.io)
+                } else {
+                    SingleFileEnvelopeOperations(context.io)
+                }
             )
         }
     }

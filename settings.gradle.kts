@@ -73,7 +73,7 @@ include(
     ":controls-visualisation-compose",
     ":controls-vision",
     ":controls-jupyter",
-    ":controls-data-platform",
+    ":controls-table",
     ":controls-models:controls-models-flow",
     ":controls-models:controls-models-mechanical",
     ":controls-plc-emulator",

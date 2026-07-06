@@ -1,12 +1,12 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.asMeta
-import space.kscience.controls.dataplatform.storage.DataStorageIndex
-import space.kscience.controls.dataplatform.storage.RowEnvelopeMetaSpec
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
+import space.kscience.controls.tagtable.storage.DataStorageIndex
+import space.kscience.controls.tagtable.storage.RowEnvelopeMetaSpec
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
@@ -33,7 +33,7 @@ class DataStorageIndexTest {
             plugin(ControlsStoragePlugin)
         }
         val storagePlugin = context.request(ControlsStoragePlugin)
-        val tempDir = Files.createTempDirectory("dataplatform-index-test")
+        val tempDir = Files.createTempDirectory("tagtable-index-test")
 
         try {
             val converter = ZipRowsEnvelopeConverter.meta
@@ -56,7 +56,7 @@ class DataStorageIndexTest {
                     val rows = (0 until rowsPerFile).map { j ->
                         MapRow(
                             mapOf(
-                                TagTable.timeColumnHeader.name to space.kscience.controls.dataplatform.timeseries.Meta(
+                                TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(
                                     fileStartTime + j.milliseconds
                                 ),
                                 "value" to (i * rowsPerFile + j).asMeta()

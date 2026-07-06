@@ -16,10 +16,6 @@ kotlin {
     }
 }
 
-val ktorVersion: String by rootProject.extra
-val dataforgeVersion: String by extra
-
-
 dependencies {
     implementation(projects.controlsPortsKtor)
 }

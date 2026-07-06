@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.tagtable.storage
 
 import space.kscience.controls.instant
 import space.kscience.dataforge.meta.MetaConverter

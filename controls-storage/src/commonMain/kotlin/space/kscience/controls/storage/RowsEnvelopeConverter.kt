@@ -31,7 +31,7 @@ public interface RowsEnvelopeConverter<T> {
     public fun writeRows(rows: Rows<T>, meta: Meta = Meta.EMPTY): Envelope
 
     public companion object {
-        public const val ROWS_ENVELOPE_CONVERTER_TYPE: String = "enveolope.rows"
+        public const val ROWS_ENVELOPE_CONVERTER_TARGET: String = "enveolope.rows"
     }
 }
 

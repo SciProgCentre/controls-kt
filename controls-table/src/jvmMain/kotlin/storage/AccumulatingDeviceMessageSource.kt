@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow

@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform
+package space.kscience.controls.tagtable
 
 import com.fazecast.jSerialComm.SerialPort
 import com.ghgande.j2mod.modbus.Modbus
@@ -6,9 +6,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.plc4x.java.api.types.PlcValueType
 import space.kscience.controls.constructor.TimerState
-import space.kscience.controls.dataplatform.storage.DataPlatformFileSplit
-import space.kscience.controls.storage.RowsEnvelopeConverter
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
+import space.kscience.controls.tagtable.storage.DataPlatformFileSplit
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -158,6 +157,7 @@ public class FixedRateTimer(
  * @property maxPause The maximum allowable pause duration between storage operations to create a new file.
  * @property compression Optional compression settings to be applied to the stored rows.
  * @property splitStrategy The strategy for organizing data into subdirectories, such as by date or by hour.
+ * @property separateMeta if true place metadata to a separate file in a json instead of a single `df` container.
  */
 @Serializable
 public data class TagTableStorageConfiguration(
@@ -168,7 +168,8 @@ public data class TagTableStorageConfiguration(
     val maxPause: Duration? = null,
     val compression: RowsCompression? = null,
     val splitStrategy: DataPlatformFileSplit = DataPlatformFileSplit.ByDate(),
-    val rowsConverter: RowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter.meta,
+    val rowsConverterType: String = ZipRowsEnvelopeConverter.meta.envelopeType,
+    val separateMeta: Boolean = true,
 )
 
 /**

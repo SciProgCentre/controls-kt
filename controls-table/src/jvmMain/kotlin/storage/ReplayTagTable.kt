@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -8,12 +8,12 @@ import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.dataplatform.TagTable
-import space.kscience.controls.dataplatform.TagTableValueState
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesRows
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesRowsFlow
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
 import space.kscience.controls.instant
+import space.kscience.controls.tagtable.TagTable
+import space.kscience.controls.tagtable.TagTableValueState
+import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
+import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
+import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.deviceDispatcher

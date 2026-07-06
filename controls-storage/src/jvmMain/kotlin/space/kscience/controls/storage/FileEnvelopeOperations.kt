@@ -37,6 +37,7 @@ public interface FileEnvelopeOperations {
     public fun readEnvelope(path: Path): Envelope?
 
     public companion object {
+        public const val FILE_ENVELOPE_OPERATIONS_TARGET: String = "fileEnvelopeOperations"
         public const val FILE_EXTENSION: String = "df"
     }
 }

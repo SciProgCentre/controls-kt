@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
@@ -9,13 +9,13 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import space.kscience.controls.dataplatform.RowsCompression
-import space.kscience.controls.dataplatform.TagTable
 import space.kscience.controls.instant
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.RowsEnvelopeConverter
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
+import space.kscience.controls.tagtable.RowsCompression
+import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.io

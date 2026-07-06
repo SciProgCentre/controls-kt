@@ -1,4 +1,4 @@
-package space.kscience.controls.dataplatform.storage
+package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -6,12 +6,12 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import space.kscience.controls.dataplatform.RowsCompression
-import space.kscience.controls.dataplatform.TagTable
-import space.kscience.controls.dataplatform.compress
-import space.kscience.controls.dataplatform.timeseries.TimeSeriesValues
-import space.kscience.controls.dataplatform.timeseries.toRow
 import space.kscience.controls.storage.RowsEnvelopeConverter
+import space.kscience.controls.tagtable.RowsCompression
+import space.kscience.controls.tagtable.TagTable
+import space.kscience.controls.tagtable.compress
+import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
+import space.kscience.controls.tagtable.timeseries.toRow
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
