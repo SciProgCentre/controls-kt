@@ -98,7 +98,7 @@ suspend fun main(): Unit = coroutineScope {
 
     readerTable.readTimeSeries(2.milliseconds).subscribe().onEach {
         counter++
-    }.launchIn(this)
+    }.launchIn(context)
 
     readerTable.play()
 
