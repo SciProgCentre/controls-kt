@@ -63,7 +63,7 @@ import kotlin.time.toKotlinInstant
  */
 public class PlcTagTable(
     override val context: Context,
-    public val configuration: PlcTableConfiguration,
+    public val configuration: TagTableConfiguration,
     public val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     override val clock: Clock = context.clock,
 ) : TagTable, CoroutineScope {

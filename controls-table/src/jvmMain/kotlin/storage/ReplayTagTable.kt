@@ -1,14 +1,16 @@
 package space.kscience.controls.tagtable.storage
 
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
 import space.kscience.controls.api.DeviceLifeCycleMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.instant
+import space.kscience.controls.storage.ControlsStoragePlugin
+import space.kscience.controls.storage.FileEnvelopeOperations
+import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableValueState
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
@@ -22,11 +24,13 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.set
 import space.kscience.tables.*
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
@@ -35,8 +39,9 @@ import kotlin.time.Instant
  * Only tags in [tags] are shown. If given tags are not present in currently replayed storage, they are returned empty.
  */
 public class ReplayTagTable(
-    private val storageIndex: DataStorageIndex,
+    private val storageIndex: TableStorageIndex,
     override val tags: Map<String, MetaDescriptor>,
+    private val scope: CoroutineScope = storageIndex.context,
     override val clock: Clock = storageIndex.context.clock
 ) : TagTable, Replay {
 
@@ -88,14 +93,18 @@ public class ReplayTagTable(
         return TimeSeriesRowsFlow(tableHeaders, rowFlow)
     }
 
+    private var playJob: Job? = null
+
     override suspend fun play(
         from: Instant,
         to: Instant,
         startTime: Instant?,
         timeScale: Double
-    ) {
+    ): Job {
         require(timeScale > 0.0) { "timeScale must be greater than 0.0" }
-        require(from >= to) { "from must be less than or equal to to" }
+        require(to >= from) { "from must be less than or equal to to" }
+
+        check(playJob?.isActive != true) { "Can't start playback while already playing" }
 
         suspend fun processRow(row: Row<Meta>, time: Instant) {
             tags.keys.forEach { tag ->
@@ -127,19 +136,23 @@ public class ReplayTagTable(
         val rows = storageIndex.selectRows(from..to)
         var time: Instant = startTime ?: clock.now()
 
-        rows.rowSequence().zipWithNext().forEachIndexed { index, (prev, next) ->
-            val prevTime = prev[TagTable.timeColumnHeader].instant ?: error("Missing time column")
-            val nextTime = next[TagTable.timeColumnHeader].instant ?: error("Missing time column")
-            //send first element
-            if (index == 0) {
-                processRow(prev, time)
+        return scope.launch {
+            rows.rowSequence().zipWithNext().forEachIndexed { index, (prev, next) ->
+                val prevTime = prev[TagTable.timeColumnHeader].instant ?: error("Missing time column")
+                val nextTime = next[TagTable.timeColumnHeader].instant ?: error("Missing time column")
+                //send first element
+                if (index == 0) {
+                    processRow(prev, time)
+                }
+                val duration = (nextTime - prevTime) / timeScale
+                withContext(context.deviceDispatcher) {
+                    delay(duration)
+                }
+                time += duration
+                processRow(next, time)
             }
-            val duration = (nextTime - prevTime) / timeScale
-            withContext(context.deviceDispatcher) {
-                delay(duration)
-            }
-            time += duration
-            processRow(next, time)
+        }.also {
+            playJob = it
         }
     }
 
@@ -162,14 +175,31 @@ public class ReplayTagTable(
 
     override suspend fun start() {
         setLifecycleState(LifecycleState.STARTING)
-        storageIndex.open()
+        storageIndex.start()
         setLifecycleState(LifecycleState.STOPPED)
     }
 
     override suspend fun stop() {
-        storageIndex.close()
+        storageIndex.stop()
         setLifecycleState(LifecycleState.STOPPED)
+        playJob?.cancel()
+        playJob = null
     }
+}
 
-
+/**
+ * Creates a [TagTable] that replays data from a file.
+ */
+public fun TagTable.Companion.replay(
+    storage: ControlsStoragePlugin,
+    dataDirectory: Path,
+    tags: Map<String, MetaDescriptor>,
+    cacheMetadata: Boolean = true,
+    operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
+    scope: CoroutineScope = storage.context,
+    removeFilesCycleDuration: Duration = 10.minutes,
+): ReplayTagTable {
+    val storageIndex =
+        TableStorageIndex(storage, dataDirectory, cacheMetadata, operations, scope, removeFilesCycleDuration)
+    return ReplayTagTable(storageIndex, tags)
 }

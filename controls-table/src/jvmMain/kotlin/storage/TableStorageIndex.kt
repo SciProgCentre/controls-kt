@@ -3,6 +3,8 @@ package space.kscience.controls.tagtable.storage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.WithLifeCycle
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
@@ -75,7 +77,6 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  * @property dataDirectory The directory where data files are stored and monitored.
  * @property cacheMetadata A flag indicating whether metadata should be cached for storage efficiency.
  * @property operations An instance of FileEnvelopeOperations to handle reading and writing envelope data.
- * @property rowsConverter A converter responsible for transforming envelopes into rows with metadata.
  * @property scope A CoroutineScope used for managing asynchronous operations.
  * @property removeFilesCycleDuration The duration interval for periodically checking and handling removed files.
  *
@@ -103,14 +104,14 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  *    - Employs a coroutine-based lifecycle, ensuring safety and concurrency for operations.
  *    - Periodically scans for and removes outdated or deleted files from the index.
  */
-public class DataStorageIndex(
+public class TableStorageIndex(
     public val storage: ControlsStoragePlugin,
     private val dataDirectory: Path,
     private val cacheMetadata: Boolean = true,
     private val operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
     private val scope: CoroutineScope = storage.context,
     private val removeFilesCycleDuration: Duration = 10.minutes
-) : ContextAware, AutoCloseable {
+) : ContextAware, WithLifeCycle {
 
     override val context: Context get() = storage.context
 
@@ -127,17 +128,23 @@ public class DataStorageIndex(
 
     private var root: IntervalNode? = null
 
+    override var lifecycleState: LifecycleState = LifecycleState.STOPPED
+        private set
+
 
     /**
      * Select row envelopes in [range]
      */
-    public fun selectEnvelopes(range: ClosedRange<Instant>): List<Envelope> =
-        search(range).sortedBy { it.start }.mapNotNull { operations.readEnvelope(it.path) }
+    public suspend fun selectEnvelopes(range: ClosedRange<Instant>): List<Envelope> {
+        if(lifecycleState == LifecycleState.STOPPED) start()
+
+        return search(range).sortedBy { it.start }.mapNotNull { operations.readEnvelope(it.path) }
+    }
 
     /**
      * Select all rows in a given range
      */
-    public fun selectRows(range: ClosedRange<Instant>): Rows<Meta> {
+    public suspend fun selectRows(range: ClosedRange<Instant>): Rows<Meta> {
         val parts = selectEnvelopes(range).sortedBy {
             it.meta[RowEnvelopeMetaSpec.startTime]
         }.map {
@@ -358,11 +365,15 @@ public class DataStorageIndex(
     /**
      * Start indexer and wait for initial indexing to be complete
      */
-    public fun open(): Unit {
+    override suspend fun start(): Unit {
+
+        lifecycleState = LifecycleState.STARTING
 
         operations.envelopeFilesSequence(dataDirectory).forEach { (name, path) ->
             insert(name, path)
         }
+
+        lifecycleState = LifecycleState.STARTED
 
         monitorJob = scope.launch(Dispatchers.IO) {
 
@@ -398,8 +409,10 @@ public class DataStorageIndex(
         }
     }
 
-    override fun close() {
+    override suspend fun stop() {
         monitorJob?.cancel()
+
+        lifecycleState = LifecycleState.STOPPED
     }
 
 }

@@ -10,7 +10,7 @@ import kotlin.random.Random
 /**
  * A device that produces random numbers
  */
-class RandomGeneratorDevice : DeviceWithStateFactory<Random>() {
+object RandomGeneratorDevice : DeviceWithStateFactory<Random>() {
 
     context(device: DeviceBase)
     override suspend fun createState(): Random {

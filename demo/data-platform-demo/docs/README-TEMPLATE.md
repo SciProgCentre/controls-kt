@@ -12,6 +12,7 @@ This demo showcases a data platform that aggregates data from multiple sources (
 ## Documentation
 
 - [UI Specification](device-visualisation.md): Specification for the Compose Multiplatform-based visualization UI.
+- [Storage Specification](storage-specification.md): Specification for the controls tag table storage store and restore procedures using `TableStorageIndex`.
 
 ## How to run
 

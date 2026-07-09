@@ -187,7 +187,7 @@ public data class TagTableStorageConfiguration(
  *                   split strategies.
  */
 @Serializable
-public class PlcTableConfiguration(
+public class TagTableConfiguration(
     public val sources: Map<String, TagTableSourceConfig>,
     public val timers: Map<String, TimerConfiguration>,
     public val properties: Map<String, TagTableColumn>,

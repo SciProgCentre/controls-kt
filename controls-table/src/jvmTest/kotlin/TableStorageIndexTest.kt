@@ -5,8 +5,8 @@ import space.kscience.controls.asMeta
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.ZipRowsEnvelopeConverter
-import space.kscience.controls.tagtable.storage.DataStorageIndex
 import space.kscience.controls.tagtable.storage.RowEnvelopeMetaSpec
+import space.kscience.controls.tagtable.storage.TableStorageIndex
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
@@ -25,7 +25,7 @@ import kotlin.time.measureTime
 /**
  * LLM generated code: Added tests for DataPlatformStorageIndex.
  */
-class DataStorageIndexTest {
+class TableStorageIndexTest {
 
     @Test
     fun testIndexAndRead() = runTest {
@@ -75,9 +75,9 @@ class DataStorageIndexTest {
             println("[DEBUG_LOG] Created $nFiles files in $creationTime")
 
             // 2. Index files
-            val index = DataStorageIndex(storagePlugin, tempDir)
+            val index = TableStorageIndex(storagePlugin, tempDir)
             val indexTime = measureTime {
-                index.open()
+                index.start()
             }
             println("[DEBUG_LOG] Indexed $nFiles files in $indexTime")
 
@@ -91,7 +91,7 @@ class DataStorageIndexTest {
             }
             println("[DEBUG_LOG] Read $queryRange in $readTime")
 
-            index.close()
+            index.stop()
         } finally {
             tempDir.toFile().deleteRecursively()
         }
