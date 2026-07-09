@@ -1,0 +1,50 @@
+package space.kscience.controls.models.mechanical
+
+import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.units.*
+import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.names.asName
+import kotlin.math.pow
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.DurationUnit
+
+
+/**
+ * 3D material point
+ */
+public class MaterialPoint(
+    context: Context,
+    force: ValueState<XYZ<Newtons>>,
+    mass: NumericAmount<Kilograms>,
+    public val position: MutableValueState<XYZ<Meters>>,
+    public val velocity: MutableValueState<XYZ<MetersPerSecond>>,
+) : DeviceConstructor(context) {
+
+    init {
+        registerState(position, "position".asName())
+        registerState(velocity, "velocity".asName())
+    }
+
+    private var currentForce = force.value
+
+    private val movement = onTimer(
+        5.milliseconds,
+        reads = setOf(velocity, position),
+        writes = setOf(velocity, position)
+    ) { prev, next ->
+        val dtSeconds = (next - prev).toDouble(DurationUnit.SECONDS)
+
+        // compute new value based on velocity and acceleration from the previous step
+        val deltaR = (velocity.value * dtSeconds).cast(Meters) +
+                (currentForce / mass.value * dtSeconds.pow(2) / 2).cast(Meters)
+        position.value += deltaR
+
+        // compute new velocity based on acceleration on the previous step
+        val deltaV = (currentForce / mass.value * dtSeconds).cast(MetersPerSecond)
+        //TODO apply energy correction
+        //val work = deltaR.length.value * currentForce.length.value
+        velocity.value += deltaV
+
+        currentForce = force.value
+    }
+}

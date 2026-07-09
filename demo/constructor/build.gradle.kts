@@ -14,6 +14,8 @@ kscience {
         implementation(projects.controlsVisualisationCompose)
 //        implementation(projects.controlsVision)
         implementation(projects.controlsConstructor)
+        implementation(projects.controlsModels.controlsModelsMechanical)
+        implementation(projects.controlsModels.controlsModelsFlow)
 //        implementation("io.github.koalaplot:koalaplot-core:0.6.0")
     }
     jvmMain {

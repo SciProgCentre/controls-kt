@@ -18,11 +18,11 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.constructor.DeviceConfiguration
 import space.kscience.controls.constructor.install
-import space.kscience.controls.dataplatform.TagTableConfiguration
-import space.kscience.controls.dataplatform.TagTableDevice
-import space.kscience.controls.dataplatform.TagTablePlugin
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.install
+import space.kscience.controls.tagtable.TagTableConfiguration
+import space.kscience.controls.tagtable.TagTableDevice
+import space.kscience.controls.tagtable.TagTablePlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request

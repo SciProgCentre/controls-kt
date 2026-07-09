@@ -3,10 +3,10 @@ package space.kscience.controls.demo
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.constructor.DeviceConfiguration
 import space.kscience.controls.constructor.PropertyConfiguration
-import space.kscience.controls.dataplatform.TagTable
-import space.kscience.controls.dataplatform.TagTableColumn
-import space.kscience.controls.dataplatform.TagTableConfiguration
 import space.kscience.controls.opcua.server.read
+import space.kscience.controls.tagtable.TagTable
+import space.kscience.controls.tagtable.TagTableColumn
+import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.misc.DFExperimental

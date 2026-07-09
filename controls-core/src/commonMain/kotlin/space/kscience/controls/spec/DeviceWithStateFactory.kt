@@ -386,10 +386,10 @@ public fun <S : Any> DeviceWithStateBuilder<S>.doubleProperty(
     read: suspend context(DeviceBase) S.() -> Double
 ): PropertyDelegateProvider<DeviceWithStateBuilder<S>, ReadOnlyProperty<DeviceWithStateBuilder<S>, DevicePropertySpec<Double>>> =
     property(
-        MetaConverter.double,
-        numberDescriptor(descriptorBuilder),
-        name,
-        read
+        converter = MetaConverter.double,
+        descriptorBuilder = numberDescriptor(descriptorBuilder),
+        name = name,
+        reader = read
     )
 
 public fun <S : Any> DeviceWithStateBuilder<S>.stringProperty(

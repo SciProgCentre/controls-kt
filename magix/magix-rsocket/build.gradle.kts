@@ -9,8 +9,6 @@ description = """
     Magix endpoint (client) based on RSocket
 """.trimIndent()
 
-val ktorVersion: String by rootProject.extra
-
 kscience {
     jvm()
     js()

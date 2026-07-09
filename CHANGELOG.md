@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Controls-table module to work with compact data from PLC
 - Introduce separate classes for DeviceFactory and DeviceTreeFactory
 - Add DeviceTreeSpec
 - `TimerState` implements `Clock`.
@@ -17,7 +18,8 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
-- Minor change to continuous model library
+- Flow and mechanical models moved to controls-models modules
+- Minor change to the continuous model library
 - **BREAKING** Removed Model and replaced it with Device.
 - **BREAKING** DeviceHub is renamed to `DeviceTree`, has optional `rootDevice` and its children are `DeviceTree`s instead of `Device`s.
 - **BREAKING** DeviceHub works with string device names instead of `Name`.
@@ -29,7 +31,7 @@
 - `DeviceState` renamed to `ValueState`
 - Update logic of `DeviceState` to properly address subscriptions.
 - `getProperty` renamed to `getCachedProperty` for `CachingDevice`
-- Milo migrated to stable version
+- Milo migrated to the stable version
 - Constructor properties return `DeviceState` in order to be able to subscribe to them
 - Refactored ports. Now we have `AsynchronousPort` as well as `SynchronousPort`
 - `DeviceClient` now initializes property and action descriptors eagerly.

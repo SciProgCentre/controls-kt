@@ -473,14 +473,3 @@ public fun <T, S : ValueState<T>> DeviceConstructor.registerProperty(
     registerProperty(propertySpec.converter, propertySpec.descriptor, state)
     return state
 }
-
-/**
- * Run a simulation using a context simulation dispatcher
- */
-public suspend fun <C : Constructor> C.runSimulation(
-    block: suspend C.() -> Unit
-) {
-    withContext(context.deviceDispatcher) {
-        block()
-    }
-}

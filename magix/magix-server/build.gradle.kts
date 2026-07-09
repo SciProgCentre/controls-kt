@@ -9,9 +9,6 @@ description = """
     A magix event loop implementation in Kotlin. Includes HTTP/SSE and RSocket routes.
 """.trimIndent()
 
-val dataforgeVersion: String by rootProject.extra
-//val ktorVersion: String  = space.kscience.gradle.KScienceVersions.ktorVersion
-
 kscience {
     jvm()
     useSerialization{

@@ -4,9 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import space.kscience.controls.api.Device
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.clock
+import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.names.Name
@@ -361,5 +363,16 @@ public inline fun <reified T, R> MutableConstructor.bindCombinedState(
         invokeOnCompletion {
             unregisterElement(descriptor)
         }
+    }
+}
+
+/**
+ * Run a simulation using a context simulation dispatcher
+ */
+public suspend fun <C : Constructor> C.runSimulation(
+    block: suspend C.() -> Unit
+) {
+    withContext(context.deviceDispatcher) {
+        block()
     }
 }

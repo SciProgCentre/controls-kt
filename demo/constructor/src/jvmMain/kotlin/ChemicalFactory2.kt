@@ -22,9 +22,9 @@ import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.controls.constructor.MutableValueState
-import space.kscience.controls.constructor.models.continuous.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.models.continuous.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
