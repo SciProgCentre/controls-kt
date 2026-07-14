@@ -21,6 +21,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
 import space.kscience.controls.api.*
 import space.kscience.controls.asMeta
@@ -37,6 +38,7 @@ import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
@@ -80,6 +82,14 @@ class DeviceWebServerTest {
         val json = Json.parseToJsonElement(treeJson).jsonObject
         assertTrue(json.containsKey("test"))
 
+        val snapshotResponse = client.get("/snapshot")
+        assertEquals(HttpStatusCode.OK, snapshotResponse.status)
+        val snapshot = MagixEndpoint.magixJson.decodeFromString<ControlsSnapshot>(
+            snapshotResponse.bodyAsText()
+        )
+        assertEquals(Name.parse("test"), snapshot.nodes.single().target)
+        assertEquals("prop", snapshot.nodes.single().properties.single().descriptor.name)
+
         // Test get property
         val getResponse = client.get("/devices/test/get/prop")
         assertEquals(HttpStatusCode.OK, getResponse.status)
@@ -109,6 +119,20 @@ class DeviceWebServerTest {
         val openApiResponse = client.get("/openAPI")
         assertEquals(HttpStatusCode.OK, openApiResponse.status)
 
+        val openApiContractResponse = client.get("/contract/openapi.json")
+        assertEquals(HttpStatusCode.OK, openApiContractResponse.status)
+        val openApiContract = Json.parseToJsonElement(openApiContractResponse.bodyAsText()).jsonObject
+        val openApiPaths = openApiContract.getValue("paths").jsonObject
+        val openApiSchemas = openApiContract.getValue("components").jsonObject.getValue("schemas").jsonObject
+        assertEquals("3.1.1", openApiContract["openapi"]?.jsonPrimitive?.content)
+        assertTrue(openApiPaths.keys.containsAll(setOf("/snapshot", "/devices/{target}/get/{property}")))
+        assertFalse(openApiPaths.containsKey("/devices/{target}/history/{property}"))
+        assertTrue(openApiSchemas.keys.containsAll(listOf("ControlsSnapshot", "DeviceMessage")))
+        assertTrue(openApiSchemas.containsKey("MetaValue"))
+        assertTrue(openApiSchemas.keys.none { name -> name.endsWith("SealedMeta") || name.endsWith("JsonElement") })
+        val snapshotProperties = openApiSchemas.getValue("DeviceSnapshotNode").jsonObject.getValue("properties").jsonObject
+        assertEquals("string", snapshotProperties.getValue("target").jsonObject["type"]?.jsonPrimitive?.content)
+
         // Test WebSocket subscribe
         client.webSocket("/devices/test/subscribe/prop") {
             manager.resolveDevice("test").writeProperty("prop", 3.0.asMeta())
@@ -127,5 +151,37 @@ class DeviceWebServerTest {
             }
         }
 
+        client.webSocket("/events") {
+            manager.resolveDevice("test").writeProperty("prop", 4.0.asMeta())
+            withTimeout(1.seconds) {
+                while (true) {
+                    val frame = incoming.receive()
+                    assertTrue(frame is Frame.Text)
+                    val message = MagixEndpoint.magixJson.decodeFromString<DeviceMessage>(frame.readText())
+                    if (message is PropertyChangedMessage && message.property == "prop" && message.value.double == 4.0) {
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testOpenApiContractUnderCustomRoute() = testApplication {
+        val context = Context("openapi-test")
+        val manager = context.request(DeviceManager)
+
+        application {
+            deviceTreeModule(manager, route = "/api/controls")
+        }
+
+        val response = client.get("/api/controls/contract/openapi.json")
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val document = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val paths = document["paths"]?.jsonObject.orEmpty()
+        assertTrue(paths.containsKey("/api/controls/snapshot"))
+        assertFalse(paths.containsKey("/snapshot"))
+        assertFalse(paths.containsKey("/api/controls/contract/openapi.json"))
     }
 }

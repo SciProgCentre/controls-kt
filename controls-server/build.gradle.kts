@@ -13,6 +13,7 @@ description = """
 
 kscience {
     jvm()
+    useSerialization()
     dependencies {
         implementation(projects.controlsCore)
         implementation(projects.controlsPortsKtor)
@@ -42,8 +43,8 @@ readme {
 }
 
 ktor {
-//    openApi {
-//        enabled = true
-//        codeInferenceEnabled = false
-//    }
+    openApi {
+        enabled = true
+        codeInferenceEnabled = true
+    }
 }

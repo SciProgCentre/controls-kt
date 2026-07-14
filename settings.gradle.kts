@@ -38,6 +38,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("spclibs") {
             from("space.kscience:version-catalog:$toolsVersion")
+            version("ktor", "3.5.1")
 
             library("kotlinx-coroutines-jdk9", "org.jetbrains.kotlinx", "kotlinx-coroutines-jdk9").versionRef("kotlinx-coroutines")
 
