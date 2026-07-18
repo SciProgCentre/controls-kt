@@ -21,7 +21,7 @@ dependencies {
     implementation(projects.magix.magixStorage.magixStorageXodus)
 //    implementation(projects.controlsMongo)
 
-    implementation(spclibs.ktor.client.cio)
+    implementation("io.ktor:ktor-client-cio")
     implementation(spclibs.kotlinx.datetime)
     implementation(libs.tornadofx)
     implementation(libs.plotlykt.server)

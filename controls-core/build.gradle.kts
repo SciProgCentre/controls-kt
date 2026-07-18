@@ -20,7 +20,6 @@ kscience {
     useSerialization{
         json()
     }
-    useContextParameters()
 
     commonMain {
         api(libs.dataforge.io)

@@ -15,7 +15,6 @@ kscience {
     native()
 //    wasm()
     useCoroutines()
-    useContextParameters()
     useSerialization {
         json()
     }
@@ -23,16 +22,15 @@ kscience {
     commonMain {
         api(projects.magix.magixApi)
         api(projects.controlsCore)
-        api(libs.uuid)
     }
 
     jvmTest{
         implementation(spclibs.logback.classic)
         implementation(projects.magix.magixServer)
         implementation(projects.magix.magixRsocket)
-        implementation(spclibs.ktor.server.cio)
-        implementation(spclibs.ktor.server.websockets)
-        implementation(spclibs.ktor.client.cio)
+        implementation("io.ktor:ktor-server-cio")
+        implementation("io.ktor:ktor-server-websockets")
+        implementation("io.ktor:ktor-client-cio")
     }
 }
 

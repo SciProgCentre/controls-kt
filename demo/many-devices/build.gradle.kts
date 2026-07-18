@@ -15,7 +15,7 @@ dependencies {
     implementation(projects.magix.magixRsocket)
     implementation(projects.magix.magixZmq)
 
-    implementation(spclibs.ktor.client.cio)
+    implementation("io.ktor:ktor-client-cio")
     implementation(libs.plotlykt.server)
     implementation(spclibs.logback.classic)
 }
@@ -27,7 +27,7 @@ kotlin{
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xcontext-parameters")
+        freeCompilerArgs.addAll("-Xjvm-default=all")
     }
 }
 

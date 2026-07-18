@@ -35,7 +35,7 @@ public interface DeviceTree : Provider {
      */
     public fun descendantDevices(): Map<Name, Device> = buildMap<Name, Device> {
         children.forEach { (name, node) ->
-            val prefix = name.asName()
+            val prefix = Name.of(name)
             node.device?.let { put(prefix, it) }
             putAll(node.descendantDevices().mapKeys { (key, _) -> prefix + key })
         }
@@ -66,12 +66,22 @@ public fun DeviceTree(
  * Resolve a device by its name (including recursion if needed). Throw an exception if the device is not found.
  */
 public fun DeviceTree.resolveDevice(name: Name): Device = when (name.length) {
-    0 -> device ?: error("Device hub is not a device. It could not be accessed with empty name")
+    0 -> device ?: error("Device tree is not a device. It could not be accessed with empty name")
     1 -> children[name.first().toString()]?.device ?: error("Device $name not found in $this")
     else -> children[name.first().toString()]?.resolveDevice(name.cutFirst())
         ?: error("Device $name not found in $this")
 }
 
+public fun DeviceTree.resolveDevice(name: String): Device = resolveDevice(name.parseAsName())
+
+/**
+ * Resolve a device by name or return null if device with given name is not found in the tree
+ */
+public fun DeviceTree.resolveDeviceOrNull(name: Name): Device? = when (name.length) {
+    0 -> device
+    1 -> children[name.first().toString()]?.device
+    else -> children[name.first().toString()]?.resolveDevice(name.cutFirst())
+}
 
 ///**
 // * Create a device hub from a map of devices including subdevices
@@ -104,7 +114,7 @@ public suspend fun DeviceTree.execute(deviceName: Name, command: String, argumen
  * Start all devices in the tree
  */
 context(coroutineScope: CoroutineScope)
-public fun DeviceTree.start(): Job = coroutineScope.launch{
+public fun DeviceTree.start(): Job = coroutineScope.launch {
     device?.start()
     children.values.forEach { it.start() }
 }

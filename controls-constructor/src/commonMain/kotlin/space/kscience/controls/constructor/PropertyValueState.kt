@@ -51,7 +51,7 @@ public fun <T> Device.propertyAsState(
     if (propertyDescriptors.find { it.name == propertyName } == null) error("Property '$propertyName' not found in device ${this.id}")
     return when (this) {
         //avoid creating wrapper ValueState for DeviceGroup
-        is DeviceGroup -> propertyAsState(propertyName, metaConverter)
+        is DeviceConstructor -> propertyAsState(propertyName, metaConverter)
 
         //use cached value if available
         is CachingDevice -> PropertyValueState(

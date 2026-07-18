@@ -22,6 +22,7 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
+import kotlin.coroutines.ContinuationInterceptor
 
 public class RSocketMagixEndpoint(
     private val rSocket: RSocket
@@ -38,7 +39,7 @@ public class RSocketMagixEndpoint(
                 MagixMessage.serializer(),
                 it.data.readString()
             )
-        }.filter(filter).flowOn(rSocket.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Unconfined)
+        }.filter(filter).flowOn(rSocket.coroutineContext[ContinuationInterceptor.Key] as? CoroutineDispatcher ?: Dispatchers.Unconfined)
     }
 
     override suspend fun broadcast(message: MagixMessage): Unit {

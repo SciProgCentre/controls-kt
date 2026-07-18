@@ -24,7 +24,7 @@ import space.kscience.controls.vision.plotDeviceProperty
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaSerializer
 import space.kscience.dataforge.meta.set
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import space.kscience.plotly.Plotly
 import space.kscience.plotly.PlotlyConfig
 import space.kscience.plotly.PlotlyPlugin
@@ -150,7 +150,7 @@ suspend fun main(): Unit = coroutineScope {
                             responsive = true
                         }
 
-                        vision(vision = plot, name = "plot".asName(), outputMeta = plotlyConfig.meta)
+                        vision(vision = plot, name = Name.of("plot"), outputMeta = plotlyConfig.meta)
                     }
                 }
             }

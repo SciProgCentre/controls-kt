@@ -31,11 +31,11 @@ private var TraceValues.values: List<Value>
     }
 
 
-private var TraceValues.times: List<Instant>
-    get() = value?.list?.map { Instant.parse(it.string) } ?: emptyList()
-    set(newValues) {
-        value = ListValue(newValues.map { it.toString().asValue() })
-    }
+//private var TraceValues.times: List<Instant>
+//    get() = value?.list?.map { Instant.parse(it.string) } ?: emptyList()
+//    set(newValues) {
+//        value = ListValue(newValues.map { it.toString().asValue() })
+//    }
 
 
 private class TimeData(private var points: MutableList<ValueWithTime<Value>> = mutableListOf()) {

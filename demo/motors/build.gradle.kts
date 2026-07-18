@@ -8,21 +8,17 @@ kotlin {
     explicitApi = null
 }
 
-val ktorVersion: String by rootProject.extra
-val dataforgeVersion: String by extra
-
 kscience {
-    useContextParameters()
 }
 
 dependencies {
     implementation(projects.controlsPortsKtor)
     implementation(projects.controlsConstructor)
     implementation(projects.controlsMagix)
+    implementation(projects.controlsVisualisationCompose)
 
-    implementation(compose.runtime)
+    implementation("org.jetbrains.compose.runtime:runtime")
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
     implementation(spclibs.logback.classic)
 }
 

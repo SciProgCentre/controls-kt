@@ -26,7 +26,7 @@ class DemoDeviceState(
     fun cosValue(): Double = cos(time().toEpochMilli().toDouble() / timeScale) * cosScale
 }
 
-object DemoDevice : DeviceFactory<DemoDeviceState>() {
+object DemoDevice : DeviceWithStateFactory<DemoDeviceState>() {
 
     val timeScale by mutableDoubleProperty(
         descriptorBuilder = {

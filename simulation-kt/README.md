@@ -11,7 +11,7 @@
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:simulation-kt:0.4.0-dev-8`.
+The Maven coordinates of this project are `space.kscience:simulation-kt:0.4.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -21,6 +21,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:simulation-kt:0.4.0-dev-8")
+    implementation("space.kscience:simulation-kt:0.4.0")
 }
 ```

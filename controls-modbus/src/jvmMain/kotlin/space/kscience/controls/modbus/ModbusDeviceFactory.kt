@@ -7,7 +7,7 @@ import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
 import com.ghgande.j2mod.modbus.net.AbstractSerialConnection
 import com.ghgande.j2mod.modbus.util.SerialParameters
 import space.kscience.controls.spec.DeviceBase
-import space.kscience.controls.spec.DeviceFactory
+import space.kscience.controls.spec.DeviceWithStateFactory
 import space.kscience.dataforge.meta.*
 
 public class ModbusTCPConfiguration : Scheme() {
@@ -45,7 +45,7 @@ public class ModbusRTUConfiguration : Scheme() {
 }
 
 
-public abstract class ModbusDeviceFactory : DeviceFactory<AbstractModbusMaster>() {
+public abstract class ModbusDeviceFactory : DeviceWithStateFactory<AbstractModbusMaster>() {
 
     context(device: DeviceBase)
     override suspend fun createState(): AbstractModbusMaster = when (device.meta["type"].string) {

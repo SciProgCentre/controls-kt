@@ -24,17 +24,16 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.*
-import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.devices.LimitSwitch
-import space.kscience.controls.constructor.devices.StepDrive
-import space.kscience.controls.constructor.devices.angle
-import space.kscience.controls.constructor.models.Leadscrew
-import space.kscience.controls.constructor.models.coerceIn
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.combineState
+import space.kscience.controls.constructor.device
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.models.mechanical.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import java.awt.Dimension
 import kotlin.random.Random
 
@@ -116,7 +115,7 @@ private data class PlotterPoint(
 private class PlotterModel(
     context: Context,
     val callback: (PlotterPoint) -> Unit,
-) : ModelConstructor(context) {
+) : DeviceConstructor(context) {
 
     private val xDrive = StepDrive(context, ticksPerSecond)
     private val xTransmission = Leadscrew(context, NumericAmount(0.01))
@@ -209,7 +208,7 @@ suspend fun main() = application {
 
                         fun toOffset(xy: XY<Meters>): Offset = Offset(xToPx(xy.x), yToPx(xy.y))
 
-                        observeState(plotterModel.y, "beam".asName()) { y ->
+                        observeState(plotterModel.y, Name.of("beam")) { y ->
                             RectangleDrawable2D(
                                 position = Offset(size.width / 2, yToPx(y)),
                                 rectangleSize = Size(size.width, 10f),
@@ -217,7 +216,7 @@ suspend fun main() = application {
                             )
                         }
 
-                        observeState(plotterModel.xy, "head".asName()) { xy ->
+                        observeState(plotterModel.xy, Name.of("head")) { xy ->
                             CircleDrawable2D(
                                 position = toOffset(xy),
                                 radius = 10f,

@@ -22,20 +22,14 @@ import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.MutableValueState
-import space.kscience.controls.constructor.devices.Drive
-import space.kscience.controls.constructor.devices.LimitSwitch
-import space.kscience.controls.constructor.devices.LinearDrive
-import space.kscience.controls.constructor.models.Inertia
-import space.kscience.controls.constructor.models.Leadscrew
-import space.kscience.controls.constructor.models.MutableRangeState
-import space.kscience.controls.constructor.models.PidParameters
 import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.Meters
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.installNode
+import space.kscience.controls.manager.install
 import space.kscience.controls.manager.messageFlow
+import space.kscience.controls.models.mechanical.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
@@ -120,7 +114,7 @@ internal fun createLinearDriveModel(
 
 }
 
-private fun createModulator(linearDrive: LinearDrive): Modulator = linearDrive.context.installNode(
+private fun createModulator(linearDrive: LinearDrive): Modulator = linearDrive.context.install(
     "modulator",
     Modulator(linearDrive.context, linearDrive.pid.target)
 )
@@ -141,7 +135,7 @@ fun main() = application {
     }
 
     val linearDrive: LinearDrive = remember {
-        context.installNode(
+        context.install(
             "linearDrive",
             createLinearDriveModel(
                 context = context,
@@ -155,7 +149,7 @@ fun main() = application {
     }
 
     val modulator = remember {
-        context.installNode("modulator", createModulator(linearDrive))
+        context.install("modulator", createModulator(linearDrive))
     }
 
     //bind pid parameters

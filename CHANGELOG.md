@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 0.4.0 - 2026-07-18
+
+### Added
+
+- Controls-table module to work with compact data from PLC
+- Introduce separate classes for DeviceFactory and DeviceTreeFactory
 - Add DeviceTreeSpec
 - `TimerState` implements `Clock`.
 - `setCachedValue` API for `CachingDevice` to directly manipulate cached value and solve circular write problem with virtual properties.
@@ -16,17 +33,21 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+
+- Flow and mechanical models moved to controls-models modules
+- Minor change to the continuous model library
+- **BREAKING** Removed Model and replaced it with Device.
 - **BREAKING** DeviceHub is renamed to `DeviceTree`, has optional `rootDevice` and its children are `DeviceTree`s instead of `Device`s.
 - **BREAKING** DeviceHub works with string device names instead of `Name`.
 - ValueState now works both with and without time mark. Time is automatically provided and could be accessed with several new methods. 
-- **BREAKING** Full refactor of device spec and device builders. Now device spec is a separate content. There is a `DeviceFactory` that could be used to create both specification and device factory at the same time. 
+- **BREAKING** Full refactor of device spec and device builders. Now device spec is a separate content. There is a `DeviceWithStateFactory` that could be used to create both specification and device factory at the same time. 
 - Add optional names to model states and submodels
 - `StateContainer` renamed to `Constructor`
 - Separate StateContainer and MutableStateContainer
 - `DeviceState` renamed to `ValueState`
 - Update logic of `DeviceState` to properly address subscriptions.
 - `getProperty` renamed to `getCachedProperty` for `CachingDevice`
-- Milo migrated to stable version
+- Milo migrated to the stable version
 - Constructor properties return `DeviceState` in order to be able to subscribe to them
 - Refactored ports. Now we have `AsynchronousPort` as well as `SynchronousPort`
 - `DeviceClient` now initializes property and action descriptors eagerly.
@@ -35,15 +56,9 @@
 - `DeviceLifecycleState` is replaced by `LifecycleState`.
 - Time is now the mandatory first field of all device messages
 
-
-### Deprecated
-
-### Removed
-
 ### Fixed
-- Fix a problem with rsocket endpoint with no filter.
 
-### Security
+- Fix a problem with rsocket endpoint with no filter.
 
 ## 0.3.0 - 2024-03-04
 

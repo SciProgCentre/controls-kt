@@ -4,7 +4,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
-import space.kscience.controls.dataplatform.storage.RowsEnvelopeConverter
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.asBinary
 import space.kscience.dataforge.io.dataType
@@ -39,16 +38,7 @@ public class ZipRowsEnvelopeConverter<T>(
     override val envelopeType: String get() = ENVELOPE_TYPE
 
     override fun writeRows(rows: Rows<T>, meta: Meta): Envelope {
-        val headerMeta = Meta {
-            rows.headers.forEach { header ->
-                append("column", Meta {
-                    "name" put header.name
-                    header.meta.takeIf { !it.isEmpty() }.let {
-                        "meta" put header.meta
-                    }
-                })
-            }
-        }
+        val headerMeta = rows.headers.toMeta()
         val meta = Meta {
             "@header" put headerMeta
             Envelope.ENVELOPE_DESCRIPTION_KEY put """A Json array of objects representing rows, compressed with ZIP/DEFLATE."""
@@ -91,7 +81,7 @@ public class ZipRowsEnvelopeConverter<T>(
         public const val ENVELOPE_TYPE: String = "rows.meta.zip"
         public const val TYPE: String = "envelope.${ENVELOPE_TYPE}"
 
-        public val meta: ZipRowsEnvelopeConverter<Meta> =  ZipRowsEnvelopeConverter(MetaConverter.meta, typeOf<Meta>())
+        public val meta: ZipRowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter(MetaConverter.meta, typeOf<Meta>())
     }
 
 }

@@ -13,7 +13,7 @@ import kotlinx.serialization.json.Json
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
+import space.kscience.controls.manager.installTree
 import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.spec.*
@@ -21,7 +21,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -61,7 +61,7 @@ class VirtualMagixEndpoint(val tree: DeviceTree) : MagixEndpoint {
 
 internal class RemoteDeviceConnect {
 
-    object TestDevice : DeviceFactory<Random>() {
+    object TestDevice : DeviceWithStateFactory<Random>() {
 
         context(device: DeviceBase)
         override suspend fun createState(): Random {
@@ -81,11 +81,11 @@ internal class RemoteDeviceConnect {
         }
         val deviceManager = context.request(DeviceManager)
 
-        deviceManager.install("test", TestDevice)
+        deviceManager.installTree("test", TestDevice)
 
         val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager)
 
-        val remoteDevice: DeviceClient = virtualMagixEndpoint.remoteDevice(context, "client", "device", "test".asName())
+        val remoteDevice: DeviceClient = virtualMagixEndpoint.remoteDevice(context, "client", "device", Name.of("test"))
 
         assertContains(0.0..1.0, remoteDevice.read(TestDevice.value))
 
@@ -101,7 +101,7 @@ internal class RemoteDeviceConnect {
         launch {
             delay(50.milliseconds)
             repeat(10) {
-                deviceManager.install("test[$it]", TestDevice)
+                deviceManager.installTree("test[$it]", TestDevice)
             }
         }
 

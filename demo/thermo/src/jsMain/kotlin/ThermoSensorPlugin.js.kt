@@ -17,7 +17,6 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.startsWith
 import space.kscience.plotly.PlotlyJsPlugin
 import space.kscience.visionforge.VisionPlugin
@@ -126,7 +125,7 @@ public actual class ThermoSensorPlugin : VisionPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ElementVisionRenderer.TYPE -> mapOf(
-            "thermoHub".asName() to thermoSensorHubRenderer,
+            Name.of("thermoHub") to thermoSensorHubRenderer,
         )
 
         else -> super.content(target)

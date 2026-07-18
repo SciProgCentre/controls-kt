@@ -10,7 +10,6 @@ description = """
 kscience {
     fullStack("js/controls-vision.js")
     useSerialization()
-    useContextParameters()
     commonMain {
         api(projects.controlsCore)
         api(projects.controlsConstructor)
@@ -27,7 +26,7 @@ kscience {
 
     jvmMain{
         api(libs.visionforge.server)
-        api(spclibs.ktor.server.cio)
+        api("io.ktor:ktor-server-cio")
     }
 }
 

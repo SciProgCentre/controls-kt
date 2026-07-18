@@ -7,7 +7,6 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
@@ -75,7 +74,7 @@ internal class SpecTest {
         // Case 1: Everything missing
         val missing1 = rootSpec.checkMissingElements(null)
         assertEquals(1, missing1.size)
-        assertEquals(setOf(prop1 as DeviceElementDescriptor), missing1["child".asName()])
+        assertEquals(setOf(prop1 as DeviceElementDescriptor), missing1[Name.of("child")])
 
         // Case 2: Partial missing
         val device = mockDevice(properties = listOf(prop1))

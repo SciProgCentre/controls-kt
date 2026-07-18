@@ -12,6 +12,7 @@ import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
 import space.kscience.magix.api.filter
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
@@ -50,7 +51,7 @@ public class ZmqMagixEndpoint(
                     }
                 }
             }
-        }.filter(filter).flowOn(coroutineContext[CoroutineDispatcher] ?: Dispatchers.IO)
+        }.filter(filter).flowOn(coroutineContext[ContinuationInterceptor.Key] as? CoroutineDispatcher ?: Dispatchers.IO)
         //should be flown on IO because of blocking calls
     }
 

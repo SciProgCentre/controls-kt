@@ -8,7 +8,7 @@ plugins {
 
 kscience {
     fullStack("js/controls-jupyter.js")
-    useContextParameters()
+
     dependencies {
         implementation(projects.controlsVision)
         implementation(libs.visionforge.jupiter)

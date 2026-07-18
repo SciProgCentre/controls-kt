@@ -11,7 +11,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
 import kotlin.time.Duration.Companion.milliseconds
 
-public object MksPdr900Device : DeviceFactory<SynchronousPort>() {
+public object MksPdr900Device : DeviceWithStateFactory<SynchronousPort>() {
 
     public val address: DevicePropertySpec<Int> by property(MetaConverter.int, name = "address") { 253 }
 

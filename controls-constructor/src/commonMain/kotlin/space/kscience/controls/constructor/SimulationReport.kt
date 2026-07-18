@@ -4,7 +4,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import space.kscience.controls.api.ExperimentalControlsApi
 import space.kscience.controls.time.ValueWithTime
-import space.kscience.controls.time.simulationDispatcher
+import space.kscience.controls.time.clock
+import space.kscience.controls.time.deviceDispatcher
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -82,10 +83,10 @@ public fun <T> SimulationReportBuilder.collectState(
  * Run simulation using context simulation dispatcher
  */
 @ExperimentalControlsApi
-public suspend fun <M : Model> M.runSimulationWithReport(
+public suspend fun <M : Constructor> M.runSimulationWithReport(
     block: suspend M.(reportBuilder: SimulationReportBuilder) -> Unit
-): SimulationReport = withContext(context.simulationDispatcher) {
-    SimulationReportBuilder(this, clock).use { reportBuilder ->
+): SimulationReport = withContext(context.deviceDispatcher) {
+    SimulationReportBuilder(this, context.clock).use { reportBuilder ->
         block(reportBuilder)
         SimulationReport(reportBuilder.events)
     }

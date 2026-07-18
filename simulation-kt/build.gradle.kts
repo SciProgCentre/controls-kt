@@ -11,7 +11,6 @@ kscience {
     native()
     wasmJs()
     useCoroutines()
-    useContextParameters()
 
     commonMain {
         api(spclibs.kotlinx.datetime)

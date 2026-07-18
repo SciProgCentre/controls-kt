@@ -1,11 +1,14 @@
 [versions]
 
-dataforge = "0.10.3"
+dataforge = "0.11.1"
+visionforge = "0.5.2"
+kmath = "0.5.0"
+
 rsocket = "0.20.0"
 xodus = "2.0.1"
 parsus = "0.6.1"
-
-uuid = "0.8.0"
+compose = "1.11.1"
+ktor = "3.5.1"
 
 jSerialComm = "2.11.4"
 
@@ -30,10 +33,6 @@ pi4j = "4.0.0"
 
 plc4j = "0.13.1"
 
-visionforge = "0.5.1"
-
-kmath = "0.5.0"
-
 testcontainers = "1.21.0"
 
 [libraries]
@@ -42,7 +41,6 @@ dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforg
 dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "dataforge" }
 tables-kt = { module = "space.kscience:tables-kt", version.ref = "dataforge" }
 
-uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }
 parsus = { module = "me.alllex.parsus:parsus", version.ref = "parsus" }
 
 xodus-entity-store = { module = "org.jetbrains.xodus:xodus-entity-store", version.ref = "xodus" }
@@ -56,6 +54,14 @@ rsocket-transport-ktor-tcp = { module = "io.rsocket.kotlin:rsocket-transport-kto
 jSerialComm = { module = "com.fazecast:jSerialComm", version.ref = "jSerialComm" }
 
 tornadofx = { module = "no.tornado:tornadofx", version.ref = "tornadofx" }
+ktor-bom = {group = "io.ktor", name = "ktor-bom", version.ref = "ktor" }
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
+compose-html-core = { module = "org.jetbrains.compose.html:html-core", version.ref = "compose" }
+compose-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }
+compose-material = { module = "org.jetbrains.compose.material:material", version.ref = "compose" }
+compose-material3 = "org.jetbrains.compose.material3:material3:1.9.0"
+compose-materialIconsExtended = "org.jetbrains.compose.material:material-icons-extended:1.7.3"
 
 plotlykt-core = { module = "space.kscience:plotly-kt-core", version.ref = "visionforge" }
 

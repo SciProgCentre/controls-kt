@@ -4,7 +4,7 @@ import org.apache.plc4x.java.api.types.PlcValueType
 import org.apache.plc4x.java.api.value.PlcValue
 import org.apache.plc4x.java.spi.values.*
 import space.kscience.dataforge.meta.*
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import java.math.BigInteger
 
 internal fun PlcValue.toMeta(): Meta = Meta {
@@ -47,7 +47,7 @@ internal fun PlcValue.toMeta(): Meta = Meta {
             if (listOfMeta.all { it.items.isEmpty() }) {
                 value = listOfMeta.map { it.value ?: Null }.asValue()
             } else {
-                setIndexed("@list".asName(), list.map { it.toMeta() })
+                setIndexed(Name.of("@list"), list.map { it.toMeta() })
             }
         }
 

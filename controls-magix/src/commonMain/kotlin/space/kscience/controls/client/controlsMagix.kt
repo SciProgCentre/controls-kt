@@ -1,6 +1,5 @@
 package space.kscience.controls.client
 
-import com.benasher44.uuid.uuid4
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
@@ -16,6 +15,7 @@ import space.kscience.dataforge.context.logger
 import space.kscience.magix.api.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.uuid.Uuid
 
 
 internal val controlsMagixFormat: MagixFormat<DeviceMessage> = MagixFormat(
@@ -31,7 +31,7 @@ public val DeviceManager.Companion.magixFormat: MagixFormat<DeviceMessage> get()
 internal fun generateId(request: MagixMessage): String = if (request.id != null) {
     "${request.id}.response"
 } else {
-    uuid4().leastSignificantBits.toULong().toString(16)
+    Uuid.random().toHexString()
 }
 
 /**

@@ -12,7 +12,6 @@ import space.kscience.controls.xodus.XodusDeviceMessageStorage
 import space.kscience.controls.xodus.writeMessage
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import java.nio.file.Files
 import kotlin.time.Instant
 
@@ -69,7 +68,7 @@ internal class ValueHistoryTest {
                 assertEquals(
                     propertyChangedMessages[0],
                     storage.read<PropertyChangedMessage>(
-                        sourceDevice = "virtual-car".asName()
+                        sourceDevice = Name.of("virtual-car")
                     ).first { it.property == "speed" }
                 )
             }

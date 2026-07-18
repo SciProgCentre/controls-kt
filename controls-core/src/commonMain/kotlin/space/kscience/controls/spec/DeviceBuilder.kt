@@ -2,11 +2,12 @@ package space.kscience.controls.spec
 
 import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.Device
+import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 
 /**
  * A property specification with default value
@@ -38,7 +39,7 @@ private class LogicalPropertyAccessor<T>(
  * configuration and registration of readers, writers, actions, and lifecycle hooks for the device.
  * It implements the [Factory<CachingDevice>] interface, enabling it to produce fully constructed `Device` instances.
  */
-public class DeviceBuilder : Factory<CachingDevice> {
+public class DeviceBuilder : DeviceFactory {
 
     private val buildReaders: MutableSet<PropertyReader<*>> = mutableSetOf()
     private val buildWriters: MutableSet<PropertyWriter<*>> = mutableSetOf()
@@ -93,9 +94,21 @@ public class DeviceBuilder : Factory<CachingDevice> {
     }
 
     /**
+     * Create a device specification from the registered readers, writers, and actions.
+     */
+    public fun buildDeviceSpec(): DeviceSpec = DeviceSpec(
+        properties = (buildReaders.map { it.spec } + buildWriters.map { it.spec } + logicalProperties)
+            .distinct()
+            .associateBy { it.name },
+        actions = buildActions.associate { it.spec.name to it.spec },
+    )
+
+    override val descriptor: MetaDescriptor? = null
+
+    /**
      * Build a fully configured [DeviceBase] instance from the registered readers, writers, and actions.
      */
-    override fun build(context: Context, meta: Meta): DeviceBase = object : DeviceBase(context, meta) {
+    override fun buildDevice(context: Context, meta: Meta): DeviceBase = object : DeviceBase(context, meta) {
 
         //protective copy for all properties
 
@@ -148,6 +161,8 @@ public class DeviceBuilder : Factory<CachingDevice> {
             }
         }
     }
+
+
 }
 
 public fun <T> DeviceBuilder.logical(
@@ -177,7 +192,7 @@ public fun Device(
     builder: DeviceBuilder.() -> Unit
 ): Device = DeviceBuilder().apply(builder).also {
     if (spec != null) it.validateFor(spec)
-}.build(context, meta)
+}.buildDevice(context, meta)
 
 
 public fun <T> DeviceBuilder.reader(spec: DevicePropertySpec<T>, read: suspend context(DeviceBase) () -> T) {

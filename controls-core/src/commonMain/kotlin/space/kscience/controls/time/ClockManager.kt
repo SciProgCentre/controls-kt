@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import space.kscience.controls.instant
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.roundToLong
 import kotlin.time.Clock
@@ -16,7 +17,7 @@ private class CompressedTimeDispatcher(
     val compression: Double,
 ) : CoroutineDispatcher(), Delay {
 
-    val dispatcher = coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
+    val dispatcher = coroutineContext[ContinuationInterceptor.Key] as? CoroutineDispatcher ?: Dispatchers.Default
 
     @InternalCoroutinesApi
     override fun dispatchYield(context: CoroutineContext, block: Runnable) {
@@ -115,7 +116,7 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
     public val simulationDispatcher: CoroutineDispatcher by lazy {
         when (val mode = clockMode) {
             is ClockMode.System, is ClockMode.Custom ->
-                context.coroutineContext[CoroutineDispatcher] ?: Dispatchers.Default
+                context.coroutineContext[ContinuationInterceptor.Key] as? CoroutineDispatcher ?: Dispatchers.Default
 
             is ClockMode.Compressed -> CompressedTimeDispatcher(
                 coroutineContext = context.coroutineContext,
@@ -163,9 +164,12 @@ public val Context.clockManager: ClockManager get() = plugins[ClockManager] ?: C
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
 
-public val Context.simulationDispatcher: CoroutineDispatcher
+/**
+ * A special device dispatcher that takes into account context time management options
+ */
+public val Context.deviceDispatcher: CoroutineDispatcher
     get() = plugins[ClockManager]?.simulationDispatcher
-        ?: coroutineContext[CoroutineDispatcher]
+        ?: coroutineContext[ContinuationInterceptor.Key] as? CoroutineDispatcher
         ?: Dispatchers.Default
 
 public fun ContextBuilder.withTimeCompression(compression: Double) {

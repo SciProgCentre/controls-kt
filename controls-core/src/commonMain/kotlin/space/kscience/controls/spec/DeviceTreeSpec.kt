@@ -3,7 +3,6 @@ package space.kscience.controls.spec
 import space.kscience.controls.api.DeviceElementDescriptor
 import space.kscience.controls.api.DeviceTree
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.plus
 
 /**
@@ -40,7 +39,7 @@ public fun DeviceTreeSpec.checkMissingElements(deviceTree: DeviceTree?): Map<Nam
             val childDeviceTree = deviceTree?.children?.get(name)
             val childMissingDescriptors = childSpec.checkMissingElements(childDeviceTree)
             if (childMissingDescriptors.isNotEmpty()) {
-                putAll(childMissingDescriptors.mapKeys { name.asName() + it.key })
+                putAll(childMissingDescriptors.mapKeys { Name.of(name) + it.key })
             }
         }
     }

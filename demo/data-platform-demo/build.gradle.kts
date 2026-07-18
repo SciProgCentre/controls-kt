@@ -11,14 +11,17 @@ repositories {
 }
 
 dependencies {
-    implementation(projects.controlsDataPlatform)
+    implementation(projects.controlsTable)
     implementation(projects.controlsVisualisationCompose)
 
-    implementation(libs.plotlykt.server)
+//    implementation(libs.plotlykt.server)
 
-    implementation(compose.runtime)
+    implementation(libs.compose.runtime)
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation(libs.compose.material3)
+
+//    implementation(projects.controlsServer)
+//    implementation("io.ktor:ktor-server-cio")
 
     implementation(spclibs.logback.classic)
 }
@@ -26,7 +29,7 @@ dependencies {
 kotlin{
     jvmToolchain(21)
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn", "-Xcontext-parameters")
+        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }
 }
 

@@ -6,7 +6,7 @@ An API for stand-alone Controls-kt device or a hub.
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-storage:0.4.0-dev-8`.
+The Maven coordinates of this project are `space.kscience:controls-storage:0.4.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-storage:0.4.0-dev-8")
+    implementation("space.kscience:controls-storage:0.4.0")
 }
 ```

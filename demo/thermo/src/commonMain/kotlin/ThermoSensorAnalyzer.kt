@@ -54,18 +54,18 @@ class ThermoSensorAnalyzer(
         install("sensor", sensor)
     }
 
-    val temperature = registerAsProperty(
+    val temperature = registerProperty(
         Companion.temperature,
         sensor.propertyAsState(ThermoSensorSpec.temperature, Double.NaN)
     )
 
     private val statusState = MutableValueState(ThermoSensorStatus.NotConnected)
 
-    val status = registerAsProperty(Companion.status, statusState)
+    val status = registerProperty(Companion.status, statusState)
 
     private val averagedTemperatureState = MutableValueState(Double.NaN)
 
-    val averageTemperature = registerAsProperty(Companion.averageTemperature, averagedTemperatureState)
+    val averageTemperature = registerProperty(Companion.averageTemperature, averagedTemperatureState)
 
     private val history = ArrayList<ValueWithTime<Double>>()
 
@@ -177,16 +177,16 @@ class ThermoSensorGroupAnalyzer(
     val config: ThermoSensorGroupConfig
 ) : DeviceConstructor(context, config.meta) {
 
-    val discrepancy = registerAsProperty(
-        spec = Companion.discrepancy,
+    val discrepancy = registerProperty(
+        propertySpec = Companion.discrepancy,
         state = combineState(sensors.map { it.temperature }) { values ->
             val average = values.average()
             values.maxOf { abs(average - it) }
         }
     )
 
-    val status = registerAsProperty(
-        spec = Companion.status,
+    val status = registerProperty(
+        propertySpec = Companion.status,
         state = discrepancy.map { discrepancy ->
             when {
                 discrepancy >= config.discrepancyThreshold -> ThermoSensorStatus.Alarm

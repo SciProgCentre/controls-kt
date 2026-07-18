@@ -1,14 +1,17 @@
 package space.kscience.controls.spec
 
 import space.kscience.controls.api.DeviceTree
+import space.kscience.controls.api.DeviceTreeFactory
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.descriptors.node
+import space.kscience.dataforge.meta.get
 
 /**
  * A builder for [DeviceTree]
  */
-public class DeviceTreeBuilder : Factory<DeviceTree> {
+public class DeviceTreeBuilder : DeviceTreeFactory, DeviceTreeSpec {
 
 
     private var root: DeviceBuilder? = null
@@ -53,15 +56,25 @@ public class DeviceTreeBuilder : Factory<DeviceTree> {
 
     public fun root(builder: DeviceBuilder.() -> Unit): Unit = root(DeviceBuilder().apply(builder))
 
+    override val descriptor: MetaDescriptor
+        get() = MetaDescriptor {
+            root?.descriptor?.let { node("root", it) }
+            this@DeviceTreeBuilder.children.forEach { (name, builder) ->
+                node("child[$name]", builder.descriptor)
+            }
+        }
+
     /**
      * Build a [DeviceTree] from the registered devices.
      */
     override fun build(context: Context, meta: Meta): DeviceTree = DeviceTree(
-        rootDevice = root?.build(context, meta),
-        children = children.mapValues { it.value.build(context, meta) }
+        rootDevice = root?.buildDevice(context, meta["root"] ?: Meta.EMPTY),
+        children = children.mapValues { it.value.build(context, meta["child[${it.key}]"] ?: Meta.EMPTY) }
     )
 
+    override val deviceSpec: DeviceSpec? get() = root?.buildDeviceSpec()
 
+    override val childrenSpecs: Map<String, DeviceTreeSpec> get() = children
 }
 
 /**

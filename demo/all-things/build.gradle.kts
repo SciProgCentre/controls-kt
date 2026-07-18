@@ -19,13 +19,14 @@ dependencies {
     implementation(projects.magix.magixZmq)
     implementation(projects.controlsOpcua)
 
-    implementation(spclibs.ktor.client.cio)
+    implementation("io.ktor:ktor-server-cio")
+    implementation("io.ktor:ktor-client-cio")
     implementation(libs.plotlykt.server)
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
 
-    implementation(compose.runtime)
+    implementation(libs.compose.runtime)
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation(libs.compose.material3)
 //    implementation("org.pushing-pixels:aurora-window:1.3.0")
 //    implementation("org.pushing-pixels:aurora-component:1.3.0")
 //    implementation("org.pushing-pixels:aurora-theming:1.3.0")
@@ -33,16 +34,16 @@ dependencies {
     implementation(spclibs.logback.classic)
 }
 
-kotlin{
+kotlin {
     jvmToolchain(21)
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn", "-Xcontext-parameters")
+        freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }
 }
 
-compose{
-    desktop{
-        application{
+compose {
+    desktop {
+        application {
             mainClass = "space.kscience.controls.demo.DemoControllerViewKt"
         }
     }

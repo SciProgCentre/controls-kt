@@ -4,19 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import space.kscience.controls.api.resolveDevice
-import space.kscience.controls.constructor.expressions.StateExpression
 import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.units.UnitsOfMeasurement
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ValueWithTime
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.MetaRef
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.misc.DFExperimental
-import space.kscience.dataforge.names.asName
-import space.kscience.dataforge.names.parseAsName
 import kotlin.reflect.KProperty
 import kotlin.time.Instant
 
@@ -44,28 +34,8 @@ public interface ValueState<out T> {
 
     override fun toString(): String
 
-    @OptIn(DFExperimental::class)
     public companion object {
-        public const val TYPE: String = "state"
-
-        public val deviceName: MetaRef<String> = MetaRef("deviceName".asName(), MetaConverter.string)
-
-        public val propertyName: MetaRef<String> = MetaRef("propertyName".asName(), MetaConverter.string)
-
-        public val defaultValue: MetaRef<Meta> = MetaRef("defaultValue".asName(), MetaConverter.meta)
-
-        public val contextValueStateFactory: ValueStateProvider = ValueStateProvider { context, meta ->
-            val deviceName = meta[deviceName]?.parseAsName() ?: error("Device name is not specified")
-            val propertyName = meta[propertyName] ?: error("Property name is not specified")
-            val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
-            val defaultValue = meta[defaultValue] ?: Meta.EMPTY
-            deviceManager.resolveDevice(deviceName).propertyAsState(propertyName, MetaConverter.meta, defaultValue)
-        }
-
-        public val defaultValueStateFactories: Map<String, ValueStateProvider> = mapOf(
-            "deviceProperty" to contextValueStateFactory,
-            "expression" to StateExpression.valueStateFactory
-        )
+        public const val PROVIDER_TARGET: String = "valueState"
     }
 }
 

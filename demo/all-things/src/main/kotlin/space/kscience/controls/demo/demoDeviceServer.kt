@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 /**
  * In-place replacement for absent method from stdlib
  */
-fun <T> Flow<T>.windowed(size: Int): Flow<Iterable<T>> {
+fun <T: Any> Flow<T>.windowed(size: Int): Flow<Iterable<T>> {
     val queue = ConcurrentLinkedQueue<T>()
     return flow {
         this@windowed.collect {
@@ -120,7 +120,7 @@ fun CoroutineScope.startDemoDeviceServer(magixEndpoint: MagixEndpoint): Embedded
                     trace {
                         name = "non-synchronized"
                         launch {
-                            val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.mapNotNull {
+                            val flow: Flow<Iterable<Pair<Double, Double>>> = sinCosFlow.map {
                                 it["x"].double!! to it["y"].double!!
                             }.windowed(30)
                             updateXYFrom(flow)

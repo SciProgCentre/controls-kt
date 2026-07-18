@@ -4,8 +4,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import space.kscience.controls.api.Device
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.clock
+import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.names.Name
@@ -48,17 +51,12 @@ public class ConnectionConstructorElement(
 ) : ConstructorElement
 
 /**
- * A class representing a constructor element that is associated with a specific model instance.
+ * A constructor element that defines a connection to a child constructor.
  *
- * This element serves as a binding between the construction process and the model it represents.
- * The model instance is provided during the initialization of this element.
- *
- * @property model The model instance associated with this constructor element. It provides access
- * to the required context and state dependencies.
  */
-public class ModelConstructorElement(
+public class ChildConstructorElement(
     public val name: Name?,
-    public val model: Model,
+    public val constructor: Constructor,
 ) : ConstructorElement
 
 /**
@@ -114,8 +112,8 @@ public interface MutableConstructor : Constructor {
 }
 
 
-public val Constructor.states: List<ValueState<Any?>>
-    get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().map { it.state }
+public val Constructor.states: Map<Name?, ValueState<Any?>>
+    get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().associate { it.name to it.state }
 
 /**
  * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
@@ -201,7 +199,7 @@ public fun <T, R> MutableConstructor.flowState(
     name: Name? = null,
     transformation: suspend FlowCollector<R>.(T) -> Unit,
 ): ValueStateWithDependencies<R> {
-    val state = MutableValueState(initialValue, clock)
+    val state = MutableValueState(initialValue, context.clock)
     origin.subscribe().transform(transformation).onEach { state.value = it }.launchIn(this)
     return registerState(state.withDependencies(setOf(origin)), name)
 }
@@ -365,5 +363,16 @@ public inline fun <reified T, R> MutableConstructor.bindCombinedState(
         invokeOnCompletion {
             unregisterElement(descriptor)
         }
+    }
+}
+
+/**
+ * Run a simulation using a context simulation dispatcher
+ */
+public suspend fun <C : Constructor> C.runSimulation(
+    block: suspend C.() -> Unit
+) {
+    withContext(context.deviceDispatcher) {
+        block()
     }
 }

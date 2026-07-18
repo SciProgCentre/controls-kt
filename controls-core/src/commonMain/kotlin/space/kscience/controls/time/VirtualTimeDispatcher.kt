@@ -14,6 +14,7 @@ import kotlinx.coroutines.selects.SelectClause1
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.fetchAndIncrement
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.*
 import kotlin.time.Duration.Companion.milliseconds
@@ -288,7 +289,7 @@ public suspend fun virtualTimeScope(
     timeOffset: Instant = Clock.System.now(),
     block: suspend VirtualTimeScope.() -> Unit
 ): Unit = coroutineScope {
-    val currentDispatcher = coroutineContext[CoroutineDispatcher] as? VirtualTimeDispatcher
+    val currentDispatcher = coroutineContext[ContinuationInterceptor.Key] as? CoroutineDispatcher as? VirtualTimeDispatcher
     //if already on virtual time, just launch the block
     if (currentDispatcher != null) {
         val scope = VirtualTimeScope(coroutineContext, currentDispatcher, timeOffset = timeOffset)
