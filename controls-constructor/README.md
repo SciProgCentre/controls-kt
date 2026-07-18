@@ -21,7 +21,7 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 - State DSL (reactive building blocks)
     - stateOf, registerState: create/register states; DeviceState and MutableDeviceState abstractions.
-    - [Property Expressions](docs/expressions.md): reactive numeric expressions for computed properties.
+    - [Property Expressions](./expressions.md): reactive numeric expressions for computed properties.
     - timer and onTimer: periodic timer states; helpers to trigger logic on ticks.
     - runSimulation: run models on the context simulation dispatcher.
     - mapState, flowState: transform a state via pure or flow-based transformations.
@@ -47,11 +47,22 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 ## Features:
 
+The `controls-constructor` module offers a powerful set of tools for building complex control systems:
 
+- [Reactive State DSL](./valueState.md): A type-safe way to define and observe device states.
+- [State Wiring](./constructor.md): Tools for binding and combining states to create complex data flows.
+- [Hierarchical Composition](./constructor.md): Build devices by grouping sub-devices and exposing states as properties.
+- [Simulation Engine](./models.md): Built-in support for continuous and discrete-event simulations with virtual time.
+- [Flow Modeling](./flowModels.md): Specialized components for modeling continuous and discrete flows.
+- [Simulated Devices](./simulatedDevices.md): Pre-defined devices like drives and encoders.
+- [Computed Expressions](./expressions.md): Reactive numeric expressions for derived properties.
+- [Unit Safety](./units.md): Support for physical units and rates in models.
+
+For more details, see [Key Features](./features.md).
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-constructor:0.4.0-dev-8`.
+The Maven coordinates of this project are `space.kscience:controls-constructor:0.4.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -61,7 +72,7 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-constructor:0.4.0-dev-8")
+    implementation("space.kscience:controls-constructor:0.4.0")
 }
 ```
 

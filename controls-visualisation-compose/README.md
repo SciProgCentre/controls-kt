@@ -6,7 +6,7 @@ Visualisation extension using compose-multiplatform
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-visualisation-compose:0.4.0-dev-8`.
+The Maven coordinates of this project are `space.kscience:controls-visualisation-compose:0.4.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-visualisation-compose:0.4.0-dev-8")
+    implementation("space.kscience:controls-visualisation-compose:0.4.0")
 }
 ```

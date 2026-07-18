@@ -14,7 +14,7 @@ This module provides an emulator for the IEC 61131-3 Instruction List (IL) langu
 To run an IL program, you need an instance of `PlcEmulatorScope` and the IL source code.
 
 ```kotlin
-val scope: PlcEmulatorScope = ...
+val scope: PlcState = ...
 val source = """
     LD 10
     ADD 20

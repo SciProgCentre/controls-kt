@@ -54,7 +54,7 @@ The module relies on the following technological solutions:
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-data-platform:0.4.0-dev-9`.
+The Maven coordinates of this project are `space.kscience:controls-table:0.4.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -64,7 +64,7 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-data-platform:0.4.0-dev-9")
+    implementation("space.kscience:controls-table:0.4.0")
 }
 ```
 

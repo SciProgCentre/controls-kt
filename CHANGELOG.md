@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 0.4.0 - 2026-07-18
+
+### Added
+
 - Controls-table module to work with compact data from PLC
 - Introduce separate classes for DeviceFactory and DeviceTreeFactory
 - Add DeviceTreeSpec
@@ -18,6 +33,7 @@
 - New interface `WithLifeCycle`. Change Port API to adhere to it.
 
 ### Changed
+
 - Flow and mechanical models moved to controls-models modules
 - Minor change to the continuous model library
 - **BREAKING** Removed Model and replaced it with Device.
@@ -40,15 +56,9 @@
 - `DeviceLifecycleState` is replaced by `LifecycleState`.
 - Time is now the mandatory first field of all device messages
 
-
-### Deprecated
-
-### Removed
-
 ### Fixed
-- Fix a problem with rsocket endpoint with no filter.
 
-### Security
+- Fix a problem with rsocket endpoint with no filter.
 
 ## 0.3.0 - 2024-03-04
 

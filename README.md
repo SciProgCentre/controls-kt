@@ -39,7 +39,6 @@ Example view of a demo:
 
 ## Documentation
 
-* [DataForge concepts](docs/DataForge.md)
 * [Creating a device](docs/Device%20and%20DeviceSpec.md)
 
 ## Modules
@@ -49,6 +48,16 @@ Example view of a demo:
 > A low-code constructor for composite devices simulation
 >
 > **Maturity**: EXPERIMENTAL
+>
+> **Features:**
+> - [constructor](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/Constructor.kt) : A low-code DSL for composing complex devices and simulations from basic components and models.
+> - [valueState](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/ValueState.kt) : Reactive state containers used to represent device properties, internal variables, and simulation parameters.
+> - [models](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/models) : A library of physical and logical models, including PID regulators, inertia, and mechanical components.
+> - [flowModels](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/models/continuous) : Simulation models for continuous and discrete flows of material, energy, or information.
+> - [simulatedDevices](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/devices) : Pre-defined simulated devices like drives, encoders, and limit switches ready to be used in constructions.
+> - [expressions](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/expressions) : A type-safe DSL for creating reactive expressions and bindings between different states.
+> - [units](controls-constructor/src/commonMain/kotlin/space/kscience/controls/constructor/units) : Support for physical quantities and units of measurement in simulations and device properties.
+
 
 ### [controls-core](controls-core)
 > Core interfaces for building a device server
@@ -62,6 +71,7 @@ Example view of a demo:
 > - [deviceSpec](controls-core/src/commonMain/kotlin/space/kscience/controls/spec) : Mechanics and type-safe builders for devices. Including separation of device specification and device state.
 > - [deviceManager](controls-core/src/commonMain/kotlin/space/kscience/controls/manager) : DataForge DI integration for devices. Includes device builders.
 > - [ports](controls-core/src/commonMain/kotlin/space/kscience/controls/ports) : Working with asynchronous data sending and receiving raw byte arrays
+> - [clock](controls-core/src/commonMain/kotlin/space/kscience/controls/time) : Clock management and time manipulation (virtual and compressed time)
 
 
 ### [controls-jupyter](controls-jupyter)
@@ -74,8 +84,8 @@ Example view of a demo:
 > **Maturity**: EXPERIMENTAL
 >
 > **Features:**
-> - [controlsMagix](controls-magix/src/commonMain/kotlin/space/kscience/controls/client/controlsMagix.kt) : Connect a `DeviceManage` with one or many devices to the Magix endpoint
-> - [DeviceClient](controls-magix/src/commonMain/kotlin/space/kscience/controls/client/DeviceClient.kt) : A remote connector to Controls-kt device via Magix
+> - [magixService](controls-magix/src/commonMain/kotlin/space/kscience/controls/client/controlsMagix.kt) : Connect a `DeviceManager` with one or many devices to the Magix endpoint
+> - [deviceClient](controls-magix/src/commonMain/kotlin/space/kscience/controls/client/DeviceClient.kt) : A remote connector to Controls-kt device via Magix
 
 
 ### [controls-modbus](controls-modbus)
@@ -85,6 +95,7 @@ Example view of a demo:
 >
 > **Features:**
 > - [modbusRegistryMap](controls-modbus/src/main/kotlin/space/kscience/controls/modbus/ModbusRegistryMap.kt) : Type-safe modbus registry map. Allows to define both single-register and multi-register entries (using DataForge IO). 
+Automatically checks consistency.
 > - [modbusProcessImage](controls-modbus/src/main/kotlin/space/kscience/controls/modbus/DeviceProcessImage.kt) : Binding of slave (server) modbus device to Controls-kt device
 > - [modbusDevice](controls-modbus/src/main/kotlin/space/kscience/controls/modbus/ModbusDevice.kt) : A device with additional methods to work with modbus registers.
 
@@ -103,6 +114,19 @@ Example view of a demo:
 > Utils to work with controls-kt on Raspberry pi
 >
 > **Maturity**: EXPERIMENTAL
+
+### [controls-plc-emulator](controls-plc-emulator)
+> An interpreter for IEC 61131-3 PLC programs. It includes a parser for Instruction List (IL), 
+a compiler for Structured Text (ST), and a runtime for executing IL programs.
+>
+> **Maturity**: PROTOTYPE
+>
+> **Features:**
+> - [ILRuntime](controls-plc-emulator/src/commonMain/kotlin/space/kscience/controls/plcemu/IlRuntime.kt) : A runtime for the IEC 61131-3 Instruction List (IL) language.
+> - [STCompiler](controls-plc-emulator/src/commonMain/kotlin/space/kscience/controls/plcemu/StCompiler.kt) : A compiler for the IEC 61131-3 Structured Text (ST) language.
+> - [ILParser](controls-plc-emulator/src/commonMain/kotlin/space/kscience/controls/plcemu/IlParser.kt) : A parser for the IEC 61131-3 Instruction List (IL) language based on the Parsus library.
+> - [PlcState](controls-plc-emulator/src/commonMain/kotlin/space/kscience/controls/plcemu/PlcState.kt) : A state interface for the PLC emulator, allowing interaction with registers and external values.
+
 
 ### [controls-plc4x](controls-plc4x)
 > A plugin for Controls-kt device server on top of plc4x library
@@ -129,6 +153,11 @@ Example view of a demo:
 >
 > **Maturity**: PROTOTYPE
 
+### [controls-table](controls-table)
+> Device timed data platform
+>
+> **Maturity**: EXPERIMENTAL
+
 ### [controls-vision](controls-vision)
 > Dashboard and visualization extensions for devices
 >
@@ -139,14 +168,6 @@ Example view of a demo:
 >
 > **Maturity**: PROTOTYPE
 
-### [demo](demo)
->
-> **Maturity**: EXPERIMENTAL
-
-### [magix](magix)
->
-> **Maturity**: EXPERIMENTAL
-
 ### [simulation-kt](simulation-kt)
 > A framework for combination of asynchronous simulations.        
 >
@@ -156,18 +177,25 @@ Example view of a demo:
 > - [timeline](simulation-kt/#) : Timeline is an ordered discrete history containing TimeLineEvent
 
 
+### [controls-models/controls-models-flow](controls-models/controls-models-flow)
+> Models for continuous and discrete flow systems
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-models/controls-models-mechanical](controls-models/controls-models-mechanical)
+> Models for mechanical devices
+>
+> **Maturity**: EXPERIMENTAL
+
+### [controls-storage/controls-exposed](controls-storage/controls-exposed)
+> An implementation of controls-storage on top of JetBrains Exposed JDBC.
+>
+> **Maturity**: PROTOTYPE
+
 ### [controls-storage/controls-xodus](controls-storage/controls-xodus)
 > An implementation of controls-storage on top of JetBrains Xodus.
 >
 > **Maturity**: PROTOTYPE
-
-### [demo/all-things](demo/all-things)
->
-> **Maturity**: EXPERIMENTAL
-
-### [demo/car](demo/car)
->
-> **Maturity**: EXPERIMENTAL
 
 ### [demo/constructor](demo/constructor)
 >
@@ -177,19 +205,7 @@ Example view of a demo:
 >
 > **Maturity**: EXPERIMENTAL
 
-### [demo/echo](demo/echo)
->
-> **Maturity**: EXPERIMENTAL
-
 ### [demo/magix-demo](demo/magix-demo)
->
-> **Maturity**: EXPERIMENTAL
-
-### [demo/many-devices](demo/many-devices)
->
-> **Maturity**: EXPERIMENTAL
-
-### [demo/mks-pdr900](demo/mks-pdr900)
 >
 > **Maturity**: EXPERIMENTAL
 
