@@ -4,7 +4,6 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 
 public interface SeparationRule<U : UnitsOfMatter, T : Amount<U>> {
@@ -82,7 +81,7 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
 
     public val production: ValueState<Map<String, PerSecond<U, T>>> = mapState(
         origin = balance,
-        name = "production".asName()
+        name = Name.of("production")
     ) {
         it.second
     }
@@ -110,7 +109,7 @@ public class ContinuousSeparate<U : UnitsOfMatter, T : Amount<U>>(
             }
         }
 
-    override val consumation: ValueState<PerSecond<U, T>> = mapState(balance, "consumation".asName()) { it.first }
+    override val consumation: ValueState<PerSecond<U, T>> = mapState(balance, Name.of("consumation")) { it.first }
 
     override val consumationCapacity: ValueState<AmountPerSecond<U>> = mapState(
         origin = jointConsumationRequest,

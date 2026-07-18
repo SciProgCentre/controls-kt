@@ -13,7 +13,10 @@ import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.*
 import space.kscience.dataforge.misc.DFExperimental
-import space.kscience.dataforge.names.*
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.first
+import space.kscience.dataforge.names.get
+import space.kscience.dataforge.names.length
 import kotlin.time.Duration
 
 /**
@@ -61,7 +64,7 @@ public class ContinuousModelLibrary<U : UnitsOfMatter, T : Amount<U>>(
     public val mix: DeviceFactory = DeviceFactory(
         MetaDescriptor {
             value("supplyKeys", ValueType.LIST) { required() }
-            enum("joinManagementStrategy".asName(), JoinManagementStrategy.PROPORTIONAL)
+            enum(Name.of("joinManagementStrategy"), JoinManagementStrategy.PROPORTIONAL)
         }
     ) { context, parameters ->
 

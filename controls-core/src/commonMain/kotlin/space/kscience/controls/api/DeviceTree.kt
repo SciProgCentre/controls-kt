@@ -35,7 +35,7 @@ public interface DeviceTree : Provider {
      */
     public fun descendantDevices(): Map<Name, Device> = buildMap<Name, Device> {
         children.forEach { (name, node) ->
-            val prefix = name.asName()
+            val prefix = Name.of(name)
             node.device?.let { put(prefix, it) }
             putAll(node.descendantDevices().mapKeys { (key, _) -> prefix + key })
         }

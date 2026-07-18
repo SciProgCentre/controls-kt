@@ -9,8 +9,6 @@ description = """
     A client and server connectors for OPC-UA via Eclipse Milo
 """.trimIndent()
 
-val ktorVersion: String by rootProject.extra
-
 dependencies {
     api(projects.controlsCore)
     api(spclibs.kotlinx.coroutines.core)

@@ -126,8 +126,8 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
     override val consumation: ValueState<Amount<U>> get() = _consumation
 
     init {
-        registerState(consumation, "consumation".asName())
-        registerState(capacity, "capacity".asName())
+        registerState(consumation, Name.of("consumation"))
+        registerState(capacity, Name.of("capacity"))
     }
 
     private val collectionJob = channel.consumeAsFlow()
@@ -163,8 +163,8 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
     public val production: ValueState<Amount<U>> get() = _production
 
     init {
-        registerState(production, "production".asName())
-        registerState(capacity, "capacity".asName())
+        registerState(production, Name.of("production"))
+        registerState(capacity, Name.of("capacity"))
     }
 
     private val productionJob = flow {

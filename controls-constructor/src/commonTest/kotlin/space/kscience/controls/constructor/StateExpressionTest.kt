@@ -14,7 +14,7 @@ import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,7 +25,7 @@ class StateExpressionTest {
 
     @Test
     fun testBasicExpressions() = runTest(timeout = 20.seconds) {
-        val context = Context("test")
+        val context = Context()
         val stateExpressionContext = StateExpressionContext(DeviceTree(), backgroundScope)
 
         val a = StateExpression.Constant("pi", Meta.EMPTY)
@@ -44,15 +44,15 @@ class StateExpressionTest {
         val zState by expression(
             StateExpression.Binary(
                 operation = "+",
-                left = StateExpression.Property(deviceName = "test".asName(), propertyName = "x"),
-                right = StateExpression.Property(deviceName = "test".asName(), propertyName = "y")
+                left = StateExpression.Property(deviceName = Name.of("test"), propertyName = "x"),
+                right = StateExpression.Property(deviceName = Name.of("test"), propertyName = "y")
             )
         )
     }
 
     @Test
     fun testDeviceConstructorWithExpression() = runTest(timeout = 500.milliseconds) {
-        val context = Context("test") {
+        val context = Context() {
             plugin(DeviceManager.Companion)
         }
         val device = TestDevice(context)

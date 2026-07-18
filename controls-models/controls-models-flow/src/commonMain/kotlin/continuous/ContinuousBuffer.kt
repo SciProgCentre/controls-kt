@@ -6,7 +6,6 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -61,7 +60,7 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
         first = supplyRequest,
         second = content,
         third = consumerRequest,
-        name = "production".asName()
+        name = Name.of("production")
     ) { supplyRequest, content, consumeRequest ->
         with(consumerAlgebra) {
             val productionCapacity = supplyRequest + content.perSecond
@@ -83,7 +82,7 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
         second = bufferCapacity,
         third = content,
         forth = consumerRequest,
-        name = "consumation".asName()
+        name = Name.of("consumation")
     ) { supplyRequest: PerSecond<U, T>, bufferCapacity: NumericAmount<U>, content: T, consumationRequest ->
         with(consumerAlgebra) {
             val remainingSpace = bufferCapacity - NumericAmount<U>(content.value)
@@ -113,8 +112,8 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     }
 
     init {
-        registerState(content, "content".asName())
-        registerState(bufferCapacity, "bufferCapacity".asName())
+        registerState(content, Name.of("content"))
+        registerState(bufferCapacity, Name.of("bufferCapacity"))
         registerState(supplyRequest, "supply.request".parseAsName(true))
         registerState(consumerRequest, "consumer.request".parseAsName(true))
 

@@ -5,7 +5,7 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import kotlin.math.pow
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
@@ -22,8 +22,8 @@ public class Inertia<U : UnitsOfMeasurement, V : UnitsOfMeasurement>(
 ) : DeviceConstructor(context) {
 
     init {
-        registerState(position, "position".asName())
-        registerState(velocity, "velocity".asName())
+        registerState(position, Name.of("position"))
+        registerState(velocity, Name.of("velocity"))
     }
 
     private var currentForce = force.value

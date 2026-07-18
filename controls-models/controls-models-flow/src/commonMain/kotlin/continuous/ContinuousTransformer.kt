@@ -4,7 +4,6 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 
 public interface ContinuousTransformationRule<U1 : UnitsOfMatter, T : Amount<U1>, U2 : UnitsOfMatter, R : Amount<U2>> {
@@ -57,7 +56,7 @@ public class ContinuousTransformer<U1 : UnitsOfMatter, T : Amount<U1>, U2 : Unit
     }
 
     override val consumation: ValueState<PerSecond<U1, T>> =
-        combineState(supplyRequest, consumerRequest, "consumation".asName()) { supply, consume ->
+        combineState(supplyRequest, consumerRequest, Name.of("consumation")) { supply, consume ->
             with(consumerAlgebra) {
                 supply.coerceValueIn(consumerAlgebra.zero..rule.computeConsumption(consume))
             }

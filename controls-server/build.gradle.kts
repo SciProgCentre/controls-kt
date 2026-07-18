@@ -17,7 +17,7 @@ kscience {
         implementation(projects.controlsCore)
         implementation(projects.controlsPortsKtor)
         implementation(projects.magix.magixServer)
-        implementation(project.dependencies.platform(spclibs.ktor.bom))
+        implementation(project.dependencies.platform(libs.ktor.bom))
         implementation("io.ktor:ktor-server-core")
         implementation("io.ktor:ktor-server-websockets")
         implementation("io.ktor:ktor-server-content-negotiation")

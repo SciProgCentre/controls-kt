@@ -22,7 +22,6 @@ kscience {
     commonMain {
         api(projects.magix.magixApi)
         api(projects.controlsCore)
-        api(libs.uuid)
     }
 
     jvmTest{

@@ -16,9 +16,9 @@ dependencies {
 
 //    implementation(libs.plotlykt.server)
 
-    implementation(compose.runtime)
+    implementation(libs.compose.runtime)
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation(libs.compose.material3)
 
 //    implementation(projects.controlsServer)
 //    implementation("io.ktor:ktor-server-cio")

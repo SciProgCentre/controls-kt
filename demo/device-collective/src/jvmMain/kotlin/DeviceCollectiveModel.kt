@@ -189,7 +189,7 @@ internal fun CoroutineScope.launchCollectiveMagixServer(
     val deviceEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
     collectiveModel.devices.forEach { (id, device) ->
-        val deviceContext = collectiveModel.context.buildContext(id.parseAsName()) {
+        val deviceContext = collectiveModel.context.buildContext(id) {
             coroutineContext(coroutineContext)
             plugin(DeviceManager)
         }

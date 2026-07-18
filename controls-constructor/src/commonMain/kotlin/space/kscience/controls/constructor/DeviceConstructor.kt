@@ -15,7 +15,6 @@ import space.kscience.dataforge.meta.Laminate
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.get
 import space.kscience.dataforge.names.parseAsName
 import kotlin.coroutines.CoroutineContext
@@ -113,7 +112,7 @@ public open class DeviceConstructor(
         if (isStarted()) child.start()
         _devices[deviceName] = child
         if (child is Constructor) {
-            registerElement(ChildConstructorElement(deviceName.asName(), child))
+            registerElement(ChildConstructorElement(Name.of(deviceName), child))
         }
         return child
     }
@@ -287,7 +286,7 @@ public fun <D : Device> DeviceConstructor.install(
     name: String,
     factory: Factory<D>,
     deviceMeta: Meta? = null,
-    metaLocation: Name = name.asName(),
+    metaLocation: Name = Name.of(name),
 ): D {
     val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
     install(name, newDevice)
@@ -359,7 +358,7 @@ public fun <D : Device> DeviceConstructor.device(
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, D>> =
     PropertyDelegateProvider { _: DeviceConstructor, property: KProperty<*> ->
         val name = nameOverride ?: property.name
-        val device = install(name, factory, meta, metaLocation ?: name.asName())
+        val device = install(name, factory, meta, metaLocation ?: Name.of(name))
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             device
         }

@@ -34,7 +34,6 @@ import space.kscience.controls.manager.respondMessage
 import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.meta.toMeta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.plus
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixFlowPlugin
@@ -89,7 +88,7 @@ private fun JsonObjectBuilder.deviceTree(tree: DeviceTree, namePrefix: Name, exp
     }
 }
 
-public val WEB_SERVER_TARGET: Name = "@webServer".asName()
+public val WEB_SERVER_TARGET: Name = Name.of("@webServer")
 
 public fun Application.deviceTreeModule(
     deviceTree: DeviceTree,

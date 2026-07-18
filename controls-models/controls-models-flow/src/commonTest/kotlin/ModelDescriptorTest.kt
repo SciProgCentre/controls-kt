@@ -11,7 +11,7 @@ class ModelDescriptorTest {
 
     @Test
     fun testBufferDescriptors(){
-        val context = Context("test") { }
+        val context = Context() { }
         val buffer = ContinuousBuffer<Kilograms>(context, Kilograms, 100.kilograms)
         buffer.states.forEach { (key, state) -> println("$key: $state") }
     }

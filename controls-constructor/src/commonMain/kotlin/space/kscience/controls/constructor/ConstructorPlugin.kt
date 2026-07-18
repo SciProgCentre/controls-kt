@@ -12,7 +12,6 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.last
 
 /**
@@ -33,12 +32,12 @@ public class ConstructorPlugin : AbstractPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> mapOf(
-            "deviceProperty".asName() to DeviceValueStateFactory,
-            "expression".asName() to ExpressionValueStateFactory
+            Name.of("deviceProperty") to DeviceValueStateFactory,
+            Name.of("expression") to ExpressionValueStateFactory
         )
 
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(
-            "constructor".asName() to ConstructorDeviceFactory
+            Name.of("constructor") to ConstructorDeviceFactory
         )
 
         else -> super.content(target)

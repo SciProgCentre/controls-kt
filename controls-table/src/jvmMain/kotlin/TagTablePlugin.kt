@@ -50,7 +50,7 @@ public class TagTablePlugin : AbstractPlugin() {
         }
 
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(
-            TagTable.TAG_TABLE_FACTORY_TYPE.asName() to TagTableDevice
+            Name.of(TagTable.TAG_TABLE_FACTORY_TYPE) to TagTableDevice
         )
 
         else -> super.content(target)

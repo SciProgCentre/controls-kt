@@ -4,7 +4,6 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 
 
@@ -50,7 +49,7 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
     public val consumation: ValueState<Map<String, PerSecond<U, T>>> = combineState(
         first = consumerRequest,
         second = jointSupplyRequest,
-        name = "consumation".asName()
+        name = Name.of("consumation")
     ) { consumerRequest, supplyRequest: Map<String, PerSecond<U, T>> ->
 
         with(producerAlgebra) {
@@ -106,7 +105,7 @@ public class ContinuousMix<U : UnitsOfMatter, T : Amount<U>>(
 
     override val production: ValueState<PerSecond<U, T>> = mapState(
         origin = consumation,
-        name = "production".asName()
+        name = Name.of("production")
     ) { consume ->
         with(producerAlgebra) {
             sum(consume.values)

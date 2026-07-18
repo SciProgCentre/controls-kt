@@ -4,7 +4,6 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 
 public class ControlsStoragePlugin : AbstractPlugin() {
     public val io: IOPlugin by require(IOPlugin)
@@ -17,8 +16,8 @@ public class ControlsStoragePlugin : AbstractPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         RowsEnvelopeConverter.ROWS_ENVELOPE_CONVERTER_TARGET -> mapOf(
-            "zip".asName() to ZipRowsEnvelopeConverter.meta,
-            "plain".asName() to PlainRowsEnvelopeConverter.meta
+            Name.of("zip") to ZipRowsEnvelopeConverter.meta,
+            Name.of("plain") to PlainRowsEnvelopeConverter.meta
         )
 
         else -> super.content(target)

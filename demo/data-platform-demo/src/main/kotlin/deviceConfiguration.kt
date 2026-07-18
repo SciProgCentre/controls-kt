@@ -52,11 +52,11 @@ private suspend fun DeviceTree.snapshotValues(): Map<Name, Meta> = buildMap {
     device?.let { device ->
         device.propertyDescriptors.forEach {
             val value = device.read(it)
-            put(it.name.asName(), value)
+            put(Name.of(it.name), value)
         }
     }
     children.forEach { (childName, tree) ->
-        putAll(tree.snapshotValues().mapKeys { childName.asName() + it.key })
+        putAll(tree.snapshotValues().mapKeys { Name.of(childName) + it.key })
     }
 }
 

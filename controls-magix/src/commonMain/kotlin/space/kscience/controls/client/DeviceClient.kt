@@ -1,6 +1,5 @@
 package space.kscience.controls.client
 
-import com.benasher44.uuid.uuid4
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -24,8 +23,9 @@ import space.kscience.magix.api.send
 import space.kscience.magix.api.subscribe
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
+import kotlin.uuid.Uuid
 
-private fun stringUID() = uuid4().leastSignificantBits.toString(16)
+private fun stringUID() = Uuid.random().toHexString()
 
 /**
  * A remote-accessible device that relies on connection via Magix

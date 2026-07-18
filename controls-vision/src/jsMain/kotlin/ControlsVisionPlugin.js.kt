@@ -6,7 +6,6 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.visionforge.VisionPlugin
 import space.kscience.visionforge.html.ElementVisionRenderer
 
@@ -49,8 +48,8 @@ public actual class ControlVisionPlugin : VisionPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ElementVisionRenderer.TYPE -> mapOf(
-            "indicator".asName() to indicatorRenderer,
-            "slider".asName() to sliderRenderer
+            Name.of("indicator") to indicatorRenderer,
+            Name.of("slider") to sliderRenderer
         )
 
         else -> super.content(target)

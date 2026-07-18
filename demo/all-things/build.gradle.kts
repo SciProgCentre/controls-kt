@@ -20,12 +20,13 @@ dependencies {
     implementation(projects.controlsOpcua)
 
     implementation("io.ktor:ktor-server-cio")
+    implementation("io.ktor:ktor-client-cio")
     implementation(libs.plotlykt.server)
 //    implementation("com.github.Ricky12Awesome:json-schema-serialization:0.6.6")
 
-    implementation("org.jetbrains.compose.runtime:runtime:1.11.1")
+    implementation(libs.compose.runtime)
     implementation(compose.desktop.currentOs)
-    implementation("org.jetbrains.compose.material3:material3:1.9.0")
+    implementation(libs.compose.material3)
 //    implementation("org.pushing-pixels:aurora-window:1.3.0")
 //    implementation("org.pushing-pixels:aurora-component:1.3.0")
 //    implementation("org.pushing-pixels:aurora-theming:1.3.0")

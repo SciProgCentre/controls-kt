@@ -20,6 +20,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.NamePattern
 import space.kscience.dataforge.names.matches
 import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Instant
@@ -44,7 +45,7 @@ internal fun StoreTransaction.writeMessage(message: DeviceMessage): Unit {
 
 @OptIn(DFExperimental::class)
 private fun Entity.propertyMatchesName(propertyName: String, pattern: Name? = null) =
-    pattern == null || getProperty(propertyName).toString().parseAsName().matches(pattern)
+    pattern == null || getProperty(propertyName).toString().parseAsName().matches(NamePattern.ofName(pattern))
 
 private fun Entity.timeInRange(range: ClosedRange<Instant>?): Boolean {
     if (range == null) return true

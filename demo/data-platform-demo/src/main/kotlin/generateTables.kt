@@ -16,7 +16,6 @@ import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -50,7 +49,7 @@ suspend fun main(): Unit = coroutineScope {
                 key = "property[$index]".parseAsName(),
                 value = InternalTagTableColumn(
                     timer = "default",
-                    deviceName = "generator".asName(),
+                    deviceName = Name.of("generator"),
                     propertyName = RandomGeneratorDevice.random.name
                 )
             )

@@ -43,9 +43,9 @@ kscience {
         implementation(projects.controlsCore)
         implementation(projects.controlsConstructor)
         implementation(projects.controlsVision)
-        implementation(compose.runtime)
+        implementation(libs.compose.runtime)
 
-        api(project.dependencies.platform(spclibs.ktor.bom))
+        api(project.dependencies.platform(libs.ktor.bom))
 
         implementation(libs.plotlykt.core)
     }

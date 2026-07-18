@@ -7,7 +7,6 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 
 public class SerialPortPlugin : AbstractPlugin() {
 
@@ -17,11 +16,11 @@ public class SerialPortPlugin : AbstractPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         Ports.ASYNCHRONOUS_PORT_TYPE -> mapOf(
-            "serial".asName() to AsynchronousSerialPort,
+            Name.of("serial") to AsynchronousSerialPort,
         )
 
         Ports.SYNCHRONOUS_PORT_TYPE -> mapOf(
-            "serial".asName() to SynchronousSerialPort,
+            Name.of("serial") to SynchronousSerialPort,
         )
 
         else -> emptyMap()

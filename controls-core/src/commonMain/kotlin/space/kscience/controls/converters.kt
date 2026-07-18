@@ -7,7 +7,6 @@ import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.io.IOFormatFactory
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
@@ -59,7 +58,7 @@ public val Meta?.instant: Instant? get() = this?.value?.string?.let { Instant.pa
 public object InstantIOFormat : IOFormat<Instant>, IOFormatFactory<Instant> {
     override fun build(context: Context, meta: Meta): IOFormat<Instant> = this
 
-    override val name: Name = "instant".asName()
+    override val name: Name = Name.of("instant")
 
     override val type: KType get() = typeOf<Instant>()
 

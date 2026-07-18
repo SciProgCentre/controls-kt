@@ -5,7 +5,6 @@ import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 
 public interface ContinuousProducer<U : UnitsOfMatter, T : Amount<U>> {
@@ -66,7 +65,7 @@ public class ContinuousProducerDevice<U : UnitsOfMatter, T : Amount<U>>(
     override val production: ValueState<PerSecond<U, T>> = combineState(
         first = consumerRequest,
         second = productionCapacity,
-        name = "production".asName()
+        name = Name.of("production")
     ) { request: AmountPerSecond<U>, capacity: PerSecond<U, T> ->
         with(producerAlgebra) {
             capacity.coerceValueIn(NumericAmount.zero<U>()..request)
@@ -76,7 +75,7 @@ public class ContinuousProducerDevice<U : UnitsOfMatter, T : Amount<U>>(
     public val efficiency: ValueState<Double> = combineState(
         first = consumerRequest,
         second = productionCapacity,
-        name = "efficiency".asName()
+        name = Name.of("efficiency")
     ) { request, capacity ->
         with(producerAlgebra) {
             val production = capacity.coerceValueIn(NumericAmount.zero<U>()..request)

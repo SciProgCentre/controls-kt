@@ -5,7 +5,6 @@ import space.kscience.controls.constructor.units.*
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 import space.kscience.dataforge.names.parseAsName
 
 public interface ContinuousConsumer<U : UnitsOfMatter, T : Amount<U>> {
@@ -66,7 +65,7 @@ public class ContinuousConsumerDevice<U : UnitsOfMatter, T : Amount<U>>(
     override val consumation: ValueState<PerSecond<U, T>> = combineState(
         first = supplyRequest,
         second = consumationCapacity,
-        name = "consumation".asName()
+        name = Name.of("consumation")
     ) { request, capacity ->
         with(consumerAlgebra) {
             request.coerceValueIn(NumericAmount.zero<U>()..capacity)
@@ -76,7 +75,7 @@ public class ContinuousConsumerDevice<U : UnitsOfMatter, T : Amount<U>>(
     public val efficiency: ValueState<Double> = combineState(
         first = supplyRequest,
         second = consumationCapacity,
-        name = "efficiency".asName()
+        name = Name.of("efficiency")
     ) { request, capacity ->
         with(consumerAlgebra) {
             val consumation = request.coerceValueIn(NumericAmount.zero<U>()..capacity)

@@ -6,14 +6,13 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.asName
 
 public class KtorPortsPlugin : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
 
     override fun content(target: String): Map<Name, Any> = when (target) {
-        Ports.ASYNCHRONOUS_PORT_TYPE -> mapOf("tcp".asName() to KtorTcpPort, "udp".asName() to KtorUdpPort)
+        Ports.ASYNCHRONOUS_PORT_TYPE -> mapOf(Name.of("tcp") to KtorTcpPort, Name.of("udp") to KtorUdpPort)
         else -> emptyMap()
     }
 

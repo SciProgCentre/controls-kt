@@ -21,7 +21,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
-import space.kscience.dataforge.names.asName
+import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
@@ -85,7 +85,7 @@ internal class RemoteDeviceConnect {
 
         val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager)
 
-        val remoteDevice: DeviceClient = virtualMagixEndpoint.remoteDevice(context, "client", "device", "test".asName())
+        val remoteDevice: DeviceClient = virtualMagixEndpoint.remoteDevice(context, "client", "device", Name.of("test"))
 
         assertContains(0.0..1.0, remoteDevice.read(TestDevice.value))
 
