@@ -15,7 +15,7 @@ public sealed class MagixHistoryPayload
  * Message to request history information from the storage
  *
  * @param magixFilter filter for magix headers
- * @param payloadFilters filter for payload fields
+ * @param payloadFilter filter for payload fields
  * @param userFilter filter for user name
  * @param pageSize if defined, defines the maximum number of messages per response message. If not defined, uses history provider default.
  */
