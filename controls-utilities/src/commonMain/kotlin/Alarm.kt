@@ -1,6 +1,6 @@
 package space.kscience.controls.utilities
 
-import space.kscience.controls.api.Device
+import kotlinx.serialization.Serializable
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.constructor.*
@@ -20,6 +20,7 @@ import space.kscience.dataforge.names.parseAsName
  * @param upperThreshold upper threshold. Could be undefined
  * @param status status to be returned if the threshold is violated
  */
+@Serializable
 public data class AlarmSetting(
     val lowerThreshold: Double?,
     val upperThreshold: Double?,
@@ -74,10 +75,13 @@ public class Alarm(
         public const val STATUS_OK: String = "OK"
         public const val STATUS_UNDEFINED: String = "UNDEFINED"
 
+        /**
+         * Create an alarm for an existing device in [DeviceManager]
+         */
         override fun buildDevice(
             context: Context,
             meta: Meta
-        ): Device {
+        ): Alarm {
             val deviceName = meta["deviceName"].string?.parseAsName() ?: error("`deviceName` parameter not defined")
             val propertyName = meta["propertyName"].string ?: error("`propertyName` parameter not defined")
 
