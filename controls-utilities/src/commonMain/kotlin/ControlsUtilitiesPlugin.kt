@@ -16,7 +16,8 @@ public class ControlsUtilitiesPlugin : AbstractPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(
-            Name.of("alarm") to Alarm
+            Name.of("alarm") to Alarm,
+            Name.of("accumulator") to Accumulator,
         )
         else -> super.content(target)
     }

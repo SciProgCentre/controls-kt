@@ -19,7 +19,7 @@ import kotlin.time.DurationUnit
  * @param scope The coroutine scope in which the integration logic should execute.
  * @return A [ValueState] representing the integrated result as a time-coupled value.
  */
-public fun ValueState<Double>.integrate(
+public fun ValueState<Double?>.integrate(
     window: Duration,
     scope: CoroutineScope,
 ): ValueState<Double> = object : ValueStateWithDependencies<Double> {
@@ -27,9 +27,11 @@ public fun ValueState<Double>.integrate(
     private val state = MutableStateFlow(valueWithTime)
 
     private val job = this@integrate.subscribeWithTime().onEach { (value, time) ->
-        history.add(valueWithTime)
-        history.removeAll { it.time < (time - window) }
-        state.emit(ValueWithTime(history.sumOf { it.value }, time))
+        if(value != null) {
+            history.add(ValueWithTime(value, time))
+            history.removeAll { it.time < (time - window) }
+            state.emit(ValueWithTime(history.sumOf { it.value }, time))
+        }
     }.launchIn(scope)
 
     override val dependencies = listOf(this)
