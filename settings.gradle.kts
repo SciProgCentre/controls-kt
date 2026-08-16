@@ -74,6 +74,7 @@ include(
     ":controls-vision",
     ":controls-jupyter",
     ":controls-table",
+    ":controls-utilities",
     ":controls-models:controls-models-flow",
     ":controls-models:controls-models-mechanical",
     ":controls-plc-emulator",

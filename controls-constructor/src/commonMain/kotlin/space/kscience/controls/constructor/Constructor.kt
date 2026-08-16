@@ -116,7 +116,7 @@ public val Constructor.states: Map<Name?, ValueState<Any?>>
     get() = constructorElements.filterIsInstance<StateConstructorElement<*>>().associate { it.name to it.state }
 
 /**
- * Register a [state] in this container. The state is not registered as a device property if [this] is a [DeviceConstructor]
+ * Register a [state] in this container. The state is **not** registered as a device property.
  */
 public fun <T, D : ValueState<T>> MutableConstructor.registerState(state: D, name: Name?): D {
     registerElement(StateConstructorElement(name, state))

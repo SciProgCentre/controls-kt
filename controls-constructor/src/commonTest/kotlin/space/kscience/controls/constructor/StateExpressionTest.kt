@@ -52,7 +52,7 @@ class StateExpressionTest {
 
     @Test
     fun testDeviceConstructorWithExpression() = runTest(timeout = 500.milliseconds) {
-        val context = Context() {
+        val context = Context {
             plugin(DeviceManager.Companion)
         }
         val device = TestDevice(context)
