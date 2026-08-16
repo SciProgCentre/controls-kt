@@ -13,6 +13,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,7 +60,7 @@ class AlarmTest {
         val valueState = ValueState<Double?>(null)
         val alarm = Alarm(testContext, valueState)
 
-        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value)
+        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
     }
 
     @Test
@@ -67,7 +68,7 @@ class AlarmTest {
         val valueState = ValueState<Double?>(25.0)
         val alarm = Alarm(testContext, valueState)
 
-        assertEquals(Alarm.STATUS_OK, alarm.state.value)
+        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
     }
 
     @Test
@@ -83,38 +84,38 @@ class AlarmTest {
         )
 
         // Value is null -> UNDEFINED
-        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value)
+        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
 
         // Value within normal range -> OK
         valueState.value = 25.0
-        assertEquals(Alarm.STATUS_OK, alarm.state.value)
+        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
 
         // Value at exact boundaries (lowerThreshold = 10.0, upperThreshold = 40.0) -> OK (since < and > are strict)
         valueState.value = 10.0
-        assertEquals(Alarm.STATUS_OK, alarm.state.value)
+        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
 
         valueState.value = 40.0
-        assertEquals(Alarm.STATUS_OK, alarm.state.value)
+        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
 
         // Value below lower threshold (5.0 < 10.0) -> LOW_WARN
         valueState.value = 5.0
-        assertEquals("LOW_WARN", alarm.state.value)
+        assertEquals("LOW_WARN", alarm.state.value.message)
 
         // Value below both lower thresholds (-5.0 < 10.0 and -5.0 < 0.0) -> last wins: LOW_ERROR
         valueState.value = -5.0
-        assertEquals("LOW_ERROR", alarm.state.value)
+        assertEquals("LOW_ERROR", alarm.state.value.message)
 
         // Value above upper threshold (50.0 > 40.0) -> HIGH_WARN
         valueState.value = 50.0
-        assertEquals("HIGH_WARN", alarm.state.value)
+        assertEquals("HIGH_WARN", alarm.state.value.message)
 
         // Value above both upper thresholds (70.0 > 40.0 and 70.0 > 60.0) -> last wins: HIGH_ERROR
         valueState.value = 70.0
-        assertEquals("HIGH_ERROR", alarm.state.value)
+        assertEquals("HIGH_ERROR", alarm.state.value.message)
 
         // Value back to null -> UNDEFINED
         valueState.value = null
-        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value)
+        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
     }
 
     @Test
@@ -122,19 +123,19 @@ class AlarmTest {
         val valueState = MutableValueState<Double?>(30.0)
         val alarm = Alarm(testContext, valueState)
 
-        assertEquals(Alarm.STATUS_OK, alarm.state.value)
+        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
 
         alarm.alarmSettings.value = listOf(
             AlarmSetting(lowerThreshold = null, upperThreshold = 25.0, status = "WARNING")
         )
 
-        assertEquals("WARNING", alarm.state.value)
+        assertEquals("WARNING", alarm.state.value.message)
 
         alarm.alarmSettings.value = listOf(
             AlarmSetting(lowerThreshold = null, upperThreshold = 35.0, status = "WARNING")
         )
 
-        assertEquals(Alarm.STATUS_OK, alarm.state.value)
+        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
     }
 
     @Test
@@ -143,14 +144,14 @@ class AlarmTest {
         val alarm = Alarm(testContext, valueState)
 
         val initialMeta = alarm.readProperty("state")
-        assertEquals(Alarm.STATUS_OK, initialMeta.string)
+        assertEquals(Alarm.STATUS_OK, initialMeta["message"].string)
 
         alarm.alarmSettings.value = listOf(
             AlarmSetting(lowerThreshold = null, upperThreshold = 40.0, status = "HOT")
         )
 
         val hotMeta = alarm.readProperty("state")
-        assertEquals("HOT", hotMeta.string)
+        assertEquals("HOT", hotMeta["message"].string)
     }
 
     @Test
@@ -166,16 +167,16 @@ class AlarmTest {
             "propertyName" put "temperature"
         }
 
-        val alarmDevice = Alarm.buildDevice(context, meta) as Alarm
-        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value)
+        val alarmDevice = Alarm.buildDevice(context, meta)
+        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value.message)
 
         alarmDevice.alarmSettings.value = listOf(
             AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
         )
-        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value)
+        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value.message)
 
         sourceDevice.temperature.value = 35.0
-        assertEquals("TOO_HOT", alarmDevice.state.value)
+        assertEquals("TOO_HOT", alarmDevice.state.value.message)
     }
 
     @Test
@@ -192,14 +193,14 @@ class AlarmTest {
             "propertyName" put "temperature"
         }
 
-        val alarmDevice = Alarm.buildDevice(context, meta) as Alarm
-        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value)
+        val alarmDevice = Alarm.buildDevice(context, meta)
+        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value.message)
 
         alarmDevice.alarmSettings.value = listOf(
             AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
         )
         sourceDevice.temperature.value = 35.0
-        assertEquals("TOO_HOT", alarmDevice.state.value)
+        assertEquals("TOO_HOT", alarmDevice.state.value.message)
     }
 
     @Test

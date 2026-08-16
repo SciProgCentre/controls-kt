@@ -4,7 +4,7 @@ package space.kscience.controls.utilities
  * LLM generated code: Comprehensive unit tests for Accumulator device in controls-utilities module.
  */
 
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.*
@@ -35,13 +35,9 @@ class AccumulatorTest {
     private class CustomTimedState(
         initial: ValueWithTime<Double?>
     ) : ValueState<Double?> {
-        val flow = MutableSharedFlow<ValueWithTime<Double?>>(replay = 1)
+        val flow = MutableStateFlow(initial)
 
-        init {
-            flow.tryEmit(initial)
-        }
-
-        override val valueWithTime: ValueWithTime<Double?> get() = flow.replayCache.first()
+        override val valueWithTime: ValueWithTime<Double?> get() = flow.value
         override fun subscribeWithTime() = flow
         override fun toString(): String = "CustomTimedState($valueWithTime)"
 
@@ -61,18 +57,18 @@ class AccumulatorTest {
     }
 
     @Test
-    fun testAccumulatorInitialStateNonNullValue() {
+    fun testAccumulatorInitialStateNonNullValue() = runTest(timeout = 1.seconds) {
         val valueState = ValueState<Double?>(25.0)
-        val accumulator = Accumulator(testContext, valueState, 10.seconds)
+        val accumulator = Accumulator(testContext, valueState, 10.seconds, backgroundScope)
 
         assertEquals(25.0, accumulator.state.value)
     }
 
     @Test
-    fun testAccumulatorIntegrationAndWindowExpiry() = runTest {
+    fun testAccumulatorIntegrationAndWindowExpiry() = runTest(timeout = 1.seconds) {
         val t0 = Instant.fromEpochMilliseconds(1000)
         val timedState = CustomTimedState(ValueWithTime(5.0, t0))
-        val accumulator = Accumulator(testContext, timedState, 10.seconds)
+        val accumulator = Accumulator(testContext, timedState, 10.seconds, backgroundScope)
 
         // Initial sum is 5.0 at t=1000ms
         assertEquals(5.0, accumulator.state.value)
@@ -107,10 +103,10 @@ class AccumulatorTest {
     }
 
     @Test
-    fun testAccumulatorIgnoresNullValues() = runTest {
+    fun testAccumulatorIgnoresNullValues() = runTest(timeout = 1.seconds) {
         val t0 = Instant.fromEpochMilliseconds(1000)
         val timedState = CustomTimedState(ValueWithTime(10.0, t0))
-        val accumulator = Accumulator(testContext, timedState, 10.seconds)
+        val accumulator = Accumulator(testContext, timedState, 10.seconds, backgroundScope)
 
         assertEquals(10.0, accumulator.state.value)
 
@@ -137,7 +133,7 @@ class AccumulatorTest {
     }
 
     @Test
-    fun testAccumulatorRegisteredProperty() = runTest {
+    fun testAccumulatorRegisteredProperty() = runTest(timeout = 1.seconds) {
         val valueState = MutableValueState<Double?>(50.0)
         val accumulator = Accumulator(testContext, valueState, 10.seconds)
 
@@ -151,7 +147,7 @@ class AccumulatorTest {
     }
 
     @Test
-    fun testAccumulatorFactoryBuildDevice() = runTest {
+    fun testAccumulatorFactoryBuildDevice() = runTest(timeout = 1.seconds) {
         val context = Context("factoryTest") {
             plugin(DeviceManager)
         }
@@ -161,10 +157,11 @@ class AccumulatorTest {
         val meta = Meta {
             "deviceName" put "sensor"
             "propertyName" put "flowRate"
-            "window" put 5.0 // 5.0 seconds
+            "window" put "5s"
         }
 
-        val accumulatorDevice = Accumulator.buildDevice(context, meta)
+        val accumulatorDevice = deviceManager.install(Accumulator.buildDevice(context, meta))
+
         assertEquals(10.0, accumulatorDevice.state.value)
 
         sourceDevice.flowRate.value = 20.0
@@ -192,9 +189,10 @@ class AccumulatorTest {
     }
 
     @Test
-    fun testAccumulatorFactoryWithDottedDeviceName() = runTest {
+    fun testAccumulatorFactoryWithDottedDeviceName() = runTest(timeout = 1.seconds) {
         val context = Context("factoryDottedTest") {
             plugin(DeviceManager)
+            coroutineContext(backgroundScope.coroutineContext)
         }
         val deviceManager = context.request(DeviceManager)
         val group = deviceManager.install("group", DeviceConstructor(context))

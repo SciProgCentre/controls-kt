@@ -25,19 +25,29 @@ public data class AlarmSetting(
     val lowerThreshold: Double?,
     val upperThreshold: Double?,
     val status: String
-){
+) {
     init {
         require(lowerThreshold != null || upperThreshold != null) { "At least one threshold must be defined" }
     }
 }
 
 /**
+ * The current state of alarm for property
+ */
+@Serializable
+public data class AlarmState(
+    val message: String,
+    val value: Double?
+)
+
+/**
  * Special virtual device to produce multi-stage alarm with dynamic settings.
  */
 public class Alarm(
     context: Context,
-    private val value: ValueState<Double?>
-) : DeviceConstructor(context) {
+    private val value: ValueState<Double?>,
+    meta: Meta = Meta.EMPTY
+) : DeviceConstructor(context, meta) {
 
     /**
      * The list of alarm settings. Order of threshold matters. If two thresholds are violated simultaneously, the last wins.
@@ -47,25 +57,25 @@ public class Alarm(
         initialState = emptyList()
     )
 
-    public val state: ValueState<String> = combineState(alarmSettings, value) { settings, value ->
+    public val state: ValueState<AlarmState> = combineState(alarmSettings, value) { settings, value ->
         //early return undefined value if value is null
-        if(value == null) return@combineState STATUS_UNDEFINED
+        if (value == null) return@combineState AlarmState(STATUS_UNDEFINED, null)
 
 
-        var result = STATUS_OK
+        var message = STATUS_OK
 
         settings.forEach { setting ->
-            setting.lowerThreshold?.takeIf { value < it }?.let { result = setting.status }
-            setting.upperThreshold?.takeIf { value > it }?.let { result = setting.status }
+            setting.lowerThreshold?.takeIf { value < it }?.let { message = setting.status }
+            setting.upperThreshold?.takeIf { value > it }?.let { message = setting.status }
         }
-        result
+        AlarmState(message, value)
     }
 
 
     init {
         registerProperty(
             name = "state",
-            converter = MetaConverter.string,
+            converter = MetaConverter.serializable<AlarmState>(),
             state = state
         )
     }
@@ -90,7 +100,7 @@ public class Alarm(
             val state = deviceManager.resolveDevice(deviceName)
                 .propertyAsState(propertyName, MetaConverter.double.nullable(), null)
 
-            return Alarm(context, state)
+            return Alarm(context, state, meta)
         }
     }
 }

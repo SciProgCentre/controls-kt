@@ -4,6 +4,7 @@ package space.kscience.controls.utilities
  * LLM generated code: Accumulator virtual device that integrates values from ValueState<Double?> over a given window.
  */
 
+import kotlinx.coroutines.CoroutineScope
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.constructor.DeviceConstructor
@@ -34,9 +35,10 @@ public class Accumulator(
     context: Context,
     private val value: ValueState<Double?>,
     public val window: Duration,
+    coroutineScope: CoroutineScope = context
 ) : DeviceConstructor(context) {
 
-    public val state: ValueState<Double> = value.integrate(window, this)
+    public val state: ValueState<Double> = value.integrate(window, coroutineScope)
 
     init {
         registerProperty(
