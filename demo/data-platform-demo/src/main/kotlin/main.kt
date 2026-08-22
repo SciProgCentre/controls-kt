@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalAtomicApi::class, ExperimentalSerializationApi::class)
+@file:OptIn(ExperimentalSerializationApi::class)
 
 package space.kscience.controls.demo
 
@@ -16,7 +16,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.onPropertyChange
-import space.kscience.controls.constructor.DeviceConfiguration
+import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.install
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.install
@@ -28,7 +28,6 @@ import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.inputStream
 import kotlin.time.Duration.Companion.seconds
 
@@ -100,7 +99,7 @@ fun main() {
 
     //read device config
     val deviceConfig = platformDataDirectory.resolve("device-config.json").inputStream().use {
-        json.decodeFromStream(DeviceConfiguration.serializer(), it)
+        json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
     }
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)

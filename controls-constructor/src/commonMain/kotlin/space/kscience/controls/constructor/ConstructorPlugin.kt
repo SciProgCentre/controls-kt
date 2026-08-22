@@ -10,7 +10,6 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
-import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
 
@@ -47,16 +46,27 @@ public class ConstructorPlugin : AbstractPlugin() {
      * Create a Device (or device hub) from a serializable scheme using given value state factories
      */
     public fun construct(
-        deviceConfiguration: DeviceConfiguration,
+        deviceConfiguration: ConstructorDeviceConfiguration,
     ): DeviceConstructor = DeviceConstructor(context, deviceConfiguration.parameters).apply {
         deviceConfiguration.devices.forEach { (name, scheme) ->
             install(name, construct(scheme))
         }
+
+        deviceConfiguration.templates.forEach { (name, template) ->
+            val allFactories = deviceManager.factories.mapKeys { it.toString() }
+            val factory = allFactories[template.type]
+                ?: error("Device template type ${template.type} is not registered")
+            installTree(name, factory, template.parameters)
+        }
+
         deviceConfiguration.properties.forEach { (name, propertyConfiguration) ->
             registerProperty(
                 name = name,
                 converter = MetaConverter.meta,
-                state = valueStateFactories[propertyConfiguration.type]?.build(context, propertyConfiguration.parameters)
+                state = valueStateFactories[propertyConfiguration.type]?.build(
+                    context,
+                    propertyConfiguration.parameters
+                )
                     ?: error("No value state factory for ${propertyConfiguration.type}. Available factories: ${valueStateFactories.keys}"),
             )
         }
@@ -79,16 +89,16 @@ public class ConstructorPlugin : AbstractPlugin() {
  */
 public fun Context.install(
     name: String,
-    deviceConfiguration: DeviceConfiguration
+    deviceConfiguration: ConstructorDeviceConfiguration
 ): DeviceConstructor = install(name, request(ConstructorPlugin).construct(deviceConfiguration))
 
 public fun DeviceManager.install(
     name: String,
-    deviceConfiguration: DeviceConfiguration
+    deviceConfiguration: ConstructorDeviceConfiguration
 ): DeviceConstructor = context.install(name, deviceConfiguration)
 
 /**
- * A [DeviceTreeFactory] implemetation for a constructor device that uses [DeviceConfiguration]
+ * A [DeviceTreeFactory] implemetation for a constructor device that uses [ConstructorDeviceConfiguration]
  */
 public object ConstructorDeviceFactory : DeviceTreeFactory {
 
@@ -96,8 +106,7 @@ public object ConstructorDeviceFactory : DeviceTreeFactory {
         context: Context,
         meta: Meta
     ): DeviceTree {
-        @OptIn(DFExperimental::class)
-        val deviceConfiguration = MetaConverter.serializable<DeviceConfiguration>().read(meta)
+        val deviceConfiguration = MetaConverter.serializable<ConstructorDeviceConfiguration>().read(meta)
         return context.request(ConstructorPlugin).construct(deviceConfiguration)
     }
 

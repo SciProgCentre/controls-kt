@@ -2,7 +2,6 @@ package space.kscience.controls.manager
 
 import space.kscience.controls.api.DeviceTreeFactory
 import space.kscience.dataforge.meta.*
-import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import space.kscience.dataforge.provider.Provider
@@ -24,7 +23,6 @@ public interface DeviceLibrary : Provider {
 /**
  * A specification for [DeviceLibrary] factory.
  */
-@OptIn(DFExperimental::class)
 public object DeviceLibraryMetaSpec: MetaSpec(){
     public val type: MetaRef<String> by string()
     public val name: MetaRef<String> by string()

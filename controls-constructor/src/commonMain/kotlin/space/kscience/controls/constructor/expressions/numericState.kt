@@ -5,12 +5,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.ValueStateWithDependencies
 import space.kscience.controls.time.ValueWithTime
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
+/**
+ *
+ */
+public fun <T : Any> ValueWithTime<T?>.withDefault(default: T): ValueWithTime<T> {
+    return ValueWithTime(value ?: default, time)
+}
 
 /**
  * Integrates the values within a specified time window.
@@ -22,19 +30,23 @@ import kotlin.time.DurationUnit
 public fun ValueState<Double?>.integrate(
     window: Duration,
     scope: CoroutineScope,
+    startingValue: ValueWithTime<Double> = valueWithTime.withDefault(0.0)
 ): ValueState<Double> = object : ValueStateWithDependencies<Double> {
-    private val history = mutableListOf<ValueWithTime<Double>>()
-    private val state = MutableStateFlow(valueWithTime)
+    private val history: MutableList<ValueWithTime<Double>> = mutableListOf(startingValue)
+    private val state: MutableStateFlow<ValueWithTime<Double>> = MutableStateFlow(startingValue)
+    private val mutex = Mutex()
 
     private val job = this@integrate.subscribeWithTime().onEach { (value, time) ->
-        if(value != null) {
-            history.add(ValueWithTime(value, time))
+        mutex.withLock {
+            if (value != null && time > state.value.time) {
+                history.add(ValueWithTime(value, time))
+            }
             history.removeAll { it.time < (time - window) }
             state.emit(ValueWithTime(history.sumOf { it.value }, time))
         }
     }.launchIn(scope)
 
-    override val dependencies = listOf(this)
+    override val dependencies = listOf(this@integrate)
 
     override val valueWithTime: ValueWithTime<Double> get() = state.value
 

@@ -7,7 +7,13 @@ import space.kscience.dataforge.meta.Meta
  * Serializable scheme for Device ValueState construction
  */
 @Serializable
-public class PropertyConfiguration(
+public data class PropertyConfiguration(
+    public val type: String,
+    public val parameters: Meta
+)
+
+@Serializable
+public data class TemplateDeviceConfiguration(
     public val type: String,
     public val parameters: Meta
 )
@@ -16,11 +22,10 @@ public class PropertyConfiguration(
  * Serializable scheme for Device construction
  */
 @Serializable
-public class DeviceConfiguration(
+public class ConstructorDeviceConfiguration(
     public val properties: Map<String, PropertyConfiguration>,
-    public val devices: Map<String, DeviceConfiguration> = emptyMap(),
+    public val devices: Map<String, ConstructorDeviceConfiguration> = emptyMap(),
+    public val templates: Map<String, TemplateDeviceConfiguration> = emptyMap(),
     public val parameters: Meta = Meta.EMPTY,
 )
 //TODO add actions and setup/shutdown hooks
-
-//TODO add models

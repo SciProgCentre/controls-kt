@@ -14,7 +14,6 @@ import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.Described
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Instant
@@ -49,7 +48,6 @@ public interface ValueStateFactory : Factory<ValueState<Meta>>, Described {
  *
  * @constructor This factory uses metadata and context plugins to establish property state bindings.
  */
-@OptIn(DFExperimental::class)
 public object DeviceValueStateFactory: ValueStateFactory, MetaSpec(){
 
     public val deviceName: MetaRef<String> by string()
@@ -102,10 +100,11 @@ public object DeviceValueStateFactory: ValueStateFactory, MetaSpec(){
  * - [ValueStateFactory]: For constructing [ValueState] instances.
  * - [MetaSpec]: For managing metadata specifications.
  */
-@OptIn(DFExperimental::class)
 public object ExpressionValueStateFactory: ValueStateFactory, MetaSpec(){
 
-    public val expression: MetaRef<StateExpression> by item(MetaConverter.serializable<StateExpression>())
+    public val expressionConverter: MetaConverter<StateExpression> = MetaConverter.serializable<StateExpression>()
+
+    public val expression: MetaRef<StateExpression> by item(expressionConverter)
 
     override fun build(
         context: Context,
@@ -115,9 +114,18 @@ public object ExpressionValueStateFactory: ValueStateFactory, MetaSpec(){
 
         val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
 
-        val expressionScope = StateExpressionContext(deviceManager, context)
+        val expressionScope = StateExpressionContext(context, deviceManager)
 
         return expressionScope.computeState(expression).map { Meta(it) }
+    }
+
+    /**
+     * Create metadata for StateExpression value factory
+     */
+    public fun buildMeta(
+        stateExpression: StateExpression
+    ): Meta = Meta{
+        set(expression, stateExpression)
     }
 
 }

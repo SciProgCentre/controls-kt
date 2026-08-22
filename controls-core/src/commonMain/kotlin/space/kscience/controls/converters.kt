@@ -28,12 +28,17 @@ public fun <T : Any> MetaConverter<T>.nullable(): MetaConverter<T?> = object : M
 
 //TODO to be moved to DF
 private object DurationConverter : MetaConverter<Duration> {
-    override fun readOrNull(source: Meta): Duration = source.value?.double?.toDuration(DurationUnit.SECONDS)
-        ?: run {
+    override fun readOrNull(source: Meta): Duration = when (source.value?.type) {
+        null -> {
             val unit: DurationUnit = source["unit"].enum<DurationUnit>() ?: DurationUnit.SECONDS
             val value = source[Meta.VALUE_KEY].double ?: error("No value present for Duration")
-            return@run value.toDuration(unit)
+            value.toDuration(unit)
         }
+        ValueType.NUMBER -> source.double!!.toDuration(DurationUnit.SECONDS)
+
+        ValueType.STRING -> Duration.parse(source.string!!)
+        else -> error("Unsupported type for Duration: ${source.value?.type}")
+    }
 
     override fun convert(obj: Duration): Meta = obj.toDouble(DurationUnit.SECONDS).asMeta()
 }

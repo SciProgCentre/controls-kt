@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -55,6 +56,9 @@ public sealed interface StateExpression {
         override val dependencies: Set<StateExpression> get() = arguments.values.toSet()
     }
 
+    /**
+     * State expression that represents a property of a device.
+     */
     @Serializable
     @SerialName("property")
     public data class Property(
@@ -66,13 +70,27 @@ public sealed interface StateExpression {
         override val dependencies: Set<StateExpression> get() = emptySet()
     }
 
+    /**
+     * State expression that uses state factory from context.
+     */
+    @Serializable
+    @SerialName("state")
+    public data class State(
+        public val valueStateType: String,
+        public val parameters: Meta,
+        public val valuePath: Name = Name.EMPTY,
+        public val defaultValue: Double? = null
+    ) : StateExpression {
+        override val dependencies: Set<StateExpression> get() = emptySet()
+    }
+
     @Serializable
     @SerialName("constant")
     public class Constant(public val name: String, public val parameters: Meta) : StateExpression {
         override val dependencies: Set<StateExpression> get() = emptySet()
     }
 
-    public companion object{
+    public companion object {
 
     }
 }
@@ -81,8 +99,9 @@ public sealed interface StateExpression {
  * A context for evaluating [StateExpression]
  */
 public class StateExpressionContext(
+    public val context: Context,
     public val hub: DeviceTree,
-    public val scope: CoroutineScope
+    public val scope: CoroutineScope = context
 ) {
     public fun computeState(expression: StateExpression): ValueState<Double> = when (expression) {
 
@@ -154,6 +173,19 @@ public class StateExpressionContext(
             }
         }
 
+        is StateExpression.State -> {
+            val constructor = context.request(ConstructorPlugin)
+
+            val state = constructor.valueStateFactories[expression.valueStateType]?.build(context, expression.parameters)
+                ?: error("No value state factory for type ${expression.valueStateType}")
+
+            state.map {
+                it[expression.valuePath].double
+                    ?: expression.defaultValue
+                    ?: Double.NaN
+            }
+        }
+
     }
 }
 
@@ -175,10 +207,11 @@ public fun DeviceConstructor.expression(
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             when (val currentState = state) {
                 null if isStarted() -> {
-                    StateExpressionContext(context.request(DeviceManager), this).computeState(expression).also {
-                        registerProperty(MetaConverter.double, descriptor, it)
-                        state = it
-                    }
+                    StateExpressionContext(context, context.request(DeviceManager), this).computeState(expression)
+                        .also {
+                            registerProperty(MetaConverter.double, descriptor, it)
+                            state = it
+                        }
                 }
 
                 null -> error("Can't access expression proeperty if device is not started")

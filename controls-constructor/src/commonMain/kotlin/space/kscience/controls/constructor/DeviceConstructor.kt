@@ -294,6 +294,20 @@ public fun <D : Device> DeviceConstructor.install(
 }
 
 /**
+ * Add a device tree creating intermediate groups if necessary. If device with given [name] already exists, throws an error.
+ */
+public fun <DT: DeviceTree> DeviceConstructor.installTree(
+    name: String,
+    factory: Factory<DT>,
+    deviceMeta: Meta? = null,
+    metaLocation: Name = Name.of(name),
+): DT {
+    val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
+    installTree(name, newDevice)
+    return newDevice
+}
+
+/**
  * Create or edit a group with a given [name].
  */
 public fun DeviceConstructor.install(name: String, block: DeviceConstructor.() -> Unit): DeviceConstructor =
