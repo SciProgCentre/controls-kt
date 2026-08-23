@@ -108,5 +108,13 @@ internal fun DeviceManager.setupPlatformTestStand(
         )
     )
 
+    val alarmConfig = createAlarmConfig(deviceConfiguration)
+    dataDirectory.resolve("alarm-config.json").writeText(
+        json.encodeToString(
+            ConstructorDeviceConfiguration.serializer(),
+            alarmConfig
+        )
+    )
+
     return dataDirectory
 }

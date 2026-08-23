@@ -169,7 +169,7 @@ public fun TimeSeriesPlot(
         x = "time"
         y = "value"
         color = "series"
-    } + scaleXTime(name = xAxisTitle)
+    } + scaleXTime(name = xAxisTitle) + org.jetbrains.letsPlot.themes.theme().legendPositionBottom().legendDirectionVertical()
 
     if (yAxisTitle != null) {
         figure += labs(y = yAxisTitle)

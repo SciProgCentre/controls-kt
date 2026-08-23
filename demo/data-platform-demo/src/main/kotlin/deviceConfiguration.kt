@@ -4,17 +4,21 @@ import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.ExpressionValueStateFactory
 import space.kscience.controls.constructor.PropertyConfiguration
+import space.kscience.controls.constructor.TemplateDeviceConfiguration
 import space.kscience.controls.constructor.expressions.StateExpression
 import space.kscience.controls.opcua.server.read
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableColumn
 import space.kscience.controls.tagtable.TagTableConfiguration
+import space.kscience.controls.utilities.Alarm
+import space.kscience.controls.utilities.AlarmSetting
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.*
 
 
 internal fun createDeviceConfiguration(configuration: TagTableConfiguration): ConstructorDeviceConfiguration {
+
     val blocks = configuration.properties.mapKeys { it.key.parseAsName() }.entries
         .groupBy { (tag, property) ->
             tag.first()
@@ -49,7 +53,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                     put(
                         "part[$index]",
                         ConstructorDeviceConfiguration(
-                            properties = tagProperties + ("sum" to expressionPropertyConfiguration)
+                            properties = tagProperties + ("sum" to expressionPropertyConfiguration),
                         )
                     )
                 }
@@ -64,6 +68,40 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
         properties = emptyMap(),
         devices = blocks
     )
+}
+
+internal fun createAlarmConfig(deviceConfig: ConstructorDeviceConfiguration): ConstructorDeviceConfiguration {
+
+    val alarmSetting = listOf(
+        AlarmSetting(-5.0, 5.0, "OUT5"),
+        AlarmSetting(-10.0, 10.0, "OUT10")
+    )
+
+    fun visit(deviceName: Name, source: ConstructorDeviceConfiguration): ConstructorDeviceConfiguration {
+        val templates = if (source.properties.keys.contains("sum")){
+            mapOf(
+                "alarm" to TemplateDeviceConfiguration(
+                    type = "controls.utilities.alarm",
+                    parameters = Alarm.buildDeviceMeta(
+                        deviceName = deviceName,
+                        propertyName = "sum",
+                        settings = alarmSetting
+                    )
+                )
+            )
+        } else{
+             emptyMap()
+        }
+
+        return ConstructorDeviceConfiguration(
+            properties = emptyMap(),
+            devices = source.devices.mapValues { visit(deviceName + it.key, it.value) },
+            templates = templates
+        )
+    }
+
+    return visit(Name.of("devices"), deviceConfig)
+
 }
 
 private suspend fun DeviceTree.snapshotValues(): Map<Name, Meta> = buildMap {

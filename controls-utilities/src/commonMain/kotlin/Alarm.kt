@@ -2,15 +2,13 @@ package space.kscience.controls.utilities
 
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.DeviceFactory
-import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.context.request
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.getIndexedList
 import space.kscience.dataforge.names.parseAsName
 
 /**
@@ -46,6 +44,7 @@ public data class AlarmState(
 public class Alarm(
     context: Context,
     private val value: ValueState<Double?>,
+    settings: List<AlarmSetting> = emptyList(),
     meta: Meta = Meta.EMPTY
 ) : DeviceConstructor(context, meta) {
 
@@ -53,8 +52,8 @@ public class Alarm(
      * The list of alarm settings. Order of threshold matters. If two thresholds are violated simultaneously, the last wins.
      */
     public val alarmSettings: MutableValueState<List<AlarmSetting>> by virtualProperty(
-        metaConverter = MetaConverter.serializable<List<AlarmSetting>>(),
-        initialState = emptyList()
+        metaConverter = settingsConverter,
+        initialState = settings
     )
 
     public val state: ValueState<AlarmState> = combineState(alarmSettings, value) { settings, value ->
@@ -85,6 +84,17 @@ public class Alarm(
         public const val STATUS_OK: String = "OK"
         public const val STATUS_UNDEFINED: String = "UNDEFINED"
 
+        public val settingsConverter: MetaConverter<List<AlarmSetting>> = object : MetaConverter<List<AlarmSetting>> {
+            private val settingSerializer = MetaConverter.serializable<AlarmSetting>()
+
+            override fun readOrNull(source: Meta): List<AlarmSetting> =
+                source.getIndexedList(Name.of("setting")).map { settingSerializer.read(it) }
+
+            override fun convert(obj: List<AlarmSetting>): Meta = Meta {
+                setIndexed(Name.of("setting"), obj.map { settingSerializer.convert(it) })
+            }
+        }
+
         /**
          * Create an alarm for an existing device in [DeviceManager]
          */
@@ -95,12 +105,23 @@ public class Alarm(
             val deviceName = meta["deviceName"].string?.parseAsName() ?: error("`deviceName` parameter not defined")
             val propertyName = meta["propertyName"].string ?: error("`propertyName` parameter not defined")
 
-            val deviceManager = context.plugins[DeviceManager] ?: error("DeviceManager plugin not found")
+            val settings = meta["settings"]?.let { settingsConverter.readOrNull(it) }
 
-            val state = deviceManager.resolveDevice(deviceName)
-                .propertyAsState(propertyName, MetaConverter.double.nullable(), null)
+            val constructor = context.request(ConstructorPlugin)
 
-            return Alarm(context, state, meta)
+            val state = constructor.provideDevicePropertyState(deviceName, propertyName).map { it.double }
+
+            return Alarm(context, state, settings ?: emptyList(), meta)
+        }
+
+        public fun buildDeviceMeta(deviceName: Name, propertyName: String, settings: List<AlarmSetting>): Meta {
+            return Meta {
+                "deviceName" put deviceName.toString()
+                "propertyName" put propertyName
+                if (settings.isNotEmpty()) {
+                    "settings" put settingsConverter.convert(settings)
+                }
+            }
         }
     }
 }

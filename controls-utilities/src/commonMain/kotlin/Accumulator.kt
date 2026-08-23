@@ -6,20 +6,13 @@ package space.kscience.controls.utilities
 
 import kotlinx.coroutines.CoroutineScope
 import space.kscience.controls.api.DeviceFactory
-import space.kscience.controls.api.resolveDevice
-import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.expressions.integrate
-import space.kscience.controls.constructor.propertyAsState
-import space.kscience.controls.constructor.registerProperty
 import space.kscience.controls.duration
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.context.request
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.parseAsName
 import kotlin.time.Duration
 
@@ -62,10 +55,9 @@ public class Accumulator(
                 MetaConverter.duration.read(it)
             } ?: error("`window` parameter not defined")
 
-            val deviceManager = context.plugins[DeviceManager] ?: error("DeviceManager plugin not found")
+            val constructor = context.request(ConstructorPlugin)
 
-            val state = deviceManager.resolveDevice(deviceName)
-                .propertyAsState(propertyName, MetaConverter.double.nullable(), null)
+            val state = constructor.provideDevicePropertyState(deviceName, propertyName).map { it.double }
 
             return Accumulator(context, state, window)
         }

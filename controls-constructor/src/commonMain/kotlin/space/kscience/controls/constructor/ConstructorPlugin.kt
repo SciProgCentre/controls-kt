@@ -2,6 +2,7 @@ package space.kscience.controls.constructor
 
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.DeviceTreeFactory
+import space.kscience.controls.api.resolveDeviceOrNull
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.*
@@ -43,6 +44,22 @@ public class ConstructorPlugin : AbstractPlugin() {
     }
 
     /**
+     * Provide an existing device property state from [DeviceManager] or late-bind state and actualize it when the device is connected.
+     *
+     * Throw an exception if the device is connected but does not have corresponding property
+     *
+     */
+    public fun provideDevicePropertyState(deviceName: Name, propertyName: String): ValueState<Meta>{
+        val existingDevice = deviceManager.resolveDeviceOrNull(deviceName)
+
+        if( existingDevice != null){
+            return existingDevice.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY)
+        } else {
+            TODO("Late-binding state for device $deviceName is not implemented")
+        }
+    }
+
+    /**
      * Create a Device (or device hub) from a serializable scheme using given value state factories
      */
     public fun construct(
@@ -53,8 +70,7 @@ public class ConstructorPlugin : AbstractPlugin() {
         }
 
         deviceConfiguration.templates.forEach { (name, template) ->
-            val allFactories = deviceManager.factories.mapKeys { it.toString() }
-            val factory = allFactories[template.type]
+            val factory = deviceManager.resolveDeviceFactory(template.type)
                 ?: error("Device template type ${template.type} is not registered")
             installTree(name, factory, template.parameters)
         }
@@ -96,6 +112,11 @@ public fun DeviceManager.install(
     name: String,
     deviceConfiguration: ConstructorDeviceConfiguration
 ): DeviceConstructor = context.install(name, deviceConfiguration)
+
+public fun DeviceConstructor.install(
+    name: String,
+    deviceConfiguration: ConstructorDeviceConfiguration
+): DeviceConstructor = install(name, context.request(ConstructorPlugin).construct(deviceConfiguration))
 
 /**
  * A [DeviceTreeFactory] implemetation for a constructor device that uses [ConstructorDeviceConfiguration]

@@ -7,7 +7,9 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.validate
+import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
+import space.kscience.dataforge.names.parseAsName
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -21,9 +23,15 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     /**
      * Device factories available in the context
      */
-    public val factories: Map<String, DeviceTreeFactory> by lazy {
-        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class).mapKeys { it.key.last().toString() }
+    public val factories: Map<Name, DeviceTreeFactory> by lazy {
+        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class)
     }
+
+    /**
+     * Resolve device factory using full name or last segment of factory name if factory by full name is not found
+     */
+    public fun resolveDeviceFactory(type: String): DeviceTreeFactory? = factories[type.parseAsName()]
+        ?: factories.mapKeys { it.key.last().toString() }[type]
 
     /**
      * Actual list of connected devices
@@ -160,8 +168,9 @@ public fun DeviceManager.createDeviceTree(
     DeviceLibraryMetaSpec.validate(configuration)
     val type = configuration[DeviceLibraryMetaSpec.type] ?: error("Device type is not specified")
     val parameters = configuration[DeviceLibraryMetaSpec.parameters] ?: Meta.EMPTY
-    val allFactories = factories.mapKeys { it.toString() } + additionalFactories
-    val factory = allFactories[type] ?: error("Device type $type is not registered")
+    val factory = additionalFactories[type]
+        ?: resolveDeviceFactory(type)
+        ?: error("Device type $type is not registered")
     return factory(parameters, context)
 
 }

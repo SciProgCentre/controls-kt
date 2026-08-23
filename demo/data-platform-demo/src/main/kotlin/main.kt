@@ -23,6 +23,7 @@ import space.kscience.controls.manager.install
 import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.TagTableDevice
 import space.kscience.controls.tagtable.TagTablePlugin
+import space.kscience.controls.utilities.ControlsUtilitiesPlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
@@ -66,6 +67,7 @@ fun main() {
     val context = Context {
         plugin(IOPlugin)
         plugin(TagTablePlugin)
+        plugin(ControlsUtilitiesPlugin)
         plugin(SlfLogManager)
     }
 
@@ -101,8 +103,16 @@ fun main() {
     val deviceConfig = platformDataDirectory.resolve("device-config.json").inputStream().use {
         json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
     }
+
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)
+
+
+    val alarmConfig =  platformDataDirectory.resolve("alarm-config.json").inputStream().use {
+        json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
+    }
+
+    val alarms = devices.install("alarms", alarmConfig)
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 

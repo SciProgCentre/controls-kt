@@ -69,7 +69,7 @@ public fun DeviceTree.resolveDevice(name: Name): Device = when (name.length) {
     0 -> device ?: error("Device tree is not a device. It could not be accessed with empty name")
     1 -> children[name.first().toString()]?.device ?: error("Device $name not found in $this")
     else -> children[name.first().toString()]?.resolveDevice(name.cutFirst())
-        ?: error("Device $name not found in $this")
+        ?: error("Device ${name.toStringUnescaped()} not found in $this")
 }
 
 public fun DeviceTree.resolveDevice(name: String): Device = resolveDevice(name.parseAsName())
