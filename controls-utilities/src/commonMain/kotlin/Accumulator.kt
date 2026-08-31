@@ -7,13 +7,16 @@ package space.kscience.controls.utilities
 import kotlinx.coroutines.CoroutineScope
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
 import space.kscience.controls.constructor.expressions.integrate
 import space.kscience.controls.duration
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.*
-import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
 import kotlin.time.Duration
 
 /**
@@ -21,15 +24,28 @@ import kotlin.time.Duration
  * Null values are ignored during integration.
  *
  * @param context The context for the device.
- * @param value The source numeric state (can contain null values).
  * @param window The time window duration over which to integrate values.
  */
 public class Accumulator(
     context: Context,
-    private val value: ValueState<Double?>,
     public val window: Duration,
     coroutineScope: CoroutineScope = context
-) : DeviceConstructor(context) {
+) : DeviceConstructor(context), BoundStateHolder {
+
+    public val value: ValueState<Double?>
+        field: LateBindValueState<Double?> = LateBindValueState<Double?>(null)
+
+    override fun bind(state: ValueState<Meta>, inputName: String) {
+        when (inputName) {
+            DEFAULT_INPUT_NAME, "value" -> {
+                value.bind(state.map { it.double })
+            }
+
+            else -> {
+                error("Can't resolve input name $inputName in $this")
+            }
+        }
+    }
 
     public val state: ValueState<Double> = value.integrate(window, coroutineScope)
 
@@ -49,17 +65,13 @@ public class Accumulator(
             context: Context,
             meta: Meta
         ): Accumulator {
-            val deviceName = meta["deviceName"].string?.parseAsName() ?: error("`deviceName` parameter not defined")
-            val propertyName = meta["propertyName"].string ?: error("`propertyName` parameter not defined")
             val window: Duration = meta["window"]?.let {
                 MetaConverter.duration.read(it)
             } ?: error("`window` parameter not defined")
 
             val constructor = context.request(ConstructorPlugin)
 
-            val state = constructor.provideDevicePropertyState(deviceName, propertyName).map { it.double }
-
-            return Accumulator(context, state, window)
+            return Accumulator(context, window)
         }
     }
 }

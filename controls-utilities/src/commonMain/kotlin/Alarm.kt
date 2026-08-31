@@ -3,13 +3,12 @@ package space.kscience.controls.utilities
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.getIndexedList
-import space.kscience.dataforge.names.parseAsName
 
 /**
  * Settings for alarm thresholds.
@@ -43,10 +42,9 @@ public data class AlarmState(
  */
 public class Alarm(
     context: Context,
-    private val value: ValueState<Double?>,
     settings: List<AlarmSetting> = emptyList(),
     meta: Meta = Meta.EMPTY
-) : DeviceConstructor(context, meta) {
+) : DeviceConstructor(context, meta), BoundStateHolder {
 
     /**
      * The list of alarm settings. Order of threshold matters. If two thresholds are violated simultaneously, the last wins.
@@ -55,6 +53,20 @@ public class Alarm(
         metaConverter = settingsConverter,
         initialState = settings
     )
+
+    public val value: ValueState<Double?>
+        field: LateBindValueState<Double?> = LateBindValueState<Double?>(null)
+
+    override fun bind(state: ValueState<Meta>, inputName: String) {
+        when (inputName) {
+            DEFAULT_INPUT_NAME, "value" -> {
+                value.bind(state.map { it.double })
+            }
+            else -> {
+                error("Can't resolve input name $inputName in $this")
+            }
+        }
+    }
 
     public val state: ValueState<AlarmState> = combineState(alarmSettings, value) { settings, value ->
         //early return undefined value if value is null
@@ -82,7 +94,7 @@ public class Alarm(
 
     public companion object : DeviceFactory {
         public const val STATUS_OK: String = "OK"
-        public const val STATUS_UNDEFINED: String = "UNDEFINED"
+        public const val STATUS_UNDEFINED: String = "@UNDEFINED"
 
         public val settingsConverter: MetaConverter<List<AlarmSetting>> = object : MetaConverter<List<AlarmSetting>> {
             private val settingSerializer = MetaConverter.serializable<AlarmSetting>()
@@ -102,26 +114,18 @@ public class Alarm(
             context: Context,
             meta: Meta
         ): Alarm {
-            val deviceName = meta["deviceName"].string?.parseAsName() ?: error("`deviceName` parameter not defined")
-            val propertyName = meta["propertyName"].string ?: error("`propertyName` parameter not defined")
-
             val settings = meta["settings"]?.let { settingsConverter.readOrNull(it) }
 
-            val constructor = context.request(ConstructorPlugin)
+            val metadata = meta[METADATA_KEY] ?: Meta.EMPTY
 
-            val state = constructor.provideDevicePropertyState(deviceName, propertyName).map { it.double }
-
-            return Alarm(context, state, settings ?: emptyList(), meta)
+            return Alarm(context, settings ?: emptyList(), metadata)
         }
 
-        public fun buildDeviceMeta(deviceName: Name, propertyName: String, settings: List<AlarmSetting>): Meta {
-            return Meta {
-                "deviceName" put deviceName.toString()
-                "propertyName" put propertyName
-                if (settings.isNotEmpty()) {
-                    "settings" put settingsConverter.convert(settings)
-                }
+        public fun buildDeviceMeta(settings: List<AlarmSetting>, metadata: Meta? = null): Meta = Meta {
+            if (settings.isNotEmpty()) {
+                "settings" put settingsConverter.convert(settings)
             }
+            metadata?.let { METADATA_KEY put it }
         }
     }
 }

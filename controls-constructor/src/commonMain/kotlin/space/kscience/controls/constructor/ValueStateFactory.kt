@@ -48,7 +48,7 @@ public interface ValueStateFactory : Factory<ValueState<Meta>>, Described {
  *
  * @constructor This factory uses metadata and context plugins to establish property state bindings.
  */
-public object DeviceValueStateFactory: ValueStateFactory, MetaSpec(){
+public object DeviceValueStateFactory : ValueStateFactory, MetaSpec() {
 
     public val deviceName: MetaRef<String> by string()
 
@@ -100,7 +100,7 @@ public object DeviceValueStateFactory: ValueStateFactory, MetaSpec(){
  * - [ValueStateFactory]: For constructing [ValueState] instances.
  * - [MetaSpec]: For managing metadata specifications.
  */
-public object ExpressionValueStateFactory: ValueStateFactory, MetaSpec(){
+public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
 
     public val expressionConverter: MetaConverter<StateExpression> = MetaConverter.serializable<StateExpression>()
 
@@ -116,7 +116,9 @@ public object ExpressionValueStateFactory: ValueStateFactory, MetaSpec(){
 
         val expressionScope = StateExpressionContext(context, deviceManager)
 
-        return expressionScope.computeState(expression).map { Meta(it) }
+        return expressionScope.computeState(expression).map {
+            if (it == null) Meta.EMPTY else Meta(it)
+        }
     }
 
     /**
@@ -124,7 +126,7 @@ public object ExpressionValueStateFactory: ValueStateFactory, MetaSpec(){
      */
     public fun buildMeta(
         stateExpression: StateExpression
-    ): Meta = Meta{
+    ): Meta = Meta {
         set(expression, stateExpression)
     }
 
@@ -150,13 +152,13 @@ public fun DeviceMessageSource.asValueStateFactory(
             it.sourceDevice == deviceName && it.property == propertyName
         }.map {
             ValueWithTime(it.value, it.time)
-        }.stateIn(scope, SharingStarted.Eagerly,defaultValueWithTime)
+        }.stateIn(scope, SharingStarted.Eagerly, defaultValueWithTime)
 
-        return object : ValueState<Meta>{
+        return object : ValueState<Meta> {
             override val valueWithTime: ValueWithTime<Meta>
                 get() = valueFlow.value
 
-            override fun subscribeWithTime(): Flow<ValueWithTime<Meta>>  = valueFlow
+            override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = valueFlow
 
             override fun toString(): String = "ValueState.fromDeviceMessageSource($deviceName, $propertyName)"
 

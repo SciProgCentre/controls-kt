@@ -1,10 +1,12 @@
 package space.kscience.controls.constructor
 
-import space.kscience.controls.api.DeviceTree
-import space.kscience.controls.api.DeviceTreeFactory
-import space.kscience.controls.api.resolveDeviceOrNull
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
+import space.kscience.controls.manager.messageFlow
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -44,22 +46,6 @@ public class ConstructorPlugin : AbstractPlugin() {
     }
 
     /**
-     * Provide an existing device property state from [DeviceManager] or late-bind state and actualize it when the device is connected.
-     *
-     * Throw an exception if the device is connected but does not have corresponding property
-     *
-     */
-    public fun provideDevicePropertyState(deviceName: Name, propertyName: String): ValueState<Meta>{
-        val existingDevice = deviceManager.resolveDeviceOrNull(deviceName)
-
-        if( existingDevice != null){
-            return existingDevice.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY)
-        } else {
-            TODO("Late-binding state for device $deviceName is not implemented")
-        }
-    }
-
-    /**
      * Create a Device (or device hub) from a serializable scheme using given value state factories
      */
     public fun construct(
@@ -85,6 +71,19 @@ public class ConstructorPlugin : AbstractPlugin() {
                 )
                     ?: error("No value state factory for ${propertyConfiguration.type}. Available factories: ${valueStateFactories.keys}"),
             )
+        }
+
+        //apply bindings after all devices are created
+        deviceConfiguration.bindings.forEach { binding ->
+            val sourceDevice = resolveDevice(binding.sourceDevice)
+            val sourceProperty = sourceDevice.propertyAsState(
+                propertyName = binding.sourceProperty,
+                metaConverter = MetaConverter.meta,
+                initialValue = binding.defaultValue
+            )
+            val targetDevice = resolveDevice(binding.targetDevice) as? BoundStateHolder
+                ?: error("Target device ${binding.targetDevice} is not a BoundStateHolder")
+            targetDevice.bind(sourceProperty)
         }
     }
 
@@ -135,3 +134,42 @@ public object ConstructorDeviceFactory : DeviceTreeFactory {
     override val descriptor: MetaDescriptor? = null
 
 }
+
+/**
+ * Provide an existing device property state from [DeviceTree] or late-bind state and actualize it when the device is connected.
+ *
+ * Throw an exception if the device is connected but does not have a corresponding property
+ *
+ */
+public fun DeviceTree.resolvePropertyState(
+    context: Context,
+    deviceName: Name,
+    propertyName: String
+): ValueState<Meta> {
+    val existingDevice = resolveDeviceOrNull(deviceName)
+
+    if (existingDevice != null) {
+        return existingDevice.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY)
+    } else {
+        context.logger.warn { "Requested property $propertyName of device $deviceName is not found. Using late-binding state instead." }
+        val lateBindValueState = LateBindValueState(Meta.EMPTY)
+        context.launch {
+            messageFlow().filterIsInstance<DeviceLifeCycleMessage>().first {
+                it.sourceDevice == deviceName && it.state == LifecycleState.STARTED
+            }
+            val device = resolveDeviceOrNull(deviceName)
+            if (device != null) {
+                lateBindValueState.bind(device.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY))
+            } else {
+                context.logger.error { "Device $deviceName is not found after its start signal" }
+            }
+        }
+        return lateBindValueState
+    }
+}
+
+public fun DeviceConstructor.resolvePropertyState(deviceName: Name, propertyName: String): ValueState<Meta> =
+    resolvePropertyState(context, deviceName, propertyName)
+
+public fun Context.resolvePropertyState(deviceName: Name, propertyName: String): ValueState<Meta> =
+    request(DeviceManager).resolvePropertyState(this, deviceName, propertyName)

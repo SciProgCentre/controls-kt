@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
@@ -103,16 +104,37 @@ public class StateExpressionContext(
     public val hub: DeviceTree,
     public val scope: CoroutineScope = context
 ) {
-    public fun computeState(expression: StateExpression): ValueState<Double> = when (expression) {
+    public fun computeState(expression: StateExpression): ValueState<Double?> = when (expression) {
 
         is StateExpression.Unary -> when (expression.operation) {
-            "-", "negate", "negative" -> computeState(expression.argument).map { -it }
-            "sin" -> computeState(expression.argument).map { sin(it) }
-            "cos" -> computeState(expression.argument).map { cos(it) }
-            "abs" -> computeState(expression.argument).map { it.absoluteValue }
-            "sqrt" -> computeState(expression.argument).map { sqrt(it) }
-            "exp" -> computeState(expression.argument).map { exp(it) }
-            "ln" -> computeState(expression.argument).map { ln(it) }
+            "-", "negate", "negative" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                -it
+            }
+            "sin" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                sin(it)
+            }
+            "cos" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                cos(it)
+            }
+            "abs" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                it.absoluteValue
+            }
+            "sqrt" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                sqrt(it)
+            }
+            "exp" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                exp(it)
+            }
+            "ln" -> computeState(expression.argument).map {
+                if(it==null) return@map null
+                ln(it)
+            }
             "diff", "differentiate" -> computeState(expression.argument).differentiate(scope)
             else -> error("Unknown unary operation: ${expression.operation}")
         }
@@ -123,6 +145,7 @@ public class StateExpressionContext(
                 state1 = computeState(expression.left),
                 state2 = computeState(expression.right)
             ) { l, r ->
+                if (l == null || r == null) return@combine null
                 l + r
             }
 
@@ -131,6 +154,7 @@ public class StateExpressionContext(
                 state1 = computeState(expression.left),
                 state2 = computeState(expression.right)
             ) { l, r ->
+                if (l == null || r == null) return@combine null
                 l - r
             }
 
@@ -139,6 +163,7 @@ public class StateExpressionContext(
                 state1 = computeState(expression.left),
                 state2 = computeState(expression.right)
             ) { l, r ->
+                if (l == null || r == null) return@combine null
                 l * r
             }
 
@@ -150,7 +175,7 @@ public class StateExpressionContext(
                 scope = scope,
                 states = expression.arguments.values.map { computeState(it) }
             ) {
-                it.sum()
+                it.filterNotNull().sum()
             }
 
             else -> error("Unknown Nary operation: ${expression.operation}")
@@ -166,23 +191,22 @@ public class StateExpressionContext(
             val device = hub.resolveDevice(expression.deviceName)
 
             if (expression.path.isEmpty()) {
-                device.propertyAsState(expression.propertyName, MetaConverter.double, Double.NaN)
+                device.propertyAsState(expression.propertyName, MetaConverter.double.nullable(), null)
             } else {
                 device.propertyAsState(expression.propertyName, MetaConverter.meta, Meta.EMPTY)
-                    .map { it[expression.path].double ?: Double.NaN }
+                    .map { it[expression.path].double }
             }
         }
 
         is StateExpression.State -> {
             val constructor = context.request(ConstructorPlugin)
 
-            val state = constructor.valueStateFactories[expression.valueStateType]?.build(context, expression.parameters)
-                ?: error("No value state factory for type ${expression.valueStateType}")
+            val state =
+                constructor.valueStateFactories[expression.valueStateType]?.build(context, expression.parameters)
+                    ?: error("No value state factory for type ${expression.valueStateType}")
 
             state.map {
-                it[expression.valuePath].double
-                    ?: expression.defaultValue
-                    ?: Double.NaN
+                it[expression.valuePath].double ?: expression.defaultValue
             }
         }
 
@@ -193,7 +217,7 @@ public fun DeviceConstructor.expression(
     expression: StateExpression,
     propertyDescriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
-): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double>>> =
+): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double?>>> =
     PropertyDelegateProvider { _: DeviceConstructor, property ->
         val name = nameOverride ?: property.name
 
@@ -202,14 +226,14 @@ public fun DeviceConstructor.expression(
             propertyDescriptorBuilder()
         }
 
-        var state: ValueState<Double>? = null
+        var state: ValueState<Double?>? = null
 
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             when (val currentState = state) {
                 null if isStarted() -> {
                     StateExpressionContext(context, context.request(DeviceManager), this).computeState(expression)
                         .also {
-                            registerProperty(MetaConverter.double, descriptor, it)
+                            registerProperty(MetaConverter.double.nullable(), descriptor, it)
                             state = it
                         }
                 }

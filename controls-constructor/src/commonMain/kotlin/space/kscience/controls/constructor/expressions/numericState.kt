@@ -62,20 +62,21 @@ public fun ValueState<Double?>.integrate(
  * The returned [ValueState] emits the derivative values continuously based on the
  * changes in the original `ValueState`.
  */
-public fun ValueState<Double>.differentiate(
+public fun ValueState<Double?>.differentiate(
     scope: CoroutineScope,
 ): ValueState<Double> = object : ValueStateWithDependencies<Double> {
 
     private var previous = valueWithTime
     private val state = MutableStateFlow(ValueWithTime(0.0, time))
 
-    private val job = this@differentiate.subscribeWithTime().onEach { value ->
+    private val job = this@differentiate.subscribeWithTime().onEach { (value, time) ->
+        if(value == null) return@onEach
         //skip invalid time marks
-        if (value.time <= previous.time) return@onEach
+        if (time <= previous.time) return@onEach
 
-        val diff = (value.value - previous.value) / (value.time - previous.time).toDouble(DurationUnit.SECONDS)
-        state.emit(ValueWithTime(diff, value.time))
-        previous = value
+        val diff = (value - previous.value) / (time - previous.time).toDouble(DurationUnit.SECONDS)
+        state.emit(ValueWithTime(diff, time))
+        previous = ValueWithTime(value, time)
     }.launchIn(scope)
 
     override val dependencies: Collection<ValueState<*>> get() = listOf(this)

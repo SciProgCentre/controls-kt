@@ -237,7 +237,9 @@ public open class DeviceConstructor(
 
     override val clock: Clock = context.clock
 
-    public companion object
+    public companion object{
+        public const val METADATA_KEY: String = "metadata"
+    }
 }
 
 /**
