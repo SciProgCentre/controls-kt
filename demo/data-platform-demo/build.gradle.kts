@@ -25,6 +25,12 @@ dependencies {
 //    implementation("io.ktor:ktor-server-cio")
 
     implementation(spclibs.logback.classic)
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 kotlin{
