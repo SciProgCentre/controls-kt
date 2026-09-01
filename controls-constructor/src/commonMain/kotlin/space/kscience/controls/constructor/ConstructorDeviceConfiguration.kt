@@ -40,7 +40,7 @@ public data class ConstructorBinding(
 public class ConstructorDeviceConfiguration(
     public val properties: Map<String, PropertyConfiguration>,
     public val devices: Map<String, ConstructorDeviceConfiguration> = emptyMap(),
-    public val templates: Map<String, TemplateDeviceConfiguration> = emptyMap(),
+    public val components: Map<String, TemplateDeviceConfiguration> = emptyMap(),
     public val bindings: Set<ConstructorBinding> = emptySet(),
     public val parameters: Meta = Meta.EMPTY,
     public val metadata: Meta = Meta.EMPTY

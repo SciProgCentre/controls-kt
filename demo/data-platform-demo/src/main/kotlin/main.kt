@@ -84,7 +84,7 @@ fun main() {
     )
 
     //read platform config
-    val configuration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
+    val configuration: TagTableConfiguration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
         json.decodeFromStream(TagTableConfiguration.serializer(), it)
     }
 
@@ -100,7 +100,7 @@ fun main() {
 
 
     //read device config
-    val deviceConfig = platformDataDirectory.resolve("device-config.json").inputStream().use {
+    val deviceConfig: ConstructorDeviceConfiguration = platformDataDirectory.resolve("device-config.json").inputStream().use {
         json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
     }
 

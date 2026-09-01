@@ -56,7 +56,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                         "part[$index]",
                         ConstructorDeviceConfiguration(
                             properties = tagProperties + ("sum" to expressionPropertyConfiguration),
-                            templates = mapOf(
+                            components = mapOf(
                                 "alarm" to TemplateDeviceConfiguration(
                                     type = "controls.utilities.alarm",
                                     parameters = Alarm.buildDeviceMeta(

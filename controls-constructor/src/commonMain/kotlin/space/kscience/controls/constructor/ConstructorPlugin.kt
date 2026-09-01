@@ -55,7 +55,7 @@ public class ConstructorPlugin : AbstractPlugin() {
             install(name, construct(scheme))
         }
 
-        deviceConfiguration.templates.forEach { (name, template) ->
+        deviceConfiguration.components.forEach { (name, template) ->
             val factory = deviceManager.resolveDeviceFactory(template.type)
                 ?: error("Device template type ${template.type} is not registered")
             installTree(name, factory, template.parameters)
