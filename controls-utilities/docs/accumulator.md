@@ -1,93 +1,60 @@
 # Accumulator Virtual Device
 
-The `Accumulator` class is a specialized virtual device (`DeviceConstructor`) in the `controls-utilities` module designed to integrate values from an observable numeric state (`ValueState<Double?>`) over a sliding time window. Null values are ignored during integration.
+`Accumulator(context, window, coroutineScope = context)` produces a rolling sum of numeric
+samples. It does not multiply by elapsed time: it is not a physical integrator or a flow
+totalizer. Sampling frequency therefore affects the sum.
 
-## Core Concepts
+Create the component first, then connect a `ValueState<Meta>` with `bind(source)`.
+The default input name and `"value"` are aliases; unknown names and repeated binding are rejected.
+The read-only `state: ValueState<Double>` is exposed as the `"state"` device property.
 
-### Accumulator Device
+## Time and window semantics
 
-`Accumulator` extends `DeviceConstructor` and integrates a given `ValueState<Double?>` over a time duration `window`:
+1. A non-null sample is added only when its timestamp is later than the current result's timestamp.
+2. Every incoming sample removes entries older than `sample.time - window` and gives the result
+   its timestamp, including null and out-of-order samples. The lower boundary is included.
+3. Null adds nothing, and an empty window sums to `0.0`. The window advances only on incoming
+   samples; there is no expiry timer.
 
-```kotlin
-public class Accumulator(
-    context: Context,
-    private val value: ValueState<Double?>,
-    public val window: Duration,
-) : DeviceConstructor(context)
-```
+`Accumulator` starts at `0.0`. A bound `ValueState(25.0)` uses `Instant.DISTANT_PAST` and adds
+nothing; use timestamped sources such as `MutableValueState`. Direct `integrate` instead uses
+the source's value at construction as its initial sum.
 
-#### States and Properties
+## Direct binding
 
-- **`window`**: `Duration` specifying the sliding time window over which historical values are accumulated.
-- **`state`**: `ValueState<Double>` registered as the read-only device property `"state"`. It provides the current sum of all non-null values observed within the time interval `[currentTime - window, currentTime]`.
-
-#### Integration Logic
-
-1. **Window-based Summation**: Values received within the duration window `(currentTime - window, currentTime]` are retained and summed.
-2. **Ignoring Nulls**: If a `null` value is emitted by the source `ValueState<Double?>`, it is not added to the accumulation history. However, expired samples older than the window are still pruned, and the updated sum is emitted.
-3. **Empty/Expired State**: When all historical values are outside the time window or all past values were `null`, `state.value` evaluates to `0.0`.
-
-## Extension Function
-
-An extension function `ValueState<Double?>.integrate(window: Duration, scope: CoroutineScope): ValueState<Double>` is provided to compute the integral directly without wrapping into a device:
+The example runs in a suspending function and uses the application's `context`.
 
 ```kotlin
-val integratedState: ValueState<Double> = sourceState.integrate(10.seconds, coroutineScope)
+val sensor = MutableValueState<Double?>(10.0)
+val accumulator = Accumulator(context, 5.seconds)
+accumulator.bind(sensor.map(MetaConverter.double.nullable()::convert))
+
+val sum = accumulator.state.subscribe().first { it == 10.0 }
+println(sum)
 ```
 
-## Usage Examples
+## Factory configuration
 
-### 1. Direct Instantiation
+The factory requires `window`: numeric seconds or a string accepted by `Duration.parse`,
+such as `"5s"` or `"PT5S"`.
 
 ```kotlin
-val context = Context("accumulatorContext")
-val sensorState = MutableValueState<Double?>(10.0)
-
-val accumulator = Accumulator(context, sensorState, 5.seconds)
-
-println(accumulator.state.value) // 10.0
-
-sensorState.value = 20.0
-println(accumulator.state.value) // 30.0 (sum within 5 seconds)
-
-sensorState.value = null
-println(accumulator.state.value) // 30.0 (null is ignored)
+val parameters = Meta { "window" put "5s" }
+val accumulator = Accumulator.buildDevice(context, parameters)
+accumulator.bind(sensor.map(MetaConverter.double.nullable()::convert))
 ```
 
-### 2. DeviceFactory and DeviceManager Integration
-
-`Accumulator.Companion` implements `DeviceFactory` to allow creating an `Accumulator` device from DataForge `Meta` configuration and an existing device registered in `DeviceManager`:
+For configuration-based construction, install `ControlsUtilitiesPlugin`, add
+`TemplateDeviceConfiguration(type = "controls.utilities.accumulator", parameters = parameters)`
+to `ConstructorDeviceConfiguration.components`, and connect a source property through:
 
 ```kotlin
-val context = Context("mainContext") {
-    plugin(DeviceManager)
-    plugin(ControlsUtilitiesPlugin)
-}
-val deviceManager = context.request(DeviceManager)
-
-// Install source device
-val sensor = deviceManager.install("flowMeter", FlowMeterDevice(context))
-
-// Create accumulator device via Meta configuration
-val accumulatorMeta = Meta {
-    "deviceName" put "flowMeter"
-    "propertyName" put "flowRate"
-    "window" put "10s" // Duration string or numeric seconds
-}
-
-val accumulatorDevice = Accumulator.buildDevice(context, accumulatorMeta)
+ConstructorBinding(
+    sourceDevice = "group.sensor".parseAsName(),
+    sourceProperty = "flowRate",
+    targetDevice = Name.of("accumulator"),
+    targetInput = "value",
+)
 ```
 
-#### Configuration Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `deviceName` | `String` / `Name` | Yes | Name of the source device in `DeviceManager` to observe (parsed via `parseAsName()`). |
-| `propertyName` | `String` | Yes | Name of the numeric property on the source device. |
-| `window` | `Duration` / `String` / `Number` | Yes | The sliding time window duration (e.g. `"10s"`, `10.0`, or Duration Meta). |
-
-## Tests
-
-- Unit tests covering window accumulation, expiry, null value handling, property registration, and factory creation are located in `controls-utilities/src/commonTest/kotlin/space/kscience/controls/utilities/AccumulatorTest.kt`.
-
-<!-- LLM generated code: Documentation for Accumulator device in controls-utilities -->
+The short factory name `"accumulator"` is accepted only when unambiguous.
