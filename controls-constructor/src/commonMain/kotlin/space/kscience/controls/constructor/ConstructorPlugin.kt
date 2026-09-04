@@ -83,7 +83,7 @@ public class ConstructorPlugin : AbstractPlugin() {
             )
             val targetDevice = resolveDevice(binding.targetDevice) as? BoundStateHolder
                 ?: error("Target device ${binding.targetDevice} is not a BoundStateHolder")
-            targetDevice.bind(sourceProperty)
+            targetDevice.bind(sourceProperty, binding.targetInput)
         }
     }
 
