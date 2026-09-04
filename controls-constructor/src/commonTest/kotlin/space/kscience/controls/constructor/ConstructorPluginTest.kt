@@ -12,13 +12,20 @@ import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import kotlin.math.E
 import kotlin.math.PI
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.seconds
 
 class ConstructorPluginTest {
@@ -53,6 +60,22 @@ class ConstructorPluginTest {
         }
     }
 
+    private class ConstantFactory(private val value: Double) : ValueStateFactory {
+        override val descriptor: MetaDescriptor? = null
+
+        override fun build(context: Context, meta: Meta): ValueState<Meta> = ValueState(Meta(value))
+    }
+
+    private class ValueFactoryPlugin(pluginName: String, value: Double) : AbstractPlugin() {
+        override val tag: PluginTag = PluginTag(pluginName)
+        private val factory = ConstantFactory(value)
+
+        override fun content(target: String): Map<Name, Any> = when (target) {
+            ValueStateFactory.PROVIDER_TAGET -> mapOf(Name.of("constant") to factory)
+            else -> super.content(target)
+        }
+    }
+
     private fun constantProperty(name: String): PropertyConfiguration = PropertyConfiguration(
         type = "expression",
         parameters = ExpressionValueStateFactory.buildMeta(StateExpression.Constant(name, Meta.EMPTY)),
@@ -61,6 +84,7 @@ class ConstructorPluginTest {
     @Test
     fun testNamedBindingInputs() = runTest(timeout = 5.seconds) {
         val context = Context("named-binding-inputs") {
+            coroutineContext(backgroundScope.coroutineContext)
             plugin(ConstructorPlugin)
             plugin(InputsPlugin)
         }
@@ -87,6 +111,7 @@ class ConstructorPluginTest {
     @Test
     fun testBindingFromNestedDevice() = runTest(timeout = 5.seconds) {
         val context = Context("nested-device-binding") {
+            coroutineContext(backgroundScope.coroutineContext)
             plugin(ConstructorPlugin)
             plugin(InputsPlugin)
         }
@@ -110,6 +135,127 @@ class ConstructorPluginTest {
             val target = assertIs<TwoInputs>(tree.resolveDevice(Name.of("target")))
 
             assertEquals(PI, target.a.value.double)
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testConstructWithFullAndShortValueFactoryNames() = runTest(timeout = 5.seconds) {
+        val context = Context("value-factory-names") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(ConstructorPlugin)
+        }
+        try {
+            val constructor = context.request(ConstructorPlugin)
+            val parameters = ExpressionValueStateFactory.buildMeta(StateExpression.Constant("pi", Meta.EMPTY))
+            val tree = constructor.construct(
+                ConstructorDeviceConfiguration(
+                    properties = mapOf(
+                        "short" to PropertyConfiguration("expression", parameters),
+                        "full" to PropertyConfiguration("controls.constructor.expression", parameters),
+                    ),
+                ),
+            )
+
+            assertEquals(PI, tree.getCachedProperty("short")?.double)
+            assertEquals(PI, tree.getCachedProperty("full")?.double)
+            assertSame(ExpressionValueStateFactory, constructor.resolveValueStateFactory("expression"))
+            assertSame(ExpressionValueStateFactory, constructor.resolveValueStateFactory("controls.constructor.expression"))
+            assertEquals(setOf("expression", "deviceProperty"), constructor.valueStateFactories.keys)
+            assertNull(constructor.resolveValueStateFactory("missing"))
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testBuildValueStateWithFullFactoryName() = runTest(timeout = 5.seconds) {
+        val context = Context("build-value-factory-name") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(ConstructorPlugin)
+        }
+        try {
+            val constructor = context.request(ConstructorPlugin)
+            val state = constructor.buildValueState(Meta {
+                "type" put "controls.constructor.expression"
+                set(ExpressionValueStateFactory.expression, StateExpression.Constant("pi", Meta.EMPTY))
+            })
+
+            assertEquals(PI, state.value.double)
+            val error = assertFailsWith<IllegalStateException> {
+                constructor.buildValueState(Meta { "type" put "missing" })
+            }
+            assertContains(error.message.orEmpty(), "controls.constructor.expression")
+            assertContains(error.message.orEmpty(), "controls.constructor.deviceProperty")
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testStateExpressionWithFullFactoryName() = runTest(timeout = 5.seconds) {
+        val context = Context("state-expression-factory-name") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(ConstructorPlugin)
+        }
+        try {
+            val constructor = context.request(ConstructorPlugin)
+            val source = DeviceConstructor(context).apply {
+                registerProperty(name = "value", converter = MetaConverter.double, state = ValueState(PI))
+            }
+            constructor.deviceManager.registerDevice("source", source)
+            val expression = StateExpression.State(
+                valueStateType = "controls.constructor.deviceProperty",
+                parameters = Meta {
+                    set(DeviceValueStateFactory.deviceName, "source")
+                    set(DeviceValueStateFactory.propertyName, "value")
+                },
+            )
+            val tree = constructor.construct(
+                ConstructorDeviceConfiguration(
+                    properties = mapOf(
+                        "value" to PropertyConfiguration("expression", ExpressionValueStateFactory.buildMeta(expression)),
+                    ),
+                ),
+            )
+
+            assertEquals(PI, tree.getCachedProperty("value")?.double)
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testConstructRejectsAmbiguousShortFactoryName() = runTest(timeout = 5.seconds) {
+        val context = Context("ambiguous-value-factories") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(ConstructorPlugin)
+            plugin(ValueFactoryPlugin("b", 2.0))
+            plugin(ValueFactoryPlugin("a", 1.0))
+        }
+        try {
+            val constructor = context.request(ConstructorPlugin)
+            val error = assertFailsWith<IllegalStateException> {
+                constructor.construct(
+                    ConstructorDeviceConfiguration(
+                        properties = mapOf("value" to PropertyConfiguration("constant", Meta.EMPTY)),
+                    ),
+                )
+            }
+            assertEquals("Value state factory type constant is ambiguous: [a.constant, b.constant]", error.message)
+
+            val tree = constructor.construct(
+                ConstructorDeviceConfiguration(
+                    properties = mapOf(
+                        "first" to PropertyConfiguration("a.constant", Meta.EMPTY),
+                        "second" to PropertyConfiguration("b.constant", Meta.EMPTY),
+                    ),
+                ),
+            )
+            assertEquals(1.0, tree.getCachedProperty("first")?.double)
+            assertEquals(2.0, tree.getCachedProperty("second")?.double)
+            assertContains(constructor.valueStateFactories.keys, "constant")
         } finally {
             context.close()
         }

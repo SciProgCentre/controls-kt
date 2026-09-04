@@ -15,6 +15,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
+import space.kscience.dataforge.names.parseAsName
 
 /**
  * A plugin that allows constructing value states from meta.
@@ -23,14 +24,35 @@ public class ConstructorPlugin : AbstractPlugin() {
 
     public val deviceManager: DeviceManager by require(DeviceManager)
 
+    private val valueStateFactoriesByName: Map<Name, ValueStateFactory> by lazy {
+        context.gather(ValueStateFactory.PROVIDER_TAGET, ValueStateFactory::class)
+    }
+
     public val valueStateFactories: Map<String, ValueStateFactory> by lazy {
-        context.gather(ValueStateFactory.PROVIDER_TAGET, ValueStateFactory::class).mapKeys { it.key.last().toString() }
+        valueStateFactoriesByName.mapKeys { it.key.last().toString() }
+    }
+
+    /**
+     * Resolve value state factory by full name. Short name is accepted only if it is unique.
+     */
+    public fun resolveValueStateFactory(type: String): ValueStateFactory? {
+        valueStateFactoriesByName[type.parseAsName()]?.let { return it }
+        val candidates = valueStateFactoriesByName.filterKeys { it.last().toString() == type }
+        return when (candidates.size) {
+            0 -> null
+            1 -> candidates.values.single()
+            else -> error("Value state factory type $type is ambiguous: ${candidates.keys.sortedBy { it.toString() }}")
+        }
     }
 
     public fun buildValueState(parameters: Meta): ValueState<Meta> {
         val type = parameters["type"]?.string ?: error("Type not specified")
-        return valueStateFactories[type]?.build(context, parameters) ?: error("No value state factory for type $type")
+        return buildValueState(type, parameters)
     }
+
+    internal fun buildValueState(type: String, parameters: Meta): ValueState<Meta> =
+        resolveValueStateFactory(type)?.build(context, parameters)
+            ?: error("No value state factory for type $type. Available factories: ${valueStateFactoriesByName.keys.sortedBy { it.toString() }}")
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> mapOf(
@@ -65,11 +87,10 @@ public class ConstructorPlugin : AbstractPlugin() {
             registerProperty(
                 name = name,
                 converter = MetaConverter.meta,
-                state = valueStateFactories[propertyConfiguration.type]?.build(
-                    context,
+                state = buildValueState(
+                    propertyConfiguration.type,
                     propertyConfiguration.parameters
-                )
-                    ?: error("No value state factory for ${propertyConfiguration.type}. Available factories: ${valueStateFactories.keys}"),
+                ),
             )
         }
 
