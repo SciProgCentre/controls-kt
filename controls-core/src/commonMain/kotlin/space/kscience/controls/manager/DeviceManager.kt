@@ -5,8 +5,9 @@ import space.kscience.controls.api.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
+import space.kscience.dataforge.meta.descriptors.MetaValidationResult
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.validate
+import space.kscience.dataforge.meta.validateWithResult
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
 import space.kscience.dataforge.names.parseAsName
@@ -172,7 +173,9 @@ public fun DeviceManager.createDeviceTree(
     configuration: Meta,
     additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()
 ): DeviceTree {
-    DeviceLibraryMetaSpec.validate(configuration)
+    val issues = DeviceLibraryMetaSpec.validateWithResult(configuration)
+        .filterIsInstance<MetaValidationResult.Invalid>().toList()
+    check(issues.isEmpty()) { "Invalid device configuration: $issues" }
     val type = configuration[DeviceLibraryMetaSpec.type] ?: error("Device type is not specified")
     val parameters = configuration[DeviceLibraryMetaSpec.parameters] ?: Meta.EMPTY
     val factory = additionalFactories[type]

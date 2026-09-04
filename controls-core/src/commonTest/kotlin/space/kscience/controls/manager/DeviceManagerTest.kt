@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 internal class DeviceManagerTest {
     private class TestDeviceFactory : DeviceTreeFactory {
@@ -85,6 +86,26 @@ internal class DeviceManagerTest {
         withFactories(TestFactoryPlugin("a", TestDeviceFactory())) { manager ->
             assertNull(manager.resolveDeviceFactory("missing"))
             assertNull(manager.resolveDeviceFactory("a.missing"))
+        }
+    }
+
+    @Test
+    fun testCreateDeviceTreeRejectsMissingType() {
+        withFactories { manager ->
+            val error = assertFailsWith<IllegalStateException> {
+                manager.createDeviceTree(Meta.EMPTY)
+            }
+            assertTrue(error.message.orEmpty().contains("RequiredValueIsMissing"))
+        }
+    }
+
+    @Test
+    fun testCreateDeviceTreeRejectsIncorrectTypeValue() {
+        withFactories { manager ->
+            val error = assertFailsWith<IllegalStateException> {
+                manager.createDeviceTree(Meta { "type" put 42 })
+            }
+            assertTrue(error.message.orEmpty().contains("IncorrectValueType"))
         }
     }
 }
