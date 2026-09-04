@@ -14,7 +14,6 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           java-version: '21'
-          distribution: 'liberica'
           cache: 'gradle'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
