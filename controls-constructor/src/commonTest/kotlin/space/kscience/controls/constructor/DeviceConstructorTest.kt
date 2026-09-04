@@ -9,9 +9,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.api.valueType
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.double
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,6 +74,56 @@ class DeviceConstructorTest {
 
             assertNotEquals(Instant.DISTANT_PAST, message.time)
             assertEquals(1.0, message.value.double)
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testPropertyDescriptorsUseConverter() = runTest(timeout = 5.seconds) {
+        val context = Context("property-converter-descriptors") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            val device = object : DeviceConstructor(context) {
+                val virtual by virtualProperty(MetaConverter.double, 1.0)
+            }
+            device.registerProperty("readOnly", MetaConverter.double, ValueState(1.0))
+            device.registerMutableProperty("mutable", MetaConverter.double, MutableValueState(1.0))
+
+            for (name in listOf("readOnly", "mutable", "virtual")) {
+                val descriptor = device.propertyDescriptors.single { it.name == name }
+                assertEquals(listOf(ValueType.NUMBER), descriptor.metaDescriptor.valueTypes, name)
+            }
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testPropertyDescriptorBuilderOverridesConverter() = runTest(timeout = 5.seconds) {
+        val context = Context("property-descriptor-overrides") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            val device = object : DeviceConstructor(context) {
+                val virtual by virtualProperty(
+                    MetaConverter.double,
+                    1.0,
+                    descriptorBuilder = { valueType(ValueType.STRING) },
+                )
+            }
+            device.registerProperty("readOnly", MetaConverter.double, ValueState(1.0)) {
+                valueType(ValueType.STRING)
+            }
+            device.registerMutableProperty("mutable", MetaConverter.double, MutableValueState(1.0)) {
+                valueType(ValueType.STRING)
+            }
+
+            for (name in listOf("readOnly", "mutable", "virtual")) {
+                val descriptor = device.propertyDescriptors.single { it.name == name }
+                assertEquals(listOf(ValueType.STRING), descriptor.metaDescriptor.valueTypes, name)
+            }
         } finally {
             context.close()
         }

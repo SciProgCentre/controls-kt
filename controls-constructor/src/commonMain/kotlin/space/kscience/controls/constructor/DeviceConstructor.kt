@@ -327,7 +327,10 @@ public fun <T : Any> DeviceConstructor.registerProperty(
 ) {
     registerProperty(
         converter,
-        PropertyDescriptor(name).apply(descriptorBuilder),
+        PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        },
         state
     )
 }
@@ -343,7 +346,10 @@ public fun <T : Any> DeviceConstructor.registerMutableProperty(
 ) {
     registerProperty(
         converter,
-        PropertyDescriptor(name).apply(descriptorBuilder),
+        PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        },
         state
     )
 }
@@ -404,7 +410,10 @@ public fun <T, S : ValueState<T>> DeviceConstructor.property(
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, S>> =
     PropertyDelegateProvider { _: DeviceConstructor, property ->
         val name = nameOverride ?: property.name
-        val descriptor = PropertyDescriptor(name).apply(descriptorBuilder)
+        val descriptor = PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        }
         registerProperty(converter, descriptor, state)
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             state
