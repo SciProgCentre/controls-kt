@@ -12,6 +12,7 @@ repositories {
 
 dependencies {
     implementation(projects.controlsTable)
+    implementation(projects.controlsUtilities)
     implementation(projects.controlsVisualisationCompose)
 
 //    implementation(libs.plotlykt.server)
@@ -24,6 +25,12 @@ dependencies {
 //    implementation("io.ktor:ktor-server-cio")
 
     implementation(spclibs.logback.classic)
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 kotlin{

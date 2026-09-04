@@ -11,7 +11,8 @@ This demo showcases a data platform that aggregates data from multiple sources (
 
 ## Documentation
 
-- [UI Specification](device-visualisation.md): Specification for the Compose Multiplatform-based visualization UI.
+- [UI Specification for Device Visualization](device-visualisation.md): Specification for the Compose Multiplatform-based visualization UI.
+- [UI Specification for Device Scheme Configurator](device-configurator.md): Specification for the Compose Multiplatform-based visual device scheme configurator.
 
 ## How to run
 

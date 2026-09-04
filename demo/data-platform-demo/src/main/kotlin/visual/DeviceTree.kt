@@ -22,6 +22,8 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.constructor.propertyAsState
+import space.kscience.controls.utilities.Alarm
+import space.kscience.controls.utilities.AlarmState
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.lastOrNull
@@ -140,20 +142,38 @@ fun PropertyNode(
     ) {
         Checkbox(
             checked = isSelected,
-            onCheckedChange = onSelect
+            onCheckedChange = onSelect,
+            enabled = device !is Alarm
         )
         Text(
             text = propertyName,
             style = MaterialTheme.typography.bodyMedium
         )
-        if (isSelected) {
-            val value = device.propertyAsState(propertyName, MetaConverter.double, Double.NaN).asComposeState()
+
+        Spacer(modifier = Modifier.weight(1.0f))
+
+        if (device is Alarm && propertyName == "state") {
+            val value = device.propertyAsState(
+                propertyName = propertyName,
+                metaConverter = MetaConverter.serializable<AlarmState>(),
+                initialValue = AlarmState("", null)
+            ).asComposeState()
 
             Text(
-                text = " : ${String.format("%.2f", value.value)}",
+                text = value.value.message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.error
             )
+        } else {
+            if (isSelected) {
+                val value = device.propertyAsState(propertyName, MetaConverter.double, Double.NaN).asComposeState()
+
+                Text(
+                    text = " : ${String.format("%.2f", value.value)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
         }
     }
 }

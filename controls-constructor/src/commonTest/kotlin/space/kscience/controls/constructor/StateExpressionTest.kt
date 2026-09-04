@@ -1,7 +1,5 @@
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.LifecycleState
@@ -18,23 +16,28 @@ import space.kscience.dataforge.names.Name
 import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class StateExpressionTest {
 
     @Test
-    fun testBasicExpressions() = runTest(timeout = 20.seconds) {
-        val context = Context()
-        val stateExpressionContext = StateExpressionContext(DeviceTree(), backgroundScope)
+    fun testBasicExpressions() = runTest(timeout = 5.seconds) {
+        val context = Context("basicExpressions") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            val stateExpressionContext = StateExpressionContext(context, DeviceTree(), backgroundScope)
 
-        val a = StateExpression.Constant("pi", Meta.EMPTY)
-        val state = stateExpressionContext.computeState(a)
-        assertEquals(PI, state.value)
+            val a = StateExpression.Constant("pi", Meta.EMPTY)
+            val state = stateExpressionContext.computeState(a)
+            assertEquals(PI, state.value)
 
-        val b = StateExpression.Binary("+", a, a)
-        val state2 = stateExpressionContext.computeState(b)
-        assertEquals(PI * 2, state2.value)
+            val b = StateExpression.Binary("+", a, a)
+            val state2 = stateExpressionContext.computeState(b)
+            assertEquals(PI * 2, state2.value)
+        } finally {
+            context.close()
+        }
     }
 
     class TestDevice(context: Context) : DeviceConstructor(context) {
@@ -51,22 +54,17 @@ class StateExpressionTest {
     }
 
     @Test
-    fun testDeviceConstructorWithExpression() = runTest(timeout = 500.milliseconds) {
-        val context = Context() {
-            plugin(DeviceManager.Companion)
+    fun testDeviceConstructorWithExpression() = runTest(timeout = 5.seconds) {
+        val context = Context("deviceExpression") {
+            plugin(DeviceManager)
+            coroutineContext(backgroundScope.coroutineContext)
         }
-        val device = TestDevice(context)
-
-        launch {
-            device.awaitLifecycleState(LifecycleState.STARTING)
-
+        try {
+            val device = context.install("test", TestDevice(context))
+            device.awaitLifecycleState(LifecycleState.STARTED)
             assertEquals(3.0, device.zState.value)
-
+        } finally {
             context.close()
         }
-        delay(10.milliseconds)
-
-        context.install("test", device)
-
     }
 }

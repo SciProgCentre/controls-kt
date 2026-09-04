@@ -5,9 +5,12 @@ import space.kscience.controls.api.*
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
+import space.kscience.dataforge.meta.descriptors.MetaValidationResult
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.misc.DFExperimental
+import space.kscience.dataforge.meta.validateWithResult
+import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
+import space.kscience.dataforge.names.parseAsName
 import kotlin.properties.ReadOnlyProperty
 
 /**
@@ -21,18 +24,31 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     /**
      * Device factories available in the context
      */
-    public val factories: Map<String, DeviceTreeFactory> by lazy {
-        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class).mapKeys { it.key.last().toString() }
+    public val factories: Map<Name, DeviceTreeFactory> by lazy {
+        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class)
+    }
+
+    /**
+     * Resolve device factory by full name. Short name is accepted only if it is unique.
+     */
+    public fun resolveDeviceFactory(type: String): DeviceTreeFactory? {
+        factories[type.parseAsName()]?.let { return it }
+        val candidates = factories.filterKeys { it.last().toString() == type }
+        return when (candidates.size) {
+            0 -> null
+            1 -> candidates.values.single()
+            else -> error("Device factory type $type is ambiguous: ${candidates.keys.sortedBy { it.toString() }}")
+        }
     }
 
     /**
      * Actual list of connected devices
      */
-    private val _children = HashMap<String, DeviceTree>()
-    override val children: Map<String, DeviceTree> get() = _children
+    override val children: Map<String, DeviceTree>
+        field = HashMap<String, DeviceTree>()
 
     public fun registerDeviceTree(name: String, tree: DeviceTree) {
-        _children[name] = tree
+        children[name] = tree
     }
 
     /**
@@ -153,16 +169,18 @@ public inline fun <D : DeviceTree> DeviceManager.installing(
  *
  * @param additionalFactories additional factories to use when creating the device when they are not defined in the context
  */
-@OptIn(DFExperimental::class)
 public fun DeviceManager.createDeviceTree(
     configuration: Meta,
     additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()
 ): DeviceTree {
-//    DeviceLibraryMetaSpec.validate(configuration)
+    val issues = DeviceLibraryMetaSpec.validateWithResult(configuration)
+        .filterIsInstance<MetaValidationResult.Invalid>().toList()
+    check(issues.isEmpty()) { "Invalid device configuration: $issues" }
     val type = configuration[DeviceLibraryMetaSpec.type] ?: error("Device type is not specified")
     val parameters = configuration[DeviceLibraryMetaSpec.parameters] ?: Meta.EMPTY
-    val allFactories = factories.mapKeys { it.toString() } + additionalFactories
-    val factory = allFactories[type] ?: error("Device type $type is not registered")
+    val factory = additionalFactories[type]
+        ?: resolveDeviceFactory(type)
+        ?: error("Device type $type is not registered")
     return factory(parameters, context)
 
 }
@@ -171,7 +189,6 @@ public fun DeviceManager.createDeviceTree(
 /**
  * Create and install a device using given [configuration] and registered factories
  */
-@OptIn(DFExperimental::class)
 public fun DeviceManager.install(
     configuration: Meta,
     additionalFactories: Map<String, DeviceTreeFactory> = emptyMap()

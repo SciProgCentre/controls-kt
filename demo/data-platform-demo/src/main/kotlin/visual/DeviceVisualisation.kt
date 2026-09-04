@@ -59,6 +59,7 @@ fun DeviceVisualisation(
                         PlotDeviceProperty(
                             device = device,
                             propertyName = propertyName,
+                            seriesName = "$deviceName/$propertyName"
                         )
                     }
                 }

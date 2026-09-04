@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalAtomicApi::class, ExperimentalSerializationApi::class)
+@file:OptIn(ExperimentalSerializationApi::class)
 
 package space.kscience.controls.demo
 
@@ -16,19 +16,19 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.onPropertyChange
-import space.kscience.controls.constructor.DeviceConfiguration
+import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.install
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.manager.install
 import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.TagTableDevice
 import space.kscience.controls.tagtable.TagTablePlugin
+import space.kscience.controls.utilities.ControlsUtilitiesPlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.inputStream
 import kotlin.time.Duration.Companion.seconds
 
@@ -67,6 +67,7 @@ fun main() {
     val context = Context {
         plugin(IOPlugin)
         plugin(TagTablePlugin)
+        plugin(ControlsUtilitiesPlugin)
         plugin(SlfLogManager)
     }
 
@@ -83,7 +84,7 @@ fun main() {
     )
 
     //read platform config
-    val configuration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
+    val configuration: TagTableConfiguration = platformDataDirectory.resolve("platform-config.json").inputStream().use {
         json.decodeFromStream(TagTableConfiguration.serializer(), it)
     }
 
@@ -99,11 +100,19 @@ fun main() {
 
 
     //read device config
-    val deviceConfig = platformDataDirectory.resolve("device-config.json").inputStream().use {
-        json.decodeFromStream(DeviceConfiguration.serializer(), it)
+    val deviceConfig: ConstructorDeviceConfiguration = platformDataDirectory.resolve("device-config.json").inputStream().use {
+        json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
     }
+
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)
+
+
+    val alarmConfig =  platformDataDirectory.resolve("alarm-config.json").inputStream().use {
+        json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
+    }
+
+    val alarms = devices.install("alarms", alarmConfig)
 
 //    val allDescriptors = platformDevice.propertyDescriptors
 

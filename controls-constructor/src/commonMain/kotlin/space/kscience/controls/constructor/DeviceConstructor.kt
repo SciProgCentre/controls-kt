@@ -144,12 +144,12 @@ public open class DeviceConstructor(
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
-        state.subscribe().map(converter::convert).onEach {
+        state.subscribeWithTime().onEach { (value, time) ->
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
-                    time = clock.now(),
+                    time = time,
                     property = descriptor.name,
-                    value = it
+                    value = converter.convert(value)
                 )
             )
         }.launchIn(this)
@@ -237,7 +237,9 @@ public open class DeviceConstructor(
 
     override val clock: Clock = context.clock
 
-    public companion object
+    public companion object{
+        public const val METADATA_KEY: String = "metadata"
+    }
 }
 
 /**
@@ -294,6 +296,20 @@ public fun <D : Device> DeviceConstructor.install(
 }
 
 /**
+ * Add a device tree creating intermediate groups if necessary. If device with given [name] already exists, throws an error.
+ */
+public fun <DT: DeviceTree> DeviceConstructor.installTree(
+    name: String,
+    factory: Factory<DT>,
+    deviceMeta: Meta? = null,
+    metaLocation: Name = Name.of(name),
+): DT {
+    val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
+    installTree(name, newDevice)
+    return newDevice
+}
+
+/**
  * Create or edit a group with a given [name].
  */
 public fun DeviceConstructor.install(name: String, block: DeviceConstructor.() -> Unit): DeviceConstructor =
@@ -310,7 +326,10 @@ public fun <T : Any> DeviceConstructor.registerProperty(
 ) {
     registerProperty(
         converter,
-        PropertyDescriptor(name).apply(descriptorBuilder),
+        PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        },
         state
     )
 }
@@ -326,7 +345,10 @@ public fun <T : Any> DeviceConstructor.registerMutableProperty(
 ) {
     registerProperty(
         converter,
-        PropertyDescriptor(name).apply(descriptorBuilder),
+        PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        },
         state
     )
 }
@@ -387,7 +409,10 @@ public fun <T, S : ValueState<T>> DeviceConstructor.property(
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, S>> =
     PropertyDelegateProvider { _: DeviceConstructor, property ->
         val name = nameOverride ?: property.name
-        val descriptor = PropertyDescriptor(name).apply(descriptorBuilder)
+        val descriptor = PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        }
         registerProperty(converter, descriptor, state)
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             state

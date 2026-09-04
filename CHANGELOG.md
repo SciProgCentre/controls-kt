@@ -4,13 +4,31 @@
 
 ### Added
 
+- Controls-utilities module with `Alarm` and `Accumulator` virtual devices.
+- `ConstructorBinding` and `BoundStateHolder` for named component inputs.
+- Nullable expressions and `StateExpression.State` for value-state factories.
+- Parameter descriptors for Alarm and Accumulator.
+
 ### Changed
+
+- **BREAKING** `DeviceConfiguration` is renamed to `ConstructorDeviceConfiguration`.
+- **BREAKING** `templates` is renamed to `components` in constructor configuration.
+- Device and value-state factories resolve by full name; ambiguous short names are rejected.
+- `AlarmSetting` thresholds default to null; at least one threshold is still required.
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+- Pass the configured target input name to component bindings.
+- Fix initialization and source dependencies in `differentiate`; ignore null samples and invalid time marks.
+- Return null from `resolveDeviceOrNull` when an existing ancestor has a missing descendant.
+- Report invalid device library configuration instead of discarding validation results.
+- Preserve source time in constructor property messages instead of stamping them with the current clock.
+- Propagate converter descriptors to constructor properties while preserving caller overrides.
+- Read explicit null values with nullable converters and include null in their descriptors.
 
 ### Security
 

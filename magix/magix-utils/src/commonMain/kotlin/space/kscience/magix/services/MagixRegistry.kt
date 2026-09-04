@@ -123,7 +123,7 @@ public fun CoroutineScope.launchMagixRegistry(
  *
  * Flow is ordered by response receive time.
  * The subscriber can terminate the flow at any moment to stop subscription, or use it indefinitely to continue observing changes.
- * To request a single value, use [Flow.first] function.
+ * To request a single value, use Flow.first function.
  *
  * If [registryEndpoint] field is provided, send request only to given endpoint.
  *

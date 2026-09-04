@@ -6,6 +6,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.io.IOFormatFactory
 import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.names.Name
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
@@ -20,20 +21,33 @@ public fun Number.asMeta(): Meta = Meta(asValue())
  * Generate a nullable [MetaConverter] from non-nullable one
  */
 public fun <T : Any> MetaConverter<T>.nullable(): MetaConverter<T?> = object : MetaConverter<T?> {
+    override val descriptor: MetaDescriptor? get() = this@nullable.descriptor?.let { base ->
+        MetaDescriptor {
+            from(base)
+            valueTypes = base.valueTypes?.let { (it + ValueType.NULL).distinct() }
+        }
+    }
+
     override fun convert(obj: T?): Meta = obj?.let { this@nullable.convert(it) } ?: Meta(Null)
 
     override fun readOrNull(source: Meta): T? = if (source.value == Null) null else this@nullable.readOrNull(source)
 
+    override fun read(source: Meta): T? = if (source.value == Null) null else this@nullable.read(source)
 }
 
 //TODO to be moved to DF
 private object DurationConverter : MetaConverter<Duration> {
-    override fun readOrNull(source: Meta): Duration = source.value?.double?.toDuration(DurationUnit.SECONDS)
-        ?: run {
+    override fun readOrNull(source: Meta): Duration = when (source.value?.type) {
+        null -> {
             val unit: DurationUnit = source["unit"].enum<DurationUnit>() ?: DurationUnit.SECONDS
             val value = source[Meta.VALUE_KEY].double ?: error("No value present for Duration")
-            return@run value.toDuration(unit)
+            value.toDuration(unit)
         }
+        ValueType.NUMBER -> source.double!!.toDuration(DurationUnit.SECONDS)
+
+        ValueType.STRING -> Duration.parse(source.string!!)
+        else -> error("Unsupported type for Duration: ${source.value?.type}")
+    }
 
     override fun convert(obj: Duration): Meta = obj.toDouble(DurationUnit.SECONDS).asMeta()
 }

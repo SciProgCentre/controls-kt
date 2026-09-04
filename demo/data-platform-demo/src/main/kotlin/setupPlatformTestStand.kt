@@ -1,6 +1,6 @@
 package space.kscience.controls.demo
 
-import space.kscience.controls.constructor.DeviceConfiguration
+import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.tagtable.*
 import space.kscience.dataforge.names.Name
@@ -103,10 +103,18 @@ internal fun DeviceManager.setupPlatformTestStand(
     val deviceConfiguration = createDeviceConfiguration(configuration)
     dataDirectory.resolve("device-config.json").writeText(
         json.encodeToString(
-            DeviceConfiguration.serializer(),
+            ConstructorDeviceConfiguration.serializer(),
             deviceConfiguration
         )
     )
+
+//    val alarmConfig = createAlarmConfig(deviceConfiguration)
+//    dataDirectory.resolve("alarm-config.json").writeText(
+//        json.encodeToString(
+//            ConstructorDeviceConfiguration.serializer(),
+//            alarmConfig
+//        )
+//    )
 
     return dataDirectory
 }
