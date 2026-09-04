@@ -1,39 +1,43 @@
 package space.kscience.controls.utilities
 
-/*
- * LLM generated code: Comprehensive unit tests for Alarm device and AlarmSetting in controls-utilities module.
- */
-
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.*
-import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.install
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.ValueRestriction
+import space.kscience.dataforge.meta.descriptors.get
+import space.kscience.dataforge.names.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class AlarmTest {
 
-    private class TestSourceDevice(context: Context) : DeviceConstructor(context) {
-        val temperature: MutableValueState<Double?> by virtualProperty(
-            MetaConverter.double.nullable(),
-            initialState = 20.0
-        )
+    private fun ValueState<Double?>.asMeta(): ValueState<Meta> = map(MetaConverter.double.nullable()::convert)
+
+    private fun settingsMeta(vararg settings: Meta): Meta = Meta {
+        setIndexed(Name.of("setting"), settings.toList())
     }
 
-    private val testContext = Context("test")
+    private suspend fun TestScope.withTestContext(name: String, block: suspend (Context) -> Unit) {
+        val context = Context(name) {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            block(context)
+        } finally {
+            context.close()
+        }
+    }
 
     @Test
     fun testAlarmSettingValidation() {
-        // Valid settings
         val settingLowerOnly = AlarmSetting(lowerThreshold = 10.0, upperThreshold = null, status = "LOW")
         assertEquals(10.0, settingLowerOnly.lowerThreshold)
         assertNull(settingLowerOnly.upperThreshold)
@@ -49,180 +53,266 @@ class AlarmTest {
         assertEquals(50.0, settingBoth.upperThreshold)
         assertEquals("OUT_OF_BOUNDS", settingBoth.status)
 
-        // Invalid setting: both thresholds null
         assertFailsWith<IllegalArgumentException> {
             AlarmSetting(lowerThreshold = null, upperThreshold = null, status = "INVALID")
         }
+        assertFailsWith<IllegalArgumentException> {
+            AlarmSetting(status = "INVALID")
+        }
     }
 
     @Test
-    fun testAlarmInitialStateNullValue() {
-        val valueState = ValueState<Double?>(null)
-        val alarm = Alarm(testContext, valueState)
-
-        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
-    }
-
-    @Test
-    fun testAlarmInitialStateWithoutSettings() {
-        val valueState = ValueState<Double?>(25.0)
-        val alarm = Alarm(testContext, valueState)
-
-        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
-    }
-
-    @Test
-    fun testAlarmThresholdEvaluations() = runTest {
-        val valueState = MutableValueState<Double?>(null)
-        val alarm = Alarm(testContext, valueState)
-
-        alarm.alarmSettings.value = listOf(
-            AlarmSetting(lowerThreshold = 10.0, upperThreshold = null, status = "LOW_WARN"),
-            AlarmSetting(lowerThreshold = 0.0, upperThreshold = null, status = "LOW_ERROR"),
-            AlarmSetting(lowerThreshold = null, upperThreshold = 40.0, status = "HIGH_WARN"),
-            AlarmSetting(lowerThreshold = null, upperThreshold = 60.0, status = "HIGH_ERROR")
+    fun testAlarmSettingsConverterWithExplicitNullThresholds() {
+        val input = settingsMeta(
+            Meta {
+                "lowerThreshold" put 10.0
+                "upperThreshold" put Meta(Null)
+                "status" put "LOW"
+            },
+            Meta {
+                "lowerThreshold" put Meta(Null)
+                "upperThreshold" put 40.0
+                "status" put "HIGH"
+            }
         )
-
-        // Value is null -> UNDEFINED
-        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
-
-        // Value within normal range -> OK
-        valueState.value = 25.0
-        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
-
-        // Value at exact boundaries (lowerThreshold = 10.0, upperThreshold = 40.0) -> OK (since < and > are strict)
-        valueState.value = 10.0
-        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
-
-        valueState.value = 40.0
-        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
-
-        // Value below lower threshold (5.0 < 10.0) -> LOW_WARN
-        valueState.value = 5.0
-        assertEquals("LOW_WARN", alarm.state.value.message)
-
-        // Value below both lower thresholds (-5.0 < 10.0 and -5.0 < 0.0) -> last wins: LOW_ERROR
-        valueState.value = -5.0
-        assertEquals("LOW_ERROR", alarm.state.value.message)
-
-        // Value above upper threshold (50.0 > 40.0) -> HIGH_WARN
-        valueState.value = 50.0
-        assertEquals("HIGH_WARN", alarm.state.value.message)
-
-        // Value above both upper thresholds (70.0 > 40.0 and 70.0 > 60.0) -> last wins: HIGH_ERROR
-        valueState.value = 70.0
-        assertEquals("HIGH_ERROR", alarm.state.value.message)
-
-        // Value back to null -> UNDEFINED
-        valueState.value = null
-        assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
+        val expected = listOf(
+            AlarmSetting(lowerThreshold = 10.0, status = "LOW"),
+            AlarmSetting(upperThreshold = 40.0, status = "HIGH")
+        )
+        val decoded = Alarm.settingsConverter.read(input)
+        assertEquals(expected, decoded)
+        assertEquals(expected, Alarm.settingsConverter.read(Alarm.settingsConverter.convert(decoded)))
     }
 
     @Test
-    fun testAlarmDynamicSettingsChange() = runTest {
-        val valueState = MutableValueState<Double?>(30.0)
-        val alarm = Alarm(testContext, valueState)
-
-        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
-
-        alarm.alarmSettings.value = listOf(
-            AlarmSetting(lowerThreshold = null, upperThreshold = 25.0, status = "WARNING")
+    fun testAlarmSettingsConverterWithOmittedThresholds() {
+        val input = settingsMeta(
+            Meta {
+                "lowerThreshold" put 10.0
+                "status" put "LOW"
+            },
+            Meta {
+                "upperThreshold" put 40.0
+                "status" put "HIGH"
+            },
+            Meta {
+                "lowerThreshold" put 0.0
+                "upperThreshold" put 60.0
+                "status" put "OUT_OF_BOUNDS"
+            }
         )
-
-        assertEquals("WARNING", alarm.state.value.message)
-
-        alarm.alarmSettings.value = listOf(
-            AlarmSetting(lowerThreshold = null, upperThreshold = 35.0, status = "WARNING")
+        val expected = listOf(
+            AlarmSetting(lowerThreshold = 10.0, status = "LOW"),
+            AlarmSetting(upperThreshold = 40.0, status = "HIGH"),
+            AlarmSetting(lowerThreshold = 0.0, upperThreshold = 60.0, status = "OUT_OF_BOUNDS")
         )
-
-        assertEquals(Alarm.STATUS_OK, alarm.state.value.message)
+        val decoded = Alarm.settingsConverter.read(input)
+        assertEquals(expected, decoded)
+        assertEquals(expected, Alarm.settingsConverter.read(Alarm.settingsConverter.convert(decoded)))
     }
 
     @Test
-    fun testAlarmRegisteredPropertyState() = runTest {
-        val valueState = MutableValueState<Double?>(50.0)
-        val alarm = Alarm(testContext, valueState)
-
-        val initialMeta = alarm.readProperty("state")
-        assertEquals(Alarm.STATUS_OK, initialMeta["message"].string)
-
-        alarm.alarmSettings.value = listOf(
-            AlarmSetting(lowerThreshold = null, upperThreshold = 40.0, status = "HOT")
-        )
-
-        val hotMeta = alarm.readProperty("state")
-        assertEquals("HOT", hotMeta["message"].string)
+    fun testAlarmSettingsConverterRejectsMissingThresholds() {
+        val exception = assertFailsWith<IllegalArgumentException> {
+            Alarm.settingsConverter.read(settingsMeta(Meta { "status" put "INVALID" }))
+        }
+        assertEquals("At least one threshold must be defined", exception.message)
     }
 
     @Test
-    fun testAlarmFactoryBuildDevice() = runTest {
-        val context = Context("factoryTest") {
-            plugin(DeviceManager)
-        }
-        val deviceManager = context.request(DeviceManager)
-        val sourceDevice = deviceManager.install("sensor", TestSourceDevice(context))
-
-        val meta = Meta {
-            "deviceName" put "sensor"
-            "propertyName" put "temperature"
-        }
-
-        val alarmDevice = Alarm.buildDevice(context, meta)
-        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value.message)
-
-        alarmDevice.alarmSettings.value = listOf(
-            AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
+    fun testAlarmParameterDescriptor() {
+        val setting = assertNotNull(Alarm.descriptor["settings"]?.get("setting"))
+        assertTrue(setting.multiple)
+        assertEquals(
+            listOf(ValueType.NUMBER, ValueType.NULL),
+            assertNotNull(setting["lowerThreshold"]).valueTypes
         )
-        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value.message)
-
-        sourceDevice.temperature.value = 35.0
-        assertEquals("TOO_HOT", alarmDevice.state.value.message)
+        assertEquals(
+            listOf(ValueType.NUMBER, ValueType.NULL),
+            assertNotNull(setting["upperThreshold"]).valueTypes
+        )
+        val status = assertNotNull(setting["status"])
+        assertEquals(listOf(ValueType.STRING), status.valueTypes)
+        assertEquals(ValueRestriction.REQUIRED, status.valueRestriction)
+        assertNotNull(Alarm.descriptor[DeviceConstructor.METADATA_KEY])
     }
 
     @Test
-    fun testAlarmFactoryWithDottedDeviceName() = runTest {
-        val context = Context("factoryDottedTest") {
-            plugin(DeviceManager)
+    fun testAlarmUnboundState() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmUnbound") { context ->
+            val alarm = Alarm(context)
+            assertEquals(AlarmState(Alarm.STATUS_UNDEFINED, null), alarm.state.value)
         }
-        val deviceManager = context.request(DeviceManager)
-        val group = deviceManager.install("group", DeviceConstructor(context))
-        val sourceDevice = group.install("sensor", TestSourceDevice(context))
-
-        val meta = Meta {
-            "deviceName" put "group.sensor"
-            "propertyName" put "temperature"
-        }
-
-        val alarmDevice = Alarm.buildDevice(context, meta)
-        assertEquals(Alarm.STATUS_OK, alarmDevice.state.value.message)
-
-        alarmDevice.alarmSettings.value = listOf(
-            AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
-        )
-        sourceDevice.temperature.value = 35.0
-        assertEquals("TOO_HOT", alarmDevice.state.value.message)
     }
 
     @Test
-    fun testAlarmFactoryMissingParameters() {
-        val context = Context("factoryTest") {
-            plugin(DeviceManager)
+    fun testAlarmInitialStateNullValue() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmInitialNull") { context ->
+            val alarm = Alarm(context)
+            alarm.bind(ValueState<Double?>(null).asMeta())
+            assertEquals(AlarmState(Alarm.STATUS_UNDEFINED, null), alarm.state.value)
         }
+    }
 
-        assertFailsWith<IllegalStateException> {
-            Alarm.buildDevice(context, Meta { "propertyName" put "temp" })
+    @Test
+    fun testAlarmInitialStateWithoutSettings() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmWithoutSettings") { context ->
+            val alarm = Alarm(context)
+            alarm.bind(ValueState<Double?>(25.0).asMeta())
+            assertEquals(AlarmState(Alarm.STATUS_OK, 25.0), alarm.state.value)
         }
+    }
 
-        assertFailsWith<IllegalStateException> {
-            Alarm.buildDevice(context, Meta { "deviceName" put "sensor" })
+    @Test
+    fun testAlarmThresholdEvaluations() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmThresholds") { context ->
+            val source = MutableValueState<Double?>(null)
+            val alarm = Alarm(
+                context,
+                listOf(
+                    AlarmSetting(lowerThreshold = 10.0, upperThreshold = null, status = "LOW_WARN"),
+                    AlarmSetting(lowerThreshold = 0.0, upperThreshold = null, status = "LOW_ERROR"),
+                    AlarmSetting(lowerThreshold = null, upperThreshold = 40.0, status = "HIGH_WARN"),
+                    AlarmSetting(lowerThreshold = null, upperThreshold = 60.0, status = "HIGH_ERROR")
+                )
+            )
+            alarm.bind(source.asMeta())
+
+            fun assertState(value: Double?, status: String) {
+                source.value = value
+                assertEquals(AlarmState(status, value), alarm.state.value)
+            }
+
+            assertState(null, Alarm.STATUS_UNDEFINED)
+            assertState(25.0, Alarm.STATUS_OK)
+            assertState(10.0, Alarm.STATUS_OK)
+            assertState(40.0, Alarm.STATUS_OK)
+            assertState(5.0, "LOW_WARN")
+            assertState(-5.0, "LOW_ERROR")
+            assertState(50.0, "HIGH_WARN")
+            assertState(70.0, "HIGH_ERROR")
+            assertState(null, Alarm.STATUS_UNDEFINED)
         }
+    }
 
-        val emptyContext = Context("empty")
-        assertFailsWith<IllegalStateException> {
-            Alarm.buildDevice(emptyContext, Meta {
-                "deviceName" put "sensor"
-                "propertyName" put "temp"
-            })
+    @Test
+    fun testAlarmDynamicSettingsChange() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmDynamicSettings") { context ->
+            val source = MutableValueState<Double?>(30.0)
+            val alarm = Alarm(context)
+            alarm.bind(source.asMeta())
+            assertEquals(AlarmState(Alarm.STATUS_OK, 30.0), alarm.state.value)
+
+            alarm.alarmSettings.value = listOf(
+                AlarmSetting(lowerThreshold = null, upperThreshold = 25.0, status = "WARNING")
+            )
+            assertEquals(AlarmState("WARNING", 30.0), alarm.state.value)
+
+            alarm.alarmSettings.value = listOf(
+                AlarmSetting(lowerThreshold = null, upperThreshold = 35.0, status = "WARNING")
+            )
+            assertEquals(AlarmState(Alarm.STATUS_OK, 30.0), alarm.state.value)
+        }
+    }
+
+    @Test
+    fun testAlarmRegisteredPropertyState() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmRegisteredProperty") { context ->
+            val alarm = Alarm(context)
+            alarm.bind(MutableValueState<Double?>(50.0).asMeta())
+
+            val initialMeta = alarm.readProperty("state")
+            assertEquals(Alarm.STATUS_OK, initialMeta["message"].string)
+            assertEquals(50.0, initialMeta["value"].double)
+
+            alarm.alarmSettings.value = listOf(
+                AlarmSetting(lowerThreshold = null, upperThreshold = 40.0, status = "HOT")
+            )
+            val hotMeta = alarm.readProperty("state")
+            assertEquals("HOT", hotMeta["message"].string)
+            assertEquals(50.0, hotMeta["value"].double)
+        }
+    }
+
+    @Test
+    fun testAlarmFactoryBuildDevice() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmFactory") { context ->
+            val settings = listOf(
+                AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
+            )
+            val metadata = Meta { "description" put "Temperature alarm" }
+            val parameters = Alarm.buildDeviceMeta(settings, metadata)
+            assertEquals(settings, parameters[Alarm.Spec.settings])
+            assertTrue(Meta.equals(metadata, parameters[Alarm.Spec.metadata]))
+            val alarm = Alarm.buildDevice(context, parameters)
+
+            assertEquals(settings, alarm.alarmSettings.value)
+            assertEquals("Temperature alarm", alarm.meta["description"].string)
+            assertEquals(AlarmState(Alarm.STATUS_UNDEFINED, null), alarm.state.value)
+
+            val source = MutableValueState<Double?>(20.0)
+            alarm.bind(source.asMeta())
+            assertEquals(AlarmState(Alarm.STATUS_OK, 20.0), alarm.state.value)
+
+            source.value = 35.0
+            assertEquals(AlarmState("TOO_HOT", 35.0), alarm.state.value)
+        }
+    }
+
+    @Test
+    fun testAlarmFactoryWithoutSettings() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmFactoryWithoutSettings") { context ->
+            val alarm = Alarm.buildDevice(context, Meta.EMPTY)
+            assertEquals(emptyList(), alarm.alarmSettings.value)
+            assertEquals(AlarmState(Alarm.STATUS_UNDEFINED, null), alarm.state.value)
+        }
+    }
+
+    @Test
+    fun testAlarmBindingInputNames() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmInputNames") { context ->
+            val settings = listOf(
+                AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "HOT")
+            )
+            val source = MutableValueState<Double?>(25.0)
+            val defaultInput = Alarm(context, settings)
+            val namedInput = Alarm(context, settings)
+            defaultInput.bind(source.asMeta())
+            namedInput.bind(source.asMeta(), "value")
+
+            assertEquals(AlarmState(Alarm.STATUS_OK, 25.0), defaultInput.state.value)
+            assertEquals(defaultInput.state.value, namedInput.state.value)
+            source.value = 35.0
+            assertEquals(AlarmState("HOT", 35.0), defaultInput.state.value)
+            assertEquals(defaultInput.state.value, namedInput.state.value)
+        }
+    }
+
+    @Test
+    fun testAlarmRejectsUnknownInput() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmUnknownInput") { context ->
+            val alarm = Alarm(context)
+            val source = ValueState<Double?>(10.0).asMeta()
+            assertFailsWith<IllegalStateException> {
+                alarm.bind(source, "other")
+            }
+
+            alarm.bind(source)
+            assertEquals(AlarmState(Alarm.STATUS_OK, 10.0), alarm.state.value)
+        }
+    }
+
+    @Test
+    fun testAlarmRejectsRepeatedBinding() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmRepeatedBinding") { context ->
+            val alarm = Alarm(context)
+            alarm.bind(ValueState<Double?>(10.0).asMeta())
+            val exception = assertFailsWith<IllegalStateException> {
+                alarm.bind(ValueState<Double?>(20.0).asMeta(), "value")
+            }
+
+            assertEquals("The state is already bound", exception.message)
+            assertEquals(AlarmState(Alarm.STATUS_OK, 10.0), alarm.state.value)
         }
     }
 }

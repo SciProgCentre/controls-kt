@@ -12,6 +12,7 @@ import space.kscience.controls.constructor.ValueStateWithDependencies
 import space.kscience.controls.time.ValueWithTime
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
+import kotlin.time.Instant
 
 /**
  *
@@ -21,11 +22,9 @@ public fun <T : Any> ValueWithTime<T?>.withDefault(default: T): ValueWithTime<T>
 }
 
 /**
- * Integrates the values within a specified time window.
- *
- * @param window The duration of the time window over which to calculate the integral.
- * @param scope The coroutine scope in which the integration logic should execute.
- * @return A [ValueState] representing the integrated result as a time-coupled value.
+ * Calculates a rolling sample sum, using the source value at construction as the default [startingValue].
+ * Adds a sample only when its time is later than the current result's time. Every event, including
+ * null and out-of-order samples, trims the [window] and republishes the result with its own time.
  */
 public fun ValueState<Double?>.integrate(
     window: Duration,
@@ -56,30 +55,30 @@ public fun ValueState<Double?>.integrate(
 }
 
 /**
- * Computes the derivative of the current `ValueState` by calculating the rate of change
- * of the encapsulated `ValueWithTime<Double>` value with respect to time.
- *
- * The returned [ValueState] emits the derivative values continuously based on the
- * changes in the original `ValueState`.
+ * Calculates the rate of change from strictly increasing timed samples. Null samples leave the baseline unchanged.
+ * An initial value without a time mark is not a baseline; the first timed sample then sets it without a derivative.
  */
 public fun ValueState<Double?>.differentiate(
     scope: CoroutineScope,
 ): ValueState<Double> = object : ValueStateWithDependencies<Double> {
 
-    private var previous = valueWithTime
-    private val state = MutableStateFlow(ValueWithTime(0.0, time))
+    private var previous: ValueWithTime<Double?> = this@differentiate.valueWithTime
+        .takeIf { it.time != Instant.DISTANT_PAST } ?: ValueWithTime(null, Instant.DISTANT_PAST)
+    private val state = MutableStateFlow(ValueWithTime(0.0, previous.time))
 
     private val job = this@differentiate.subscribeWithTime().onEach { (value, time) ->
-        if(value == null) return@onEach
+        if (value == null) return@onEach
         //skip invalid time marks
         if (time <= previous.time) return@onEach
 
-        val diff = (value - previous.value) / (time - previous.time).toDouble(DurationUnit.SECONDS)
-        state.emit(ValueWithTime(diff, time))
+        previous.value?.let { previousValue ->
+            val diff = (value - previousValue) / (time - previous.time).toDouble(DurationUnit.SECONDS)
+            state.emit(ValueWithTime(diff, time))
+        }
         previous = ValueWithTime(value, time)
     }.launchIn(scope)
 
-    override val dependencies: Collection<ValueState<*>> get() = listOf(this)
+    override val dependencies: Collection<ValueState<*>> get() = listOf(this@differentiate)
 
     override val valueWithTime: ValueWithTime<Double> get() = state.value
 

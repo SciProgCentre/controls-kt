@@ -201,9 +201,7 @@ public class StateExpressionContext(
         is StateExpression.State -> {
             val constructor = context.request(ConstructorPlugin)
 
-            val state =
-                constructor.valueStateFactories[expression.valueStateType]?.build(context, expression.parameters)
-                    ?: error("No value state factory for type ${expression.valueStateType}")
+            val state = constructor.buildValueState(expression.valueStateType, expression.parameters)
 
             state.map {
                 it[expression.valuePath].double ?: expression.defaultValue

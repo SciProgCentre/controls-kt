@@ -80,7 +80,7 @@ public fun DeviceTree.resolveDevice(name: String): Device = resolveDevice(name.p
 public fun DeviceTree.resolveDeviceOrNull(name: Name): Device? = when (name.length) {
     0 -> device
     1 -> children[name.first().toString()]?.device
-    else -> children[name.first().toString()]?.resolveDevice(name.cutFirst())
+    else -> children[name.first().toString()]?.resolveDeviceOrNull(name.cutFirst())
 }
 
 ///**

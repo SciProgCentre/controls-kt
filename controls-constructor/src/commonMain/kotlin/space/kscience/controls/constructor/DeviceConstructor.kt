@@ -144,12 +144,12 @@ public open class DeviceConstructor(
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
-        state.subscribe().map(converter::convert).onEach {
+        state.subscribeWithTime().onEach { (value, time) ->
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
-                    time = clock.now(),
+                    time = time,
                     property = descriptor.name,
-                    value = it
+                    value = converter.convert(value)
                 )
             )
         }.launchIn(this)
@@ -326,7 +326,10 @@ public fun <T : Any> DeviceConstructor.registerProperty(
 ) {
     registerProperty(
         converter,
-        PropertyDescriptor(name).apply(descriptorBuilder),
+        PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        },
         state
     )
 }
@@ -342,7 +345,10 @@ public fun <T : Any> DeviceConstructor.registerMutableProperty(
 ) {
     registerProperty(
         converter,
-        PropertyDescriptor(name).apply(descriptorBuilder),
+        PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        },
         state
     )
 }
@@ -403,7 +409,10 @@ public fun <T, S : ValueState<T>> DeviceConstructor.property(
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, S>> =
     PropertyDelegateProvider { _: DeviceConstructor, property ->
         val name = nameOverride ?: property.name
-        val descriptor = PropertyDescriptor(name).apply(descriptorBuilder)
+        val descriptor = PropertyDescriptor(name).apply {
+            converter.descriptor?.let { metaDescriptor = it }
+            descriptorBuilder()
+        }
         registerProperty(converter, descriptor, state)
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             state

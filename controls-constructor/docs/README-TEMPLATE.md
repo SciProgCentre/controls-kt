@@ -21,7 +21,7 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 - State DSL (reactive building blocks)
     - stateOf, registerState: create/register states; DeviceState and MutableDeviceState abstractions.
-    - [Property Expressions](./expressions.md): reactive numeric expressions for computed properties.
+    - [Property Expressions](./docs/expressions.md): reactive numeric expressions for computed properties.
     - timer and onTimer: periodic timer states; helpers to trigger logic on ticks.
     - runSimulation: run models on the context simulation dispatcher.
     - mapState, flowState: transform a state via pure or flow-based transformations.
@@ -49,16 +49,16 @@ kotlinx.coroutines, and DataForge (Context/Meta).
 
 The `controls-constructor` module offers a powerful set of tools for building complex control systems:
 
-- [Reactive State DSL](./valueState.md): A type-safe way to define and observe device states.
-- [State Wiring](./constructor.md): Tools for binding and combining states to create complex data flows.
-- [Hierarchical Composition](./constructor.md): Build devices by grouping sub-devices and exposing states as properties.
-- [Simulation Engine](./models.md): Built-in support for continuous and discrete-event simulations with virtual time.
-- [Flow Modeling](./flowModels.md): Specialized components for modeling continuous and discrete flows.
-- [Simulated Devices](./simulatedDevices.md): Pre-defined devices like drives and encoders.
-- [Computed Expressions](./expressions.md): Reactive numeric expressions for derived properties.
-- [Unit Safety](./units.md): Support for physical units and rates in models.
+- [Reactive State DSL](./docs/valueState.md): A type-safe way to define and observe device states.
+- [State Wiring](./docs/constructor.md): Tools for binding and combining states to create complex data flows.
+- [Hierarchical Composition](./docs/constructor.md): Build devices by grouping sub-devices and exposing states as properties.
+- [Simulation Engine](./docs/models.md): Built-in support for continuous and discrete-event simulations with virtual time.
+- [Flow Modeling](./docs/flowModels.md): Specialized components for modeling continuous and discrete flows.
+- [Simulated Devices](./docs/simulatedDevices.md): Pre-defined devices like drives and encoders.
+- [Computed Expressions](./docs/expressions.md): Reactive numeric expressions for derived properties.
+- [Unit Safety](./docs/units.md): Support for physical units and rates in models.
 
-For more details, see [Key Features](./features.md).
+For more details, see [Key Features](./docs/features.md).
 
 ${artifact}
 

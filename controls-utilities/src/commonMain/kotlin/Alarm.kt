@@ -1,14 +1,18 @@
 package space.kscience.controls.utilities
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.serializer
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.descriptors.node
+import space.kscience.dataforge.meta.descriptors.value
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.getIndexedList
+import space.kscience.dataforge.names.parseAsName
 
 /**
  * Settings for alarm thresholds.
@@ -19,8 +23,8 @@ import space.kscience.dataforge.names.getIndexedList
  */
 @Serializable
 public data class AlarmSetting(
-    val lowerThreshold: Double?,
-    val upperThreshold: Double?,
+    val lowerThreshold: Double? = null,
+    val upperThreshold: Double? = null,
     val status: String
 ) {
     init {
@@ -92,12 +96,32 @@ public class Alarm(
     }
 
 
+    public object Spec : MetaSpec() {
+        public val settings: MetaRef<List<AlarmSetting>> by item(settingsConverter)
+
+        public val metadata: MetaRef<Meta> by metaItem(METADATA_KEY.parseAsName())
+    }
+
     public companion object : DeviceFactory {
         public const val STATUS_OK: String = "OK"
         public const val STATUS_UNDEFINED: String = "@UNDEFINED"
 
+        override val descriptor: MetaDescriptor get() = Spec.descriptor
+
+        /**
+         * Settings are stored as indexed `setting` nodes. The descriptor is derived from the serializer;
+         * nullable thresholds additionally allow explicit null. Indexed siblings are not validated by DataForge.
+         */
         public val settingsConverter: MetaConverter<List<AlarmSetting>> = object : MetaConverter<List<AlarmSetting>> {
             private val settingSerializer = MetaConverter.serializable<AlarmSetting>()
+
+            override val descriptor: MetaDescriptor = MetaDescriptor {
+                node("setting") {
+                    from(MetaDescriptor(serializer<List<AlarmSetting>>()))
+                    value("lowerThreshold", ValueType.NUMBER, ValueType.NULL)
+                    value("upperThreshold", ValueType.NUMBER, ValueType.NULL)
+                }
+            }
 
             override fun readOrNull(source: Meta): List<AlarmSetting> =
                 source.getIndexedList(Name.of("setting")).map { settingSerializer.read(it) }
@@ -108,15 +132,15 @@ public class Alarm(
         }
 
         /**
-         * Create an alarm for an existing device in [DeviceManager]
+         * Create an unbound alarm from settings and optional metadata.
          */
         override fun buildDevice(
             context: Context,
             meta: Meta
         ): Alarm {
-            val settings = meta["settings"]?.let { settingsConverter.readOrNull(it) }
+            val settings = meta[Spec.settings]
 
-            val metadata = meta[METADATA_KEY] ?: Meta.EMPTY
+            val metadata = meta[Spec.metadata] ?: Meta.EMPTY
 
             return Alarm(context, settings ?: emptyList(), metadata)
         }
