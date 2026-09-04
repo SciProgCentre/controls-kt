@@ -5,20 +5,25 @@ import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.*
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.meta.string
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.ValueRestriction
+import space.kscience.dataforge.meta.descriptors.get
+import space.kscience.dataforge.names.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 class AlarmTest {
 
     private fun ValueState<Double?>.asMeta(): ValueState<Meta> = map(MetaConverter.double.nullable()::convert)
+
+    private fun settingsMeta(vararg settings: Meta): Meta = Meta {
+        setIndexed(Name.of("setting"), settings.toList())
+    }
 
     private suspend fun TestScope.withTestContext(name: String, block: suspend (Context) -> Unit) {
         val context = Context(name) {
@@ -51,6 +56,85 @@ class AlarmTest {
         assertFailsWith<IllegalArgumentException> {
             AlarmSetting(lowerThreshold = null, upperThreshold = null, status = "INVALID")
         }
+        assertFailsWith<IllegalArgumentException> {
+            AlarmSetting(status = "INVALID")
+        }
+    }
+
+    @Test
+    fun testAlarmSettingsConverterWithExplicitNullThresholds() {
+        val input = settingsMeta(
+            Meta {
+                "lowerThreshold" put 10.0
+                "upperThreshold" put Meta(Null)
+                "status" put "LOW"
+            },
+            Meta {
+                "lowerThreshold" put Meta(Null)
+                "upperThreshold" put 40.0
+                "status" put "HIGH"
+            }
+        )
+        val expected = listOf(
+            AlarmSetting(lowerThreshold = 10.0, status = "LOW"),
+            AlarmSetting(upperThreshold = 40.0, status = "HIGH")
+        )
+        val decoded = Alarm.settingsConverter.read(input)
+        assertEquals(expected, decoded)
+        assertEquals(expected, Alarm.settingsConverter.read(Alarm.settingsConverter.convert(decoded)))
+    }
+
+    @Test
+    fun testAlarmSettingsConverterWithOmittedThresholds() {
+        val input = settingsMeta(
+            Meta {
+                "lowerThreshold" put 10.0
+                "status" put "LOW"
+            },
+            Meta {
+                "upperThreshold" put 40.0
+                "status" put "HIGH"
+            },
+            Meta {
+                "lowerThreshold" put 0.0
+                "upperThreshold" put 60.0
+                "status" put "OUT_OF_BOUNDS"
+            }
+        )
+        val expected = listOf(
+            AlarmSetting(lowerThreshold = 10.0, status = "LOW"),
+            AlarmSetting(upperThreshold = 40.0, status = "HIGH"),
+            AlarmSetting(lowerThreshold = 0.0, upperThreshold = 60.0, status = "OUT_OF_BOUNDS")
+        )
+        val decoded = Alarm.settingsConverter.read(input)
+        assertEquals(expected, decoded)
+        assertEquals(expected, Alarm.settingsConverter.read(Alarm.settingsConverter.convert(decoded)))
+    }
+
+    @Test
+    fun testAlarmSettingsConverterRejectsMissingThresholds() {
+        val exception = assertFailsWith<IllegalArgumentException> {
+            Alarm.settingsConverter.read(settingsMeta(Meta { "status" put "INVALID" }))
+        }
+        assertEquals("At least one threshold must be defined", exception.message)
+    }
+
+    @Test
+    fun testAlarmParameterDescriptor() {
+        val setting = assertNotNull(Alarm.descriptor["settings"]?.get("setting"))
+        assertTrue(setting.multiple)
+        assertEquals(
+            listOf(ValueType.NUMBER, ValueType.NULL),
+            assertNotNull(setting["lowerThreshold"]).valueTypes
+        )
+        assertEquals(
+            listOf(ValueType.NUMBER, ValueType.NULL),
+            assertNotNull(setting["upperThreshold"]).valueTypes
+        )
+        val status = assertNotNull(setting["status"])
+        assertEquals(listOf(ValueType.STRING), status.valueTypes)
+        assertEquals(ValueRestriction.REQUIRED, status.valueRestriction)
+        assertNotNull(Alarm.descriptor[DeviceConstructor.METADATA_KEY])
     }
 
     @Test
@@ -157,7 +241,10 @@ class AlarmTest {
                 AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
             )
             val metadata = Meta { "description" put "Temperature alarm" }
-            val alarm = Alarm.buildDevice(context, Alarm.buildDeviceMeta(settings, metadata))
+            val parameters = Alarm.buildDeviceMeta(settings, metadata)
+            assertEquals(settings, parameters[Alarm.Spec.settings])
+            assertTrue(Meta.equals(metadata, parameters[Alarm.Spec.metadata]))
+            val alarm = Alarm.buildDevice(context, parameters)
 
             assertEquals(settings, alarm.alarmSettings.value)
             assertEquals("Temperature alarm", alarm.meta["description"].string)

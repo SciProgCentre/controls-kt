@@ -15,11 +15,18 @@ import space.kscience.dataforge.context.ContextBuilder
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.descriptors.MetaValidationResult
+import space.kscience.dataforge.meta.descriptors.validate
+import space.kscience.dataforge.meta.descriptors.validateWithResult
 import space.kscience.dataforge.names.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -60,6 +67,26 @@ class AccumulatorTest {
         val sample = state.subscribeWithTime().first { it.time == time }
         assertEquals(ValueWithTime(value, time), sample)
         assertEquals(sample, state.valueWithTime)
+    }
+
+    @Test
+    fun testAccumulatorParameterDescriptor() {
+        val descriptor = Accumulator.descriptor
+        assertTrue(descriptor.validate(Meta { "window" put "5s" }))
+        assertTrue(descriptor.validate(Meta { "window" put "PT5S" }))
+        assertTrue(descriptor.validate(Meta { "window" put 5.0 }))
+
+        assertFalse(descriptor.validate(Meta.EMPTY))
+        val missingWindow = descriptor.validateWithResult(Meta.EMPTY, Name.EMPTY)
+            .filterIsInstance<MetaValidationResult.RequiredValueIsMissing>().single()
+        assertEquals(Name.of("window"), missingWindow.name)
+
+        val wrongType = Meta { "window" put true }
+        assertFalse(descriptor.validate(wrongType))
+        val incorrectType = descriptor.validateWithResult(wrongType, Name.EMPTY)
+            .filterIsInstance<MetaValidationResult.IncorrectValueType>().single()
+        assertEquals(Name.of("window"), incorrectType.name)
+        assertEquals(ValueType.BOOLEAN, incorrectType.actualType)
     }
 
     @Test
@@ -180,7 +207,9 @@ class AccumulatorTest {
     @Test
     fun testAccumulatorFactoryBuildDevice() = runTest(timeout = 5.seconds) {
         withTestContext("accumulatorFactory") { context ->
-            val accumulator = Accumulator.buildDevice(context, Meta { "window" put 5.0 })
+            val parameters = Meta { "window" put 5.0 }
+            assertEquals(5.seconds, parameters[Accumulator.Spec.window])
+            val accumulator = Accumulator.buildDevice(context, parameters)
             assertEquals(5.seconds, accumulator.window)
             assertEquals(0.0, accumulator.state.value)
 

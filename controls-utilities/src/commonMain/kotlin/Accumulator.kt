@@ -1,30 +1,23 @@
 package space.kscience.controls.utilities
 
-/*
- * LLM generated code: Accumulator virtual device that integrates values from ValueState<Double?> over a given window.
- */
-
 import kotlinx.coroutines.CoroutineScope
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
 import space.kscience.controls.constructor.expressions.integrate
 import space.kscience.controls.duration
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.descriptors.required
 import kotlin.time.Duration
 
 /**
- * Virtual device that integrates values from [value] state over given [window].
- * Null values are ignored during integration.
+ * Virtual device that sums numeric samples from [value] over the given [window].
+ * Null samples add nothing but still expire old samples and update the result timestamp.
  *
  * @param context The context for the device.
- * @param window The time window duration over which to integrate values.
+ * @param window The time window duration over which to sum samples.
  */
 public class Accumulator(
     context: Context,
@@ -57,19 +50,25 @@ public class Accumulator(
         )
     }
 
+    public object Spec : MetaSpec() {
+        public val window: MetaRef<Duration> by item(MetaConverter.duration) {
+            valueType(ValueType.NUMBER, ValueType.STRING)
+            required()
+            description = "Accumulation window: seconds or duration string"
+        }
+    }
+
     public companion object : DeviceFactory {
+        override val descriptor: MetaDescriptor get() = Spec.descriptor
+
         /**
-         * Create an Accumulator for an existing device in [DeviceManager]
+         * Create an unbound accumulator from its required window parameter.
          */
         override fun buildDevice(
             context: Context,
             meta: Meta
         ): Accumulator {
-            val window: Duration = meta["window"]?.let {
-                MetaConverter.duration.read(it)
-            } ?: error("`window` parameter not defined")
-
-            val constructor = context.request(ConstructorPlugin)
+            val window: Duration = meta[Spec.window] ?: error("`window` parameter not defined")
 
             return Accumulator(context, window)
         }
