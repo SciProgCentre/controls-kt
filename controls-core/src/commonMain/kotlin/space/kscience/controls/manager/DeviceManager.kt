@@ -28,10 +28,17 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     }
 
     /**
-     * Resolve device factory using full name or last segment of factory name if factory by full name is not found
+     * Resolve device factory by full name. Short name is accepted only if it is unique.
      */
-    public fun resolveDeviceFactory(type: String): DeviceTreeFactory? = factories[type.parseAsName()]
-        ?: factories.mapKeys { it.key.last().toString() }[type]
+    public fun resolveDeviceFactory(type: String): DeviceTreeFactory? {
+        factories[type.parseAsName()]?.let { return it }
+        val candidates = factories.filterKeys { it.last().toString() == type }
+        return when (candidates.size) {
+            0 -> null
+            1 -> candidates.values.single()
+            else -> error("Device factory type $type is ambiguous: ${candidates.keys.sortedBy { it.toString() }}")
+        }
+    }
 
     /**
      * Actual list of connected devices
