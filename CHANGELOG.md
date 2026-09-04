@@ -26,7 +26,7 @@
 - Fix initialization and source dependencies in `differentiate`; ignore null samples and invalid time marks.
 - Return null from `resolveDeviceOrNull` when an existing ancestor has a missing descendant.
 - Report invalid device library configuration instead of discarding validation results.
-- Preserve source time in constructor property messages, with a context-clock fallback for unknown time.
+- Preserve source time in constructor property messages instead of stamping them with the current clock.
 - Propagate converter descriptors to constructor properties while preserving caller overrides.
 - Read explicit null values with nullable converters and include null in their descriptors.
 

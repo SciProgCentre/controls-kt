@@ -17,7 +17,6 @@ import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.double
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -56,7 +55,7 @@ class DeviceConstructorTest {
     }
 
     @Test
-    fun testPropertyMessageUsesClockForUntimedSource() = runTest(timeout = 5.seconds) {
+    fun testPropertyMessageKeepsUnknownTime() = runTest(timeout = 5.seconds) {
         val context = Context("property-untimed-source") {
             coroutineContext(backgroundScope.coroutineContext)
         }
@@ -72,7 +71,7 @@ class DeviceConstructorTest {
             device.registerProperty(name = "value", converter = MetaConverter.double, state = ValueState(1.0))
             val message = received.await()
 
-            assertNotEquals(Instant.DISTANT_PAST, message.time)
+            assertEquals(Instant.DISTANT_PAST, message.time)
             assertEquals(1.0, message.value.double)
         } finally {
             context.close()

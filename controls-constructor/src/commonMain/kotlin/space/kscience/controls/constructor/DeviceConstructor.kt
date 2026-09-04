@@ -23,7 +23,6 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Instant
 
 
 /**
@@ -148,7 +147,7 @@ public open class DeviceConstructor(
         state.subscribeWithTime().onEach { (value, time) ->
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
-                    time = if (time == Instant.DISTANT_PAST) clock.now() else time,
+                    time = time,
                     property = descriptor.name,
                     value = converter.convert(value)
                 )
