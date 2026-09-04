@@ -50,16 +50,15 @@ public class Accumulator(
         )
     }
 
-    public object Spec : MetaSpec() {
+    public companion object : DeviceFactory, MetaSpec() {
+
         public val window: MetaRef<Duration> by item(MetaConverter.duration) {
             valueType(ValueType.NUMBER, ValueType.STRING)
             required()
             description = "Accumulation window: seconds or duration string"
         }
-    }
 
-    public companion object : DeviceFactory {
-        override val descriptor: MetaDescriptor get() = Spec.descriptor
+        override val descriptor: MetaDescriptor = super<MetaSpec>.descriptor
 
         /**
          * Create an unbound accumulator from its required window parameter.
@@ -68,7 +67,7 @@ public class Accumulator(
             context: Context,
             meta: Meta
         ): Accumulator {
-            val window: Duration = meta[Spec.window] ?: error("`window` parameter not defined")
+            val window: Duration = meta[window] ?: error("`window` parameter not defined")
 
             return Accumulator(context, window)
         }

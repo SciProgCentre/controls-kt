@@ -2,19 +2,17 @@ package space.kscience.controls.utilities
 
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.DeviceConstructor
+import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.map
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.ValueRestriction
 import space.kscience.dataforge.meta.descriptors.get
 import space.kscience.dataforge.names.Name
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
 
 class AlarmTest {
@@ -124,11 +122,11 @@ class AlarmTest {
         val setting = assertNotNull(Alarm.descriptor["settings"]?.get("setting"))
         assertTrue(setting.multiple)
         assertEquals(
-            listOf(ValueType.NUMBER, ValueType.NULL),
+            listOf(ValueType.NUMBER),
             assertNotNull(setting["lowerThreshold"]).valueTypes
         )
         assertEquals(
-            listOf(ValueType.NUMBER, ValueType.NULL),
+            listOf(ValueType.NUMBER),
             assertNotNull(setting["upperThreshold"]).valueTypes
         )
         val status = assertNotNull(setting["status"])
@@ -242,8 +240,8 @@ class AlarmTest {
             )
             val metadata = Meta { "description" put "Temperature alarm" }
             val parameters = Alarm.buildDeviceMeta(settings, metadata)
-            assertEquals(settings, parameters[Alarm.Spec.settings])
-            assertTrue(Meta.equals(metadata, parameters[Alarm.Spec.metadata]))
+            assertEquals(settings, parameters[Alarm.settings])
+            assertTrue(Meta.equals(metadata, parameters[Alarm.metadata]))
             val alarm = Alarm.buildDevice(context, parameters)
 
             assertEquals(settings, alarm.alarmSettings.value)

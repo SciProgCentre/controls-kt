@@ -9,7 +9,6 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.node
-import space.kscience.dataforge.meta.descriptors.value
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.getIndexedList
 import space.kscience.dataforge.names.parseAsName
@@ -95,18 +94,9 @@ public class Alarm(
         )
     }
 
-
-    public object Spec : MetaSpec() {
-        public val settings: MetaRef<List<AlarmSetting>> by item(settingsConverter)
-
-        public val metadata: MetaRef<Meta> by metaItem(METADATA_KEY.parseAsName())
-    }
-
-    public companion object : DeviceFactory {
+    public companion object : DeviceFactory, MetaSpec() {
         public const val STATUS_OK: String = "OK"
         public const val STATUS_UNDEFINED: String = "@UNDEFINED"
-
-        override val descriptor: MetaDescriptor get() = Spec.descriptor
 
         /**
          * Settings are stored as indexed `setting` nodes. The descriptor is derived from the serializer;
@@ -116,11 +106,7 @@ public class Alarm(
             private val settingSerializer = MetaConverter.serializable<AlarmSetting>()
 
             override val descriptor: MetaDescriptor = MetaDescriptor {
-                node("setting") {
-                    from(MetaDescriptor(serializer<List<AlarmSetting>>()))
-                    value("lowerThreshold", ValueType.NUMBER, ValueType.NULL)
-                    value("upperThreshold", ValueType.NUMBER, ValueType.NULL)
-                }
+                node("setting", MetaDescriptor(serializer<AlarmSetting>()).copy(multiple = true))
             }
 
             override fun readOrNull(source: Meta): List<AlarmSetting> =
@@ -131,6 +117,11 @@ public class Alarm(
             }
         }
 
+        public val settings: MetaRef<List<AlarmSetting>> by item(settingsConverter)
+
+        public val metadata: MetaRef<Meta> by metaItem(METADATA_KEY.parseAsName())
+
+        override val descriptor: MetaDescriptor = super<MetaSpec>.descriptor
         /**
          * Create an unbound alarm from settings and optional metadata.
          */
@@ -138,9 +129,9 @@ public class Alarm(
             context: Context,
             meta: Meta
         ): Alarm {
-            val settings = meta[Spec.settings]
+            val settings = meta[settings]
 
-            val metadata = meta[Spec.metadata] ?: Meta.EMPTY
+            val metadata = meta[metadata] ?: Meta.EMPTY
 
             return Alarm(context, settings ?: emptyList(), metadata)
         }

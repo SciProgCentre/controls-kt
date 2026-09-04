@@ -6,27 +6,20 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.map
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.nullable
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextBuilder
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaValidationResult
 import space.kscience.dataforge.meta.descriptors.validate
 import space.kscience.dataforge.meta.descriptors.validateWithResult
 import space.kscience.dataforge.names.Name
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -208,7 +201,7 @@ class AccumulatorTest {
     fun testAccumulatorFactoryBuildDevice() = runTest(timeout = 5.seconds) {
         withTestContext("accumulatorFactory") { context ->
             val parameters = Meta { "window" put 5.0 }
-            assertEquals(5.seconds, parameters[Accumulator.Spec.window])
+            assertEquals(5.seconds, parameters[Accumulator.window])
             val accumulator = Accumulator.buildDevice(context, parameters)
             assertEquals(5.seconds, accumulator.window)
             assertEquals(0.0, accumulator.state.value)
