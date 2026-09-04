@@ -23,6 +23,7 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 
 /**
@@ -144,12 +145,12 @@ public open class DeviceConstructor(
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
-        state.subscribe().map(converter::convert).onEach {
+        state.subscribeWithTime().onEach { (value, time) ->
             sharedMessageFlow.emit(
                 PropertyChangedMessage(
-                    time = clock.now(),
+                    time = if (time == Instant.DISTANT_PAST) clock.now() else time,
                     property = descriptor.name,
-                    value = it
+                    value = converter.convert(value)
                 )
             )
         }.launchIn(this)
