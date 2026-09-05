@@ -6,7 +6,7 @@ An implementation of controls-storage on top of JetBrains Xodus.
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-xodus:0.4.0`.
+The Maven coordinates of this project are `space.kscience:controls-xodus:0.5.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-xodus:0.4.0")
+    implementation("space.kscience:controls-xodus:0.5.0")
 }
 ```

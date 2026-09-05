@@ -64,19 +64,20 @@ public fun DeviceSpec.verify(device: Device): Boolean = checkMissingElements(dev
  * A device that guarantees that it adheres to the specification.
  *
  * This class does not change the behavior of the underlying device in any way, just creates a wrapper that guarantees
- * compliance with the specification
+ * compliance with the specification.
  */
 @JvmInline
-public value class TypedDevice<S: DeviceSpec> internal constructor(private val device: Device): Device by device
+public value class SpecificDevice<S: DeviceSpec> @InternalDeviceAPI constructor(private val device: Device): Device by device
 
 /**
  * Verify that this device adheres to the specification and creates a wrapper that guarantees compliance with the specification
  */
-public fun <S: DeviceSpec> Device.verifiedWith(spec: S): TypedDevice<S>{
+public fun <S: DeviceSpec> Device.verifiedWith(spec: S): SpecificDevice<S>{
     if(!spec.verify(this)){
         error("Device does not adhere to the specification")
     }
-    return TypedDevice(this)
+    @OptIn(InternalDeviceAPI::class)
+    return SpecificDevice(this)
 }
 
 /**

@@ -29,13 +29,65 @@ deviceTree.readProperty("room1.sensor".parseAsName(), "value")
 The recommended way to build a `DeviceTree` is using the `DeviceTreeBuilder` DSL:
 ```kotlin
 val hub = DeviceTree {
-    device("sensor1", MyDevice) {
+    device("sensor1") {
         // ... configuration
     }
-    node("subnode") {
-        device("sensor2", MyDevice)
+    tree("subnode") {
+        device("sensor2") {
+            // ... configuration
+        }
     }
 }
+```
+
+## Tree Specifications and `SpecificDeviceTree`
+
+Just as `DeviceSpec` specifies the contract for a single device, `DeviceTreeSpec` describes the expected topology of a whole device tree, specifying the root device contract (`deviceSpec`) and child tree contracts (`childrenSpecs`):
+
+```kotlin
+interface DeviceTreeSpec {
+    val deviceSpec: DeviceSpec? get() = null
+    val childrenSpecs: Map<String, DeviceTreeSpec>
+}
+```
+
+### Compile-Time Safety with `SpecificDeviceTree`
+
+`SpecificDeviceTree<S : DeviceTreeSpec>` is an inline value class wrapping a `DeviceTree` (`@JvmInline value class SpecificDeviceTree<S : DeviceTreeSpec>`) that guarantees adherence to specification `S` at compile time.
+
+### Creating and Verifying a `SpecificDeviceTree`
+
+1. **Defining a `DeviceTreeSpec`**:
+   Specifications can be defined as Kotlin objects or created with helper functions:
+   ```kotlin
+   object LabTreeSpec : DeviceTreeSpec {
+       val mainThermometer = MyDeviceSpec
+       
+       override val childrenSpecs = mapOf(
+           "sensor" to DeviceTreeSpec(device = mainThermometer)
+       )
+   }
+   ```
+
+2. **Verifying an existing `DeviceTree`**:
+   The `verifiedWith(spec)` extension method verifies that the tree structure and all associated device specifications match `spec` recursively (using `checkMissingElements`). If valid, it returns `SpecificDeviceTree<S>`:
+   ```kotlin
+   val specificTree: SpecificDeviceTree<LabTreeSpec> = deviceTree.verifiedWith(LabTreeSpec)
+   ```
+   If elements are missing in the tree hierarchy, an error is thrown listing all missing descriptors.
+
+### Adding Tree Extensions
+
+With `SpecificDeviceTree<S>`, you can write type-safe navigation and domain-specific extensions directly on the tree structure:
+
+```kotlin
+// Type-safe accessor for a known child device
+val SpecificDeviceTree<LabTreeSpec>.sensor: SpecificDevice<MyDeviceSpec>
+    get() = resolveDevice("sensor".parseAsName())!!.verifiedWith(MyDeviceSpec)
+
+// Domain-level operation on the verified tree
+suspend fun SpecificDeviceTree<LabTreeSpec>.readLabTemperature(): Double =
+    sensor.temperature
 ```
 
 ## Demos and Tests

@@ -9,12 +9,13 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
 - API
   - [Device](./device.md): the main lifecycle-aware, coroutine-scope interface to read/write properties and execute actions.
   - [DeviceMessage](./deviceMessage.md): a sealed message model to describe property changes, gets/sets, action execution/results, logging, lifecycle, and binary notifications.
-  - [DeviceHub](./deviceHub.md): a tree-like composition of devices that routes messages and aggregates descriptions.
+  - [DeviceTree](./DeviceTree.md): a tree-like composition of devices that routes messages and aggregates descriptions.
   - WithLifeCycle: common lifecycle utilities for devices.
 - [Spec](./deviceSpec.md) (Type-safe DSL)
   - DeviceSpec, DeviceBase, DeviceBySpec: split of device description (specification) from its runtime state.
   - Property and Action descriptors, delegates for defining meta-backed, typed properties.
   - Helpers to create device instances from specs on each target.
+  - SpecificDevice and SpecificDeviceTree: compile-time type safety for devices and tree topologies, enabling specification-bound extension functions.
 - [Manager](./deviceManager.md)
   - DeviceManager: DataForge DI integration and registry to build/find devices by names.
   - respondMessage: helper to respond to incoming DeviceMessage queries.

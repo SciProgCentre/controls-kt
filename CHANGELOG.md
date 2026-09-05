@@ -4,6 +4,8 @@
 
 ### Added
 
+- Renamed method `build` to `buildDevice` in DeviceWithStateBuilder to avoid possible conflict with `build` in Factory.
+- Add `SpecificDevice` and `SpecificDeviceTree` to add specification safety in the form of compile-time type safety.
 - Controls-utilities module with `Alarm` and `Accumulator` virtual devices.
 - `ConstructorBinding` and `BoundStateHolder` for named component inputs.
 - Nullable expressions and `StateExpression.State` for value-state factories.

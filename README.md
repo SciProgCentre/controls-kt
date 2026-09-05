@@ -158,6 +158,11 @@ a compiler for Structured Text (ST), and a runtime for executing IL programs.
 >
 > **Maturity**: EXPERIMENTAL
 
+### [controls-utilities](controls-utilities)
+> Utility devices
+>
+> **Maturity**: EXPERIMENTAL
+
 ### [controls-vision](controls-vision)
 > Dashboard and visualization extensions for devices
 >

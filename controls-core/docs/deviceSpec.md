@@ -10,10 +10,10 @@
 
 ## Working with DeviceSpec
 
-Usually, a specification is defined as a Kotlin `object` inheriting from `DeviceSpec`:
+Usually, a specification is defined as a Kotlin `object` inheriting from `AbstractDeviceSpec` (or implementing `DeviceSpec`):
 
 ```kotlin
-object MyDeviceSpec : DeviceSpec() {
+object MyDeviceSpec : AbstractDeviceSpec() {
     val temperature by doubleProperty {
         description = "Ambient temperature"
     }
@@ -31,6 +31,55 @@ val device = Device(MyDeviceSpec) {
     }
 }
 ```
+
+## Compile-Time Safety with `SpecificDevice`
+
+While a standard `Device` exposes properties and actions dynamically by name or via generic calls, `SpecificDevice<S : DeviceSpec>` provides compile-time type safety. It is an inline value class wrapping a `Device` that guarantees compliance with specification `S`.
+
+### Creating a `SpecificDevice`
+
+A `SpecificDevice` can be created in several ways:
+
+1. **Verifying an existing `Device`**:
+   The `verifiedWith(spec)` extension checks that all properties and actions declared in `spec` are present in the target device (via `checkMissingElements`). If verification succeeds, it returns `SpecificDevice<S>`:
+   ```kotlin
+   val specificDevice: SpecificDevice<MyDeviceSpec> = device.verifiedWith(MyDeviceSpec)
+   ```
+   If any required element is missing or descriptor mismatch occurs, an error is thrown.
+
+2. **Using the `SpecificDevice` builder**:
+   You can construct and verify a device in a single step:
+   ```kotlin
+   val specificDevice = SpecificDevice(context, MyDeviceSpec) {
+       reader(MyDeviceSpec.temperature) {
+           readTemperatureSensor()
+       }
+   }
+   ```
+
+3. **Using `DeviceWithStateBuilder.buildSpecific`**:
+   When working with stateful device builders (`DeviceWithStateBuilder` / `DeviceWithStateFactory`):
+   ```kotlin
+   val specificDevice: SpecificDevice<MyStateBuilder> = 
+       myDeviceWithStateBuilder.buildSpecific(context, meta)
+   ```
+
+### Specification Extensions
+
+The primary reason to use `SpecificDevice<S>` is to attach strongly typed, domain-specific extension functions and properties to devices that adhere to specification `S`:
+
+```kotlin
+// Strongly typed extension property
+val SpecificDevice<MyDeviceSpec>.temperature: Double
+    get() = read(MyDeviceSpec.temperature)
+
+// Strongly typed extension method
+suspend fun SpecificDevice<MyDeviceSpec>.resetToDefault() {
+    execute(MyDeviceSpec.reset)
+}
+```
+
+These extensions can only be called on instances of `SpecificDevice<MyDeviceSpec>`, ensuring compile-time safety and providing IDE autocompletion for device-specific operations.
 
 ## Demos and Tests
 

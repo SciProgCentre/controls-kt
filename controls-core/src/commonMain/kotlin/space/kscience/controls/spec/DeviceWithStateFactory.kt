@@ -32,8 +32,8 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
 
     protected val logical: MutableSet<DevicePropertySpecWithDefault<*>> = mutableSetOf()
 
-    private val _actions = HashMap<String, DeviceActionSpec<*, *>>()
-    override val actions: Map<String, DeviceActionSpec<*, *>> get() = _actions
+    final override val actions: Map<String, DeviceActionSpec<*, *>>
+        field = HashMap<String, DeviceActionSpec<*, *>>()
 
 
     public fun <T, P : DevicePropertySpec<T>> registerProperty(
@@ -173,7 +173,7 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
         spec: DeviceActionSpec<I, O>,
         execute: suspend context(DeviceBase) S.(I) -> O
     ): DeviceActionSpec<I, O> {
-        _actions[spec.name] = spec
+        actions[spec.name] = spec
         @Suppress("UNCHECKED_CAST")
         actionFunctions[spec] = execute as suspend context(DeviceBase) S.(Any?) -> Any?
 
@@ -226,7 +226,7 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
     /**
      * Build a device with the given context and meta, using the provided state creation and destruction functions.
      */
-    public fun build(
+    public fun buildDevice(
         context: Context,
         meta: Meta,
         destroyState: suspend context(DeviceBase) (S) -> Unit = {},
@@ -272,6 +272,16 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
     }
 }
 
+/**
+ * Build a device with additional compile time information about its specification.
+ */
+@OptIn(InternalDeviceAPI::class)
+public fun <S: Any, T: DeviceWithStateBuilder<S>> T.buildSpecific(
+    context: Context,
+    meta: Meta,
+    destroyState: suspend context(DeviceBase) (S) -> Unit = {},
+    createState: suspend context(DeviceBase) () -> S
+): SpecificDevice<T> = SpecificDevice(buildDevice(context, meta, destroyState, createState))
 
 /**
  * A device specification that provides a builder for a device instance that adheres to this specification
@@ -297,7 +307,7 @@ public abstract class DeviceWithStateFactory<S : Any> : DeviceWithStateBuilder<S
      *
      * The instance incapsulates the state [S], which is created and destroyed on device start and stop.
      */
-    override fun buildDevice(context: Context, meta: Meta): Device = build(
+    override fun buildDevice(context: Context, meta: Meta): Device = buildDevice(
         context = context,
         meta = meta,
         destroyState = { destroyState(it) },

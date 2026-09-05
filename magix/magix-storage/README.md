@@ -6,7 +6,7 @@ Magix history database API
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:magix-storage:0.4.0`.
+The Maven coordinates of this project are `space.kscience:magix-storage:0.5.0`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:magix-storage:0.4.0")
+    implementation("space.kscience:magix-storage:0.5.0")
 }
 ```

@@ -188,12 +188,18 @@ public fun DeviceBuilder(spec: DeviceSpec? = null, builder: DeviceBuilder.() -> 
 public fun Device(
     context: Context,
     meta: Meta = Meta.EMPTY,
-    spec: DeviceSpec? = null,
     builder: DeviceBuilder.() -> Unit
-): Device = DeviceBuilder().apply(builder).also {
-    if (spec != null) it.validateFor(spec)
-}.buildDevice(context, meta)
+): Device = DeviceBuilder().apply(builder).buildDevice(context, meta)
 
+/**
+ * Create a spec-verified device with given [builder]
+ */
+public fun <S: DeviceSpec> SpecificDevice(
+    context: Context,
+    spec: S,
+    meta: Meta = Meta.EMPTY,
+    builder: DeviceBuilder.() -> Unit
+): SpecificDevice<S> = DeviceBuilder().apply(builder).buildDevice(context, meta).verifiedWith(spec)
 
 public fun <T> DeviceBuilder.reader(spec: DevicePropertySpec<T>, read: suspend context(DeviceBase) () -> T) {
     check(spec.isReadable) { "Property ${spec.name} is not readable" }

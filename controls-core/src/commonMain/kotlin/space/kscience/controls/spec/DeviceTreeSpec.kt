@@ -4,6 +4,7 @@ import space.kscience.controls.api.DeviceElementDescriptor
 import space.kscience.controls.api.DeviceTree
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
+import kotlin.jvm.JvmInline
 
 /**
  * A specification for a device tree structure.
@@ -48,6 +49,23 @@ public fun DeviceTreeSpec.checkMissingElements(deviceTree: DeviceTree?): Map<Nam
  * Verify if this device tree adheres to the specification
  */
 public fun DeviceTreeSpec.verify(deviceTree: DeviceTree): Boolean = checkMissingElements(deviceTree).isEmpty()
+
+/**
+ * An implementation of DeviceTree that is guaranteed to adhere to the specification
+ */
+@JvmInline
+public value class SpecificDeviceTree<S: DeviceTreeSpec> @InternalDeviceAPI constructor(private val deviceTree: DeviceTree): DeviceTree by deviceTree
+
+/**
+ * Verify if this device tree adheres to the specification and return a type safe version
+ */
+public fun <S: DeviceTreeSpec> DeviceTree.verifiedWith(spec: DeviceTreeSpec): SpecificDeviceTree<S>{
+    if(!spec.verify(this)){
+        error("DeviceTree does not adhere to the specification")
+    }
+    @OptIn(InternalDeviceAPI::class)
+    return SpecificDeviceTree(this)
+}
 
 /**
  * Create a device tree specification from a device and children
