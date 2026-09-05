@@ -2,7 +2,6 @@
 
 package ru.mipt.npm.devices.pimotionmaster
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.transformWhile
@@ -64,7 +63,6 @@ public class PiMotionMasterConnector(
     /**
      * Send a synchronous request and receive a list of lines as a response
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
     public suspend fun request(command: String, vararg arguments: String): List<String> = mutex.withLock {
         try {
             withTimeout(timeoutValue) {

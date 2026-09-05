@@ -17,5 +17,6 @@ kscience {
         api(libs.pi4j.core)
         api(libs.pi4j.plugin.raspberrypi)
         api(libs.pi4j.plugin.pigpio)
+        api(libs.pi4j.ktx)
     }
 }

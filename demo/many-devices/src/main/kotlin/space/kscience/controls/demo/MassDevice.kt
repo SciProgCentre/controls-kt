@@ -42,6 +42,7 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 
@@ -124,7 +125,7 @@ suspend fun main() {
             }.launchIn(this)
 
             while (isActive) {
-                delay(1000)
+                delay(1.seconds)
                 mutex.withLock {
                     val sorted = max.mapKeys { it.key.substring(6).toInt() }.toSortedMap()
                     latest.clear()

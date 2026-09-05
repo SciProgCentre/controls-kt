@@ -28,8 +28,8 @@ j2mod = "3.3.0"
 
 milo = "1.1.1"
 
-pi4j = "4.0.0"
-#pi4j-ktx = "4.0.0"
+pi4j = "4.0.2"
+pi4j-ktx = "4.0.0"
 
 plc4j = "0.13.1"
 
@@ -89,10 +89,10 @@ milo-sdk-core = { module = "org.eclipse.milo:milo-sdk-core", version.ref = "milo
 milo-dtd-core = { module = "org.eclipse.milo:milo-dtd-core", version.ref = "milo" }
 milo-server = { module = "org.eclipse.milo:milo-sdk-server", version.ref = "milo" }
 
-#pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
 pi4j-core = { module = "com.pi4j:pi4j-core", version.ref = "pi4j" }
 pi4j-plugin-raspberrypi = { module = "com.pi4j:pi4j-plugin-raspberrypi", version.ref = "pi4j" }
 pi4j-plugin-pigpio = { module = "com.pi4j:pi4j-plugin-pigpio", version.ref = "pi4j" }
+pi4j-ktx = { module = "com.pi4j:pi4j-ktx", version.ref = "pi4j-ktx" }
 
 plc4j-spi = { module = "org.apache.plc4x:plc4j-spi", version.ref = "plc4j" }
 

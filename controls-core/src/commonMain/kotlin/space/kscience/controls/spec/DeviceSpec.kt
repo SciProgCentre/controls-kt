@@ -5,6 +5,7 @@ import space.kscience.controls.unit
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import kotlin.jvm.JvmInline
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -59,6 +60,24 @@ public fun DeviceSpec.checkMissingElements(device: Device): Set<DeviceElementDes
  */
 public fun DeviceSpec.verify(device: Device): Boolean = checkMissingElements(device).isEmpty()
 
+/**
+ * A device that guarantees that it adheres to the specification.
+ *
+ * This class does not change the behavior of the underlying device in any way, just creates a wrapper that guarantees
+ * compliance with the specification
+ */
+@JvmInline
+public value class TypedDevice<S: DeviceSpec> internal constructor(private val device: Device): Device by device
+
+/**
+ * Verify that this device adheres to the specification and creates a wrapper that guarantees compliance with the specification
+ */
+public fun <S: DeviceSpec> Device.verifiedWith(spec: S): TypedDevice<S>{
+    if(!spec.verify(this)){
+        error("Device does not adhere to the specification")
+    }
+    return TypedDevice(this)
+}
 
 /**
  * A base for [DeviceSpec] implementation
