@@ -6,7 +6,7 @@ A magix event loop implementation in Kotlin. Includes HTTP/SSE and RSocket route
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:magix-server:0.5.0`.
+The Maven coordinates of this project are `space.kscience:magix-server:0.5.0-dev`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:magix-server:0.5.0")
+    implementation("space.kscience:magix-server:0.5.0-dev")
 }
 ```

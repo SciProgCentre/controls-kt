@@ -32,10 +32,4 @@ readme{
             Binding of slave (server) modbus device to Controls-kt device
         """.trimIndent()
     }
-
-    feature("modbusDevice", ref = "src/main/kotlin/space/kscience/controls/modbus/ModbusDevice.kt"){
-        """
-            A device with additional methods to work with modbus registers.
-        """.trimIndent()
-    }
 }

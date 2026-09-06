@@ -6,7 +6,7 @@ Dashboard and visualization extensions for devices
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-vision:0.5.0`.
+The Maven coordinates of this project are `space.kscience:controls-vision:0.5.0-dev`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-vision:0.5.0")
+    implementation("space.kscience:controls-vision:0.5.0-dev")
 }
 ```

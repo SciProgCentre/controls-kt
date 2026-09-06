@@ -6,7 +6,7 @@ A plugin for Controls-kt device server on top of plc4x library
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-plc4x:0.5.0`.
+The Maven coordinates of this project are `space.kscience:controls-plc4x:0.5.0-dev`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-plc4x:0.5.0")
+    implementation("space.kscience:controls-plc4x:0.5.0-dev")
 }
 ```

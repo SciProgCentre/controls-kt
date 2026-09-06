@@ -93,7 +93,7 @@ include(
     ":demo:all-things",
     ":demo:many-devices",
     ":demo:magix-demo",
-    ":demo:car",
+//    ":demo:car",
     ":demo:motors",
     ":demo:echo",
     ":demo:mks-pdr900",
