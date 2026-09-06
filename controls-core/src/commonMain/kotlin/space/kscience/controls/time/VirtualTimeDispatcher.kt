@@ -216,7 +216,7 @@ public class VirtualTimeDispatcher(
         override fun read(): Long = currentTime
     }
 
-    /** Notifies the dispatcher that it should process a single event marked with [marker] happening at time [time]. */
+    /** Notifies the dispatcher that it should process a single event marked with [marker] happening at time [currentTime]. */
     private fun processEvent(marker: Any) {
         check(marker is Runnable)
         marker.run()

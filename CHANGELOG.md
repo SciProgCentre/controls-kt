@@ -24,6 +24,7 @@
 - `ConstructorBinding` and `BoundStateHolder` for named component inputs.
 - Nullable expressions and `StateExpression.State` for value-state factories.
 - Parameter descriptors for Alarm and Accumulator.
+- Add write extensions for modbus
 
 ### Changed
 

@@ -4,20 +4,6 @@ import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import com.ghgande.j2mod.modbus.procimg.InputRegister
 import kotlinx.io.Buffer
 import space.kscience.dataforge.io.Buffer
-import java.nio.ByteBuffer
-
-/**
- * Convert array of input registers to a nio buffer
- */
-internal fun Array<out InputRegister>.toByteBuffer(): ByteBuffer {
-    val buffer: ByteBuffer = ByteBuffer.allocate(size * 2)
-    forEachIndexed { index, value ->
-        buffer.position(index * 2)
-        buffer.put(value.toBytes())
-    }
-    buffer.flip()
-    return buffer
-}
 
 /**
  * Convert the array of input registers to a kotlinx-io buffer
