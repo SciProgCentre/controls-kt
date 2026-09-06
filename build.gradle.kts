@@ -8,7 +8,7 @@ plugins {
 
 allprojects {
     group = "space.kscience"
-    version = "0.5.0"
+    version = "0.5.0-dev"
     repositories{
         google()
     }

@@ -4,6 +4,20 @@
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## 0.5.0 - 2026-09-05
+
+### Added
+
 - Renamed method `build` to `buildDevice` in DeviceWithStateBuilder to avoid possible conflict with `build` in Factory.
 - Add `SpecificDevice` and `SpecificDeviceTree` to add specification safety in the form of compile-time type safety.
 - Controls-utilities module with `Alarm` and `Accumulator` virtual devices.
@@ -18,10 +32,6 @@
 - Device and value-state factories resolve by full name; ambiguous short names are rejected.
 - `AlarmSetting` thresholds default to null; at least one threshold is still required.
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 
 - Pass the configured target input name to component bindings.
@@ -31,8 +41,6 @@
 - Preserve source time in constructor property messages instead of stamping them with the current clock.
 - Propagate converter descriptors to constructor properties while preserving caller overrides.
 - Read explicit null values with nullable converters and include null in their descriptors.
-
-### Security
 
 ## 0.4.0 - 2026-07-18
 

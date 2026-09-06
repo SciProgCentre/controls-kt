@@ -195,8 +195,8 @@ public fun Device(
  * Create a spec-verified device with given [builder]
  */
 public fun <S: DeviceSpec> SpecificDevice(
-    context: Context,
     spec: S,
+    context: Context,
     meta: Meta = Meta.EMPTY,
     builder: DeviceBuilder.() -> Unit
 ): SpecificDevice<S> = DeviceBuilder().apply(builder).buildDevice(context, meta).verifiedWith(spec)

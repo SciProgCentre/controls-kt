@@ -74,7 +74,7 @@ public class VirtualTimeDispatcher(
 
     /**
      * Registers a request for the scheduler at a virtual moment [timeDeltaMillis] milliseconds
-     * later via [VirtualTimeDispatcher.processEvent], which will be called with the provided [marker] object.
+     * later, which will be called with the provided [marker] object.
      *
      * Returns the handler which can be used to cancel the registration.
      */

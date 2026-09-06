@@ -278,7 +278,7 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
 @OptIn(InternalDeviceAPI::class)
 public fun <S: Any, T: DeviceWithStateBuilder<S>> T.buildSpecific(
     context: Context,
-    meta: Meta,
+    meta: Meta = Meta.EMPTY,
     destroyState: suspend context(DeviceBase) (S) -> Unit = {},
     createState: suspend context(DeviceBase) () -> S
 ): SpecificDevice<T> = SpecificDevice(buildDevice(context, meta, destroyState, createState))

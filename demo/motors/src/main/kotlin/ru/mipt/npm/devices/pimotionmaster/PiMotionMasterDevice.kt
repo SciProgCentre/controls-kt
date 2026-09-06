@@ -140,7 +140,7 @@ object PiMotionMaster : AbstractDeviceSpec(), Factory<DeviceTree> {
 
         var axes: Map<String, DeviceTree> = emptyMap()
 
-        val rootDevice = SpecificDevice(context, PiMotionMaster, meta) {
+        val rootDevice = SpecificDevice(PiMotionMaster, context, meta) {
 
             logical(PiMotionMaster.timeout, 200.milliseconds)
 
