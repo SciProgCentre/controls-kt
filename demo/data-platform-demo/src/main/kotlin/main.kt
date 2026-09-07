@@ -107,15 +107,6 @@ fun main() {
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)
 
-
-    val alarmConfig =  platformDataDirectory.resolve("alarm-config.json").inputStream().use {
-        json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
-    }
-
-    val alarms = devices.install("alarms", alarmConfig)
-
-//    val allDescriptors = platformDevice.propertyDescriptors
-
     //launch visualization app
     application {
         Window(onCloseRequest = {
