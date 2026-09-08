@@ -12,6 +12,8 @@
 
 ### Fixed
 
+- Report `ReplayTagTable` as started after a successful `start()`.
+
 ### Security
 
 ## 0.5.0 - 2026-09-05
