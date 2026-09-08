@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add `TagTablePlugin.register` to register tables without starting acquisition.
+
 ### Changed
 
 ### Deprecated

@@ -31,10 +31,18 @@ public class TagTablePlugin : AbstractPlugin() {
     public val tagTables: Map<String?, TagTable> get() = _tagTables
 
     /**
+     * Register [tagTable] without starting it. Register tables before the first factory resolution in [ConstructorPlugin].
+     */
+    public fun register(tagTable: TagTable, name: String? = null): TagTable {
+        _tagTables[name] = tagTable
+        return tagTable
+    }
+
+    /**
      * register and start up [tagTable] with optional [name] (by default uses empty name).
      */
     public fun install(tagTable: TagTable, name: String? = null): TagTable {
-        _tagTables[name] = tagTable
+        register(tagTable, name)
         context.launch {
             tagTable.start()
         }
