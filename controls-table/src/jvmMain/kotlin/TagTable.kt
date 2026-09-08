@@ -2,9 +2,12 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import space.kscience.controls.api.DeviceMessageSource
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.PropertyDescriptor
@@ -21,6 +24,7 @@ import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.tables.ColumnHeader
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /**
  * Represents a table of tags that provides a mechanism to interact with
@@ -96,15 +100,22 @@ public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, Devi
 
 /**
  * A value state that reads the value of a tag from a [TagTable].
+ * The initial cached value has unknown time. Subscribers receive the latest state; updates may be conflated.
  */
 public class TagTableValueState(private val tagTable: TagTable, private val tag: String) : ValueState<Meta> {
-    override val valueWithTime: ValueWithTime<Meta>
-        get() = ValueWithTime(tagTable.readAll().get(tag) ?: Meta.EMPTY, tagTable.clock.now())
-
-    override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> =
+    private val state: StateFlow<ValueWithTime<Meta>> =
         tagTable.messageFlow.filterIsInstance<PropertyChangedMessage>().filter { it.property == tag }.map {
-            ValueWithTime(tagTable.readAll()[tag] ?: Meta.EMPTY, it.time)
-        }
+            ValueWithTime(it.value, it.time)
+        }.stateIn(
+            tagTable,
+            SharingStarted.Eagerly,
+            ValueWithTime(tagTable.readAll()[tag] ?: Meta.EMPTY, Instant.DISTANT_PAST),
+        )
+
+    override val valueWithTime: ValueWithTime<Meta>
+        get() = state.value
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = state
 
     override fun toString(): String = "ValueState.tagTable(tag=$tag)"
 }
