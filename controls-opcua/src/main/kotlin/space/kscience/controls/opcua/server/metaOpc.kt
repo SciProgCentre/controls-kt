@@ -7,11 +7,18 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UByte
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UInteger
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.ULong
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UShort
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.toMeta
 import space.kscience.dataforge.meta.*
 import java.time.Instant
 import java.util.*
+import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
+
+internal fun PropertyChangedMessage.toOpc(): DataValue {
+    val sourceTime = if (time == kotlin.time.Instant.DISTANT_PAST) null else DateTime(time.toJavaInstant())
+    return value.toOpc(sourceTime = sourceTime)
+}
 
 /**
  * Convert Meta to OPC data value using

@@ -16,6 +16,7 @@
 
 - Report `ReplayTagTable` as started after a successful `start()`.
 - Keep `TagTableValueState` values with their message timestamps and provide the current state to new subscribers.
+- Omit unknown source timestamps in OPC UA property updates.
 
 ### Security
 
