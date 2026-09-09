@@ -176,7 +176,7 @@ public class ReplayTagTable(
     override suspend fun start() {
         setLifecycleState(LifecycleState.STARTING)
         storageIndex.start()
-        setLifecycleState(LifecycleState.STOPPED)
+        setLifecycleState(LifecycleState.STARTED)
     }
 
     override suspend fun stop() {
