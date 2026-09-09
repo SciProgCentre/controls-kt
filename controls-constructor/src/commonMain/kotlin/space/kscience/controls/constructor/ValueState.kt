@@ -365,11 +365,13 @@ public fun <T, R> ValueState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    @Suppress("UNCHECKED_CAST")
     override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
-        combine(states.map { it.subscribeWithTime() }) { array: Array<Any?> ->
-            mapper(array.asList() as List<T>)
-        }.map { ValueWithTime(it, states.maxOf { it.valueWithTime.time }) }
+        combine(states.map { it.subscribeWithTime() }) { samples: Array<ValueWithTime<T>> ->
+            ValueWithTime(
+                value = mapper(samples.map { it.value }),
+                time = samples.maxOf { it.time }
+            )
+        }
 
     override fun toString(): String =
         "DeviceState.combine(states=${
@@ -419,11 +421,13 @@ public fun <T, K, R> ValueState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    @Suppress("UNCHECKED_CAST")
     override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
-        combine(entries.map { it.value.subscribeWithTime() }) { array: Array<Any?> ->
-            mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
-        }.map { ValueWithTime(it, states.maxOf { it.value.valueWithTime.time }) }
+        combine(entries.map { it.value.subscribeWithTime() }) { samples: Array<ValueWithTime<T>> ->
+            ValueWithTime(
+                value = mapper(entries.indices.associate { entries[it].key to samples[it].value }),
+                time = samples.maxOf { it.time }
+            )
+        }
 
     override fun toString(): String =
         "DeviceState.associate(states=${

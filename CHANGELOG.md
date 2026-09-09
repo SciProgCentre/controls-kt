@@ -13,6 +13,7 @@
 ### Fixed
 
 - Report `ReplayTagTable` as started after a successful `start()`.
+- Pass values and matching timestamps to timed collection and map state combinations.
 
 ### Security
 
