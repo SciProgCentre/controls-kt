@@ -40,6 +40,7 @@ Example view of a demo:
 ## Documentation
 
 * [Creating a device](docs/Device%20and%20DeviceSpec.md)
+* [Storage strategies](docs/storage.md)
 
 ## Modules
 

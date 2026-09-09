@@ -26,6 +26,11 @@ The module provides tools for working with streaming data:
 * **TimeSeriesCollector**: a component that collects data from sources, aligns them on a time grid, and performs basic aggregation (e.g., averaging).
 * **RollingSeries**: a data structure for storing a fixed window of recent values (rolling window) using `kmath` buffers.
 
+### 4. Storage and Data Replay
+The module includes interval-indexed storage and playback for time-series tag table data:
+* **[Tag Table Storage and Reading](storage.md)**: Envelope-based binary file storage, directory partitioning, AVL interval tree index (`TableStorageIndex`), query engine (`selectRows`), and historical replay (`ReplayTagTable`).
+* **[AsyncRows Compression](compression.md)**: Row-level and column-level compression algorithms for time-series streams.
+
 ## Architectural Diagram
 
 A visual representation of the architecture is available in draw.io format:
