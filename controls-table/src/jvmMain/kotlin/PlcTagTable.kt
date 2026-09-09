@@ -44,6 +44,7 @@ import space.kscience.dataforge.meta.set
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.reflect.typeOf
@@ -181,7 +182,7 @@ public class PlcTagTable(
 
     //TODO provide a way to read multiple properties at once.
 
-    private val values = mutableMapOf<String, Meta>()
+    private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
 
     private val _messageFlow = MutableSharedFlow<DeviceMessage>(
         extraBufferCapacity = configuration.properties.size * 4,
@@ -193,9 +194,11 @@ public class PlcTagTable(
 
     private val propertyNames = configuration.properties.keys
 
-    override suspend fun read(tag: String): Meta {
+    override suspend fun read(tag: String): Meta = readWithTime(tag).value
+
+    override fun readWithTime(tag: String): ValueWithTime<Meta> {
         if (tag !in propertyNames) error("Property $tag not found")
-        return values[tag] ?: Meta.EMPTY
+        return values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
     }
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
@@ -233,7 +236,7 @@ public class PlcTagTable(
                             source,
                             entries as List<Map.Entry<String, OpcTagTableColumn>>
                         ).forEach { (propertyName, value) ->
-                            values[propertyName] = value.value
+                            values[propertyName] = value
                             lastTime = if (value.time > lastTime) value.time else lastTime
                             _messageFlow.emit(
                                 PropertyChangedMessage(
@@ -249,7 +252,7 @@ public class PlcTagTable(
                         try {
                             withTimeout(property.timeout) {
                                 val value = read(property)
-                                values[propertyName] = value.value
+                                values[propertyName] = value
                                 lastTime = if (value.time > lastTime) value.time else lastTime
                                 _messageFlow.emit(
                                     PropertyChangedMessage(
@@ -272,7 +275,7 @@ public class PlcTagTable(
                             property = TagTable.ROW_PROPERTY_NAME,
                             value = Meta {
                                 values.forEach { (key, value) ->
-                                    set(key, value)
+                                    set(key, value.value)
                                 }
                             },
                         )
@@ -370,7 +373,7 @@ public class PlcTagTable(
     /**
      * Read current values of all properties
      */
-    override fun readAll(): Map<String, Meta> = values
+    override fun readAll(): Map<String, Meta> = values.mapValues { it.value.value }
 
 
     public override fun readTimeSeries(

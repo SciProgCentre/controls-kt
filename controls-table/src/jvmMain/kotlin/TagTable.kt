@@ -2,12 +2,12 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onSubscription
+import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceMessageSource
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.PropertyDescriptor
@@ -45,6 +45,11 @@ public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, Devi
     public suspend fun read(tag: String): Meta
 
     /**
+     * Read the current cached sample. Unknown sample time is represented by [Instant.DISTANT_PAST].
+     */
+    public fun readWithTime(tag: String): ValueWithTime<Meta>
+
+    /**
      * Read current values of all tags
      */
     public fun readAll(): Map<String, Meta>
@@ -68,6 +73,10 @@ public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, Devi
 
     public val clock: Clock
 
+    /**
+     * Tag table messages. Shared so that a subscriber can be attached atomically with reading the current value.
+     */
+    override val messageFlow: SharedFlow<DeviceMessage>
 
     public object ValueFactorySpec : MetaSpec() {
         public val tag: MetaRef<String> by string()
@@ -100,22 +109,26 @@ public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, Devi
 
 /**
  * A value state that reads the value of a tag from a [TagTable].
- * The initial cached value has unknown time. Subscribers receive the latest state; updates may be conflated.
+ * A subscription starts with the current sample, so a message that is not newer than it is skipped.
  */
 public class TagTableValueState(private val tagTable: TagTable, private val tag: String) : ValueState<Meta> {
-    private val state: StateFlow<ValueWithTime<Meta>> =
-        tagTable.messageFlow.filterIsInstance<PropertyChangedMessage>().filter { it.property == tag }.map {
-            ValueWithTime(it.value, it.time)
-        }.stateIn(
-            tagTable,
-            SharingStarted.Eagerly,
-            ValueWithTime(tagTable.readAll()[tag] ?: Meta.EMPTY, Instant.DISTANT_PAST),
-        )
-
     override val valueWithTime: ValueWithTime<Meta>
-        get() = state.value
+        get() = tagTable.readWithTime(tag)
 
-    override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = state
+    override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = flow {
+        var initialTime: Instant? = null
+        tagTable.messageFlow.onSubscription {
+            val initial = valueWithTime
+            initialTime = initial.time
+            this@flow.emit(initial)
+        }.filterIsInstance<PropertyChangedMessage>().filter { it.property == tag }.collect { message ->
+            val initial = initialTime
+            if (initial == null || message.time > initial) {
+                initialTime = null
+                emit(ValueWithTime(message.value, message.time))
+            }
+        }
+    }
 
     override fun toString(): String = "ValueState.tagTable(tag=$tag)"
 }

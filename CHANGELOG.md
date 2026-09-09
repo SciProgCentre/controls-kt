@@ -8,6 +8,8 @@
 
 ### Changed
 
+- **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
+
 ### Deprecated
 
 ### Removed
@@ -15,7 +17,7 @@
 ### Fixed
 
 - Report `ReplayTagTable` as started after a successful `start()`.
-- Keep `TagTableValueState` values with their message timestamps and provide the current state to new subscribers.
+- Keep sample timestamps in tag tables and provide current values without caching state in each tag adapter.
 - Omit unknown source timestamps in OPC UA property updates.
 
 ### Security
