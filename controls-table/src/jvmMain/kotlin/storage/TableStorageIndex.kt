@@ -39,6 +39,7 @@ import kotlin.time.Instant
 
 /**
  * Launch a directory monitor that calls [onEvent] for each file creation or deletion event.
+ * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
     directory: Path,
@@ -52,7 +53,7 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 
         while (isActive) {
             val key = try {
-                watchService.take()   // blocking, interruptible by close()
+                runInterruptible { watchService.take() }
             } catch (ex: ClosedWatchServiceException) {
                 break
             }
