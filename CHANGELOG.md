@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
 
 ### Security

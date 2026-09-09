@@ -219,6 +219,7 @@ public open class DeviceConstructor(
 
 
     override suspend fun start() {
+        if (isStarted()) return
         super<CachingDevice>.start()
         setLifecycleState(STARTING)
         children.values.forEach {

@@ -10,6 +10,8 @@ The `constructor` feature provides a high-level DSL for hierarchical composition
 - Expose states as device properties.
 - Install sub-devices.
 
+Call `start()` to start the constructor and its child devices. A repeated call while it is already starting or started returns without doing anything.
+
 ### Defining Properties
 You can easily expose internal states as device properties using delegates:
 
