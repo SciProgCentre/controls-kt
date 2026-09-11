@@ -17,6 +17,7 @@
 - Pass values and matching timestamps to timed collection and map state combinations.
 - Read each input value and timestamp together in map and combine getters.
 - Interrupt the directory monitor's blocking wait on cancellation.
+- Close every observer of a producer timeline instead of failing on the second one.
 
 ### Security
 

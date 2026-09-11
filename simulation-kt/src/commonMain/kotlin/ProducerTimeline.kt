@@ -90,7 +90,8 @@ public abstract class ProducerTimeline<E : Any>(
     }
 
     override fun close() {
-        observers.forEach { it.close() }
+        //closing an observer removes it from the set, so the set is copied before the iteration
+        observers.toList().forEach { it.close() }
         timelineScope.cancel()
     }
 }
