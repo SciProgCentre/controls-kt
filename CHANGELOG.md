@@ -16,7 +16,10 @@
 
 ### Fixed
 
+- Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
+- Pass values and matching timestamps to timed collection and map state combinations.
+- Read each input value and timestamp together in map and combine getters.
 - Keep sample timestamps in tag tables and provide current values without caching state in each tag adapter.
 - Omit unknown source timestamps in OPC UA property updates.
 

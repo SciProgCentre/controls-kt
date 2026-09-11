@@ -16,6 +16,12 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: 'gradle'
+      - name: Patch Chrome to allow root
+        run: |
+            sudo mv /usr/bin/google-chrome /usr/bin/google-chrome-real
+            echo '#!/bin/bash' | sudo tee /usr/bin/google-chrome
+            echo '/usr/bin/google-chrome-real --no-sandbox "$@"' | sudo tee -a /usr/bin/google-chrome
+            sudo chmod +x /usr/bin/google-chrome
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Build with Gradle
