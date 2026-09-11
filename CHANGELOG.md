@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
 - Pass values and matching timestamps to timed collection and map state combinations.
 - Read each input value and timestamp together in map and combine getters.
