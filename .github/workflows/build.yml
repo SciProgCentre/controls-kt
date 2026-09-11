@@ -5,6 +5,9 @@ on:
     branches: [ dev, master ]
   pull_request:
 
+env:
+  CHROME_FLAGS: "--no-sandbox"
+
 jobs:
   build:
     runs-on: ubuntu-latest
