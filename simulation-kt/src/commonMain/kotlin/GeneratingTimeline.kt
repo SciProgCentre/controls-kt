@@ -46,7 +46,7 @@ public class GeneratingTimeline<E : Any>(
                     override var lastEvent: E? = startEvent
 
                     override suspend fun emit(value: E) {
-                        if (startEvent == startEvent) {
+                        if (startEvent == startEventFlow.value) {
                             lastEvent = value
                             emit(EventWithOrigin(startEvent, value))
                         } else {
