@@ -92,10 +92,10 @@ public fun <T, R> ValueState.Companion.map(
     override val value: R get() = mapper(state.value)
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            mapper(state.valueWithTime.value),
-            state.valueWithTime.time
-        )
+        get() {
+            val sample = state.valueWithTime
+            return ValueWithTime(mapper(sample.value), sample.time)
+        }
 
     override fun subscribe(): Flow<R> = state.subscribe().map(mapper)
 
@@ -124,10 +124,10 @@ public fun <T, R> ValueState.Companion.map(
     override val value: R get() = mapper(state.value)
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            mapper(state.valueWithTime.value),
-            state.valueWithTime.time
-        )
+        get() {
+            val sample = state.valueWithTime
+            return ValueWithTime(mapper(sample.value), sample.time)
+        }
 
     val valueFlow: StateFlow<R> = state.subscribe().map(mapper)
         .stateIn(scope, SharingStarted.WhileSubscribed(), value)
@@ -202,13 +202,14 @@ public fun <T1, T2, R> ValueState.Companion.combine(
     override val value: R get() = mapper(state1.value, state2.value)
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            value = mapper(
-                state1.valueWithTime.value,
-                state2.valueWithTime.value
-            ),
-            time = maxOf(state1.valueWithTime.time, state2.valueWithTime.time)
-        )
+        get() {
+            val first = state1.valueWithTime
+            val second = state2.valueWithTime
+            return ValueWithTime(
+                value = mapper(first.value, second.value),
+                time = maxOf(first.time, second.time)
+            )
+        }
 
     val valueFlow: StateFlow<R> = combine(state1.subscribe(), state2.subscribe(), mapper)
         .stateIn(scope, SharingStarted.WhileSubscribed(), value)
@@ -248,14 +249,15 @@ public fun <T1, T2, T3, R> ValueState.Companion.combine(
     override val dependencies = listOf(state1, state2, state3)
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            value = mapper(
-                state1.valueWithTime.value,
-                state2.valueWithTime.value,
-                state3.valueWithTime.value
-            ),
-            time = maxOf(state1.valueWithTime.time, state2.valueWithTime.time, state3.valueWithTime.time)
-        )
+        get() {
+            val first = state1.valueWithTime
+            val second = state2.valueWithTime
+            val third = state3.valueWithTime
+            return ValueWithTime(
+                value = mapper(first.value, second.value, third.value),
+                time = maxOf(first.time, second.time, third.time)
+            )
+        }
 
     override val value: R get() = mapper(state1.value, state2.value, state3.value)
 
@@ -292,20 +294,16 @@ public fun <T1, T2, T3, T4, R> ValueState.Companion.combine(
     override val value: R get() = mapper(state1.value, state2.value, state3.value, state4.value)
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            value = mapper(
-                state1.valueWithTime.value,
-                state2.valueWithTime.value,
-                state3.valueWithTime.value,
-                state4.valueWithTime.value
-            ),
-            time = maxOf(
-                state1.valueWithTime.time,
-                state2.valueWithTime.time,
-                state3.valueWithTime.time,
-                state4.valueWithTime.time
+        get() {
+            val first = state1.valueWithTime
+            val second = state2.valueWithTime
+            val third = state3.valueWithTime
+            val fourth = state4.valueWithTime
+            return ValueWithTime(
+                value = mapper(first.value, second.value, third.value, fourth.value),
+                time = maxOf(first.time, second.time, third.time, fourth.time)
             )
-        )
+        }
 
     val valueFlow: StateFlow<R> = combine(
         flow = state1.subscribe(),
@@ -353,10 +351,13 @@ public fun <T, R> ValueState.Companion.combine(
     override val value: R get() = mapper(states.map { it.value })
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            value = mapper(states.map { it.valueWithTime.value }),
-            time = states.maxOf { it.valueWithTime.time }
-        )
+        get() {
+            val samples = states.map { it.valueWithTime }
+            return ValueWithTime(
+                value = mapper(samples.map { it.value }),
+                time = samples.maxOf { it.time }
+            )
+        }
 
     @Suppress("UNCHECKED_CAST")
     val valueFlow: StateFlow<R> = combine(states.map { it.subscribe() }) { array: Array<Any?> ->
@@ -365,11 +366,13 @@ public fun <T, R> ValueState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    @Suppress("UNCHECKED_CAST")
     override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
-        combine(states.map { it.subscribeWithTime() }) { array: Array<Any?> ->
-            mapper(array.asList() as List<T>)
-        }.map { ValueWithTime(it, states.maxOf { it.valueWithTime.time }) }
+        combine(states.map { it.subscribeWithTime() }) { samples: Array<ValueWithTime<T>> ->
+            ValueWithTime(
+                value = mapper(samples.map { it.value }),
+                time = samples.maxOf { it.time }
+            )
+        }
 
     override fun toString(): String =
         "DeviceState.combine(states=${
@@ -406,10 +409,13 @@ public fun <T, K, R> ValueState.Companion.combine(
     override val value: R get() = mapper(states.mapValues { it.value.value })
 
     override val valueWithTime: ValueWithTime<R>
-        get() = ValueWithTime(
-            value = mapper(states.mapValues { it.value.valueWithTime.value }),
-            time = states.maxOf { it.value.valueWithTime.time }
-        )
+        get() {
+            val samples = states.mapValues { it.value.valueWithTime }
+            return ValueWithTime(
+                value = mapper(samples.mapValues { it.value.value }),
+                time = samples.maxOf { it.value.time }
+            )
+        }
 
     @Suppress("UNCHECKED_CAST")
     val valueFlow: StateFlow<R> = combine(entries.map { it.value.subscribe() }) { array: Array<Any?> ->
@@ -419,11 +425,13 @@ public fun <T, K, R> ValueState.Companion.combine(
 
     override fun subscribe(): StateFlow<R> = valueFlow
 
-    @Suppress("UNCHECKED_CAST")
     override fun subscribeWithTime(): Flow<ValueWithTime<R>> =
-        combine(entries.map { it.value.subscribeWithTime() }) { array: Array<Any?> ->
-            mapper(entries.indices.associate { entries[it].key to (array[it] as T) })
-        }.map { ValueWithTime(it, states.maxOf { it.value.valueWithTime.time }) }
+        combine(entries.map { it.value.subscribeWithTime() }) { samples: Array<ValueWithTime<T>> ->
+            ValueWithTime(
+                value = mapper(entries.indices.associate { entries[it].key to samples[it].value }),
+                time = samples.maxOf { it.time }
+            )
+        }
 
     override fun toString(): String =
         "DeviceState.associate(states=${
