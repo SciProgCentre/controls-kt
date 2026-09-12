@@ -13,7 +13,7 @@ your use case.
 
 ```mermaid
 flowchart TB
-    subgraph Edge["1. High-Throughput Time-Series (controls-table)"]
+    subgraph Edge["1. Compact Tag Table"]
         TT[TagTable / Sensors] -->|flowBinaryData| COMP[RowsCompression & Batching]
         COMP -->|Envelopes| STRG[storeData / Date Partitioning]
         STRG --> FS[(Local Filesystem)]
@@ -21,21 +21,21 @@ flowchart TB
         TSI --> REPLAY[ReplayTagTable / selectRows]
     end
 
-    subgraph Local["2. Local Event Storage (controls-storage)"]
+    subgraph Local["2. Event Storage"]
         DM[DeviceManager / Device] -->|storeMessages / timeWindowed| DMS[DeviceMessageStorage]
-        DMS --> XODUS_LOCAL[(Embedded Xodus)]
-        DMS --> EXPOSED_LOCAL[(SQL Databases via Exposed)]
+        DMS --> KV_LOCAL[(Embedded key-value store)]
+        DMS --> SQL_LOCAL[(SQL Databases via Exposed)]
         DMS --> VH[ValueHistory / Property Stream]
     end
 
-    subgraph Distributed["3. Remote & Distributed History (magix-storage)"]
+    subgraph Distributed["3. Historical Database"]
         BUS[Magix Event Bus] -->|MagixMessage Stream| MH[MagixHistory / WriteableMagixHistory]
-        MH --> XODUS_MAGIX[(Xodus History Store)]
-        MH --> MONGO_MAGIX[(MongoDB History Store)]
+        MH --> KV_MAGIX[(Key-value or document store)]
+        MH --> SQL_MAGIX[(SQL event store)]
         CLIENT[Remote Clients / Web UI] -->|history . request / launchHistory| BUS
     end
 
-    subgraph Peer["4. Direct Binary Streaming (PeerConnection - Planned)"]
+    subgraph Peer["4. Binary Store (Planned)"]
         FAST_DEV[Fast Device / Vibration / DAQ] -->|Notify| NOTIF["BinaryNotificationMessage (Magix / Bus)"]
         NOTIF --> CONSUMER[Client / Storage Service]
         FAST_DEV <-->|Direct Out - of - Band Transfer| PC[PeerConnection]
@@ -47,16 +47,16 @@ flowchart TB
 
 ## Comparison Matrix
 
-| Storage Strategy                                | Target Module                      | Data Granularity                          | Storage Backend                                                                 | Query Capabilities                                                                                             | Streaming & Playback                                                                     | Primary Use Case                                                                             |
-|-------------------------------------------------|------------------------------------|-------------------------------------------|---------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| **Tag Table Storage**                           | `controls-table`                   | Batch-encoded tabular rows (`Rows<Meta>`) | File envelopes (Zip / Binary) partitioned by date/hour                          | Time interval range queries ($O(\log N + K)$ via AVL tree)                                                     | High-fidelity virtual device replay (`ReplayTagTable`) with time scaling                 | High-frequency telemetry, sensor arrays, continuous logging, deterministic simulation replay |
-| **Local Device Message Storage**                | `controls-storage`                 | Individual `DeviceMessage` events         | Key-value, document or SQL databases (PostgreSQL, SQLite, H2, etc. via Exposed) | Time range, message type, source device, target device                                                         | Reactive Flow queries, in-memory property history (`ValueHistory`)                       | Single-host daemon event logging, audit trails, relational database integration              |
-| **Remote Magix History**                        | `magix-storage`                    | Distributed `MagixMessage` envelopes      | Key-value, document or SQL databases                                            | Complex payload filters (`Equals`, `NumberInRange`, `DateTimeInRange`, logical `And`/`Or`/`Not`), user filters | Asynchronous paginated message chunks over Magix protocol (RSocket, MQTT, RabbitMQ, SSE) | Distributed multi-device networks, centralized historical event lookup, remote client GUIs   |
-| **Direct Binary Streaming** *(Not implemented)* | `controls-core` / `controls-table` | Binary batches & envelopes (`Envelope`)   | Out-of-band direct endpoints (TCP, HTTP, direct memory)                         | Direct retrieval by `contentId` via `PeerConnection`                                                           | Direct point-to-point binary transfer bypassing Magix bus                                | Ultra-high-frequency "fast" data (vibration, electronics response, oscilloscope waveforms)   |
+| Storage Strategy             | Target Module                      | Data Granularity                          | Storage Backend                                                                 | Query Capabilities                                                                                             | Streaming & Playback                                                                     | Primary Use Case                                                                             |
+|------------------------------|------------------------------------|-------------------------------------------|---------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| **Compact Tag Table**        | `controls-table`                   | Batch-encoded tabular rows (`Rows<Meta>`) | File envelopes (Zip / Binary) partitioned by date/hour                          | Time interval range queries ($O(\log N + K)$ via AVL tree)                                                     | High-fidelity virtual device replay (`ReplayTagTable`) with time scaling                 | High-frequency telemetry, sensor arrays, continuous logging, deterministic simulation replay |
+| **Event Storage**            | `controls-storage`                 | Individual `DeviceMessage` events         | Key-value, document or SQL databases (PostgreSQL, SQLite, H2, etc. via Exposed) | Time range, message type, source device, target device                                                         | Reactive Flow queries, in-memory property history (`ValueHistory`)                       | Single-host daemon event logging, audit trails, relational database integration              |
+| **Historical Database**      | `magix-storage`                    | Distributed `MagixMessage` envelopes      | Key-value, document or SQL databases                                            | Complex payload filters (`Equals`, `NumberInRange`, `DateTimeInRange`, logical `And`/`Or`/`Not`), user filters | Asynchronous paginated message chunks over Magix protocol (RSocket, MQTT, RabbitMQ, SSE) | Distributed multi-device networks, centralized historical event lookup, remote client GUIs   |
+| **Binary Store** *(Planned)* | `controls-core` / `controls-table` | Binary batches & envelopes (`Envelope`)   | Out-of-band direct endpoints (TCP, HTTP, direct memory)                         | Direct retrieval by `contentId` via `PeerConnection`                                                           | Direct point-to-point binary transfer bypassing Magix bus                                | Ultra-high-frequency "fast" data (vibration, electronics response, oscilloscope waveforms)   |
 
 ---
 
-## 1. Tag Table Time-Series Storage (`controls-table`)
+## 1. Compact Tag Table (`controls-table`)
 
 When managing dense, continuous metrics from multi-channel devices or PLC tag tables, storing individual database
 records per metric incurs excessive serialization and indexing overhead. `controls-table` addresses this with **chunked,
@@ -124,7 +124,7 @@ and [AsyncRows Compression](../controls-table/docs/compression.md).*
 
 ---
 
-## 2. Local Event Storage (`controls-storage`)
+## 2. Event Storage (`controls-storage`)
 
 `controls-storage` provides a unified persistence abstraction for lifecycle messages, command execution messages, and
 property changes across devices managed by a `DeviceManager`.
@@ -204,7 +204,7 @@ val recentFlow = history.flowHistory(from = Clock.System.now() - 5.minutes)
 
 ---
 
-## 3. Remote & Distributed History (`magix-storage`)
+## 3. Historical Database (`magix-storage`)
 
 In distributed setups, multiple control nodes communicate via the **Magix** message broker over network transports
 (RSocket, MQTT, RabbitMQ, SSE). `magix-storage` allows storing and querying message history across the entire network
@@ -250,7 +250,7 @@ val request = HistoryRequestPayload(
 
 ---
 
-## 4. Out-of-Band Binary Batch Streaming with PeerConnection *(Not Implemented)*
+## 4. Binary Store *(Planned)*
 
 > **Status: Proposed / Currently Not Implemented**
 >
@@ -351,11 +351,11 @@ deviceManager.messageFlow.filterIsInstance<BinaryNotificationMessage>().collect 
 
 ## Decision Guide: Which Storage Strategy to Choose?
 
-| If your scenario involves...                                                                                       | Recommended Strategy                                         | Primary Module                                |
-|--------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|-----------------------------------------------|
-| High-rate sensor sampling (>10 Hz), continuous metrics, multi-tag arrays, or simulation playback                   | **Tag Table Envelope Storage**                               | `controls-table`                              |
-| Local edge device daemon, embedded Linux / Raspberry Pi, single-host event audit log                               | **Local Xodus Message Storage**                              | `controls-storage:controls-xodus`             |
-| Centralized enterprise SQL database, existing relational schema, strict SQL analytics                              | **Local Exposed Message Storage**                            | `controls-storage:controls-exposed`           |
-| Distributed microservices, remote web/desktop clients querying central history over Magix bus                      | **Magix History Service**                                    | `magix:magix-storage`                         |
-| Short-term UI charting / buffer for a single device property                                                       | **In-Memory Value History**                                  | `controls-storage` (`collectPropertyHistory`) |
-| Ultra-high-frequency "fast" data (vibration, electronics response, raw DAQ) requiring out-of-band binary transfers | **Binary Notification + PeerConnection** *(Not implemented)* | `controls-core:peer`                          |
+| If your scenario involves...                                                                                                                   | Recommended Strategy                  | Primary Module                                |
+|------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------|-----------------------------------------------|
+| Large number (>100) of tags that are read simultaniously with mederate frequency (0.01 - 10 Hz)                                                | **Compact tag table**                 | `controls-table`                              |
+| Short-term UI charting / buffer for a for several properties (up to few kHz)                                                                   | **In-Memory Event Storage**           | `controls-storage` (`collectPropertyHistory`) |
+| Local edge device daemon, embedded Linux / Raspberry Pi, single-host event audit log (up to 100 Hz with relatively small number of properties) | **Local Event Storage**               | `controls-storage:controls-xodus`             |
+| Centralized enterprise SQL database, existing relational schema, strict SQL analytics (up to 10 Hz with relatively small number of properties) | **Event Storage with SQL connection** | `controls-storage:controls-exposed`           |
+| Distributed services, remote web/desktop clients querying central history over Magix bus (up to 1 Hz)                                          | **Magix History Service**             | `magix:magix-storage`                         |
+| Ultra-high-frequency "fast" data (vibration, electronics response, raw DAQ) requiring out-of-band binary transfers (from 100 Hz to 100 kHz)    | **Binary Store** *(Not implemented)*  | `controls-core:peer`                          |
