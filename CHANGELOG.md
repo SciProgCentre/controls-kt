@@ -24,6 +24,7 @@
 - Keep sample timestamps in tag tables and provide current values without caching state in each tag adapter.
 - Omit unknown source timestamps in OPC UA property updates.
 - Close every observer of a producer timeline instead of failing on the second one.
+- Compare the generation origin with the actual start event.
 
 ### Security
 

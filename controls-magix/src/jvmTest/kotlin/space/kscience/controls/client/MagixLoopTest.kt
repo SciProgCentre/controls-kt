@@ -1,13 +1,8 @@
 package space.kscience.controls.client
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Timeout
+import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.DescriptionMessage
 import space.kscience.controls.client.RemoteDeviceConnect.TestDevice
 import space.kscience.controls.manager.DeviceManager
@@ -21,13 +16,12 @@ import space.kscience.magix.rsocket.rSocketWithWebSockets
 import space.kscience.magix.server.startMagixServer
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MagixLoopTest {
 
     @Test
-    @Timeout(5)
-    fun realDeviceHub(): Unit = runBlocking {
+    fun realDeviceHub(): Unit = runTest(timeout = 5.seconds) {
         val context = Context {
             plugin(DeviceManager)
         }
@@ -48,11 +42,7 @@ class MagixLoopTest {
 
         val clientEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
 
-        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
-            .map { it.second }
-            .filterIsInstance<DescriptionMessage>()
-            .onEach { println(it) }
-            .launchIn(this)
+
 
 
         val remoteHub = clientEndpoint.remoteDeviceHub(context, "client", "device")
@@ -60,8 +50,12 @@ class MagixLoopTest {
         assertEquals(0, remoteHub.children.size)
         clientEndpoint.requestDeviceUpdate("client", "device")
 
-
-        delay(100.milliseconds)
+        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+            .map { it.second }
+            .filterIsInstance<DescriptionMessage>()
+            .take(10)
+            .onEach { println(it) }
+            .collect()
 
         assertEquals(10, remoteHub.children.size)
 
