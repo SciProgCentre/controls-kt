@@ -24,6 +24,7 @@ public class SharedTimeline<E : Any>(
 
     /**
      * Accept an event in nondecreasing time order, waiting for capacity when necessary.
+     * Cancellation may happen after acceptance; retrying then creates another occurrence.
      */
     override suspend fun emit(value: E) {
         state.publish(value)

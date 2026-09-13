@@ -136,8 +136,12 @@ internal class TimelineState<E : Any>(
         Request(upTo).also { reader.request = it }
     }
 
-    suspend fun cancelRequest(reader: Reader, request: Request) = locked {
-        if (reader.request === request) reader.request = null
+    suspend fun cancelRequest(reader: Reader, request: Request) {
+        val delivered = locked {
+            if (reader.request === request) reader.request = null
+            reader.deliveredTime
+        }
+        reader.time.update { maxOf(it, delivered) }
     }
 
     fun close(reader: Reader) {

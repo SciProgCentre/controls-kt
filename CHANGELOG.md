@@ -10,7 +10,8 @@
 ### Changed
 
 - **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
-- Timeline requests retain unread events and protect completed intervals. `GeneratingTimeline` adds `bufferSize` before the generator argument, changing its constructor ABI.
+- **BREAKING** Add `bufferSize` to `ProducerTimeline` and `GeneratingTimeline`, changing their constructor ABI. Rebuild dependent binaries; pass `GeneratingTimeline`'s generator by name or as a trailing lambda, or supply the preceding `bufferSize`.
+- Timeline requests retain unread events and protect completed intervals. `ProducerTimeline.events()` is collected once per generation and shared between observers.
 
 ### Deprecated
 
@@ -28,6 +29,7 @@
 - Close every observer of a producer timeline instead of failing on the second one.
 - Compare the generation origin with the actual start event.
 - Preserve timeline cursors across requests and restart suspended generation when its origin changes.
+- Publish the delivered observer time when a timeline collection request is cancelled.
 - Report timeline source creation failures to waiting observers.
 
 ### Security

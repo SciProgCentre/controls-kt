@@ -18,6 +18,8 @@ public interface TimelineObserver : AutoCloseable {
      * Collect unread events through [upTo], including events with equal timestamps.
      * Successful completion protects the whole interval against subsequent changes.
      * Cancellation retains already delivered events without completing the remaining interval.
+     * Cancelling this request does not cancel a collector callback that has already started.
+     * On return or cancellation, [time] reflects all events already handed to the collector.
      */
     public suspend fun collect(upTo: Instant)
 }
@@ -40,6 +42,7 @@ public interface Timeline<E : Any> {
      */
     public val time: StateFlow<Instant>
 
+    /** Return a stable event timestamp without changing timeline state. */
     public fun timeOf(event: E): Instant
 
     /**
