@@ -49,7 +49,6 @@ public interface Timeline<E : Any> {
      * Attach an observer after the prefix already delivered to other observers.
      *
      * [TimelineObserver.time] advances on delivery, not on a request over an empty interval.
-     * The collector runs outside the timeline lock. Its completion or failure closes the observer.
      */
     public suspend fun observe(
         collector: suspend Flow<E>.() -> Unit
@@ -58,8 +57,7 @@ public interface Timeline<E : Any> {
     /**
      * Advance simulation time to [toTime]. This method forces all observers to collect all events in the given range.
      *
-     * Requests the observers registered at entry concurrently. Failure cancels the other requests,
-     * not their registrations. With no observers this is a no-op.
+     * This method suspends until all advancement is done.
      */
     public suspend fun advance(toTime: Instant)
 }

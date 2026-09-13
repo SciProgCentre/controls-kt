@@ -64,10 +64,15 @@ public abstract class ProducerTimeline<E : Any>(
         }
     }
 
+    /**
+     * Request the observers registered at entry concurrently. Failure cancels the other requests,
+     * not their registrations. With no observers this is a no-op.
+     */
     override suspend fun advance(toTime: Instant): Unit = coroutineScope {
         observers.value.filterNot { it.reader.closed.value }.forEach { observer -> launch { observer.collect(toTime) } }
     }
 
+    /** The collector runs outside the timeline lock. Its completion or failure closes the observer. */
     override suspend fun observe(collector: suspend Flow<E>.() -> Unit): TimelineObserver {
         val caller = currentCoroutineContext()
         val observer = Observer(state.register())
