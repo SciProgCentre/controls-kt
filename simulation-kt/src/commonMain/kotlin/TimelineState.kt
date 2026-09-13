@@ -194,8 +194,9 @@ internal class TimelineState<E : Any>(
 
     private fun needed(event: Entry<E>, generated: Boolean): Boolean {
         if (!generated || lookahead == null) return true
-        val demand = readers.filterNot { it.closed.value }.mapNotNull { it.request?.upTo }.maxOrNull()
-        return demand?.let { event.time <= it } == true || event.time <= deliveredTime + lookahead!!
+        return readers.any { reader ->
+            !reader.closed.value && reader.request?.upTo?.let { event.time <= it } == true
+        } || event.time <= deliveredTime + lookahead!!
     }
 
     suspend fun publish(value: E, generation: Long? = null, generated: Boolean = false) {
