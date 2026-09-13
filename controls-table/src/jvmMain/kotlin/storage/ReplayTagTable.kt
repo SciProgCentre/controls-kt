@@ -49,21 +49,24 @@ public class ReplayTagTable(
 
     private val _messageFlow = MutableSharedFlow<DeviceMessage>()
 
-    override val messageFlow: Flow<DeviceMessage> get() = _messageFlow
+    override val messageFlow: SharedFlow<DeviceMessage> get() = _messageFlow
 
     override val coroutineContext: CoroutineContext get() = context.coroutineContext
 
-    private var values: MutableMap<String, Meta> = ConcurrentHashMap()
+    private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
 
     /**
      * Read a value of a single column in the table
      */
-    override suspend fun read(tag: String): Meta = values[tag] ?: Meta.EMPTY
+    override suspend fun read(tag: String): Meta = readWithTime(tag).value
+
+    override fun readWithTime(tag: String): ValueWithTime<Meta> =
+        values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
 
     /**
      * Read current values of all tags
      */
-    override fun readAll(): Map<String, Meta> = values
+    override fun readAll(): Map<String, Meta> = values.mapValues { it.value.value }
 
     /**
      * Starts generating a flow of rows for the current data platform with a specified interval.
@@ -110,7 +113,7 @@ public class ReplayTagTable(
             tags.keys.forEach { tag ->
                 val value = row.getOrNull(tag)
                 if (value != null) {
-                    values[tag] = value
+                    values[tag] = ValueWithTime(value, time)
                     _messageFlow.emit(
                         PropertyChangedMessage(
                             time = time,
@@ -126,7 +129,7 @@ public class ReplayTagTable(
                     property = TagTable.ROW_PROPERTY_NAME,
                     value = Meta {
                         values.forEach { (key, value) ->
-                            set(key, value)
+                            set(key, value.value)
                         }
                     },
                 )
