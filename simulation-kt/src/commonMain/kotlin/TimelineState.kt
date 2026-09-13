@@ -156,12 +156,23 @@ internal class TimelineState<E : Any>(
     }
 
     private fun reclaim() {
-        val firstUnread = readers.filterNot { it.closed.value }.minOfOrNull { it.cursor } ?: (deliveredId + 1)
+        var firstUnread = deliveredId + 1
+        for (reader in readers) {
+            if (!reader.closed.value) firstUnread = minOf(firstUnread, reader.cursor)
+        }
         while (entries.firstOrNull()?.id?.let { it < firstUnread } == true) entries.removeFirst()
         pending?.let { event ->
             event.recipients?.removeAll { it.closed.value || it.cursor > event.id }
             if (event.recipients?.isEmpty() == true) pending = null
         }
+    }
+
+    private fun entryAtOrAfter(cursor: Long): Entry<E>? {
+        val first = entries.firstOrNull() ?: return null
+        if (first.id >= cursor) return first
+        if (entries.last().id < cursor) return null
+        val index = entries.binarySearch { it.id.compareTo(cursor) }
+        return entries.getOrNull(if (index >= 0) index else -(index + 1))
     }
 
     private fun validate(event: Entry<E>) {
@@ -236,7 +247,7 @@ internal class TimelineState<E : Any>(
             if (reader.closed.value) throw CancellationException("Timeline observer is closed")
             val request = reader.request ?: return@locked Step.Wait(previous)
             reclaim()
-            val event = entries.firstOrNull { it.id >= reader.cursor }
+            val event = entryAtOrAfter(reader.cursor)
                 ?: pending?.takeIf { capacity == 0 && it.id >= reader.cursor }
             if (event != null && event.time <= request.upTo) {
                 if (event.recipients == null && event === pending) {

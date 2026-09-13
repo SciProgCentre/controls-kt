@@ -29,6 +29,7 @@
 - Close every observer of a producer timeline instead of failing on the second one.
 - Compare the generation origin with the actual start event.
 - Preserve timeline cursors across requests and restart suspended generation when its origin changes.
+- Avoid rescanning retained timeline history for each observer event.
 - Publish the delivered observer time when a timeline collection request is cancelled.
 - Report timeline source creation failures to waiting observers.
 
