@@ -16,13 +16,11 @@ import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
 import org.eclipse.milo.opcua.sdk.server.util.SubscriptionModel
 import org.eclipse.milo.opcua.stack.core.AttributeId
 import org.eclipse.milo.opcua.stack.core.NodeIds
-import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
-import kotlin.time.toJavaInstant
 
 
 public operator fun CachingDevice.get(propertyDescriptor: PropertyDescriptor): Meta? =
@@ -122,8 +120,7 @@ public class DeviceNameSpace(
             //Subscribe on properties updates
             device.onPropertyChange {
                 nodes[property]?.let { node ->
-                    val sourceTime = DateTime(time.toJavaInstant())
-                    val newValue = value.toOpc(sourceTime = sourceTime)
+                    val newValue = toOpc()
                     if (node.value.value != newValue.value) {
                         node.value = newValue
                     }
