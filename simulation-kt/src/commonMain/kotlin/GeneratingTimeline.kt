@@ -1,11 +1,13 @@
 package space.kscience.simulation
 
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.transform
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -19,85 +21,43 @@ public fun <E : WithTime> Flow<E>.withTimeThreshold(
     emit(event)
 }
 
-private class OriginChangedException : CancellationException("Origin is changed")
-
 /**
- * @param lookaheadInterval an interval for generated events ahead of the last observed event.
+ * Generates events lazily from [origin], restarting the generator when [interrupt] changes its origin.
+ *
+ * @param lookaheadInterval optional generation ahead of observed time; active requests may extend this limit.
+ * @param bufferSize maximum retained events, or [Channel.UNLIMITED]. Zero uses rendezvous delivery.
  */
 public class GeneratingTimeline<E : Any>(
     origin: E,
-    private val lookaheadInterval: Duration,
+    lookaheadInterval: Duration,
     timeOf: E.() -> Instant,
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
+    bufferSize: Int = Channel.UNLIMITED,
     private val generator: suspend TimelineCollector<E>.(E) -> Unit
-) : ProducerTimeline<E>(timeOf(origin), timeOf, coroutineContext) {
+) : ProducerTimeline<E>(timeOf(origin), timeOf, coroutineContext, bufferSize) {
 
-    private val startEventFlow = MutableStateFlow(origin)
-
-    private inner class EventWithOrigin(val origin: E, val event: E) : WithTime {
-        override val time: Instant get() = timeOf(event)
+    init {
+        state.initializeOrigin(origin, lookaheadInterval)
     }
 
-    private val events: SharedFlow<E> = flow<EventWithOrigin> {
-        coroutineScope {
-            startEventFlow.collect { startEvent ->
-                val timelineCollector = object : TimelineCollector<E> {
-                    override val time: StateFlow<Instant> get() = this@GeneratingTimeline.time
-                    override var lastEvent: E? = startEvent
+    override fun events(): Flow<E> = flow {
+        val origin = state.origin()
+        val timelineCollector = object : TimelineCollector<E> {
+            override val time: StateFlow<Instant> get() = this@GeneratingTimeline.time
+            override var lastEvent: E? = origin
 
-                    override suspend fun emit(value: E) {
-                        if (startEvent == startEventFlow.value) {
-                            lastEvent = value
-                            emit(EventWithOrigin(startEvent, value))
-                        } else {
-                            throw OriginChangedException()
-                        }
-                    }
-                }
-
-                try {
-                    timelineCollector.generator(startEvent)
-                } catch (_: OriginChangedException) {
-                    return@collect
-                }
-
-//                emitAll(
-//                    discrete innerFlow@{
-//                        object : TimelineCollector<E> {
-//                            override val time: StateFlow<Instant> get() = this@GeneratingTimeline.time
-//                            override val lastEvent: E?
-//                                get() = TODO("Not yet implemented")
-//
-//                            override suspend fun emit(value: E) {
-//                                this@innerFlow.emit(value)
-//                            }
-//
-//                        }.generator(startEvent)
-//                    }.takeWhile {
-//                        startEvent == startEventFlow.value
-//                    }.map {
-//                        EventWithOrigin(startEvent, it)
-//                    }
-//                )
+            override suspend fun emit(value: E) {
+                this@flow.emit(value)
+                lastEvent = value
             }
         }
-    }.withTimeThreshold(
-        threshold = time.map { it + lookaheadInterval }
-    ).buffer(Channel.UNLIMITED).mapNotNull { event: GeneratingTimeline<E>.EventWithOrigin ->
-        //a barrier to avoid leaking stale events after interruption from buffer
-        event.takeIf { it.origin == startEventFlow.value }?.event
-    }.shareIn(
-        scope = timelineScope,
-        started = SharingStarted.Lazily,
-    )
+        timelineCollector.generator(origin)
+    }
 
-    override fun events(): Flow<E> = events
-
+    /**
+     * Replace unobserved future events without changing already delivered events or completed request ranges.
+     */
     public suspend fun interrupt(newStart: E) {
-        check(timeOf(newStart) >= time.value) {
-            "Can't interrupt generating timeline after observed event"
-        }
-        startTime = timeOf(newStart)
-        startEventFlow.emit(newStart)
+        state.restart(newStart)
     }
 }

@@ -1,97 +1,128 @@
 package space.kscience.simulation
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 
-/**
- * A general abstraction for timelines that could produce new events
- */
+/** A producer with shared unread history and independently advancing observers. */
 public abstract class ProducerTimeline<E : Any>(
     protected var startTime: Instant,
     private val timeOf: E.() -> Instant,
-    coroutineContext: CoroutineContext
+    coroutineContext: CoroutineContext,
+    bufferSize: Int = Channel.UNLIMITED,
 ) : Timeline<E>, AutoCloseable {
-
+    private val ownerJob = SupervisorJob(coroutineContext[Job])
     protected val timelineScope: CoroutineScope = CoroutineScope(
-        coroutineContext +
-                SupervisorJob(coroutineContext[Job]) +
-                CoroutineExceptionHandler { _, throwable -> throwable.printStackTrace() } +
-                CoroutineName("Timeline[${hashCode().toString(16)}]")
+        coroutineContext + ownerJob + CoroutineName("Timeline[${hashCode().toString(16)}]")
     )
+    internal val state = TimelineState(startTime, timeOf, bufferSize)
+    private val observers = MutableStateFlow<List<Observer>>(emptyList())
+
+    init {
+        ownerJob.invokeOnCompletion { state.close() }
+    }
 
     override fun timeOf(event: E): Instant = event.timeOf()
+    override val time: StateFlow<Instant> get() = state.time
 
-    private val observers: MutableSet<TimelineObserver> = mutableSetOf()
+    /** A cold source collected once per generation; null denotes direct publication. */
+    protected open fun events(): Flow<E>? = null
 
-    /**
-     * Update time on this channel event
-     */
-    private val feedbackChannel = Channel<Unit>(onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    override val time: StateFlow<Instant> = feedbackChannel.consumeAsFlow().map {
-        maxOf(startTime, observers.maxOfOrNull { it.time.value } ?: Instant.DISTANT_PAST)
-    }.stateIn(timelineScope, SharingStarted.Lazily, startTime)
-
-    override suspend fun advance(toTime: Instant) {
-        coroutineScope {
-            observers.forEach {
-                launch {
-                    it.collect(toTime)
-                }
+    private val source = timelineScope.launch(start = CoroutineStart.LAZY) {
+        if (events() == null) return@launch
+        state.generations.collectLatest { generation ->
+            try {
+                if (!state.awaitGeneration(generation)) return@collectLatest
+                events()?.collect { state.publish(it, generation, generated = true) }
+                state.end(generation)
+            } catch (error: CancellationException) {
+                withContext(NonCancellable) { state.fail(error, generation) }
+                throw error
+            } catch (error: Throwable) {
+                state.fail(error, generation)
             }
         }
     }
 
-    /**
-     * Flow unobserved events starting at [time]. The flow could be interrupted if timeline changes
-     */
-    protected abstract fun events(): Flow<E>
+    override suspend fun advance(toTime: Instant): Unit = coroutineScope {
+        observers.value.filterNot { it.reader.closed.value }.forEach { observer -> launch { observer.collect(toTime) } }
+    }
 
     override suspend fun observe(collector: suspend Flow<E>.() -> Unit): TimelineObserver {
-        val context = currentCoroutineContext()
-        val observer = object : TimelineObserver {
-            // observed time
-            override val time = MutableStateFlow(startTime)
-
-            private val channel = Channel<E>()
-
-            private val collectJob = timelineScope.launch(context) {
-                channel.consumeAsFlow().onEach {
-                    time.emit(timeOf(it))
-                    feedbackChannel.send(Unit)
+        val caller = currentCoroutineContext()
+        val observer = Observer(state.register())
+        observers.update { it + observer }
+        val handle = caller[Job]?.invokeOnCompletion { cause -> if (cause != null) observer.close() }
+        observer.job = timelineScope.launch(caller.minusKey(Job), start = CoroutineStart.UNDISPATCHED) {
+            var failure: Throwable? = null
+            try {
+                flow {
+                    while (currentCoroutineContext().isActive) {
+                        when (val step = state.next(observer.reader)) {
+                            is TimelineState.Step.Event -> emit(step.value)
+                            is TimelineState.Step.Completed -> {
+                                if (step.failure == null) step.request.result.complete(Unit)
+                                else step.request.result.completeExceptionally(step.failure)
+                            }
+                            is TimelineState.Step.Wait -> state.waitForChange(step.version)
+                        }
+                    }
                 }.collector()
+            } catch (error: Throwable) {
+                failure = error
+            } finally {
+                handle?.dispose()
+                withContext(NonCancellable) { state.unregister(observer.reader, failure) }
+                observers.update { it - observer }
             }
-
-            private val mutex = Mutex()
-
-            override suspend fun collect(upTo: Instant) = mutex.withLock {
-                require(upTo >= time.value) { "Requested time $upTo is lower than observed ${time.value}" }
-                events().takeWhile {
-                    timeOf(it) <= upTo
-                }.collect {
-                    channel.send(it)
-                }
-            }
-
-            override fun close() {
-                collectJob.cancel()
-                observers.remove(this)
-            }
-
         }
-        observers.add(observer)
+        if (observer.reader.closed.value) observer.job?.cancel()
         return observer
     }
 
+    private inner class Observer(val reader: TimelineState.Reader) : TimelineObserver {
+        var job: Job? = null
+        private val requestMutex = Mutex()
+        override val time: StateFlow<Instant> get() = reader.time
+
+        override suspend fun collect(upTo: Instant): Unit = requestMutex.withLock {
+            val request = state.startRequest(reader, upTo)
+            try {
+                source.start()
+                request.result.await()
+            } finally {
+                withContext(NonCancellable) { state.cancelRequest(reader, request) }
+            }
+        }
+
+        override fun close() {
+            state.close(reader)
+            job?.cancel()
+        }
+    }
+
     override fun close() {
-        //closing an observer removes it from the set, so the set is copied before the iteration
-        observers.toList().forEach { it.close() }
-        timelineScope.cancel()
+        state.close()
+        ownerJob.cancel()
     }
 }

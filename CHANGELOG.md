@@ -5,10 +5,12 @@
 ### Added
 
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
+- Add `SharedTimeline.completeThrough` and `finish` for explicit source completion.
 
 ### Changed
 
 - **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
+- Timeline requests retain unread events and protect completed intervals. `GeneratingTimeline` adds `bufferSize` before the generator argument, changing its constructor ABI.
 
 ### Deprecated
 
@@ -25,6 +27,7 @@
 - Omit unknown source timestamps in OPC UA property updates.
 - Close every observer of a producer timeline instead of failing on the second one.
 - Compare the generation origin with the actual start event.
+- Preserve timeline cursors across requests and restart suspended generation when its origin changes.
 
 ### Security
 

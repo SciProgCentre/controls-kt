@@ -15,8 +15,9 @@ public interface TimelineObserver : AutoCloseable {
     public val time: StateFlow<Instant>
 
     /**
-     * Collect all uncollected events from [time] to [upTo]. Suspends until all valid events are collected.
-     *
+     * Collect unread events through [upTo], including events with equal timestamps.
+     * Successful completion protects the whole interval against subsequent changes.
+     * Cancellation retains already delivered events without completing the remaining interval.
      */
     public suspend fun collect(upTo: Instant)
 }
@@ -27,12 +28,11 @@ public interface TimelineObserver : AutoCloseable {
 public suspend fun TimelineObserver.collect(duration: Duration): Unit = collect(time.value + duration)
 
 /**
- * A time-ordered sequence of events of type [E]. There time of events is strictly monotonic, meaning that the time of
- * the next event is greater than the previous event time.
+ * A sequence of events of type [E] in nondecreasing time order.
  *
- * Timeline guarantees that all collectors could read all events when they need. Meaning that all unread events are cached.
+ * Unread events remain available to registered observers; a slow observer may suspend a bounded producer.
  *
- * Timeline guarantees that already read events won't change, but unread events could change.
+ * Delivered events and successfully completed intervals cannot change. Unobserved future events may change.
  */
 public interface Timeline<E : Any> {
     /**
@@ -43,9 +43,10 @@ public interface Timeline<E : Any> {
     public fun timeOf(event: E): Instant
 
     /**
-     * Attach observer to this [Timeline]. The observer collection is triggered by timeline itself.
+     * Attach an observer after the prefix already delivered to other observers.
      *
-     * Each collection shifts [TimelineObserver.time] for this observer.
+     * [TimelineObserver.time] advances on delivery, not on a request over an empty interval.
+     * The collector runs outside the timeline lock. Its completion or failure closes the observer.
      */
     public suspend fun observe(
         collector: suspend Flow<E>.() -> Unit
@@ -54,7 +55,8 @@ public interface Timeline<E : Any> {
     /**
      * Advance simulation time to [toTime]. This method forces all observers to collect all events in the given range.
      *
-     * This method suspends until all advancement is done
+     * Requests the observers registered at entry concurrently. Failure cancels the other requests,
+     * not their registrations. With no observers this is a no-op.
      */
     public suspend fun advance(toTime: Instant)
 }
