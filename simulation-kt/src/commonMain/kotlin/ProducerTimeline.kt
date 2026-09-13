@@ -49,11 +49,11 @@ public abstract class ProducerTimeline<E : Any>(
     protected open fun events(): Flow<E>? = null
 
     private val source = timelineScope.launch(start = CoroutineStart.LAZY) {
-        if (events() == null) return@launch
         state.generations.collectLatest { generation ->
             try {
                 if (!state.awaitGeneration(generation)) return@collectLatest
-                events()?.collect { state.publish(it, generation, generated = true) }
+                val sourceFlow = events() ?: return@collectLatest
+                sourceFlow.collect { state.publish(it, generation, generated = true) }
                 state.end(generation)
             } catch (error: CancellationException) {
                 withContext(NonCancellable) { state.fail(error, generation) }
