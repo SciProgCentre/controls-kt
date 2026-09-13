@@ -627,9 +627,12 @@ class TimelineContractTest {
             }
             try {
                 timeline.emit(event(1))
-                val result = runCatching { observer.collect(startTime + 2.seconds) }
-                assertTrue(result.isFailure)
-                if (failure != null) assertFailure(failure, result.exceptionOrNull())
+                if (failure == null) {
+                    assertFailsWith<CancellationException> { observer.collect(startTime + 2.seconds) }
+                } else {
+                    val actual = assertFailsWith<IllegalStateException> { observer.collect(startTime + 2.seconds) }
+                    assertFailure(failure, actual)
+                }
                 assertEquals(listOf(1), received)
                 timeline.emit(event(2))
             } finally {
@@ -907,7 +910,8 @@ class TimelineContractTest {
             observer.collect(startTime + 10.seconds)
             observer.collect(startTime + 50.seconds)
             assertEquals(listOf(4), received)
-            assertFailure(failure, runCatching { observer.collect(startTime + 101.seconds) }.exceptionOrNull())
+            val actual = assertFailsWith<IllegalStateException> { observer.collect(startTime + 101.seconds) }
+            assertFailure(failure, actual)
             assertEquals(listOf(4, 100), received)
             timeline.interrupt(event(100))
             observer.collect(startTime + 101.seconds)
@@ -1073,7 +1077,8 @@ class TimelineContractTest {
         }
         try {
             timeline.emit(event(1))
-            assertFailure(failure, runCatching { timeline.advance(startTime + 2.seconds) }.exceptionOrNull())
+            val actual = assertFailsWith<IllegalStateException> { timeline.advance(startTime + 2.seconds) }
+            assertFailure(failure, actual)
             timeline.emit(event(2))
             timeline.finish()
             healthy.collect(startTime + 2.seconds)

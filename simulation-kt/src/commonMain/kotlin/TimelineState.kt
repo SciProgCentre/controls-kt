@@ -99,9 +99,6 @@ internal class TimelineState<E : Any>(
     }
 
     suspend fun origin(): E = locked(notify = false) { checkNotNull(runningOrigin) }
-    suspend fun requestedThrough(): Instant? = locked(notify = false) {
-        readers.asSequence().filterNot { it.closed.value }.mapNotNull { it.request?.upTo }.maxOrNull()
-    }
 
     suspend fun awaitGeneration(epoch: Long): Boolean {
         while (true) {
