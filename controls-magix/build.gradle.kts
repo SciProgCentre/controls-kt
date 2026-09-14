@@ -20,6 +20,7 @@ kscience {
     }
 
     commonMain {
+        implementation(spclibs.atomicfu)
         api(projects.magix.magixApi)
         api(projects.controlsCore)
     }

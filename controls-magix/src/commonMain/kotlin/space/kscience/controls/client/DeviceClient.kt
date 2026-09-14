@@ -1,5 +1,7 @@
 package space.kscience.controls.client
 
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -198,8 +200,10 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     val devices = mutableMapOf<Name, DeviceClient>()
     val rootDevice = MutableStateFlow<Device?>(null)
     val childTrees = mutableMapOf<String, DeviceTree>()
-    val childrenMutex = Mutex()
+    val childrenLock = SynchronizedObject()
     val childrenRevision = MutableStateFlow(0L)
+
+    fun childrenSnapshot(): Map<String, DeviceTree> = synchronized(childrenLock) { childTrees.toMap() }
 
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
@@ -226,7 +230,7 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
         if (descriptionMessage.sourceDevice.isEmpty()) {
             rootDevice.value = device
         } else {
-            val childAdded = childrenMutex.withLock {
+            val childAdded = synchronized(childrenLock) {
                 val name = descriptionMessage.sourceDevice.toString()
                 if (name in childTrees) {
                     false
@@ -250,13 +254,11 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
 
     return object : DeviceTree {
         override val device: Device? get() = rootDevice.value
-        override val children: Map<String, DeviceTree> get() = childTrees
+        override val children: Map<String, DeviceTree> get() = childrenSnapshot()
 
         override fun deviceFlow(): Flow<Device?> = rootDevice
 
-        override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map {
-            childrenMutex.withLock { childTrees.toMap() }
-        }
+        override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map { childrenSnapshot() }
     }
 }
 

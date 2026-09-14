@@ -118,6 +118,7 @@ internal class RemoteDeviceHubFlowTest {
             endpoint.emit(description(Name.of("first")))
             runCurrent()
             val firstSnapshot = snapshots.last()
+            val firstChildren = hub.children
             val firstChild = assertNotNull(firstSnapshot["first"])
             assertSame(firstChild, hub.children["first"])
 
@@ -131,6 +132,7 @@ internal class RemoteDeviceHubFlowTest {
             runCurrent()
             assertEquals(3, snapshots.size)
             assertEquals(setOf("first"), firstSnapshot.keys)
+            assertEquals(setOf("first"), firstChildren.keys)
             assertEquals(setOf("first", "second"), snapshots.last().keys)
             assertSame(firstChild, snapshots.last()["first"])
         } finally {
