@@ -196,12 +196,16 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     deviceEndpoint: String,
 ): DeviceTree {
     val devices = mutableMapOf<Name, DeviceClient>()
+    val rootDevice = MutableStateFlow<Device?>(null)
+    val childTrees = mutableMapOf<String, DeviceTree>()
+    val childrenMutex = Mutex()
+    val childrenRevision = MutableStateFlow(0L)
 
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
-        devices.getOrPut(descriptionMessage.sourceDevice) {
+        val device = devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(
                 context = context,
                 deviceName = descriptionMessage.sourceDevice,
@@ -217,8 +221,21 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
                     id = stringUID()
                 )
             }
-        }.run {
-            propertyDescriptors = descriptionMessage.properties
+        }
+        device.propertyDescriptors = descriptionMessage.properties
+        if (descriptionMessage.sourceDevice.isEmpty()) {
+            rootDevice.value = device
+        } else {
+            val childAdded = childrenMutex.withLock {
+                val name = descriptionMessage.sourceDevice.toString()
+                if (name in childTrees) {
+                    false
+                } else {
+                    childTrees[name] = DeviceTree(device)
+                    true
+                }
+            }
+            if (childAdded) childrenRevision.update { it + 1 }
         }
     }.launchIn(context)
 
@@ -232,13 +249,14 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     )
 
     return object : DeviceTree {
-        override val device: Device? get() = devices[Name.EMPTY]
-        override val children: Map<String, DeviceTree>
-            get() = devices.entries //capture current map state in a closure
-                .filter { !it.key.isEmpty() }
-                .associate { (name, tree) ->
-                    name.toString() to DeviceTree(tree)
-                }
+        override val device: Device? get() = rootDevice.value
+        override val children: Map<String, DeviceTree> get() = childTrees
+
+        override fun deviceFlow(): Flow<Device?> = rootDevice
+
+        override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map {
+            childrenMutex.withLock { childTrees.toMap() }
+        }
     }
 }
 

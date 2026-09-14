@@ -18,6 +18,7 @@
 ### Fixed
 
 - Follow device tree changes in message subscriptions without restarting unchanged devices.
+- Observe devices discovered after subscribing to a remote device hub.
 - Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
 - Pass values and matching timestamps to timed collection and map state combinations.
