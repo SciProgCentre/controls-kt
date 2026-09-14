@@ -110,7 +110,7 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
  * Collect all messages from given [DeviceTree], applying proper relative names.
  * Follow replacements reported by [DeviceTree.deviceFlow] and [DeviceTree.childrenFlow].
  * Updating the tree does not wait for message subscriptions to be installed.
- * Messages emitted before a device is subscribed are not replayed.
+ * This flow does not add replay to device message flows.
  */
 public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
     launch(start = CoroutineStart.UNDISPATCHED) {
