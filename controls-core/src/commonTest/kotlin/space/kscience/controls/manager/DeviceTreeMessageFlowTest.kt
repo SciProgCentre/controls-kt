@@ -57,6 +57,22 @@ internal class DeviceTreeMessageFlowTest {
     )
 
     @Test
+    fun testRegisteringSameTreeDoesNotPublishChanges() = runTest {
+        val manager = DeviceManager()
+        var snapshots = 0
+        backgroundScope.launch { manager.childrenFlow().collect { snapshots++ } }
+        runCurrent()
+        val child = DeviceTree(TestDevice())
+        manager.registerDeviceTree("child", child)
+        runCurrent()
+        repeat(10) {
+            manager.registerDeviceTree("child", child)
+            runCurrent()
+        }
+        assertEquals(2, snapshots)
+    }
+
+    @Test
     fun testLateRegistration() = runTest {
         val manager = DeviceManager()
         val received = mutableListOf<DeviceMessage>()
@@ -107,6 +123,49 @@ internal class DeviceTreeMessageFlowTest {
             ),
             received,
         )
+    }
+
+    @Test
+    fun testRootReplacementSwitchesListener() = runTest {
+        val original = TestDevice()
+        val roots = MutableSharedFlow<Device?>(replay = 1)
+        roots.tryEmit(original)
+        val tree = object : DeviceTree {
+            override val device: Device? get() = roots.replayCache.last()
+            override val children: Map<String, DeviceTree> = emptyMap()
+            override fun deviceFlow(): Flow<Device?> = roots
+        }
+        val received = mutableListOf<DeviceMessage>()
+        backgroundScope.launch { tree.messageFlow().collect { received.add(it) } }
+        runCurrent()
+        assertEquals(1, original.events.subscriptionCount.value)
+
+        roots.emit(original)
+        runCurrent()
+        assertEquals(1, original.subscriptionStarts)
+
+        val replacement = TestDevice()
+        roots.emit(replacement)
+        runCurrent()
+        assertEquals(0, original.events.subscriptionCount.value)
+        assertEquals(1, replacement.events.subscriptionCount.value)
+        assertTrue(original.events.tryEmit(message("removed-root-update")))
+        val event = message("replacement-update")
+        assertTrue(replacement.events.tryEmit(event))
+        runCurrent()
+        assertEquals(listOf<DeviceMessage>(event), received)
+
+        roots.emit(null)
+        runCurrent()
+        assertEquals(0, replacement.events.subscriptionCount.value)
+        assertTrue(replacement.events.tryEmit(message("detached-root-update")))
+        runCurrent()
+        assertEquals(listOf<DeviceMessage>(event), received)
+
+        roots.emit(replacement)
+        runCurrent()
+        assertEquals(1, replacement.events.subscriptionCount.value)
+        assertEquals(2, replacement.subscriptionStarts)
     }
 
     @Test
@@ -297,5 +356,25 @@ internal class DeviceTreeMessageFlowTest {
 
         assertTrue(collector.isCompleted)
         assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
+    }
+
+    @Test
+    fun testFiniteRootCompletes() = runTest {
+        val event = message("finite-root-update")
+        val tree = DeviceTree(TestDevice(flowOf(event)))
+        val received = mutableListOf<DeviceMessage>()
+        val collector = backgroundScope.launch { tree.messageFlow().collect { received.add(it) } }
+        runCurrent()
+
+        assertTrue(collector.isCompleted)
+        assertEquals(listOf<DeviceMessage>(event), received)
+    }
+
+    @Test
+    fun testEmptyTreeCompletes() = runTest {
+        val collector = backgroundScope.launch { DeviceTree().messageFlow().collect {} }
+        runCurrent()
+
+        assertTrue(collector.isCompleted)
     }
 }

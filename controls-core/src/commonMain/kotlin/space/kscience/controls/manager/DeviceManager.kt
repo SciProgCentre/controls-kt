@@ -61,7 +61,10 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     }
 
     public fun registerDeviceTree(name: String, tree: DeviceTree) {
-        synchronized(childrenLock) { children[name] = tree }
+        synchronized(childrenLock) {
+            if (children[name] === tree) return
+            children[name] = tree
+        }
         childrenRevision.update { it + 1 }
     }
 

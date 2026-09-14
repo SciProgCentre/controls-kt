@@ -1,11 +1,10 @@
 package space.kscience.controls.manager
 
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
@@ -110,12 +109,23 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
 /**
  * Collect all messages from given [DeviceTree], applying proper relative names.
  * Follow replacements reported by [DeviceTree.deviceFlow] and [DeviceTree.childrenFlow].
+ * Updating the tree does not wait for message subscriptions to be installed.
  * Messages emitted before a device is subscribed are not replayed.
  */
 public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
-    launch {
-        deviceFlow().distinctUntilChanged { previous, current -> previous === current }.collectLatest { device ->
-            device?.messageFlow?.collect { send(it) }
+    launch(start = CoroutineStart.UNDISPATCHED) {
+        var currentDevice: Device? = null
+        var deviceJob: Job? = null
+        deviceFlow().collect { device ->
+            if (device !== currentDevice) {
+                deviceJob?.cancelAndJoin()
+                currentDevice = device
+                deviceJob = device?.let {
+                    launch(start = CoroutineStart.UNDISPATCHED) {
+                        it.messageFlow.collect { message -> send(message) }
+                    }
+                }
+            }
         }
     }
 

@@ -19,13 +19,14 @@ public interface DeviceTree : Provider {
     public val children: Map<String, DeviceTree>
 
     /**
-     * The current device followed by replacements. Trees with a mutable root must override this method.
+     * The current device followed by replacements. Intermediate replacements may be conflated.
+     * Trees with a mutable root must override this method.
      */
     public fun deviceFlow(): Flow<Device?> = flow { emit(device) }
 
     /**
-     * The current children followed by updated snapshots. Mutable trees must override this method.
-     * Emitted maps must not change after emission.
+     * The current children followed by updated snapshots. Intermediate snapshots may be conflated.
+     * Mutable trees must override this method. Emitted maps must not change after emission.
      */
     public fun childrenFlow(): Flow<Map<String, DeviceTree>> = flow { emit(children.toMap()) }
 
