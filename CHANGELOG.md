@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Mutable device trees can provide `deviceFlow` and `childrenFlow` to report structural changes.
 - **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
 
 ### Deprecated
@@ -16,6 +17,7 @@
 
 ### Fixed
 
+- Follow device tree changes in message subscriptions without restarting unchanged devices.
 - Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
 - Pass values and matching timestamps to timed collection and map state combinations.

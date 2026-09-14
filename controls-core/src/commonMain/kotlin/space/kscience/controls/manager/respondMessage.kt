@@ -1,9 +1,12 @@
 package space.kscience.controls.manager
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.NameToken
@@ -106,16 +109,36 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
 
 /**
  * Collect all messages from given [DeviceTree], applying proper relative names.
+ * Follow replacements reported by [DeviceTree.deviceFlow] and [DeviceTree.childrenFlow].
+ * Messages emitted before a device is subscribed are not replayed.
  */
-public fun DeviceTree.messageFlow(): Flow<DeviceMessage> {
-
-    val deviceMessageFlow = device?.messageFlow ?: emptyFlow()
-
-    val childrenFlows = children.map { (deviceName, childDevice) ->
-        childDevice.messageFlow().map { deviceMessage ->
-            deviceMessage.changeSource { NameToken(deviceName) + it }
+public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
+    launch {
+        deviceFlow().distinctUntilChanged { previous, current -> previous === current }.collectLatest { device ->
+            device?.messageFlow?.collect { send(it) }
         }
     }
 
-    return merge(deviceMessageFlow, *childrenFlows.toTypedArray())
+    val subscriptions = HashMap<String, Pair<DeviceTree, Job>>()
+    childrenFlow().collect { children ->
+        val iterator = subscriptions.iterator()
+        while (iterator.hasNext()) {
+            val (name, subscription) = iterator.next()
+            if (children[name] !== subscription.first) {
+                subscription.second.cancelAndJoin()
+                iterator.remove()
+            }
+        }
+        children.forEach { (name, child) ->
+            if (name !in subscriptions) {
+                val prefix = NameToken(name)
+                val job = launch {
+                    child.messageFlow().collect { message ->
+                        send(message.changeSource { prefix + it })
+                    }
+                }
+                subscriptions[name] = child to job
+            }
+        }
+    }
 }

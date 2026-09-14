@@ -18,6 +18,7 @@ kscience {
     commonMain {
         api(projects.controlsCore)
         api(projects.simulationKt)
+        implementation(spclibs.atomicfu)
     }
 
     commonTest {

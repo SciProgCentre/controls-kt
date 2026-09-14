@@ -1,5 +1,11 @@
 package space.kscience.controls.manager
 
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.dataforge.context.*
@@ -47,8 +53,16 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     override val children: Map<String, DeviceTree>
         field = HashMap<String, DeviceTree>()
 
+    private val childrenLock = SynchronizedObject()
+    private val childrenRevision = MutableStateFlow(0L)
+
+    override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map {
+        synchronized(childrenLock) { children.toMap() }
+    }
+
     public fun registerDeviceTree(name: String, tree: DeviceTree) {
-        children[name] = tree
+        synchronized(childrenLock) { children[name] = tree }
+        childrenRevision.update { it + 1 }
     }
 
     /**

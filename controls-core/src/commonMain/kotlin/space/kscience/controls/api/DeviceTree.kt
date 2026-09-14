@@ -2,6 +2,8 @@ package space.kscience.controls.api
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.*
@@ -15,6 +17,17 @@ public interface DeviceTree : Provider {
     public val device: Device?
 
     public val children: Map<String, DeviceTree>
+
+    /**
+     * The current device followed by replacements. Trees with a mutable root must override this method.
+     */
+    public fun deviceFlow(): Flow<Device?> = flow { emit(device) }
+
+    /**
+     * The current children followed by updated snapshots. Mutable trees must override this method.
+     * Emitted maps must not change after emission.
+     */
+    public fun childrenFlow(): Flow<Map<String, DeviceTree>> = flow { emit(children.toMap()) }
 
     override val defaultTarget: String get() = Device.DEVICE_TARGET
 
@@ -46,7 +59,6 @@ public interface DeviceTree : Provider {
     } else {
         emptyMap()
     }
-    //TODO send message on device change
 
     public companion object
 }

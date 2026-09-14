@@ -1,5 +1,7 @@
 package space.kscience.controls.constructor
 
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
@@ -100,20 +102,28 @@ public open class DeviceConstructor(
 
 
     private val _devices = hashMapOf<String, DeviceTree>()
+    private val childrenLock = SynchronizedObject()
+    private val childrenRevision = MutableStateFlow(0L)
 
     override val children: Map<String, DeviceTree> get() = _devices
+
+    override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map {
+        synchronized(childrenLock) { _devices.toMap() }
+    }
 
     /**
      * Register and initialize (synchronize child's lifecycle state with group state) a new device tree in this group.
      */
     public fun <DT : DeviceTree> installTree(deviceName: String, child: DT): DT {
-        require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
-        //start the child device if this device is started
-        if (isStarted()) child.start()
-        _devices[deviceName] = child
+        synchronized(childrenLock) {
+            require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
+            _devices[deviceName] = child
+        }
+        childrenRevision.update { it + 1 }
         if (child is Constructor) {
             registerElement(ChildConstructorElement(Name.of(deviceName), child))
         }
+        if (isStarted()) child.start()
         return child
     }
 
