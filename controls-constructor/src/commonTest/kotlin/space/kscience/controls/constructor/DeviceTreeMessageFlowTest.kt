@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.PropertyChangedMessage
@@ -17,8 +18,34 @@ import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 internal class DeviceTreeMessageFlowTest {
+    @Test
+    fun testPublishedChildHasConstructorElement() = runTest {
+        val context = Context("constructor-publication") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            val root = DeviceConstructor(context)
+            val child = DeviceConstructor(context)
+            var observed = false
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                root.childrenFlow().collect { children ->
+                    if ("child" in children) {
+                        observed = root.constructorElements
+                            .filterIsInstance<ChildConstructorElement>()
+                            .any { it.constructor === child }
+                    }
+                }
+            }
+            root.installTree("child", child)
+            assertTrue(observed, "The published child has no constructor element")
+        } finally {
+            context.close()
+        }
+    }
+
     @Test
     fun testLateNestedChild() = runTest {
         val context = Context("late-nested-child") {

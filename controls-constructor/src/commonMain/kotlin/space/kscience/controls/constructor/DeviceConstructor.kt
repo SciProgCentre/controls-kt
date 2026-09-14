@@ -119,10 +119,10 @@ public open class DeviceConstructor(
             require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
             _devices[deviceName] = child
         }
-        childrenRevision.update { it + 1 }
         if (child is Constructor) {
             registerElement(ChildConstructorElement(Name.of(deviceName), child))
         }
+        childrenRevision.update { it + 1 }
         if (isStarted()) child.start()
         return child
     }
