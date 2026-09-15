@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import space.kscience.controls.asMeta
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
@@ -36,6 +37,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.time.measureTime
 
+/**
+ * LLM generated code: Added tests for DataPlatformStorageIndex.
+ */
 class TableStorageIndexTest {
 
     @Test
@@ -163,13 +167,15 @@ class TableStorageIndexTest {
 
                 Files.delete(path)
                 // A missing file must be removed from the index, not just skipped by the reader.
-                withTimeout(5.seconds) {
+                val removedFromIndex = withTimeoutOrNull(5.seconds) {
                     do {
                         reads.set(0)
                         assertTrue(index.selectEnvelopes(range).isEmpty())
                         if (reads.get() != 0) delay(10.milliseconds)
                     } while (reads.get() != 0)
+                    true
                 }
+                assertTrue(removedFromIndex == true, "The deleted envelope remained in the index")
             }
         } finally {
             index.stop()

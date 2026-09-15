@@ -38,7 +38,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
- * Launch a directory monitor that calls [onEvent] for each file creation or deletion event.
+ * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
+ * for each file creation or deletion event.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
