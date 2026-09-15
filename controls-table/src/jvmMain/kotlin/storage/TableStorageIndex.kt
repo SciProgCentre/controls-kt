@@ -383,15 +383,16 @@ public class TableStorageIndex(
             val removalMutex: Mutex = Mutex()
 
             launchDirectoryMonitor(dataDirectory) { kind, file ->
+                val path = dataDirectory.resolve(file)
 
                 when (kind) {
                     ENTRY_CREATE -> {
-                        val tokens = file.relativeTo(dataDirectory).map { NameToken.parse(it.name) }
-                        insert(Name(tokens), file)
+                        val tokens = path.relativeTo(dataDirectory).map { NameToken.parse(it.name) }
+                        insert(Name(tokens), path)
                     }
 
                     ENTRY_DELETE -> removalMutex.withLock {
-                        removedFiles.add(file)
+                        removedFiles.add(path)
                     }
                 }
             }
