@@ -26,6 +26,7 @@
 - Omit unknown source timestamps in OPC UA property updates.
 - Close every observer of a producer timeline instead of failing on the second one.
 - Compare the generation origin with the actual start event.
+- Use relative source names in remote device message flows.
 
 ### Security
 
