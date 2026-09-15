@@ -27,6 +27,7 @@ import space.kscience.tables.SimpleColumnHeader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.typeOf
 import kotlin.test.Test
@@ -120,9 +121,11 @@ class TableStorageIndexTest {
         val watched = Files.createDirectory(directory.resolve("data"))
         val staging = Files.createDirectory(directory.resolve("staging"))
         val native = NativeFileEnvelopeOperations(storage.io)
+        val invalidRead = AtomicBoolean()
         val reads = AtomicInteger()
         val operations = object : FileEnvelopeOperations by native {
             override fun readEnvelope(path: Path): Envelope? {
+                if (path.fileName.toString() == "ignored.txt") invalidRead.set(true)
                 reads.incrementAndGet()
                 return if (Files.exists(path)) native.readEnvelope(path) else null
             }
@@ -156,6 +159,14 @@ class TableStorageIndexTest {
                         delay(50.milliseconds)
                     } while (index.selectEnvelopes(time..time).isEmpty())
                 }
+
+                Files.createFile(watched.resolve("ignored.txt"))
+                val filterTime = time + 500.milliseconds
+                publish("filter-sentinel", filterTime)
+                withTimeout(5.seconds) {
+                    while (index.selectEnvelopes(filterTime..filterTime).isEmpty()) delay(10.milliseconds)
+                }
+                assertTrue(!invalidRead.get(), "A non-envelope CREATE event was passed to readEnvelope")
 
                 val sampleTime = time + 1.seconds
                 val range = sampleTime..sampleTime

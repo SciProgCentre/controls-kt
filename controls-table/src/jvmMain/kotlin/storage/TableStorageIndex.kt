@@ -19,8 +19,6 @@ import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.dataType
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.NameToken
 import space.kscience.tables.Row
 import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
@@ -31,8 +29,6 @@ import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
 import java.nio.file.WatchEvent
-import kotlin.io.path.name
-import kotlin.io.path.relativeTo
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -170,13 +166,13 @@ public class TableStorageIndex(
     // -------------------------
     // TOP LEVEL API
     // -------------------------
-    private fun insert(name: Name, path: Path): Interval? {
+    private fun insert(path: Path): Interval? {
         val envelope = operations.readEnvelope(path) ?: return null
         val startTime = envelope.meta[RowEnvelopeMetaSpec.startTime]
         val endTime = envelope.meta[RowEnvelopeMetaSpec.endTime]
 
         if (startTime == null || endTime == null) {
-            logger.warn { "Start or end time is not defined for envelope $name" }
+            logger.warn { "Start or end time is not defined for envelope $path" }
             return null
         }
 
@@ -371,8 +367,8 @@ public class TableStorageIndex(
 
         lifecycleState = LifecycleState.STARTING
 
-        operations.envelopeFilesSequence(dataDirectory).forEach { (name, path) ->
-            insert(name, path)
+        operations.envelopeFilesSequence(dataDirectory).forEach { (_, path) ->
+            insert(path)
         }
 
         lifecycleState = LifecycleState.STARTED
@@ -388,8 +384,9 @@ public class TableStorageIndex(
 
                 when (kind) {
                     ENTRY_CREATE -> {
-                        val tokens = path.relativeTo(dataDirectory).map { NameToken.parse(it.name) }
-                        insert(Name(tokens), path)
+                        operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
+                            insert(createdPath)
+                        }
                     }
 
                     ENTRY_DELETE -> removalMutex.withLock {
