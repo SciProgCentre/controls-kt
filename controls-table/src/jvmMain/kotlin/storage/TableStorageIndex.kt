@@ -126,6 +126,8 @@ public class TableStorageIndex(
 
     private var root: IntervalNode? = null
 
+    private val treeMutex: Mutex = Mutex()
+
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
 
@@ -166,7 +168,7 @@ public class TableStorageIndex(
     // -------------------------
     // TOP LEVEL API
     // -------------------------
-    private fun insert(path: Path): Interval? {
+    private suspend fun insert(path: Path): Interval? {
         val envelope = operations.readEnvelope(path) ?: return null
         val startTime = envelope.meta[RowEnvelopeMetaSpec.startTime]
         val endTime = envelope.meta[RowEnvelopeMetaSpec.endTime]
@@ -182,7 +184,9 @@ public class TableStorageIndex(
             path = path,
         )
 
-        root = insert(root, interval)
+        treeMutex.withLock {
+            root = insert(root, interval)
+        }
 
         return interval
     }
@@ -192,10 +196,10 @@ public class TableStorageIndex(
         root = remove(root, interval)
     }
 
-    private fun search(query: ClosedRange<Instant>): List<Interval> {
-        val result = mutableListOf<Interval>()
-        search(root, query, result)
-        return result
+    private suspend fun search(query: ClosedRange<Instant>): List<Interval> = treeMutex.withLock {
+        buildList {
+            search(root, query, this)
+        }
     }
 
     // -------------------------
@@ -350,11 +354,13 @@ public class TableStorageIndex(
         return cur
     }
 
-    private fun removeIf(predicate: (Interval) -> Boolean) {
-        val toRemove = mutableListOf<Interval>()
-        search(root, predicate, toRemove)
-        for (interval in toRemove) {
-            remove(interval)
+    private suspend fun removeIf(predicate: (Interval) -> Boolean) {
+        treeMutex.withLock {
+            val toRemove = mutableListOf<Interval>()
+            search(root, predicate, toRemove)
+            for (interval in toRemove) {
+                remove(interval)
+            }
         }
     }
 
@@ -398,11 +404,11 @@ public class TableStorageIndex(
             launch {
                 while (isActive) {
                     delay(removeFilesCycleDuration)
-                    removalMutex.withLock {
-                        removeIf {
-                            it.path in removedFiles
-                        }
-                        removedFiles.clear()
+                    val pathsToRemove = removalMutex.withLock {
+                        removedFiles.toSet().also { removedFiles.clear() }
+                    }
+                    if (pathsToRemove.isNotEmpty()) {
+                        removeIf { it.path in pathsToRemove }
                     }
                 }
             }
