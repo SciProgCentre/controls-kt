@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Resolve and filter storage watch paths while serializing index tree access.
 - Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
 - Pass values and matching timestamps to timed collection and map state combinations.

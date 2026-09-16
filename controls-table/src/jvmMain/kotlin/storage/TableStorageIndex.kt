@@ -19,8 +19,6 @@ import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.dataType
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.NameToken
 import space.kscience.tables.Row
 import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
@@ -31,14 +29,13 @@ import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
 import java.nio.file.WatchEvent
-import kotlin.io.path.name
-import kotlin.io.path.relativeTo
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
- * Launch a directory monitor that calls [onEvent] for each file creation or deletion event.
+ * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
+ * for each file creation or deletion event.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
@@ -129,6 +126,8 @@ public class TableStorageIndex(
 
     private var root: IntervalNode? = null
 
+    private val treeMutex: Mutex = Mutex()
+
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
 
@@ -169,13 +168,13 @@ public class TableStorageIndex(
     // -------------------------
     // TOP LEVEL API
     // -------------------------
-    private fun insert(name: Name, path: Path): Interval? {
+    private suspend fun insert(path: Path): Interval? {
         val envelope = operations.readEnvelope(path) ?: return null
         val startTime = envelope.meta[RowEnvelopeMetaSpec.startTime]
         val endTime = envelope.meta[RowEnvelopeMetaSpec.endTime]
 
         if (startTime == null || endTime == null) {
-            logger.warn { "Start or end time is not defined for envelope $name" }
+            logger.warn { "Start or end time is not defined for envelope $path" }
             return null
         }
 
@@ -185,7 +184,9 @@ public class TableStorageIndex(
             path = path,
         )
 
-        root = insert(root, interval)
+        treeMutex.withLock {
+            root = insert(root, interval)
+        }
 
         return interval
     }
@@ -195,10 +196,10 @@ public class TableStorageIndex(
         root = remove(root, interval)
     }
 
-    private fun search(query: ClosedRange<Instant>): List<Interval> {
-        val result = mutableListOf<Interval>()
-        search(root, query, result)
-        return result
+    private suspend fun search(query: ClosedRange<Instant>): List<Interval> = treeMutex.withLock {
+        buildList {
+            search(root, query, this)
+        }
     }
 
     // -------------------------
@@ -353,11 +354,13 @@ public class TableStorageIndex(
         return cur
     }
 
-    private fun removeIf(predicate: (Interval) -> Boolean) {
-        val toRemove = mutableListOf<Interval>()
-        search(root, predicate, toRemove)
-        for (interval in toRemove) {
-            remove(interval)
+    private suspend fun removeIf(predicate: (Interval) -> Boolean) {
+        treeMutex.withLock {
+            val toRemove = mutableListOf<Interval>()
+            search(root, predicate, toRemove)
+            for (interval in toRemove) {
+                remove(interval)
+            }
         }
     }
 
@@ -370,8 +373,8 @@ public class TableStorageIndex(
 
         lifecycleState = LifecycleState.STARTING
 
-        operations.envelopeFilesSequence(dataDirectory).forEach { (name, path) ->
-            insert(name, path)
+        operations.envelopeFilesSequence(dataDirectory).forEach { (_, path) ->
+            insert(path)
         }
 
         lifecycleState = LifecycleState.STARTED
@@ -383,15 +386,17 @@ public class TableStorageIndex(
             val removalMutex: Mutex = Mutex()
 
             launchDirectoryMonitor(dataDirectory) { kind, file ->
+                val path = dataDirectory.resolve(file)
 
                 when (kind) {
                     ENTRY_CREATE -> {
-                        val tokens = file.relativeTo(dataDirectory).map { NameToken.parse(it.name) }
-                        insert(Name(tokens), file)
+                        operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
+                            insert(createdPath)
+                        }
                     }
 
                     ENTRY_DELETE -> removalMutex.withLock {
-                        removedFiles.add(file)
+                        removedFiles.add(path)
                     }
                 }
             }
@@ -399,11 +404,11 @@ public class TableStorageIndex(
             launch {
                 while (isActive) {
                     delay(removeFilesCycleDuration)
-                    removalMutex.withLock {
-                        removeIf {
-                            it.path in removedFiles
-                        }
-                        removedFiles.clear()
+                    val pathsToRemove = removalMutex.withLock {
+                        removedFiles.toSet().also { removedFiles.clear() }
+                    }
+                    if (pathsToRemove.isNotEmpty()) {
+                        removeIf { it.path in pathsToRemove }
                     }
                 }
             }
