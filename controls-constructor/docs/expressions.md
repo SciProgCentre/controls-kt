@@ -10,6 +10,7 @@ The core of the system is the `StateExpression` interface, which represents a no
 Represent fixed values.
 - `Constant("pi")`: The value of $\pi$ (approx. 3.14159).
 - `Constant("e")`: The base of natural logarithms $e$ (approx. 2.71828).
+- Any other name is resolved from the `value` key of its `parameters`, e.g. a constant named `gravity` with parameters `{ "value": 9.81 }` evaluates to `9.81`.
 
 ### Device Properties
 Link to an existing property of a device in the `DeviceHub`.
@@ -33,10 +34,12 @@ Apply a function to two arguments.
 - `+`, `plus`: Addition.
 - `-`, `minus`: Subtraction.
 - `*`, `times`, `multiply`: Multiplication.
+- `/`, `div`, `divide`: Division.
 
 ### Nary Operations
 Apply a function to multiple arguments.
 - `sum`: Sum of all provided arguments.
+- `mean`, `average`: Mean of the provided arguments; null when no argument has a value.
 
 ## Using Expressions in DeviceConstructor
 

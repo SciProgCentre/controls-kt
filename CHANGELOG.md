@@ -5,6 +5,7 @@
 ### Added
 
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
+- Add division, mean and numeric constants to state expressions.
 
 ### Changed
 
