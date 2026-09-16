@@ -10,7 +10,7 @@ repositories {
 
 kotlin {
     explicitApi = null
-    jvmToolchain(21)
+    jvmToolchain(25)
     compilerOptions {
         freeCompilerArgs.addAll("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
     }

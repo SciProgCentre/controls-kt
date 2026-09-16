@@ -28,7 +28,7 @@ val device: DeviceClient = magixEndpoint.remoteDevice(
 
 ## Remote Device Hub
 
-You can also discover and connect to all devices on a specific Magix endpoint using `remoteDeviceHub`. This returns a `DeviceTree` that is dynamically updated as new devices report their presence.
+You can also discover and connect to all devices on a specific Magix endpoint using `remoteDeviceTree`. This returns a `DeviceTree` that is dynamically updated as new devices report their presence.
 
 ```kotlin
 val hub: DeviceTree = magixEndpoint.remoteDeviceHub(

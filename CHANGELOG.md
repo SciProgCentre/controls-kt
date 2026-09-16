@@ -19,6 +19,8 @@
 
 ### Fixed
 
+- Order storage intervals by bounds and path for reliable deletion.
+- Resolve and filter storage watch paths while serializing index tree access.
 - Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.
 - Pass values and matching timestamps to timed collection and map state combinations.
@@ -28,6 +30,7 @@
 - Omit unknown source timestamps in OPC UA property updates.
 - Close every observer of a producer timeline instead of failing on the second one.
 - Compare the generation origin with the actual start event.
+- Use relative source names in remote device message flows.
 - Preserve timeline cursors across requests and restart suspended generation when its origin changes.
 - Avoid rescanning retained timeline history for each observer event.
 - Avoid temporary collections when checking timeline generation demand.

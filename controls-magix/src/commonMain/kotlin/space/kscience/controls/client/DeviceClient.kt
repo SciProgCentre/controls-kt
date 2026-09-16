@@ -29,6 +29,7 @@ private fun stringUID() = Uuid.random().toHexString()
 
 /**
  * A remote-accessible device that relies on connection via Magix
+ * Messages from this device use [Name.EMPTY] as their source.
  */
 public class DeviceClient internal constructor(
     override val context: Context,
@@ -54,7 +55,7 @@ public class DeviceClient internal constructor(
 
     private val flowInternal = incomingFlow.filter {
         it.sourceDevice == deviceName
-    }.onEach { message ->
+    }.map { message ->
         when (message) {
             is PropertyChangedMessage -> mutex.withLock {
                 propertyCache[message.property] = message.value
@@ -64,6 +65,7 @@ public class DeviceClient internal constructor(
                 //ignore
             }
         }
+        if (deviceName.isEmpty()) message else message.changeSource { Name.EMPTY }
     }.shareIn(this, started = SharingStarted.Eagerly)
 
     override val messageFlow: Flow<DeviceMessage> get() = flowInternal
@@ -190,7 +192,7 @@ public suspend fun MagixEndpoint.remoteDevice(
 /**
  * Create a dynamic [DeviceTree] from incoming messages
  */
-public suspend fun MagixEndpoint.remoteDeviceHub(
+public suspend fun MagixEndpoint.remoteDeviceTree(
     context: Context,
     thisEndpoint: String,
     deviceEndpoint: String,
@@ -200,6 +202,7 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
+
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
         devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(

@@ -14,8 +14,6 @@ jSerialComm = "2.11.4"
 
 tornadofx = "1.7.20"
 
-logback = "1.2.11"
-
 hivemq = "1.3.12"
 
 rabbitmq = "5.14.2"
@@ -26,7 +24,7 @@ kmongo = "4.5.1"
 
 j2mod = "3.3.0"
 
-milo = "1.1.1"
+milo = "1.1.7"
 
 pi4j = "4.0.2"
 pi4j-ktx = "4.0.0"
@@ -66,8 +64,6 @@ compose-materialIconsExtended = "org.jetbrains.compose.material:material-icons-e
 plotlykt-core = { module = "space.kscience:plotly-kt-core", version.ref = "visionforge" }
 
 plotlykt-server = { module = "space.kscience:plotly-kt-server", version.ref = "visionforge" }
-
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 hivemq-mqtt-client = { module = "com.hivemq:hivemq-mqtt-client", version.ref = "hivemq" }
 

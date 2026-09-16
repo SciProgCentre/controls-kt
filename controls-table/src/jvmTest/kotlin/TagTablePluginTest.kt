@@ -6,6 +6,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.ConstructorPlugin
+import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
@@ -34,6 +35,12 @@ class TagTablePluginTest {
             starts++
             started.complete(Unit)
         }
+
+        private val cachedValueStateFactory = super.asValueStateFactory()
+
+        override fun asValueStateFactory(): ValueStateFactory {
+            return cachedValueStateFactory
+        }
     }
 
     @Test
@@ -52,7 +59,7 @@ class TagTablePluginTest {
             val constructor = context.request(ConstructorPlugin)
 
             for ((type, table) in mapOf("controls.tags.tagTable" to default, "controls.tags.tagTable[archive]" to named)) {
-                assertSame(table, constructor.resolveValueStateFactory(type))
+                assertSame(table.asValueStateFactory(), constructor.resolveValueStateFactory(type))
                 assertSame(table.valueState("sensor"), constructor.buildValueState(Meta {
                     "type" put type
                     set(TagTable.ValueFactorySpec.tag, "sensor")
@@ -77,7 +84,7 @@ class TagTablePluginTest {
         try {
             val table = CountingTable(context)
             assertSame(table, context.request(TagTablePlugin).install(table))
-            assertSame(table, context.request(ConstructorPlugin).resolveValueStateFactory("controls.tags.tagTable"))
+            assertSame(table.asValueStateFactory(), context.request(ConstructorPlugin).resolveValueStateFactory("controls.tags.tagTable"))
             assertEquals(0, table.starts)
 
             table.started.await()
