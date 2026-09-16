@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Use the distant past as the timestamp of an empty state combination instead of failing.
 - Order storage intervals by bounds and path for reliable deletion.
 - Resolve and filter storage watch paths while serializing index tree access.
 - Ignore repeated starts of device constructors.
