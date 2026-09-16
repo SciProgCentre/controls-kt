@@ -34,30 +34,32 @@ class MagixLoopTest {
 
         deviceManager.launchMagixService(deviceEndpoint, "device")
 
-        context.launch {
+        val clientEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+
+        val remoteHub = clientEndpoint.remoteDeviceTree(context, "client", "device")
+
+        assertEquals(0, remoteHub.children.size)
+
+        launch {
             repeat(10) {
                 deviceManager.installTree("test[$it]", TestDevice)
             }
         }
 
-        val clientEndpoint = MagixEndpoint.rSocketWithWebSockets("localhost")
+        launch {
+            clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+                .map { it.second }
+                .filterIsInstance<DescriptionMessage>()
+                .take(10)
+                .onEach { println(it) }
+                .collect()
 
+            assertEquals(10, remoteHub.children.size)
+        }
 
-
-
-        val remoteHub = clientEndpoint.remoteDeviceHub(context, "client", "device")
-
-        assertEquals(0, remoteHub.children.size)
         clientEndpoint.requestDeviceUpdate("client", "device")
 
-        clientEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
-            .map { it.second }
-            .filterIsInstance<DescriptionMessage>()
-            .take(10)
-            .onEach { println(it) }
-            .collect()
 
-        assertEquals(10, remoteHub.children.size)
 
         clientEndpoint.close()
         deviceEndpoint.close()

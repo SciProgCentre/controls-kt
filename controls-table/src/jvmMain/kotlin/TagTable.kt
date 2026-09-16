@@ -1,17 +1,8 @@
 package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.onSubscription
-import space.kscience.controls.api.DeviceMessage
-import space.kscience.controls.api.DeviceMessageSource
-import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.api.PropertyDescriptor
-import space.kscience.controls.api.WithLifeCycle
+import kotlinx.coroutines.flow.*
+import space.kscience.controls.api.*
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.ValueStateFactory
@@ -38,7 +29,7 @@ import kotlin.time.Instant
  * - `DeviceMessageSource`: Allows access to device messages via a shared flow.
  * - `ValueStateFactory`: Enables the creation and management of observable value states.
  */
-public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, DeviceMessageSource , CoroutineScope {
+public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope {
     /**
      * Read a value of a single column in the table
      */
@@ -82,13 +73,17 @@ public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, Devi
         public val tag: MetaRef<String> by string()
     }
 
+    /**
+     * Get a value state factory providing value states from this [TagTable] tags
+     */
+    public fun asValueStateFactory(): ValueStateFactory = object : ValueStateFactory {
+        override fun build(context: Context, meta: Meta): ValueState<Meta> {
+            val tag = meta[ValueFactorySpec.tag] ?: error("No tag specified")
+            return valueState(tag)
+        }
 
-    override fun build(context: Context, meta: Meta): ValueState<Meta> {
-        val tag = meta[ValueFactorySpec.tag] ?: error("No tag specified")
-        return valueState(tag)
+        override val descriptor: MetaDescriptor get() = ValueFactorySpec.descriptor
     }
-
-    override val descriptor: MetaDescriptor get() = ValueFactorySpec.descriptor
 
     public companion object {
 
@@ -104,7 +99,6 @@ public interface TagTable : ContextAware, ValueStateFactory, WithLifeCycle, Devi
         public const val TAG_TABLE_FACTORY_TYPE: String = "tagTable"
     }
 }
-
 
 
 /**

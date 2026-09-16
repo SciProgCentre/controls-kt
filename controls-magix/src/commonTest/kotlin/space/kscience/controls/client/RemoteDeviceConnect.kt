@@ -1,15 +1,12 @@
 package space.kscience.controls.client
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import space.kscience.controls.api.DescriptionMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.manager.DeviceManager
@@ -25,19 +22,27 @@ import space.kscience.dataforge.names.Name
 import space.kscience.magix.api.MagixEndpoint
 import space.kscience.magix.api.MagixMessage
 import space.kscience.magix.api.MagixMessageFilter
+import space.kscience.magix.api.subscribe
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
-class VirtualMagixEndpoint(val tree: DeviceTree) : MagixEndpoint {
+class VirtualMagixEndpoint(val tree: DeviceTree, val scope: CoroutineScope) : MagixEndpoint {
 
-    private val messages = MutableSharedFlow<DeviceMessage>(1)
+    private val messages = MutableSharedFlow<DeviceMessage>(10, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    init {
+        tree.messageFlow().onEach {
+            messages.emit(it)
+        }.launchIn(scope)
+    }
 
     override fun subscribe(
         filter: MagixMessageFilter,
-    ): Flow<MagixMessage> = merge(tree.messageFlow(), messages).map {
+    ): Flow<MagixMessage> = messages.map {
         MagixMessage(
             format = DeviceManager.magixFormat.defaultFormat,
             payload = MagixEndpoint.magixJson.encodeToJsonElement(DeviceManager.magixFormat.serializer, it),
@@ -83,7 +88,7 @@ internal class RemoteDeviceConnect {
 
         deviceManager.installTree("test", TestDevice)
 
-        val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager)
+        val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager, backgroundScope)
 
         val remoteDevice: DeviceClient = virtualMagixEndpoint.remoteDevice(context, "client", "device", Name.of("test"))
 
@@ -92,31 +97,37 @@ internal class RemoteDeviceConnect {
     }
 
     @Test
-    fun deviceHub() = runTest {
+    fun deviceHub() = runTest(timeout = 5.seconds) {
         val context = Context {
             plugin(DeviceManager)
         }
         val deviceManager = context.request(DeviceManager)
 
+        val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager, backgroundScope)
+
+        val remoteHub = virtualMagixEndpoint.remoteDeviceTree(context, "client", "device")
+
+        assertEquals(0, remoteHub.children.size)
+
         launch {
-            delay(50.milliseconds)
             repeat(10) {
                 deviceManager.installTree("test[$it]", TestDevice)
             }
         }
 
-        val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager)
+        launch {
+            virtualMagixEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+                .map { it.second }
+                .filterIsInstance<DescriptionMessage>()
+                .onEach { println(it) }
+                .take(10)
+                .collect()
 
-        val remoteHub = virtualMagixEndpoint.remoteDeviceHub(context, "client", "device")
-
-        assertEquals(0, remoteHub.children.size)
-
-        delay(60.milliseconds)
-        //switch context to use actual delay
-        withContext(Dispatchers.Default) {
-            virtualMagixEndpoint.requestDeviceUpdate("client", "device")
-            delay(30.milliseconds)
             assertEquals(10, remoteHub.children.size)
         }
+
+        virtualMagixEndpoint.requestDeviceUpdate("client", "device")
+
+
     }
 }

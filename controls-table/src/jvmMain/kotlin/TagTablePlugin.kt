@@ -54,7 +54,7 @@ public class TagTablePlugin : AbstractPlugin() {
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> tagTables.entries.associate { (name, table) ->
-            NameToken(TagTable.TAG_TABLE_FACTORY_TYPE, name).asName() to table
+            NameToken(TagTable.TAG_TABLE_FACTORY_TYPE, name).asName() to table.asValueStateFactory()
         }
 
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(

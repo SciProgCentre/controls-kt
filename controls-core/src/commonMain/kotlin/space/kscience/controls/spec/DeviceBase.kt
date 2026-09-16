@@ -16,6 +16,7 @@ import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.names.Name
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 
@@ -47,12 +48,11 @@ public abstract class DeviceBase(
         get() = actions.values.map { it.descriptor }
 
 
-    private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow(
+    private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow<DeviceMessage>(
         replay = meta["message.buffer"].int ?: 1000,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
                 CoroutineName("Device $id") +
@@ -189,7 +189,16 @@ public abstract class DeviceBase(
     }
 
     protected open suspend fun onStart() {
-
+        //send initial description message whe device is created
+        val initialDescriptionMessage = DescriptionMessage(
+            time = context.clock.now(),
+            description = meta,
+            properties = propertyDescriptors,
+            actions = actionDescriptors,
+            sourceDevice = Name.EMPTY,
+            targetDevice = null
+        )
+        sharedMessageFlow.emit(initialDescriptionMessage)
     }
 
     final override suspend fun start() {
