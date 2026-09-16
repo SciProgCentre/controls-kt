@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Order storage intervals by bounds and path for reliable deletion.
 - Resolve and filter storage watch paths while serializing index tree access.
 - Ignore repeated starts of device constructors.
 - Report `ReplayTagTable` as started after a successful `start()`.

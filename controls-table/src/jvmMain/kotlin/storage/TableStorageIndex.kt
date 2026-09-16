@@ -115,6 +115,16 @@ public class TableStorageIndex(
 
     private data class Interval(var start: Instant, var end: Instant, val path: Path)
 
+    private fun compareIntervals(first: Interval, second: Interval): Int {
+        val startComparison = first.start.compareTo(second.start)
+        if (startComparison != 0) return startComparison
+
+        val endComparison = first.end.compareTo(second.end)
+        if (endComparison != 0) return endComparison
+
+        return first.path.compareTo(second.path)
+    }
+
     private class IntervalNode(
         var interval: Interval,
         var left: IntervalNode? = null,
@@ -209,7 +219,7 @@ public class TableStorageIndex(
         node ?: return IntervalNode(interval)
 
         when {
-            interval.start < node.interval.start ->
+            compareIntervals(interval, node.interval) < 0 ->
                 node.left = insert(node.left, interval)
 
             else ->
@@ -226,28 +236,24 @@ public class TableStorageIndex(
     private fun remove(node: IntervalNode?, interval: Interval): IntervalNode? {
         node ?: return null
 
+        val comparison = compareIntervals(interval, node.interval)
         when {
-            interval.start < node.interval.start ->
+            comparison < 0 ->
                 node.left = remove(node.left, interval)
 
-            interval.start > node.interval.start ->
+            comparison > 0 ->
                 node.right = remove(node.right, interval)
 
             else -> {
-                if (node.interval.end != interval.end) {
-                    // Same start, different end → go right
-                    node.right = remove(node.right, interval)
-                } else {
-                    // Node found
-                    if (node.left == null || node.right == null) {
-                        return node.left ?: node.right
-                    }
-
-                    // Replace with inorder successor
-                    val successor = minNode(node.right!!)
-                    node.interval = successor.interval
-                    node.right = remove(node.right, successor.interval)
+                // Node found
+                if (node.left == null || node.right == null) {
+                    return node.left ?: node.right
                 }
+
+                // Replace with inorder successor
+                val successor = minNode(node.right!!)
+                node.interval = successor.interval
+                node.right = remove(node.right, successor.interval)
             }
         }
 
