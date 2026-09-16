@@ -14,10 +14,10 @@ dependencies {
     implementation(projects.magix.magixZmq)
     implementation("io.ktor:ktor-client-cio")
 
-    implementation(libs.logback.classic)
+    implementation(spclibs.logback.classic)
 }
 kotlin{
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

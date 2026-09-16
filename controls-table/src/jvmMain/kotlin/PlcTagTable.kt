@@ -180,8 +180,6 @@ public class PlcTagTable(
         }
     }
 
-    //TODO provide a way to read multiple properties at once.
-
     private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
 
     private val _messageFlow = MutableSharedFlow<DeviceMessage>(
@@ -219,7 +217,7 @@ public class PlcTagTable(
     /**
      * Read all properties on trigger
      */
-    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit = coroutineScope {
+    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit = supervisorScope {
         properties.groupBy { it.value.source }.forEach { (source, entries) ->
             //launch reading process for each separate source
             launch {

@@ -192,7 +192,7 @@ public suspend fun MagixEndpoint.remoteDevice(
 /**
  * Create a dynamic [DeviceTree] from incoming messages
  */
-public suspend fun MagixEndpoint.remoteDeviceHub(
+public suspend fun MagixEndpoint.remoteDeviceTree(
     context: Context,
     thisEndpoint: String,
     deviceEndpoint: String,
@@ -202,6 +202,7 @@ public suspend fun MagixEndpoint.remoteDeviceHub(
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
+
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
         devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(

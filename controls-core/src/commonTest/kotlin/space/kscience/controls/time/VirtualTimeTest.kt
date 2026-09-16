@@ -57,7 +57,7 @@ class VirtualTimeTest {
     }
 
     @Test
-    fun contextAdvance() = runTest(timeout = 1000.milliseconds) {
+    fun contextAdvance() = runTest(timeout = 1.seconds) {
         val context = Context {
             withVirtualTime(Instant.fromEpochMilliseconds(0L))
         }
