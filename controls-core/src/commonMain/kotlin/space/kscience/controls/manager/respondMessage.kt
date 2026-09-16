@@ -5,6 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
@@ -108,41 +109,26 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
 
 /**
  * Collect all messages from given [DeviceTree], applying proper relative names.
- * Follow replacements reported by [DeviceTree.deviceFlow] and [DeviceTree.childrenFlow].
- * Updating the tree does not wait for message subscriptions to be installed.
- * This flow does not add replay to device message flows.
+ * A local [EmptyDeviceMessage] from a supported mutable node rereads its immediate children before being forwarded.
+ * Registration does not wait for child message subscriptions to be installed.
  */
 public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
-    launch(start = CoroutineStart.UNDISPATCHED) {
-        var currentDevice: Device? = null
-        var deviceJob: Job? = null
-        deviceFlow().collect { device ->
-            if (device !== currentDevice) {
-                deviceJob?.cancelAndJoin()
-                currentDevice = device
-                deviceJob = device?.let {
-                    launch(start = CoroutineStart.UNDISPATCHED) {
-                        it.messageFlow.collect { message -> send(message) }
-                    }
-                }
-            }
-        }
-    }
-
     val subscriptions = HashMap<String, Pair<DeviceTree, Job>>()
-    childrenFlow().collect { children ->
+
+    suspend fun reconcileChildren() {
+        val currentChildren = children.toMap()
         val iterator = subscriptions.iterator()
         while (iterator.hasNext()) {
             val (name, subscription) = iterator.next()
-            if (children[name] !== subscription.first) {
+            if (currentChildren[name] !== subscription.first) {
                 subscription.second.cancelAndJoin()
                 iterator.remove()
             }
         }
-        children.forEach { (name, child) ->
+        currentChildren.forEach { (name, child) ->
             if (name !in subscriptions) {
                 val prefix = NameToken(name)
-                val job = launch {
+                val job = launch(start = CoroutineStart.UNDISPATCHED) {
                     child.messageFlow().collect { message ->
                         send(message.changeSource { prefix + it })
                     }
@@ -150,5 +136,18 @@ public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
                 subscriptions[name] = child to job
             }
         }
+    }
+
+    reconcileChildren()
+
+    val localMessages = (this@messageFlow as? DeviceMessageSource)?.messageFlow
+        ?: device?.messageFlow
+        ?: emptyFlow()
+
+    localMessages.collect { message ->
+        if (message is EmptyDeviceMessage) {
+            reconcileChildren()
+        }
+        send(message)
     }
 }

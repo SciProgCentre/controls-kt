@@ -1,13 +1,11 @@
 package space.kscience.controls.manager
 
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
@@ -18,11 +16,12 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
 import space.kscience.dataforge.names.parseAsName
 import kotlin.properties.ReadOnlyProperty
+import kotlin.time.Clock
 
 /**
  * DataForge Context plugin that allows to manage devices locally
  */
-public class DeviceManager : AbstractPlugin(), DeviceTree {
+public class DeviceManager : AbstractPlugin(), DeviceTree, DeviceMessageSource {
     override val tag: PluginTag get() = Companion.tag
 
     override val device: Device? get() = null
@@ -53,19 +52,22 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     override val children: Map<String, DeviceTree>
         field = HashMap<String, DeviceTree>()
 
-    private val childrenLock = SynchronizedObject()
-    private val childrenRevision = MutableStateFlow(0L)
+    private val treeChanges = MutableSharedFlow<EmptyDeviceMessage>(
+        replay = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
-    override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map {
-        synchronized(childrenLock) { children.toMap() }
-    }
+    /** Local tree-change hints. Use [DeviceTree.messageFlow] to collect child messages. */
+    override val messageFlow: Flow<DeviceMessage> get() = treeChanges
 
     public fun registerDeviceTree(name: String, tree: DeviceTree) {
-        synchronized(childrenLock) {
-            if (children[name] === tree) return
-            children[name] = tree
-        }
-        childrenRevision.update { it + 1 }
+        children[name] = tree
+        treeChanges.tryEmit(
+            EmptyDeviceMessage(
+                time = if (isAttached) context.clock.now() else Clock.System.now(),
+                sourceDevice = Name.EMPTY,
+            )
+        )
     }
 
     /**

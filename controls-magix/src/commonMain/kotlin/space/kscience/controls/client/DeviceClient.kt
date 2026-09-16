@@ -1,7 +1,5 @@
 package space.kscience.controls.client
 
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -200,19 +198,13 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
     deviceEndpoint: String,
 ): DeviceTree {
     val devices = mutableMapOf<Name, DeviceClient>()
-    val rootDevice = MutableStateFlow<Device?>(null)
-    val childTrees = mutableMapOf<String, DeviceTree>()
-    val childrenLock = SynchronizedObject()
-    val childrenRevision = MutableStateFlow(0L)
-
-    fun childrenSnapshot(): Map<String, DeviceTree> = synchronized(childrenLock) { childTrees.toMap() }
 
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
 
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
-        val device = devices.getOrPut(descriptionMessage.sourceDevice) {
+        devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(
                 context = context,
                 deviceName = descriptionMessage.sourceDevice,
@@ -228,21 +220,8 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
                     id = stringUID()
                 )
             }
-        }
-        device.propertyDescriptors = descriptionMessage.properties
-        if (descriptionMessage.sourceDevice.isEmpty()) {
-            rootDevice.value = device
-        } else {
-            val childAdded = synchronized(childrenLock) {
-                val name = descriptionMessage.sourceDevice.toString()
-                if (name in childTrees) {
-                    false
-                } else {
-                    childTrees[name] = DeviceTree(device)
-                    true
-                }
-            }
-            if (childAdded) childrenRevision.update { it + 1 }
+        }.run {
+            propertyDescriptors = descriptionMessage.properties
         }
     }.launchIn(context)
 
@@ -256,12 +235,13 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
     )
 
     return object : DeviceTree {
-        override val device: Device? get() = rootDevice.value
-        override val children: Map<String, DeviceTree> get() = childrenSnapshot()
-
-        override fun deviceFlow(): Flow<Device?> = rootDevice
-
-        override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map { childrenSnapshot() }
+        override val device: Device? get() = devices[Name.EMPTY]
+        override val children: Map<String, DeviceTree>
+            get() = devices.entries //capture current map state in a closure
+                .filter { !it.key.isEmpty() }
+                .associate { (name, tree) ->
+                    name.toString() to DeviceTree(tree)
+                }
     }
 }
 

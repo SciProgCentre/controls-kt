@@ -1,6 +1,10 @@
 package space.kscience.controls.spec
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import space.kscience.controls.api.DeviceElementDescriptor
+import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.DeviceMessageSource
 import space.kscience.controls.api.DeviceTree
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.plus
@@ -54,7 +58,14 @@ public fun DeviceTreeSpec.verify(deviceTree: DeviceTree): Boolean = checkMissing
  * An implementation of DeviceTree that is guaranteed to adhere to the specification
  */
 @JvmInline
-public value class SpecificDeviceTree<S: DeviceTreeSpec> @InternalDeviceAPI constructor(private val deviceTree: DeviceTree): DeviceTree by deviceTree
+public value class SpecificDeviceTree<S: DeviceTreeSpec> @InternalDeviceAPI constructor(
+    private val deviceTree: DeviceTree,
+) : DeviceTree by deviceTree, DeviceMessageSource {
+    override val messageFlow: Flow<DeviceMessage>
+        get() = (deviceTree as? DeviceMessageSource)?.messageFlow
+            ?: deviceTree.device?.messageFlow
+            ?: emptyFlow()
+}
 
 /**
  * Verify if this device tree adheres to the specification and return a type safe version

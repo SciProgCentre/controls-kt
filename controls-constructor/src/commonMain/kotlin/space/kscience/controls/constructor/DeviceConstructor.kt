@@ -1,8 +1,7 @@
 package space.kscience.controls.constructor
 
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.api.LifecycleState.*
@@ -76,9 +75,16 @@ public open class DeviceConstructor(
 
 
     private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
+    private val treeChanges = MutableSharedFlow<EmptyDeviceMessage>(
+        replay = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    private var treeChangeJob: Job? = null
 
-    override val messageFlow: Flow<DeviceMessage>
-        get() = sharedMessageFlow
+    /** Tree-change hints may be delivered more than once. */
+    override val messageFlow: Flow<DeviceMessage> = sharedMessageFlow.onSubscription {
+        treeChanges.replayCache.lastOrNull()?.let { emit(it) }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
@@ -102,27 +108,24 @@ public open class DeviceConstructor(
 
 
     private val _devices = hashMapOf<String, DeviceTree>()
-    private val childrenLock = SynchronizedObject()
-    private val childrenRevision = MutableStateFlow(0L)
 
     override val children: Map<String, DeviceTree> get() = _devices
-
-    override fun childrenFlow(): Flow<Map<String, DeviceTree>> = childrenRevision.map {
-        synchronized(childrenLock) { _devices.toMap() }
-    }
 
     /**
      * Register and initialize (synchronize child's lifecycle state with group state) a new device tree in this group.
      */
     public fun <DT : DeviceTree> installTree(deviceName: String, child: DT): DT {
-        synchronized(childrenLock) {
-            require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
-            _devices[deviceName] = child
-        }
+        require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
+        _devices[deviceName] = child
         if (child is Constructor) {
             registerElement(ChildConstructorElement(Name.of(deviceName), child))
         }
-        childrenRevision.update { it + 1 }
+        if (treeChangeJob == null) {
+            treeChangeJob = launch {
+                treeChanges.collect { sharedMessageFlow.emit(it) }
+            }
+        }
+        treeChanges.tryEmit(EmptyDeviceMessage(clock.now(), sourceDevice = Name.EMPTY))
         if (isStarted()) child.start()
         return child
     }
