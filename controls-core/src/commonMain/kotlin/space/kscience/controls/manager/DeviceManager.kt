@@ -52,10 +52,10 @@ public class DeviceManager : AbstractPlugin(), DeviceTree, DeviceMessageSource {
     override val children: Map<String, DeviceTree>
         field = HashMap<String, DeviceTree>()
 
-    /** Local device-added hints. Use [DeviceTree.messageFlow] to collect child messages. */
+    /** Messages of the manager itself, currently [DeviceAddedMessage] hints. Collect child messages with [DeviceTree.messageFlow]. */
     override val messageFlow: Flow<DeviceMessage>
         field = MutableSharedFlow<DeviceMessage>(
-            replay = 1,
+            extraBufferCapacity = 1,
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
 

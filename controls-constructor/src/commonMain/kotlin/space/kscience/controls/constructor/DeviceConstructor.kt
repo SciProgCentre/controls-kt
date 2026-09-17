@@ -120,6 +120,7 @@ public open class DeviceConstructor(
                 )
             )
         }
+        //start the child device if this device is started
         if (isStarted()) child.start()
         return child
     }

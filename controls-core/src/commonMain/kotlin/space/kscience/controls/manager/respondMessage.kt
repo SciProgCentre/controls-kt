@@ -110,8 +110,7 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
 
 /**
  * Collect all messages from given [DeviceTree], applying proper relative names.
- * A local [DeviceAddedMessage] from a supported mutable node rereads its immediate children before being forwarded.
- * Registration does not wait for child message subscriptions to be installed.
+ * A [DeviceAddedMessage] emitted by the tree itself rereads its children before being forwarded.
  */
 public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
     val subscriptions = HashMap<String, Pair<DeviceTree, Job>>()
