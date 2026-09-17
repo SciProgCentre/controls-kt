@@ -311,4 +311,48 @@ internal class DeviceTreeMessageFlowTest {
             context.close()
         }
     }
+
+    @Test
+    fun testPrebuiltSubtreeIsAnnouncedOnceAndSubscribedWhole() = runTest {
+        val context = Context("prebuilt-subtree") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            val root = DeviceConstructor(context)
+            val manager = DeviceManager()
+            manager.registerDevice("root", root)
+            val received = mutableListOf<DeviceMessage>()
+            backgroundScope.launch {
+                manager.messageFlow().collect { received.add(it) }
+            }
+            runCurrent()
+
+            val leafState = MutableValueState(0.0)
+            val group = DeviceConstructor(context)
+            val leaf = group.installTree("leaf", DeviceConstructor(context))
+            leaf.registerMutableProperty("value", MetaConverter.double, leafState)
+            runCurrent()
+            received.clear()
+
+            root.installTree("group", group)
+            runCurrent()
+            val added = received.filterIsInstance<DeviceAddedMessage>()
+            assertEquals(listOf(Name.of("root", "group")), added.map { it.sourceDevice })
+
+            received.clear()
+            leafState.value = 1.0
+            runCurrent()
+            val change = received.filterIsInstance<PropertyChangedMessage>().single()
+            assertEquals(Name.of("root", "group", "leaf"), change.sourceDevice)
+            assertEquals(1.0, change.value.double)
+
+            received.clear()
+            group.installTree("lateLeaf", DeviceConstructor(context))
+            runCurrent()
+            val lateAdded = received.filterIsInstance<DeviceAddedMessage>().single()
+            assertEquals(Name.of("root", "group", "lateLeaf"), lateAdded.sourceDevice)
+        } finally {
+            context.close()
+        }
+    }
 }
