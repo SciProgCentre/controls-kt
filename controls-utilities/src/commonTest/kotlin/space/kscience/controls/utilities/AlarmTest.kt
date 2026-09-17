@@ -194,6 +194,21 @@ class AlarmTest {
     }
 
     @Test
+    fun testNaNValueIsUndefined() = runTest(timeout = 5.seconds) {
+        withTestContext("alarmNaNValue") { context ->
+            val alarm = Alarm(
+                context,
+                listOf(
+                    AlarmSetting(lowerThreshold = 0.0, upperThreshold = 10.0, status = "ALARM")
+                )
+            )
+            alarm.bind(ValueState<Double?>(Double.NaN).asMeta())
+            assertEquals(Alarm.STATUS_UNDEFINED, alarm.state.value.message)
+            assertNull(alarm.state.value.value)
+        }
+    }
+
+    @Test
     fun testAlarmDynamicSettingsChange() = runTest(timeout = 5.seconds) {
         withTestContext("alarmDynamicSettings") { context ->
             val source = MutableValueState<Double?>(30.0)

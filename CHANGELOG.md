@@ -17,6 +17,7 @@
 ### Fixed
 
 - Follow local device tree changes in message subscriptions and late property binding.
+- Report an undefined alarm state for NaN values.
 - Order storage intervals by bounds and path for reliable deletion.
 - Resolve and filter storage watch paths while serializing index tree access.
 - Ignore repeated starts of device constructors.

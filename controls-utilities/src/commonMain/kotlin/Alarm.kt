@@ -72,8 +72,8 @@ public class Alarm(
     }
 
     public val state: ValueState<AlarmState> = combineState(alarmSettings, value) { settings, value ->
-        //early return undefined value if value is null
-        if (value == null) return@combineState AlarmState(STATUS_UNDEFINED, null)
+        //early return undefined value if value is missing or NaN
+        if (value == null || value.isNaN()) return@combineState AlarmState(STATUS_UNDEFINED, null)
 
 
         var message = STATUS_OK
