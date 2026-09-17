@@ -49,6 +49,7 @@ public sealed class DeviceMessage {
             is ActionResultMessage -> message::class.serializer().descriptor.serialName
             is BinaryNotificationMessage -> message::class.serializer().descriptor.serialName
             is DescriptionMessage -> message::class.serializer().descriptor.serialName
+            is DeviceAddedMessage -> message::class.serializer().descriptor.serialName
             is DeviceErrorMessage -> message::class.serializer().descriptor.serialName
             is DeviceLifeCycleMessage -> message::class.serializer().descriptor.serialName
             is DeviceLogMessage -> message::class.serializer().descriptor.serialName
@@ -261,6 +262,20 @@ public data class DeviceLifeCycleMessage(
     override val time: Instant,
     val state: LifecycleState,
     override val sourceDevice: Name = Name.EMPTY,
+    override val targetDevice: Name? = null,
+    override val comment: String? = null,
+) : DeviceMessage() {
+    override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
+}
+
+/**
+ * A child device with relative name [sourceDevice] was installed in a device tree.
+ */
+@Serializable
+@SerialName("device.added")
+public data class DeviceAddedMessage(
+    override val time: Instant,
+    override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
 ) : DeviceMessage() {
