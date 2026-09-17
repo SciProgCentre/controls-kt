@@ -355,7 +355,7 @@ public fun <T, R> ValueState.Companion.combine(
             val samples = states.map { it.valueWithTime }
             return ValueWithTime(
                 value = mapper(samples.map { it.value }),
-                time = samples.maxOf { it.time }
+                time = samples.maxOfOrNull { it.time } ?: Instant.DISTANT_PAST
             )
         }
 
@@ -370,7 +370,7 @@ public fun <T, R> ValueState.Companion.combine(
         combine(states.map { it.subscribeWithTime() }) { samples: Array<ValueWithTime<T>> ->
             ValueWithTime(
                 value = mapper(samples.map { it.value }),
-                time = samples.maxOf { it.time }
+                time = samples.maxOfOrNull { it.time } ?: Instant.DISTANT_PAST
             )
         }
 
