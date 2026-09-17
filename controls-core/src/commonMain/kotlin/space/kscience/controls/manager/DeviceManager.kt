@@ -1,6 +1,5 @@
 package space.kscience.controls.manager
 
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -52,21 +51,24 @@ public class DeviceManager : AbstractPlugin(), DeviceTree, DeviceMessageSource {
     override val children: Map<String, DeviceTree>
         field = HashMap<String, DeviceTree>()
 
-    /** Messages of the manager itself, currently [DeviceAddedMessage] hints. Collect child messages with [DeviceTree.messageFlow]. */
+    /**
+     * Messages of the manager itself, currently [DeviceAddedMessage]. Collect child messages with [DeviceTree.messageFlow].
+     * A manager without a context delivers them through a one-slot buffer.
+     */
     override val messageFlow: Flow<DeviceMessage>
-        field = MutableSharedFlow<DeviceMessage>(
-            extraBufferCapacity = 1,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST,
-        )
+        field = MutableSharedFlow<DeviceMessage>(extraBufferCapacity = 1)
 
     public fun registerDeviceTree(name: String, tree: DeviceTree) {
         children[name] = tree
-        messageFlow.tryEmit(
-            DeviceAddedMessage(
-                time = if (isAttached) context.clock.now() else Clock.System.now(),
-                sourceDevice = Name.of(name),
-            )
+        val message = DeviceAddedMessage(
+            time = if (isAttached) context.clock.now() else Clock.System.now(),
+            sourceDevice = Name.of(name),
         )
+        if (isAttached) {
+            context.launch { messageFlow.emit(message) }
+        } else {
+            messageFlow.tryEmit(message)
+        }
     }
 
     /**

@@ -270,6 +270,7 @@ public data class DeviceLifeCycleMessage(
 
 /**
  * A child device with relative name [sourceDevice] was installed in a device tree.
+ * Messages the child emits before a collector subscribes to it are not forwarded; read its state after this message.
  */
 @Serializable
 @SerialName("device.added")
