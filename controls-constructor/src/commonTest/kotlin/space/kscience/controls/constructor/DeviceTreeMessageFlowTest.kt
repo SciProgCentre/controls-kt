@@ -2,18 +2,18 @@
 
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.api.EmptyDeviceMessage
+import kotlinx.coroutines.yield
+import space.kscience.controls.api.DeviceAddedMessage
+import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.manager.DeviceManager
@@ -39,7 +39,7 @@ internal class DeviceTreeMessageFlowTest {
             val child = DeviceConstructor(context)
             var observed = false
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-                root.messageFlow.filterIsInstance<EmptyDeviceMessage>().first()
+                root.messageFlow.filterIsInstance<DeviceAddedMessage>().first()
                 observed = root.constructorElements
                     .filterIsInstance<ChildConstructorElement>()
                     .any { it.constructor === child }
@@ -135,9 +135,15 @@ internal class DeviceTreeMessageFlowTest {
         }
     }
 
+    /**
+     * DeviceConstructor no longer replays a tree-change hint to late subscribers. A subscription
+     * started after installation instead relies on the [resolvePropertyState] re-check of
+     * [resolveDeviceOrNull], which is retried on every subsequent [DeviceAddedMessage], even one
+     * unrelated to the requested device.
+     */
     @Test
-    fun testResolvePropertyStateUsesReplayedTreeChange() = runTest {
-        val context = Context("resolve-replayed-tree-change") {
+    fun testResolvePropertyStateReChecksOnSubsequentDeviceAddedMessage() = runTest {
+        val context = Context("resolve-subsequent-device-added") {
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
@@ -148,6 +154,10 @@ internal class DeviceTreeMessageFlowTest {
             }
 
             root.installTree("child", child)
+            runCurrent()
+            //an unrelated device-added message re-triggers the resolveDeviceOrNull re-check,
+            //which now finds the child that was already installed
+            root.installTree("sibling", DeviceConstructor(context))
             runCurrent()
 
             assertEquals(1.0, resolved.value.double)
@@ -188,6 +198,9 @@ internal class DeviceTreeMessageFlowTest {
             val root = DeviceConstructor(context)
             root.start()
             val resolved = root.resolvePropertyState(Name.of("child"), "value")
+            //let the late-bind subscription establish itself before the child is installed;
+            //DeviceConstructor does not replay a missed device-added message to late subscribers
+            runCurrent()
             val child = DeviceConstructor(context).apply {
                 registerMutableProperty("value", MetaConverter.double, MutableValueState(3.0))
             }
@@ -211,6 +224,9 @@ internal class DeviceTreeMessageFlowTest {
         try {
             val root = DeviceConstructor(context)
             val resolved = root.resolvePropertyState(Name.of("group", "leaf"), "value")
+            //let the late-bind subscription establish itself before the group (and its own leaf) is
+            //installed; DeviceConstructor does not replay a missed device-added message to late subscribers
+            runCurrent()
             val group = DeviceConstructor(context)
             group.installTree("leaf", DeviceConstructor(context).apply {
                 registerMutableProperty("value", MetaConverter.double, MutableValueState(4.0))
@@ -225,41 +241,72 @@ internal class DeviceTreeMessageFlowTest {
         }
     }
 
+    /**
+     * Each [DeviceConstructor.installTree] call publishes its own [DeviceAddedMessage] independently,
+     * so a reentrant `installTree` invoked from within a live collector does not deadlock and its
+     * own message is still delivered to that same collector.
+     */
     @Test
-    fun testTreeChangesUseOnePublisherOnReentrantInstall() = runTest {
+    fun testReentrantInstallDuringCollectionDeliversEachDeviceAddedMessage() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val context = Context("conflated-tree-change-publisher") {
+        val context = Context("reentrant-device-added-install") {
             coroutineContext(backgroundScope.coroutineContext + dispatcher)
         }
         try {
             val root = DeviceConstructor(context)
-            val firstDelivery = CompletableDeferred<Unit>()
-            val releaseCollector = CompletableDeferred<Unit>()
-            val laterTreeSize = CompletableDeferred<Int>()
-            var deliveries = 0
+            val addedNames = mutableListOf<Name>()
             backgroundScope.launch(dispatcher, start = CoroutineStart.UNDISPATCHED) {
-                root.messageFlow.filterIsInstance<EmptyDeviceMessage>().collect {
-                    deliveries++
-                    if (deliveries == 1) {
+                root.messageFlow.filterIsInstance<DeviceAddedMessage>().collect { message ->
+                    addedNames.add(message.sourceDevice)
+                    if (addedNames.size == 1) {
                         root.installTree("second", DeviceConstructor(context))
-                        firstDelivery.complete(Unit)
-                        releaseCollector.await()
-                    } else {
-                        laterTreeSize.complete(root.children.size)
                     }
                 }
             }
 
             root.installTree("first", DeviceConstructor(context))
-            assertTrue(firstDelivery.isCompleted, "First hint was not delivered")
-            firstDelivery.await()
-            root.installTree("third", DeviceConstructor(context))
-            assertEquals(1, root.coroutineContext.job.children.count { it.isActive })
-            releaseCollector.complete(Unit)
             runCurrent()
-            assertTrue(laterTreeSize.isCompleted, "Latest hint was not delivered")
 
-            assertEquals(3, laterTreeSize.await())
+            assertEquals(listOf(Name.of("first"), Name.of("second")), addedNames)
+        } finally {
+            context.close()
+        }
+    }
+
+    @Test
+    fun testLongLivedCollectorObservesDeviceAddedThenChildPropertyChange() = runTest {
+        val context = Context("long-lived-collector-device-added") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        try {
+            val root = DeviceConstructor(context)
+            val received = mutableListOf<DeviceMessage>()
+            backgroundScope.launch {
+                root.messageFlow().collect { received.add(it) }
+            }
+            yield()
+
+            val childState = MutableValueState(0.0)
+            val child = DeviceConstructor(context).apply {
+                registerMutableProperty("value", MetaConverter.double, childState)
+            }
+            root.installTree("child", child)
+            runCurrent()
+            childState.value = 5.0
+            runCurrent()
+
+            val addedIndex = received.indexOfFirst {
+                it is DeviceAddedMessage && it.sourceDevice == Name.of("child")
+            }
+            assertTrue(addedIndex >= 0, "DeviceAddedMessage for the installed child was not observed")
+
+            val propertyIndex = received.indexOfFirst {
+                it is PropertyChangedMessage && it.sourceDevice == Name.of("child") && it.property == "value"
+            }
+            assertTrue(
+                propertyIndex > addedIndex,
+                "PropertyChangedMessage from the child was not observed after its DeviceAddedMessage",
+            )
         } finally {
             context.close()
         }

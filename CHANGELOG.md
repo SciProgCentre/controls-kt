@@ -16,7 +16,7 @@
 
 ### Fixed
 
-- Follow local device tree changes in message subscriptions and late property binding.
+- Emit a device added message when a child device is installed and follow it in device tree subscriptions and late property binding.
 - Use the distant past as the timestamp of an empty state combination instead of failing.
 - Report an undefined alarm state for NaN values.
 - Order storage intervals by bounds and path for reliable deletion.

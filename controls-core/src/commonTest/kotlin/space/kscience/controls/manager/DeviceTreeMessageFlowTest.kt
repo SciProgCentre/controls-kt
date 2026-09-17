@@ -19,9 +19,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import space.kscience.controls.api.ActionDescriptor
 import space.kscience.controls.api.Device
+import space.kscience.controls.api.DeviceAddedMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
-import space.kscience.controls.api.EmptyDeviceMessage
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.PropertyDescriptor
@@ -168,14 +168,25 @@ internal class DeviceTreeMessageFlowTest {
             ),
             received.filterIsInstance<PropertyChangedMessage>(),
         )
-        val hints = received.filterIsInstance<EmptyDeviceMessage>()
-        assertEquals(listOf(Name.of("group"), Name.of("group")), hints.map { it.sourceDevice })
+        val hints = received.filterIsInstance<DeviceAddedMessage>()
+        assertEquals(listOf(Name.of("group", "static"), Name.of("group", "late")), hints.map { it.sourceDevice })
         val encodedHint = Json.encodeToString<DeviceMessage>(hints.first())
         assertEquals(hints.first(), Json.decodeFromString<DeviceMessage>(encodedHint))
     }
 
     @Test
-    fun testVerifiedManagerKeepsTreeChangeSource() = runTest {
+    fun testDeviceAddedMessageSerializesWithDeviceAddedType() {
+        val original = DeviceAddedMessage(
+            time = Instant.fromEpochMilliseconds(0),
+            sourceDevice = Name.of("child"),
+        )
+        val encoded = Json.encodeToString(DeviceMessage.serializer(), original)
+        assertTrue("\"type\":\"device.added\"" in encoded)
+        assertEquals(original, Json.decodeFromString(DeviceMessage.serializer(), encoded))
+    }
+
+    @Test
+    fun testVerifiedManagerKeepsLocalMessageSource() = runTest {
         val manager = DeviceManager()
         val tree = manager.verifiedWith<DeviceTreeSpec>(DeviceTreeSpec())
         val received = mutableListOf<PropertyChangedMessage>()
