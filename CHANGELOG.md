@@ -5,6 +5,7 @@
 ### Added
 
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
+- Read holding registers, coils, discrete inputs and float values in Modbus tag table columns.
 
 ### Changed
 
