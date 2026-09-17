@@ -1,7 +1,6 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.api.LifecycleState.*
@@ -75,16 +74,9 @@ public open class DeviceConstructor(
 
 
     private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
-    private val treeChanges = MutableSharedFlow<EmptyDeviceMessage>(
-        replay = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    private var treeChangeJob: Job? = null
 
-    /** Tree-change hints may be delivered more than once. */
-    override val messageFlow: Flow<DeviceMessage> = sharedMessageFlow.onSubscription {
-        treeChanges.replayCache.lastOrNull()?.let { emit(it) }
-    }
+    override val messageFlow: Flow<DeviceMessage>
+        get() = sharedMessageFlow
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
@@ -120,12 +112,14 @@ public open class DeviceConstructor(
         if (child is Constructor) {
             registerElement(ChildConstructorElement(Name.of(deviceName), child))
         }
-        if (treeChangeJob == null) {
-            treeChangeJob = launch {
-                treeChanges.collect { sharedMessageFlow.emit(it) }
-            }
+        launch {
+            sharedMessageFlow.emit(
+                DeviceAddedMessage(
+                    time = clock.now(),
+                    sourceDevice = Name.of(deviceName),
+                )
+            )
         }
-        treeChanges.tryEmit(EmptyDeviceMessage(clock.now(), sourceDevice = Name.EMPTY))
         if (isStarted()) child.start()
         return child
     }

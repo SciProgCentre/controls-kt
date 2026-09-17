@@ -110,7 +110,7 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
 
 /**
  * Collect all messages from given [DeviceTree], applying proper relative names.
- * A local [EmptyDeviceMessage] from a supported mutable node rereads its immediate children before being forwarded.
+ * A local [DeviceAddedMessage] from a supported mutable node rereads its immediate children before being forwarded.
  * Registration does not wait for child message subscriptions to be installed.
  */
 public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
@@ -146,7 +146,7 @@ public fun DeviceTree.messageFlow(): Flow<DeviceMessage> = channelFlow {
         ?: emptyFlow()
 
     localMessages.collect { message ->
-        if (message is EmptyDeviceMessage) {
+        if (message is DeviceAddedMessage) {
             reconcileChildren()
         }
         send(message)

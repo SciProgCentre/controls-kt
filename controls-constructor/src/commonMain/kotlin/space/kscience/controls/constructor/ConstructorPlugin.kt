@@ -176,7 +176,7 @@ public fun DeviceTree.resolvePropertyState(
         val lateBindValueState = LateBindValueState(Meta.EMPTY)
         context.launch {
             val device = messageFlow().mapNotNull { message ->
-                val shouldResolve = message is EmptyDeviceMessage ||
+                val shouldResolve = message is DeviceAddedMessage ||
                         message is DeviceLifeCycleMessage &&
                         message.sourceDevice == deviceName &&
                         message.state == LifecycleState.STARTED

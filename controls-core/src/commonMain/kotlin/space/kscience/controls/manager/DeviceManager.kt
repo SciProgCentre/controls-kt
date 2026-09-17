@@ -52,20 +52,19 @@ public class DeviceManager : AbstractPlugin(), DeviceTree, DeviceMessageSource {
     override val children: Map<String, DeviceTree>
         field = HashMap<String, DeviceTree>()
 
-    private val treeChanges = MutableSharedFlow<EmptyDeviceMessage>(
-        replay = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-
-    /** Local tree-change hints. Use [DeviceTree.messageFlow] to collect child messages. */
-    override val messageFlow: Flow<DeviceMessage> get() = treeChanges
+    /** Local device-added hints. Use [DeviceTree.messageFlow] to collect child messages. */
+    override val messageFlow: Flow<DeviceMessage>
+        field = MutableSharedFlow<DeviceMessage>(
+            replay = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
 
     public fun registerDeviceTree(name: String, tree: DeviceTree) {
         children[name] = tree
-        treeChanges.tryEmit(
-            EmptyDeviceMessage(
+        messageFlow.tryEmit(
+            DeviceAddedMessage(
                 time = if (isAttached) context.clock.now() else Clock.System.now(),
-                sourceDevice = Name.EMPTY,
+                sourceDevice = Name.of(name),
             )
         )
     }
