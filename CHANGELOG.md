@@ -17,6 +17,7 @@
 ### Fixed
 
 - Rebuild storage index intervals on start and wait for the directory monitor to stop.
+- Report an undefined alarm state for NaN values.
 - Order storage intervals by bounds and path for reliable deletion.
 - Resolve and filter storage watch paths while serializing index tree access.
 - Ignore repeated starts of device constructors.

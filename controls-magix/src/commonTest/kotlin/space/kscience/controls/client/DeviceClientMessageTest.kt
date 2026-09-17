@@ -89,7 +89,7 @@ internal class DeviceClientMessageTest {
                 )
             }
 
-            val hub = endpoint.remoteDeviceHub(context, "client", "device")
+            val hub = endpoint.remoteDeviceTree(context, "client", "device")
             runCurrent()
             val name = Name.of("child")
             emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
