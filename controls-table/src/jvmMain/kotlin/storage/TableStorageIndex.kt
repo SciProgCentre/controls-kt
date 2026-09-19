@@ -373,11 +373,13 @@ public class TableStorageIndex(
     private var monitorJob: Job? = null
 
     /**
-     * Start indexer and wait for initial indexing to be complete
+     * Rebuild the index from [dataDirectory] contents and wait for initial indexing to be complete
      */
     override suspend fun start(): Unit {
 
         lifecycleState = LifecycleState.STARTING
+
+        treeMutex.withLock { root = null }
 
         operations.envelopeFilesSequence(dataDirectory).forEach { (_, path) ->
             insert(path)
@@ -421,8 +423,12 @@ public class TableStorageIndex(
         }
     }
 
+    /**
+     * Stop the directory monitor and wait for it to finish
+     */
     override suspend fun stop() {
-        monitorJob?.cancel()
+        monitorJob?.cancelAndJoin()
+        monitorJob = null
 
         lifecycleState = LifecycleState.STOPPED
     }

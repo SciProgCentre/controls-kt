@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Rebuild storage index intervals on start and wait for the directory monitor to stop.
 - Use the distant past as the timestamp of an empty state combination instead of failing.
 - Report an undefined alarm state for NaN values.
 - Order storage intervals by bounds and path for reliable deletion.

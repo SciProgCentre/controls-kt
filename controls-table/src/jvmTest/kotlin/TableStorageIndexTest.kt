@@ -20,6 +20,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.set
 import space.kscience.tables.MapRow
 import space.kscience.tables.RowTable
@@ -106,6 +107,74 @@ class TableStorageIndexTest {
                 assertEquals(101, result.size)
             }
             println("[DEBUG_LOG] Read $queryRange in $readTime")
+
+            index.stop()
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testRestartRebuildsIndex() = runTest {
+        val context = Context("tagtable-index-restart-test") {
+            plugin(ControlsStoragePlugin)
+        }
+        val storagePlugin = context.request(ControlsStoragePlugin)
+        val tempDir = Files.createTempDirectory("tagtable-index-restart-test")
+
+        try {
+            val converter = ZipRowsEnvelopeConverter.meta
+            val writer = SingleFileEnvelopeOperations(storagePlugin.io)
+
+            val headers = listOf(
+                TagTable.timeColumnHeader,
+                SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY)
+            )
+
+            val startTime = Instant.fromEpochSeconds(1700000000, 0)
+            val nFiles = 5
+            val gapMillis = 1000
+            val lengthMillis = 500
+
+            // 1. Create multiple files with disjoint, consecutive intervals
+            val paths = (0 until nFiles).map { i ->
+                val fileStartTime = startTime + (i * gapMillis).milliseconds
+                val fileEndTime = fileStartTime + lengthMillis.milliseconds
+                val row = MapRow(
+                    mapOf(
+                        TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(fileStartTime),
+                        "value" to i.asMeta()
+                    )
+                )
+                val table = RowTable(headers, listOf(row))
+                val envelopeMeta = Meta {
+                    set(RowEnvelopeMetaSpec.startTime, fileStartTime)
+                    set(RowEnvelopeMetaSpec.endTime, fileEndTime)
+                }
+                val envelope = converter.writeRows(table, envelopeMeta)
+                val name = "restart_$i"
+                writer.writeEnvelope(name, tempDir, envelope)
+                tempDir.resolve("$name.${FileEnvelopeOperations.FILE_EXTENSION}")
+            }
+
+            val fullRange = startTime..(startTime + (nFiles * gapMillis).milliseconds)
+
+            val index = TableStorageIndex(storagePlugin, tempDir)
+
+            // 2. Start, check all files are indexed, then stop
+            index.start()
+            assertEquals(nFiles, index.selectEnvelopes(fullRange).size)
+            index.stop()
+
+            // 3. Remove one file while the index is stopped
+            Files.delete(paths[2])
+
+            // 4. Restart and check the tree was rebuilt, not appended to
+            index.start()
+            val envelopes = index.selectEnvelopes(fullRange)
+            assertEquals(nFiles - 1, envelopes.size)
+            val startTimes = envelopes.mapNotNull { it.meta[RowEnvelopeMetaSpec.startTime] }
+            assertEquals(envelopes.size, startTimes.distinct().size, "Duplicate intervals found after restart")
 
             index.stop()
         } finally {
