@@ -9,9 +9,9 @@ import kotlinx.serialization.json.Json
 import space.kscience.controls.api.DescriptionMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
+import space.kscience.controls.api.deviceMessageFlow
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installTree
-import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
@@ -35,7 +35,7 @@ class VirtualMagixEndpoint(val tree: DeviceTree, val scope: CoroutineScope) : Ma
     private val messages = MutableSharedFlow<DeviceMessage>(10, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     init {
-        tree.messageFlow().onEach {
+        tree.deviceMessageFlow().onEach {
             messages.emit(it)
         }.launchIn(scope)
     }

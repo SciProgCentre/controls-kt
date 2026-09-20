@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.DeviceMessage
+import space.kscience.controls.api.deviceMessageFlow
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.manager.respondMessage
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
@@ -60,7 +60,7 @@ public fun DeviceManager.launchMagixService(
         if (error !is CancellationException) logger.error(error) { "Error while responding to message: ${error.message}" }
     }.launchIn(this)
 
-    messageFlow().onEach { payload ->
+    deviceMessageFlow().onEach { payload ->
         endpoint.send(
             format = controlsMagixFormat,
             payload = payload,

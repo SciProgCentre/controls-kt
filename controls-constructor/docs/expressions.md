@@ -15,7 +15,7 @@ Represent fixed values.
 ### Device Properties
 Link to an existing property of a device in the `DeviceHub`.
 - `Property(deviceName, propertyName, path, parameters)`: 
-  - `deviceName`: The name of the device (as `Name`).
+  - `childDeviceName`: The name of the device (as `Name`).
   - `propertyName`: The name of the property on that device.
   - `path`: (Optional) If the property is a `Meta` object, this specifies the path to the numeric value within it.
 

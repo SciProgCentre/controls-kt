@@ -11,7 +11,6 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.manager.messageFlow
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -38,7 +37,7 @@ internal class DeviceClientMessageTest {
                 val mounted = mutableListOf<DeviceMessage>()
                 val tree = DeviceTree(children = mapOf("child" to DeviceTree(client)))
                 val directJob = backgroundScope.launch { client.messageFlow.collect { direct.add(it) } }
-                val treeJob = backgroundScope.launch { tree.messageFlow().collect { mounted.add(it) } }
+                val treeJob = backgroundScope.launch { tree.deviceMessageFlow().collect { mounted.add(it) } }
                 runCurrent()
 
                 val event = PropertyChangedMessage(
@@ -95,7 +94,7 @@ internal class DeviceClientMessageTest {
             emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
             runCurrent()
             val received = mutableListOf<DeviceMessage>()
-            backgroundScope.launch { hub.messageFlow().collect { received.add(it) } }
+            backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
             runCurrent()
 
             val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(1), "value", Meta.EMPTY, name)

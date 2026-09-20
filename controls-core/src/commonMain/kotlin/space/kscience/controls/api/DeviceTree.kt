@@ -2,6 +2,7 @@ package space.kscience.controls.api
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.*
@@ -46,7 +47,11 @@ public interface DeviceTree : Provider {
     } else {
         emptyMap()
     }
-    //TODO send message on device change
+
+    /**
+     * A flow of tree composition change messages
+     */
+    public val treeMessageFlow: Flow<DeviceTreeMessage>
 
     public companion object
 }
@@ -60,6 +65,8 @@ public fun DeviceTree(
 ): DeviceTree = object : DeviceTree {
     override val device: Device? = rootDevice
     override val children: Map<String, DeviceTree> = children
+    override val treeMessageFlow: Flow<DeviceTreeMessage>
+        get() = emptyFlow()
 }
 
 /**
@@ -83,22 +90,6 @@ public fun DeviceTree.resolveDeviceOrNull(name: Name): Device? = when (name.leng
     else -> children[name.first().toString()]?.resolveDeviceOrNull(name.cutFirst())
 }
 
-///**
-// * Create a device hub from a map of devices including subdevices
-// */
-//public fun DeviceNode(devices: Map<Name, Device>): DeviceNode {
-//    val rootDevice = devices[Name.EMPTY]
-//    val children: Map<String, Map<Name, Device>> = buildMap {
-//        devices.entries
-//            .filter { !it.key.isEmpty() }
-//            .groupBy { it.key.first() }
-//            .map { (parentKey, entries) ->
-//                TODO()
-//            }
-//    }
-//    return DeviceNode(rootDevice, children.mapValues { DeviceNode(it.value) })
-//}
-
 public suspend fun DeviceTree.readProperty(deviceName: Name, propertyName: String): Meta =
     resolveDevice(deviceName).readProperty(propertyName)
 
@@ -117,4 +108,50 @@ context(coroutineScope: CoroutineScope)
 public fun DeviceTree.start(): Job = coroutineScope.launch {
     device?.start()
     children.values.forEach { it.start() }
+}
+
+
+/**
+ * Collect all messages from given [DeviceTree], applying proper relative names.
+ */
+public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
+
+    var deviceJob: Job? = null
+
+    val childrenJobs = mutableMapOf<String, Job>()
+
+    fun updateRootFlow(device: Device?) {
+        deviceJob?.cancel()
+        deviceJob = device?.messageFlow?.onEach { deviceMessage ->
+            send(deviceMessage)
+        }?.launchIn(this)
+    }
+
+    updateRootFlow(device)
+
+    fun updateChildFlow(childName: String, childDevice: DeviceTree?) {
+        childrenJobs[childName]?.cancel()
+        if (childDevice != null) {
+            childrenJobs[childName] = childDevice.deviceMessageFlow().onEach { deviceMessage ->
+                deviceMessage.changeSource { NameToken(childName) + it }
+            }.launchIn(this)
+        } else {
+            childrenJobs.remove(childName)
+        }
+    }
+
+    children.forEach { (childName, childDevice) ->
+        updateChildFlow(childName, childDevice)
+    }
+
+    treeMessageFlow.onEach { treeMessage ->
+        when (treeMessage) {
+            is DeviceTreeChildDeviceChangedMessage -> updateChildFlow(
+                treeMessage.childDeviceName,
+                children[treeMessage.childDeviceName]
+            )
+
+            is DeviceTreeRootDeviceChangedMessage -> updateRootFlow(device)
+        }
+    }.launchIn(this)
 }

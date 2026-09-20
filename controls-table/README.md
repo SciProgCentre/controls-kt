@@ -18,7 +18,7 @@ The module's architecture is built around several key entities:
 The central class that manages the lifecycle of connections to external sources. It contains the configuration (`DataPlatformConfiguration`) and caches clients for various protocols (OPC UA, PLC, Modbus), ensuring their reuse and correct closure.
 
 ### 2. DataPlatformDevice
-An implementation of the `Device` interface from `controls-core` that wraps `DataPlatform`. This allows representing a collection of data from various sources as a single virtual device. The device periodically polls sources according to configured timers and publishes property changes via `messageFlow`.
+An implementation of the `Device` interface from `controls-core` that wraps `DataPlatform`. This allows representing a collection of data from various sources as a single virtual device. The device periodically polls sources according to configured timers and publishes property changes via `deviceMessageFlow`.
 
 ### 3. Time Series Collection Mechanisms
 The module provides tools for working with streaming data:
