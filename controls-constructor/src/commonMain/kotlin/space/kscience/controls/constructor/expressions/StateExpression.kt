@@ -13,6 +13,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.isEmpty
 import kotlin.math.*
@@ -167,6 +168,15 @@ public class StateExpressionContext(
                 l * r
             }
 
+            "/", "div", "divide" -> ValueState.combine(
+                scope = scope,
+                state1 = computeState(expression.left),
+                state2 = computeState(expression.right)
+            ) { l, r ->
+                if (l == null || r == null) return@combine null
+                l / r
+            }
+
             else -> error("Unknown binary operation: ${expression.operation}")
         }
 
@@ -178,13 +188,22 @@ public class StateExpressionContext(
                 it.filterNotNull().sum()
             }
 
+            "mean", "average" -> ValueState.combine(
+                scope = scope,
+                states = expression.arguments.values.map { computeState(it) }
+            ) {
+                val values = it.filterNotNull()
+                if (values.isEmpty()) null else values.average()
+            }
+
             else -> error("Unknown Nary operation: ${expression.operation}")
         }
 
         is StateExpression.Constant -> when (expression.name) {
             "pi", "Pi", "PI" -> ValueState(PI)
             "e" -> ValueState(E)
-            else -> error("Unknown constant: ${expression.name}")
+            else -> expression.parameters["value"]?.double?.let { ValueState(it) }
+                ?: error("Unknown constant: ${expression.name}")
         }
 
         is StateExpression.Property -> {

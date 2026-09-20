@@ -78,6 +78,13 @@ class ValueStateCombinationTest {
     }
 
     @Test
+    fun testCombineEmptyCollection() = runTest {
+        val combined = ValueState.combine(backgroundScope, emptyList<ValueState<Int>>()) { it.size }
+        assertEquals(0, combined.value)
+        assertEquals(ValueWithTime(0, Instant.DISTANT_PAST), combined.valueWithTime)
+    }
+
+    @Test
     fun testMapCombinationReadsOnce() = runTest {
         val first = ReadingState()
         val second = ReadingState()

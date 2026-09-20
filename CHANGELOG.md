@@ -5,6 +5,7 @@
 ### Added
 
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
+- Add division, mean and numeric constants to state expressions.
 - Read holding registers, coils, discrete inputs and float values in Modbus tag table columns.
 
 ### Changed
@@ -17,6 +18,8 @@
 
 ### Fixed
 
+- Rebuild storage index intervals on start and wait for the directory monitor to stop.
+- Use the distant past as the timestamp of an empty state combination instead of failing.
 - Report an undefined alarm state for NaN values.
 - Order storage intervals by bounds and path for reliable deletion.
 - Resolve and filter storage watch paths while serializing index tree access.
