@@ -74,8 +74,8 @@ public fun DeviceTree(
  */
 public fun DeviceTree.resolveDevice(name: Name): Device = when (name.length) {
     0 -> device ?: error("Device tree is not a device. It could not be accessed with empty name")
-    1 -> children[name.first().toString()]?.device ?: error("Device $name not found in $this")
-    else -> children[name.first().toString()]?.resolveDevice(name.cutFirst())
+    1 -> children[name.first().toStringUnescaped()]?.device ?: error("Device $name not found in $this")
+    else -> children[name.first().toStringUnescaped()]?.resolveDevice(name.cutFirst())
         ?: error("Device ${name.toStringUnescaped()} not found in $this")
 }
 
@@ -86,8 +86,8 @@ public fun DeviceTree.resolveDevice(name: String): Device = resolveDevice(name.p
  */
 public fun DeviceTree.resolveDeviceOrNull(name: Name): Device? = when (name.length) {
     0 -> device
-    1 -> children[name.first().toString()]?.device
-    else -> children[name.first().toString()]?.resolveDeviceOrNull(name.cutFirst())
+    1 -> children[name.first().toStringUnescaped()]?.device
+    else -> children[name.first().toStringUnescaped()]?.resolveDeviceOrNull(name.cutFirst())
 }
 
 public suspend fun DeviceTree.readProperty(deviceName: Name, propertyName: String): Meta =
@@ -133,7 +133,7 @@ public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
         childrenJobs[childName]?.cancel()
         if (childDevice != null) {
             childrenJobs[childName] = childDevice.deviceMessageFlow().onEach { deviceMessage ->
-                deviceMessage.changeSource { NameToken(childName) + it }
+                send(deviceMessage.changeSource { NameToken(childName) + it })
             }.launchIn(this)
         } else {
             childrenJobs.remove(childName)
