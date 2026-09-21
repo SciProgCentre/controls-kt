@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add an opt-in inflated-byte limit to ZIP row decoding.
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
 - Add division, mean and numeric constants to state expressions.
 - Read holding registers, coils, discrete inputs and float values in Modbus tag table columns.

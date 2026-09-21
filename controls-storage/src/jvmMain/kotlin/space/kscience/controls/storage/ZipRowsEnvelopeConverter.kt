@@ -15,6 +15,9 @@ import space.kscience.dataforge.names.parseAsName
 import space.kscience.tables.*
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.util.Objects
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
 import kotlin.reflect.KType
@@ -59,16 +62,27 @@ public class ZipRowsEnvelopeConverter<T>(
         return Envelope(meta, baos.toByteArray().asBinary())
     }
 
-    override fun readRows(envelope: Envelope): Rows<T> {
+    override fun readRows(envelope: Envelope): Rows<T> = decodeRows(envelope, null)
+
+    /**
+     * Read one envelope with a positive [maxInflatedBytes] limit on its inflated body.
+     * Exceeding the limit fails the read; the materialized table's memory is not bounded by it.
+     */
+    public fun readRows(envelope: Envelope, maxInflatedBytes: Long): Rows<T> {
+        require(maxInflatedBytes > 0) { "maxInflatedBytes must be positive" }
+        return decodeRows(envelope, maxInflatedBytes)
+    }
+
+    private fun decodeRows(envelope: Envelope, maxInflatedBytes: Long?): Rows<T> {
         require(envelope.dataType == envelopeType) { "Envelope data type should be $envelopeType" }
 
         val header: TableHeader<T> = envelope.meta.getIndexedList("@header.column".parseAsName()).map { item ->
             SimpleColumnHeader(item["name"].string ?: "default", type, item["meta"] ?: Meta.EMPTY)
         }
         val bais = ByteArrayInputStream(envelope.data?.toByteArray() ?: error("No data in envelope"))
-        val zipInputStream = InflaterInputStream(bais)
-        val dao = Json.decodeFromStream<List<Map<String, Meta>>>(zipInputStream)
-        zipInputStream.close()
+        val inflater = InflaterInputStream(bais)
+        val input = if (maxInflatedBytes == null) inflater else InflatedByteLimitInputStream(inflater, maxInflatedBytes)
+        val dao = input.use { Json.decodeFromStream<List<Map<String, Meta>>>(it) }
         val rows = dao.map { m ->
             MapRow(m.mapValues { converter.read(it.value) })
         }
@@ -84,4 +98,37 @@ public class ZipRowsEnvelopeConverter<T>(
         public val meta: ZipRowsEnvelopeConverter<Meta> = ZipRowsEnvelopeConverter(MetaConverter.meta, typeOf<Meta>())
     }
 
+}
+
+internal class InflatedByteLimitInputStream(
+    private val input: InputStream,
+    private val maxInflatedBytes: Long,
+) : InputStream() {
+    private var remaining = maxInflatedBytes
+
+    private fun requireEnd() {
+        if (input.read() != -1) throw IOException("Inflated data exceeds maxInflatedBytes=$maxInflatedBytes")
+    }
+
+    override fun read(): Int {
+        if (remaining == 0L) {
+            requireEnd()
+            return -1
+        }
+        return input.read().also { if (it >= 0) remaining-- }
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        Objects.checkFromIndexSize(offset, length, buffer.size)
+        if (length == 0) return 0
+        if (remaining == 0L) {
+            requireEnd()
+            return -1
+        }
+        return input.read(buffer, offset, minOf(length.toLong(), remaining).toInt()).also {
+            if (it > 0) remaining -= it
+        }
+    }
+
+    override fun close() = input.close()
 }
