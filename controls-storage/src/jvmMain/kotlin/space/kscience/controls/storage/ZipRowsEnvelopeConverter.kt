@@ -81,12 +81,16 @@ public class ZipRowsEnvelopeConverter<T>(
 /** Read rows from [input] without closing it. */
 @OptIn(ExperimentalSerializationApi::class)
 internal fun <T> ZipRowsEnvelopeConverter<T>.readInflatedRows(meta: Meta, input: InputStream): Rows<T> {
-    val header: TableHeader<T> = meta.getIndexedList("@header.column".parseAsName()).map { item ->
-        SimpleColumnHeader(item["name"].string ?: "default", type, item["meta"] ?: Meta.EMPTY)
-    }
+    val header = readHeader(meta)
     val dao = Json.decodeFromStream<List<Map<String, Meta>>>(input)
-    val rows = dao.map { m ->
-        MapRow(m.mapValues { converter.read(it.value) })
-    }
+    val rows = dao.map { readRow(it) }
     return RowTable(header, rows)
 }
+
+internal fun <T> ZipRowsEnvelopeConverter<T>.readHeader(meta: Meta): TableHeader<T> =
+    meta.getIndexedList("@header.column".parseAsName()).map { item ->
+        SimpleColumnHeader(item["name"].string ?: "default", type, item["meta"] ?: Meta.EMPTY)
+    }
+
+internal fun <T> ZipRowsEnvelopeConverter<T>.readRow(row: Map<String, Meta>): Row<T> =
+    MapRow(row.mapValues { converter.read(it.value) })
