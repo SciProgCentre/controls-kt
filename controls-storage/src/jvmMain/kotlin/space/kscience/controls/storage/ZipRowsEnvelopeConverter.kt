@@ -66,7 +66,9 @@ public class ZipRowsEnvelopeConverter<T>(
 
     /**
      * Read one envelope with a positive [maxInflatedBytes] limit on its inflated body.
-     * Exceeding the limit fails the read; the materialized table's memory is not bounded by it.
+     * A valid inflated body ending exactly at [maxInflatedBytes] is accepted.
+     * If another inflated byte exists beyond the limit, the read throws [IOException] and returns no partial rows.
+     * This limit does not bound the materialized table's memory.
      */
     public fun readRows(envelope: Envelope, maxInflatedBytes: Long): Rows<T> {
         require(maxInflatedBytes > 0) { "maxInflatedBytes must be positive" }
