@@ -10,15 +10,15 @@ import kotlinx.coroutines.withTimeout
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode
 import org.eclipse.milo.opcua.stack.core.AttributeId
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue
+import org.eclipse.milo.opcua.stack.core.types.builtin.DateTime
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import org.eclipse.milo.opcua.stack.core.types.builtin.StatusCode
+import org.eclipse.milo.opcua.stack.core.types.builtin.Variant
 import org.junit.jupiter.api.Test
 import space.kscience.controls.api.*
 import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.meta.asValue
+import space.kscience.dataforge.meta.*
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -30,6 +30,55 @@ import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 
 class DeviceNameSpaceTest {
+    @Test
+    fun opcAnnotationsKeepScalarPayloads() {
+        val sourceTime = DateTime(Instant.parse("2026-09-08T11:00:00Z").toJavaInstant())
+        val serverTime = DateTime(Instant.parse("2026-09-08T12:00:00Z").toJavaInstant())
+        val values = listOf(
+            7.0.asValue(), true.asValue(), "sample".asValue(),
+            doubleArrayOf(1.0, 2.0).asValue(), listOf("a".asValue(), "b".asValue()).asValue(), Null,
+        )
+        values.forEach { payload ->
+            val plain = Meta(payload)
+            val annotated = Meta {
+                value = payload
+                "@opc" put { "status" put StatusCode.BAD.value }
+            }
+            val expected = plain.toOpc(sourceTime = sourceTime, serverTime = serverTime)
+            val actual = annotated.toOpc(sourceTime = sourceTime, serverTime = serverTime)
+            assertEquals(expected, actual, "OPC annotations must not change $payload")
+        }
+    }
+
+    @Test
+    fun opcAnnotationsDoNotOverrideExportParameters() {
+        val annotated = Meta.fromOpc(DataValue(
+            Variant(7.0), StatusCode.BAD,
+            DateTime(Instant.parse("2026-09-08T11:00:00Z").toJavaInstant()),
+            DateTime(Instant.parse("2026-09-08T12:00:00Z").toJavaInstant()),
+        ))
+        assertEquals(7.0, MetaConverter.double.read(annotated))
+        assertEquals(annotated, MetaConverter.meta.read(annotated))
+        val exported = annotated.toOpc()
+        assertEquals(7.0, exported.value.value)
+        assertEquals(StatusCode.GOOD, exported.statusCode)
+        assertNull(exported.sourceTime)
+        assertTrue(assertNotNull(exported.serverTime).isValid)
+    }
+
+    @Test
+    fun businessChildrenStillUseStructuredConversion() {
+        for (child in listOf("business", "@opc[1]")) {
+            val meta = Meta {
+                value = 7.0.asValue()
+                "@opc" put { "status" put StatusCode.BAD.value }
+                child put "data"
+            }
+            val encoded = assertIs<String>(meta.toOpc().value.value)
+            assertEquals(kotlinx.serialization.json.Json.encodeToString(MetaSerializer, meta), encoded)
+        }
+    }
+
     @Test
     fun testPropertyMessageConversion() {
         val time = Instant.parse("2026-09-08T12:00:00.123456700Z")
