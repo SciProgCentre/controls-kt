@@ -198,12 +198,14 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
     deviceEndpoint: String,
 ): DeviceTree {
     val devices = mutableMapOf<Name, DeviceClient>()
+    val treeMessages = MutableSharedFlow<DeviceTreeMessage>()
 
     val subscription = subscribe(DeviceManager.magixFormat, originFilter = listOf(deviceEndpoint))
         .map { it.second }
         .shareIn(context, SharingStarted.Eagerly)
 
     subscription.filterIsInstance<DescriptionMessage>().onEach { descriptionMessage ->
+        val isNew = descriptionMessage.sourceDevice !in devices
         devices.getOrPut(descriptionMessage.sourceDevice) {
             DeviceClient(
                 context = context,
@@ -222,6 +224,16 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
             }
         }.run {
             propertyDescriptors = descriptionMessage.properties
+        }
+        if (isNew) {
+            val name = descriptionMessage.sourceDevice
+            treeMessages.emit(
+                if (name.isEmpty()) {
+                    DeviceTreeRootDeviceChangedMessage(descriptionMessage.time, Name.EMPTY)
+                } else {
+                    DeviceTreeChildDeviceChangedMessage(descriptionMessage.time, name.toString(), Name.EMPTY)
+                }
+            )
         }
     }.launchIn(context)
 
@@ -243,7 +255,7 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
                     name.toString() to DeviceTree(tree)
                 }
 
-        override val treeMessageFlow = subscription.filterIsInstance<DeviceTreeMessage>()
+        override val treeMessageFlow: Flow<DeviceTreeMessage> = treeMessages
     }
 }
 
