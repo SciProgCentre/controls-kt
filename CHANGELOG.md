@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Give native envelope metadata its final name only after it is written, so a running index does not read partial files.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.
 - Keep scalar OPC payloads scalar when Meta contains only reserved `@opc` annotations.
 - Do not add storage anchor rows when compression is disabled.
