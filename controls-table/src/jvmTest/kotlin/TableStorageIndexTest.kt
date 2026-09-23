@@ -22,10 +22,12 @@ import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.set
+import space.kscience.dataforge.names.Name
 import space.kscience.tables.MapRow
 import space.kscience.tables.RowTable
 import space.kscience.tables.SimpleColumnHeader
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.util.concurrent.atomic.AtomicBoolean
@@ -33,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -262,6 +265,107 @@ class TableStorageIndexTest {
             context.coroutineContext[Job]?.cancelAndJoin()
             context.close()
             directory.toFile().deleteRecursively()
+        }
+    }
+
+    private class WatchFixture(name: String) {
+        val context = Context(name) { plugin(ControlsStoragePlugin) }
+        val storage = context.request(ControlsStoragePlugin)
+        val directory: Path = Files.createTempDirectory(name)
+        val watched: Path = Files.createDirectory(directory.resolve("data"))
+        private val staging = Files.createDirectory(directory.resolve("staging"))
+        private val writer = SingleFileEnvelopeOperations(storage.io)
+        private val headers = listOf(TagTable.timeColumnHeader, SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY))
+
+        fun publish(name: String, at: Instant) = publishTo(watched, name, at)
+
+        fun publishTo(target: Path, name: String, at: Instant) {
+            val row = MapRow(mapOf(
+                TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(at),
+                "value" to Meta(1),
+            ))
+            val envelope = ZipRowsEnvelopeConverter.meta.writeRows(RowTable(headers, listOf(row)), Meta {
+                set(RowEnvelopeMetaSpec.startTime, at)
+                set(RowEnvelopeMetaSpec.endTime, at)
+            })
+            writer.writeEnvelope(name, staging, envelope)
+            Files.move(staging.resolve("$name.df"), target.resolve("$name.df"), ATOMIC_MOVE)
+        }
+
+        suspend fun close(index: TableStorageIndex) {
+            index.stop()
+            context.coroutineContext[Job]?.cancelAndJoin()
+            context.close()
+            directory.toFile().deleteRecursively()
+        }
+    }
+
+    private suspend fun TableStorageIndex.awaitEnvelopes(range: ClosedRange<Instant>) = withContext(Dispatchers.IO) {
+        withTimeout(10.seconds) {
+            while (selectEnvelopes(range).isEmpty()) delay(10.milliseconds)
+        }
+    }
+
+    /**
+     * Operations that publish [name] while the initial scan runs, before or after the directory is listed.
+     */
+    private fun WatchFixture.publishingDuringScan(name: String, at: Instant, afterListing: Boolean): FileEnvelopeOperations {
+        val native = NativeFileEnvelopeOperations(storage.io)
+        val scans = AtomicInteger()
+        return object : FileEnvelopeOperations by native {
+            override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> {
+                if (root != watched || scans.getAndIncrement() != 0) return native.envelopeFilesSequence(root)
+                if (!afterListing) publish(name, at)
+                return native.envelopeFilesSequence(root) + sequence { if (afterListing) publish(name, at) }
+            }
+        }
+    }
+
+    @Test
+    fun testFailedStartIsRetriedByTheNextQuery() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-retry-test")
+        val missing = fixture.directory.resolve("missing")
+        val index = TableStorageIndex(fixture.storage, missing)
+        val time = Instant.fromEpochSeconds(1625097600)
+        try {
+            assertFailsWith<NoSuchFileException> { index.start() }
+            Files.move(fixture.watched, missing)
+            fixture.publishTo(missing, "created", time)
+            assertEquals(1, index.selectEnvelopes(time..time).size)
+        } finally {
+            fixture.close(index)
+        }
+    }
+
+    @Test
+    fun testFileCreatedAfterScanListingIsIndexed() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-after-listing-test")
+        val time = Instant.fromEpochSeconds(1625097600)
+        val operations = fixture.publishingDuringScan("created", time, afterListing = true)
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
+        try {
+            index.start()
+            index.awaitEnvelopes(time..time)
+        } finally {
+            fixture.close(index)
+        }
+    }
+
+    @Test
+    fun testFileFoundByScanAndMonitorIsIndexedOnce() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-scan-and-monitor-test")
+        val time = Instant.fromEpochSeconds(1625097600)
+        val operations = fixture.publishingDuringScan("created", time, afterListing = false)
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
+        try {
+            index.start()
+            // events are handled in order, so the sentinel shows that the event for the first file was handled too
+            val sentinelTime = time + 1.seconds
+            fixture.publish("sentinel", sentinelTime)
+            index.awaitEnvelopes(sentinelTime..sentinelTime)
+            assertEquals(1, index.selectEnvelopes(time..time).size)
+        } finally {
+            fixture.close(index)
         }
     }
 }

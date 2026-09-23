@@ -1,6 +1,8 @@
 package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -15,6 +17,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.WatchEvent
+import java.nio.file.WatchKey
+import java.nio.file.WatchService
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -56,5 +61,22 @@ class DirectoryMonitorTest {
             Files.list(directory).use { files -> files.forEach { Files.deleteIfExists(it) } }
             Files.deleteIfExists(directory)
         }
+    }
+
+    @Test
+    fun testMonitorCancelledBeforeStartClosesWatcher() = runTest {
+        var closed = false
+        val watcher = object : WatchService {
+            override fun close() {
+                closed = true
+            }
+
+            override fun poll(): WatchKey? = null
+            override fun poll(timeout: Long, unit: TimeUnit): WatchKey? = null
+            override fun take(): WatchKey = error("A cancelled monitor must not wait for events")
+        }
+        val cancelled = Job().also { it.cancel() }
+        CoroutineScope(cancelled).launchDirectoryMonitor(watcher) { _, _ -> }.join()
+        assertTrue(closed, "The watcher of a cancelled monitor was left open")
     }
 }
