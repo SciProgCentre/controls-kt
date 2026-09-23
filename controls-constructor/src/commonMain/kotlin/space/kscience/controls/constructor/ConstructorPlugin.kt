@@ -1,7 +1,8 @@
 package space.kscience.controls.constructor
 
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
@@ -12,9 +13,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
-import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.last
-import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.names.*
 
 /**
  * A plugin that allows constructing value states from meta.
@@ -156,7 +155,8 @@ public object ConstructorDeviceFactory : DeviceTreeFactory {
 }
 
 /**
- * Provide an existing device property state from [DeviceTree] or late-bind state and actualize it when the device is connected.
+ * Provide an existing device property state from [DeviceTree] or late-bind state and actualize it when the device
+ * is in the tree and started. A late-bound state is bound once; later replacements of the device do not change it.
  *
  * Throw an exception if the device is connected but does not have a corresponding property
  *
@@ -174,18 +174,44 @@ public fun DeviceTree.resolvePropertyState(
         context.logger.warn { "Requested property $propertyName of device $deviceName is not found. Using late-binding state instead." }
         val lateBindValueState = LateBindValueState(Meta.EMPTY)
         context.launch {
-            deviceMessageFlow().filterIsInstance<DeviceLifeCycleMessage>().first {
-                it.sourceDevice == deviceName && it.state == LifecycleState.STARTED
-            }
-            val device = resolveDeviceOrNull(deviceName)
-            if (device != null) {
-                lateBindValueState.bind(device.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY))
-            } else {
-                context.logger.error { "Device $deviceName is not found after its start signal" }
-            }
+            val device = awaitStartedDevice(deviceName)
+            lateBindValueState.bind(device.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY))
         }
         return lateBindValueState
     }
+}
+
+/**
+ * Signal once collection of this flow has started and then on each element.
+ * A state read on the first signal misses no change only if the flow subscribes before its first suspension,
+ * as the shared message flows of devices and trees do.
+ */
+private fun Flow<*>.signals(): Flow<Unit> = channelFlow {
+    launch(start = CoroutineStart.UNDISPATCHED) { collect { send(Unit) } }
+    send(Unit)
+}
+
+private suspend fun Device.awaitStarted(): Device {
+    messageFlow.signals().first { lifecycleState == LifecycleState.STARTED }
+    return this
+}
+
+/**
+ * Wait until the device at [name] is in this tree and started. The device may already be started
+ * when it joins the tree, so the state is read on each signal.
+ * While waiting, a replaced child restarts the search below it.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+private suspend fun DeviceTree.awaitStartedDevice(name: Name): Device {
+    val childName = name.firstOrNull()?.toStringUnescaped()
+    return treeMessageFlow.filter { message ->
+        message.sourceDevice == Name.EMPTY && when (message) {
+            is DeviceTreeChildDeviceChangedMessage -> message.childDeviceName == childName
+            is DeviceTreeRootDeviceChangedMessage -> childName == null
+        }
+    }.signals().mapLatest {
+        if (childName == null) device?.awaitStarted() else children[childName]?.awaitStartedDevice(name.cutFirst())
+    }.filterNotNull().first()
 }
 
 public fun DeviceConstructor.resolvePropertyState(deviceName: Name, propertyName: String): ValueState<Meta> =

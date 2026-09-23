@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Bind late properties when the device is already started when it joins the tree.
 - Announce devices of a remote tree when their descriptions arrive.
 - Subscribe to device tree composition changes before reading the current composition.
 - Rebuild storage index intervals on start and wait for the directory monitor to stop.
