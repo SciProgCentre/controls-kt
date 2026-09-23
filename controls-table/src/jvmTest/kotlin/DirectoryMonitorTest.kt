@@ -16,9 +16,11 @@ import space.kscience.dataforge.context.Context
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
+import java.nio.file.StandardWatchEventKinds.OVERFLOW
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
+import java.nio.file.Watchable
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,7 +33,7 @@ class DirectoryMonitorTest {
     fun testCancellationStopsWaitingMonitor() = runTest(timeout = 60.seconds) {
         val context = Context("directory-monitor-test")
         val directory = Files.createTempDirectory("directory-monitor-test")
-        val event = CompletableDeferred<Pair<WatchEvent.Kind<*>, Path>>()
+        val event = CompletableDeferred<Pair<WatchEvent.Kind<*>, Path?>>()
         val monitor = context.launchDirectoryMonitor(directory) { kind, file -> event.complete(kind to file) }
 
         try {
@@ -47,7 +49,7 @@ class DirectoryMonitorTest {
                 val (kind, file) = withTimeout(20.seconds) { event.await() }
                 writer.cancelAndJoin()
                 assertEquals(ENTRY_CREATE, kind)
-                assertTrue(file.toString().startsWith("created-"), "unexpected event on $file")
+                assertTrue(file?.toString()?.startsWith("created-") == true, "unexpected event on $file")
 
                 //let the monitor drain the pending events and block in take() again, which cancellation must interrupt
                 delay(200.milliseconds)
@@ -78,5 +80,31 @@ class DirectoryMonitorTest {
         val cancelled = Job().also { it.cancel() }
         CoroutineScope(cancelled).launchDirectoryMonitor(watcher) { _, _ -> }.join()
         assertTrue(closed, "The watcher of a cancelled monitor was left open")
+    }
+
+    @Test
+    fun testOverflowIsReportedWithoutFile() = runTest {
+        val overflow = object : WatchEvent<Any> {
+            override fun kind(): WatchEvent.Kind<Any> = OVERFLOW
+            override fun count(): Int = 1
+            override fun context(): Any? = null
+        }
+        val key = object : WatchKey {
+            override fun isValid(): Boolean = true
+            override fun pollEvents(): List<WatchEvent<*>> = listOf(overflow)
+            // an invalid key stops the monitor after this event
+            override fun reset(): Boolean = false
+            override fun cancel() {}
+            override fun watchable(): Watchable = error("Not used by this fixture")
+        }
+        val watcher = object : WatchService {
+            override fun close() {}
+            override fun poll(): WatchKey = key
+            override fun poll(timeout: Long, unit: TimeUnit): WatchKey = key
+            override fun take(): WatchKey = key
+        }
+        val events = mutableListOf<Pair<WatchEvent.Kind<*>, Path?>>()
+        launchDirectoryMonitor(watcher) { kind, file -> events.add(kind to file) }.join()
+        assertEquals(listOf<Pair<WatchEvent.Kind<*>, Path?>>(OVERFLOW to null), events)
     }
 }
