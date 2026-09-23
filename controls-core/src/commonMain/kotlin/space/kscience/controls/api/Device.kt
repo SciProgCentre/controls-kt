@@ -1,9 +1,11 @@
 package space.kscience.controls.api
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.dataforge.context.ContextAware
@@ -168,8 +170,15 @@ public fun Device.onLifecycleEvent(
 
 /**
  * Wait for a specific device lifecycle state event. If the device is already in the state, the method returns immediately.
+ * The state is checked again once collection of [Device.messageFlow] has started. A transition during the subscription
+ * is not missed only if the flow subscribes before its first suspension, as the shared message flows of devices do.
  */
 public suspend fun Device.awaitLifecycleState(state: LifecycleState) {
     if (lifecycleState == state) return
-    messageFlow.filterIsInstance<DeviceLifeCycleMessage>().first { it.state == state }
+    channelFlow {
+        launch(start = CoroutineStart.UNDISPATCHED) {
+            messageFlow.filterIsInstance<DeviceLifeCycleMessage>().collect { if (it.state == state) send(Unit) }
+        }
+        if (lifecycleState == state) send(Unit)
+    }.first()
 }
