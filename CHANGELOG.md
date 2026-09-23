@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Subscribe to device tree composition changes before reading the current composition.
 - Rebuild storage index intervals on start and wait for the directory monitor to stop.
 - Use the distant past as the timestamp of an empty state combination instead of failing.
 - Report an undefined alarm state for NaN values.

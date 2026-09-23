@@ -1,6 +1,7 @@
 package space.kscience.controls.api
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -127,8 +128,6 @@ public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
         }?.launchIn(this)
     }
 
-    updateRootFlow(device)
-
     fun updateChildFlow(childName: String, childDevice: DeviceTree?) {
         childrenJobs[childName]?.cancel()
         if (childDevice != null) {
@@ -140,18 +139,22 @@ public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
         }
     }
 
+    // subscribe to composition changes before reading the current composition, so that no change is missed
+    launch(start = CoroutineStart.UNDISPATCHED) {
+        treeMessageFlow.collect { treeMessage ->
+            when (treeMessage) {
+                is DeviceTreeChildDeviceChangedMessage -> updateChildFlow(
+                    treeMessage.childDeviceName,
+                    children[treeMessage.childDeviceName]
+                )
+
+                is DeviceTreeRootDeviceChangedMessage -> updateRootFlow(device)
+            }
+        }
+    }
+
+    updateRootFlow(device)
     children.forEach { (childName, childDevice) ->
         updateChildFlow(childName, childDevice)
     }
-
-    treeMessageFlow.onEach { treeMessage ->
-        when (treeMessage) {
-            is DeviceTreeChildDeviceChangedMessage -> updateChildFlow(
-                treeMessage.childDeviceName,
-                children[treeMessage.childDeviceName]
-            )
-
-            is DeviceTreeRootDeviceChangedMessage -> updateRootFlow(device)
-        }
-    }.launchIn(this)
 }
