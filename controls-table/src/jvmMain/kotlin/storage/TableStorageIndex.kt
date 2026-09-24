@@ -27,6 +27,7 @@ import java.nio.file.ClosedWatchServiceException
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
+import java.nio.file.StandardWatchEventKinds.OVERFLOW
 import java.nio.file.WatchEvent
 import java.nio.file.WatchService
 import kotlin.time.Duration
@@ -47,12 +48,12 @@ internal fun Path.watchFiles(): WatchService = fileSystem.newWatchService().also
 
 /**
  * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
- * for each file creation or deletion event.
+ * for each file creation or deletion event, and without a path for [OVERFLOW], when events were lost.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
     directory: Path,
-    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path) -> Unit
+    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path?) -> Unit
 ): Job = launchDirectoryMonitor(directory.watchFiles(), onEvent)
 
 /**
@@ -61,7 +62,7 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
     watchService: WatchService,
-    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path) -> Unit
+    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path?) -> Unit
 ): Job = launch(Dispatchers.IO) {
     watchService.use { watchService ->
         while (isActive) {
@@ -73,7 +74,7 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 
             for (event in key.pollEvents()) {
                 ensureActive()
-                val file = event.context() as Path
+                val file = event.context() as Path?
                 onEvent(event.kind(), file)
             }
 
@@ -424,10 +425,11 @@ public class TableStorageIndex(
             val removalMutex: Mutex = Mutex()
 
             launchDirectoryMonitor(watchService) { kind, file ->
-                val path = dataDirectory.resolve(file)
+                // an overflow has no file, so the whole directory is scanned again; indexed files are not added twice
+                val path = file?.let { dataDirectory.resolve(it) } ?: dataDirectory
 
                 when (kind) {
-                    ENTRY_CREATE -> {
+                    ENTRY_CREATE, OVERFLOW -> {
                         operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
                             insert(createdPath)
                         }
