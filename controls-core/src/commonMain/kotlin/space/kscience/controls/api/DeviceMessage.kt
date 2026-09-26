@@ -15,16 +15,16 @@ import space.kscience.dataforge.names.Name
 import kotlin.time.Instant
 
 @Serializable
-public sealed class DeviceMessage {
-    public abstract val sourceDevice: Name?
-    public abstract val targetDevice: Name?
-    public abstract val comment: String?
-    public abstract val time: Instant
+public sealed interface DeviceMessage {
+    public val sourceDevice: Name?
+    public val targetDevice: Name?
+    public val comment: String?
+    public val time: Instant
 
     /**
      * Update the source device name for composition. If the original name is null, the resulting name is also null.
      */
-    public abstract fun changeSource(block: (Name) -> Name): DeviceMessage
+    public fun changeSource(block: (Name) -> Name): DeviceMessage
 
     public companion object {
         public fun error(
@@ -57,6 +57,8 @@ public sealed class DeviceMessage {
             is PropertyChangedMessage -> message::class.serializer().descriptor.serialName
             is PropertyGetMessage -> message::class.serializer().descriptor.serialName
             is PropertySetMessage -> message::class.serializer().descriptor.serialName
+            is DeviceTreeChildDeviceChangedMessage -> message::class.serializer().descriptor.serialName
+            is DeviceTreeRootDeviceChangedMessage -> message::class.serializer().descriptor.serialName
         }
 
         @OptIn(InternalSerializationApi::class)
@@ -78,7 +80,7 @@ public data class PropertyChangedMessage(
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -94,7 +96,7 @@ public data class PropertySetMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name?,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
 
@@ -110,7 +112,7 @@ public data class PropertyGetMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
 
@@ -124,7 +126,7 @@ public data class GetDescriptionMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
 
@@ -141,7 +143,7 @@ public data class DescriptionMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -160,7 +162,7 @@ public data class ActionExecuteMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
 
@@ -179,7 +181,7 @@ public data class ActionResultMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -200,7 +202,7 @@ public data class BinaryNotificationMessage(
     override val sourceDevice: Name,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -215,7 +217,7 @@ public data class EmptyDeviceMessage(
     override val sourceDevice: Name? = null,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = sourceDevice?.let(block))
 }
 
@@ -231,7 +233,7 @@ public data class DeviceLogMessage(
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -248,7 +250,7 @@ public data class DeviceErrorMessage(
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
 
@@ -263,10 +265,9 @@ public data class DeviceLifeCycleMessage(
     override val sourceDevice: Name = Name.EMPTY,
     override val targetDevice: Name? = null,
     override val comment: String? = null,
-) : DeviceMessage() {
+) : DeviceMessage {
     override fun changeSource(block: (Name) -> Name): DeviceMessage = copy(sourceDevice = block(sourceDevice))
 }
-
 
 public fun DeviceMessage.toMeta(): Meta = Json.encodeToJsonElement(this).toMeta()
 
