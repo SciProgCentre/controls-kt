@@ -163,6 +163,7 @@ public class FixedRateTimer(
 public data class TagTableStorageConfiguration(
     val path: String,
     val readInterval: Duration,
+    val withTagState: Boolean = false,
     val maxRowsPerEnvelope: Int = 10000,
     val maxDuration: Duration = 3.hours,
     val maxPause: Duration? = null,

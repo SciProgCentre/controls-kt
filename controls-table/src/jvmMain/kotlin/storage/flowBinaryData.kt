@@ -38,15 +38,16 @@ import kotlin.time.Instant
 public fun TagTable.flowBinaryData(
     readInterval: Duration,
     converter: RowsEnvelopeConverter<Meta>,
+    withTagState: Boolean = false,
     maxRows: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
 ): Flow<Envelope> {
     val rows = if (compression == null) {
-        readTimeSeries(readInterval)
+        readTimeSeries(readInterval, withTagState)
     } else {
-        readTimeSeries(readInterval).compress(compression)
+        readTimeSeries(readInterval, withTagState).compress(compression)
     }
 
     return channelFlow {

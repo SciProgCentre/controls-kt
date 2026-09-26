@@ -356,6 +356,7 @@ public class PlcTagTable(
             storageJob = storeData(
                 directory = Path(storageConfig.path),
                 readInterval = storageConfig.readInterval,
+                withTagState = storageConfig.withTagState,
                 maxRowsPerEnvelope = storageConfig.maxRowsPerEnvelope,
                 maxDuration = storageConfig.maxDuration,
                 maxPause = storageConfig.maxPause,
