@@ -43,9 +43,9 @@ class FlowBinaryDataTest {
                 override fun now(): Instant = start
             }
 
-            override fun readAll(): Map<String, Meta> = mapOf("value" to Meta(999))
+            override fun readAllValues(): Map<String, Meta> = mapOf("value" to Meta(999))
 
-            override fun readTimeSeries(interval: Duration): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
+            override fun readTimeSeries(interval: Duration, withTagState: Boolean): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
                 override val headers = this@FlowBinaryDataTest.headers
                 override fun subscribe() = samples.asFlow()
             }

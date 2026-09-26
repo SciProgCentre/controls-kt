@@ -74,11 +74,11 @@ class ReplayTagTableTest {
                 }
                 table.play(recordedTime, recordedTime + 1.milliseconds, playbackTime, 1.0).join()
                 val expected = ValueWithTime(Meta(1), playbackTime + 1.milliseconds)
-                val state = table.valueState("sensor")
+                val state = table.subscribe("sensor")
                 assertEquals(expected, state.valueWithTime)
                 assertEquals(expected, state.subscribeWithTime().first())
-                assertEquals(Meta(1), table.read("sensor"))
-                assertEquals(mapOf("sensor" to Meta(1)), table.readAll())
+                assertEquals(Meta(1), table.readTag("sensor"))
+                assertEquals(mapOf("sensor" to Meta(1)), table.readAllValues())
                 assertEquals(Meta { set("sensor", Meta(1)) }, row.await().value)
             } finally {
                 table.stop()

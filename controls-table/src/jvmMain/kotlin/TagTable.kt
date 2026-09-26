@@ -17,6 +17,22 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
+@JvmInline
+public value class TagState(public val value: Meta) {
+    public companion object : MetaSpec() {
+
+        public val quality: MetaRef<String> by string()
+
+        public val EMPTY: TagState = TagState(Meta.EMPTY)
+
+        public const val TAG_STATE_SUFFIX: String = ".state"
+
+        public const val GOOD_QUALITY: String = "GOOD"
+
+        public const val READ_FAILED_QUALITY: String = "READ_FAILED"
+    }
+}
+
 /**
  * Represents a table of tags that provides a mechanism to interact with
  * dynamically changing values in a data platform. This interface enables
@@ -33,29 +49,35 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
     /**
      * Read a value of a single column in the table
      */
-    public suspend fun read(tag: String): Meta
+    public suspend fun readTag(tag: String): Meta
 
     /**
-     * Read the current cached sample. Unknown sample time is represented by [Instant.DISTANT_PAST].
+     * Read the current cached sample with time. Unknown sample time is represented by [Instant.DISTANT_PAST].
      */
-    public fun readWithTime(tag: String): ValueWithTime<Meta>
+    public fun readTagWithTime(tag: String): ValueWithTime<Meta>
+
+    /**
+     * Read a state of a tag single column in the table
+     */
+    public suspend fun readTagState(tag: String): TagState
 
     /**
      * Read current values of all tags
      */
-    public fun readAll(): Map<String, Meta>
+    public fun readAllValues(): Map<String, Meta>
 
     /**
      * Starts generating a flow of rows for the current data platform with a specified interval.
      *
      * @param interval the interval between row generation.
+     * @param withTagState whether to include tag state in the rows. Tag states are automatically names as `tag.state`.
      */
-    public fun readTimeSeries(interval: Duration): TimeSeriesRows<Meta>
+    public fun readTimeSeries(interval: Duration, withTagState: Boolean = false): TimeSeriesRows<Meta>
 
     /**
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
      */
-    public fun valueState(tag: String): ValueState<Meta>
+    public fun subscribe(tag: String): ValueState<Meta>
 
     /**
      * List all available tags and their descriptors
@@ -79,7 +101,7 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
     public fun asValueStateFactory(): ValueStateFactory = object : ValueStateFactory {
         override fun build(context: Context, meta: Meta): ValueState<Meta> {
             val tag = meta[ValueFactorySpec.tag] ?: error("No tag specified")
-            return valueState(tag)
+            return subscribe(tag)
         }
 
         override val descriptor: MetaDescriptor get() = ValueFactorySpec.descriptor
@@ -107,7 +129,7 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
  */
 public class TagTableValueState(private val tagTable: TagTable, private val tag: String) : ValueState<Meta> {
     override val valueWithTime: ValueWithTime<Meta>
-        get() = tagTable.readWithTime(tag)
+        get() = tagTable.readTagWithTime(tag)
 
     override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = flow {
         var initialTime: Instant? = null
@@ -153,5 +175,5 @@ public fun DeviceConstructor.tagTableProperty(
 ): ValueState<Meta> = registerProperty(
     converter = MetaConverter.meta,
     descriptor = PropertyDescriptor(propertyName, description),
-    state = platform.valueState(dataPlatformTag)
+    state = platform.subscribe(dataPlatformTag)
 )

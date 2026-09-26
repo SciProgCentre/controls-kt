@@ -60,7 +60,7 @@ class TagTablePluginTest {
 
             for ((type, table) in mapOf("controls.tags.tagTable" to default, "controls.tags.tagTable[archive]" to named)) {
                 assertSame(table.asValueStateFactory(), constructor.resolveValueStateFactory(type))
-                assertSame(table.valueState("sensor"), constructor.buildValueState(Meta {
+                assertSame(table.subscribe("sensor"), constructor.buildValueState(Meta {
                     "type" put type
                     set(TagTable.ValueFactorySpec.tag, "sensor")
                 }))

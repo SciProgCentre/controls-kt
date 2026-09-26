@@ -54,15 +54,15 @@ class TagTableValueStateTest {
         /** Runs after the cached sample is read, as a table that stores a sample later would behave. */
         var onRead: (() -> Unit)? = null
 
-        override fun readWithTime(tag: String): ValueWithTime<Meta> {
+        override fun readTagWithTime(tag: String): ValueWithTime<Meta> {
             beforeRead?.also { beforeRead = null }?.invoke()
             val value = cached
             onRead?.also { onRead = null }?.invoke()
             return value
         }
 
-        override suspend fun read(tag: String): Meta = readWithTime(tag).value
-        override fun readAll(): Map<String, Meta> = mapOf("sensor" to readWithTime("sensor").value)
+        override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
+        override fun readAllValues(): Map<String, Meta> = mapOf("sensor" to readTagWithTime("sensor").value)
     }
 
     @Test
@@ -231,11 +231,11 @@ class TagTableValueStateTest {
             source.registerProperty("reading", MetaConverter.meta, ValueState(Meta(25)))
             context.request(DeviceManager).registerDevice("source", source)
             val table = PlcTagTable(context, configuration)
-            val state = table.valueState("sensor")
-            assertSame(state, table.valueState("sensor"))
+            val state = table.subscribe("sensor")
+            assertSame(state, table.subscribe("sensor"))
             assertEquals(ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST), state.valueWithTime)
-            assertEquals(state.valueWithTime, table.readWithTime("sensor"))
-            assertFailsWith<IllegalStateException> { table.readWithTime("missing") }
+            assertEquals(state.valueWithTime, table.readTagWithTime("sensor"))
+            assertFailsWith<IllegalStateException> { table.readTagWithTime("missing") }
             assertFailsWith<IllegalStateException> { TagTableValueState(table, "missing").valueWithTime }
             val message = async(start = CoroutineStart.UNDISPATCHED) {
                 table.messageFlow.filterIsInstance<PropertyChangedMessage>().first { it.property == "sensor" }
@@ -254,12 +254,12 @@ class TagTableValueStateTest {
                 table.stop()
             }
             val expected = ValueWithTime(sample.value, sample.time)
-            assertEquals(expected, table.readWithTime("sensor"))
+            assertEquals(expected, table.readTagWithTime("sensor"))
             assertEquals(expected, state.valueWithTime)
             assertEquals(expected, state.subscribeWithTime().first())
-            assertEquals(Meta(25), table.read("sensor"))
-            assertEquals(mapOf("sensor" to Meta(25)), table.readAll())
-            assertSame(state, table.valueState("sensor"))
+            assertEquals(Meta(25), table.readTag("sensor"))
+            assertEquals(mapOf("sensor" to Meta(25)), table.readAllValues())
+            assertSame(state, table.subscribe("sensor"))
         } finally {
             context.cancel()
             context.close()
