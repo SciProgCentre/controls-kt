@@ -105,6 +105,7 @@ lets-plot-compose = "org.jetbrains.lets-plot:lets-plot-compose:3.2.2"
 
 kmath-core = { module = "space.kscience:kmath-core", version.ref = "kmath" }
 kmath-stat = { module = "space.kscience:kmath-stat", version.ref = "kmath" }
+kmath-ast = { module = "space.kscience:kmath-ast", version.ref = "kmath" }
 
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
