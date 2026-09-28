@@ -2,6 +2,7 @@
 
 package space.kscience.controls.api
 
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -56,6 +57,30 @@ internal class DeviceTreeCompositionTest {
         }
         val received = mutableListOf<DeviceMessage>()
         val collector = backgroundScope.launch { tree.deviceMessageFlow().collect { received.add(it) } }
+        runCurrent()
+
+        val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
+        child.events.emit(event)
+        runCurrent()
+        assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
+        collector.cancelAndJoin()
+        context.close()
+    }
+
+    @Test
+    fun testDeviceRegisteredBeforeCompositionCollectorStartsIsObserved() = runTest {
+        val context = Context("tree-composition-before-collector") {
+            coroutineContext(UnconfinedTestDispatcher(testScheduler))
+            plugin(DeviceManager)
+        }
+        val manager = context.request(DeviceManager)
+        val child = TestDevice()
+        val received = mutableListOf<DeviceMessage>()
+        val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            manager.deviceMessageFlow().collect { received.add(it) }
+        }
+        // runs after the flow producer and before the composition collector it launches
+        backgroundScope.launch { manager.registerDevice("child", child) }
         runCurrent()
 
         val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
