@@ -20,7 +20,10 @@
 
 - Bind late properties when the device is already started when it joins the tree.
 - Announce devices of a remote tree when their descriptions arrive.
-- Subscribe to device tree composition changes before reading the current composition.
+- Read the initial device tree composition in the coroutine that handles composition changes.
+- Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.
+- Keep scalar OPC payloads scalar when Meta contains only reserved `@opc` annotations.
+- Do not add storage anchor rows when compression is disabled.
 - Rebuild storage index intervals on start and wait for the directory monitor to stop.
 - Use the distant past as the timestamp of an empty state combination instead of failing.
 - Report an undefined alarm state for NaN values.
