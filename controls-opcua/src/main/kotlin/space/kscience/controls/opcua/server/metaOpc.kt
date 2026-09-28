@@ -10,6 +10,7 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UShort
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.toMeta
 import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.names.NameToken
 import java.time.Instant
 import java.util.*
 import kotlin.time.toJavaInstant
@@ -28,7 +29,7 @@ internal fun Meta.toOpc(
     sourceTime: DateTime? = null,
     serverTime: DateTime? = null
 ): DataValue {
-    val variant: Variant = if (isLeaf) {
+    val variant: Variant = if (items.keys.all { it == NameToken("@opc") }) {
         when (value?.type) {
             null, ValueType.NULL -> Variant.NULL_VALUE
             ValueType.NUMBER -> Variant(value!!.number)

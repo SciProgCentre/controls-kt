@@ -15,12 +15,11 @@ import org.apache.plc4x.java.DefaultPlcDriverManager
 import org.apache.plc4x.java.api.PlcConnection
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
-import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.client.readMetaWithTime
-import space.kscience.controls.opcua.server.fromOpc
+import space.kscience.controls.opcua.client.readMultipleMetaWithTime
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.storage.ControlsStoragePlugin
@@ -51,7 +50,6 @@ import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
-import kotlin.time.toKotlinInstant
 
 /**
  * The [PlcTagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
@@ -167,16 +165,10 @@ public class PlcTagTable(
         check(properties.all { it.value.source == source }) { "All properties must have the same source" }
         val client = resolveOpcClient(source)
 
-        val dataValues = client.readValuesAsync(
-            maxAge,
-            TimestampsToReturn.Server,
-            properties.map { NodeId.parse(it.value.nodeId) }
-        ).await()
+        val samples = client.readMultipleMetaWithTime(properties.map { NodeId.parse(it.value.nodeId) }, maxAge)
 
-        return properties.zip(dataValues).map { (entry, response) ->
-            val time = response.serverTime ?: error("No server time provided")
-            val meta: Meta = Meta.fromOpc(response.value.value)
-            entry.key to ValueWithTime(meta, time.javaInstant.toKotlinInstant())
+        return properties.zip(samples).map { (entry, sample) ->
+            entry.key to sample
         }
     }
 
