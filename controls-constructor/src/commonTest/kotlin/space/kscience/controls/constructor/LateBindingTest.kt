@@ -13,19 +13,23 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.Device
+import space.kscience.controls.api.DeviceLifeCycleMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.DeviceTreeChildDeviceChangedMessage
 import space.kscience.controls.api.DeviceTreeMessage
 import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -53,6 +57,15 @@ internal class LateBindingTest {
         override val messageFlow: Flow<DeviceMessage> = MutableSharedFlow<DeviceMessage>().onSubscription {
             state = LifecycleState.STARTED
         }
+    }
+
+    // lifecycle state and messages are set by the test; state reads are counted
+    private class ControlledDevice(delegate: ValueDevice, replay: Int = 0) : CachingDevice by delegate {
+        var state = LifecycleState.STOPPED
+        var stateReads = 0
+        override val lifecycleState: LifecycleState get() = state.also { stateReads++ }
+        val messages = MutableSharedFlow<DeviceMessage>(replay)
+        override val messageFlow: Flow<DeviceMessage> get() = messages
     }
 
     private suspend fun TestScope.withDeviceContext(name: String, block: suspend TestScope.(Context) -> Unit) {
@@ -135,6 +148,52 @@ internal class LateBindingTest {
             runCurrent()
 
             assertEquals(5.0, resolved.value.double)
+        }
+    }
+
+    @Test
+    fun testReplayedStartOfStoppedDeviceIsIgnored() = runTest {
+        withDeviceContext("replayed-start") { context ->
+            val root = MutableTree()
+            val resolved = root.resolvePropertyState(context, Name.of("child"), "value")
+            runCurrent()
+
+            val device = ControlledDevice(ValueDevice(context, 4.0), replay = 2)
+            device.messages.emit(DeviceLifeCycleMessage(Instant.DISTANT_PAST, LifecycleState.STARTED))
+            device.messages.emit(DeviceLifeCycleMessage(Instant.DISTANT_PAST, LifecycleState.STOPPED))
+            root.install("child", DeviceTree(device))
+            runCurrent()
+            assertNull(resolved.value.double)
+
+            device.state = LifecycleState.STARTED
+            device.messages.emit(DeviceLifeCycleMessage(Instant.DISTANT_PAST, LifecycleState.STARTED))
+            runCurrent()
+            assertEquals(4.0, resolved.value.double)
+        }
+    }
+
+    @Test
+    fun testPropertyMessagesDoNotRecheckLifecycleState() = runTest {
+        withDeviceContext("property-messages") { context ->
+            val root = MutableTree()
+            val resolved = root.resolvePropertyState(context, Name.of("child"), "value")
+            runCurrent()
+
+            val device = ControlledDevice(ValueDevice(context, 6.0))
+            root.install("child", DeviceTree(device))
+            runCurrent()
+            val reads = device.stateReads
+
+            repeat(10) {
+                device.messages.emit(PropertyChangedMessage(Instant.DISTANT_PAST, "value", Meta.EMPTY))
+            }
+            runCurrent()
+            assertEquals(reads, device.stateReads)
+
+            device.state = LifecycleState.STARTED
+            device.messages.emit(DeviceLifeCycleMessage(Instant.DISTANT_PAST, LifecycleState.STARTED))
+            runCurrent()
+            assertEquals(6.0, resolved.value.double)
         }
     }
 

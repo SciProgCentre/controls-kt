@@ -192,7 +192,7 @@ private fun Flow<*>.signals(): Flow<Unit> = channelFlow {
 }
 
 private suspend fun Device.awaitStarted(): Device {
-    messageFlow.signals().first { lifecycleState == LifecycleState.STARTED }
+    messageFlow.filterIsInstance<DeviceLifeCycleMessage>().signals().first { lifecycleState == LifecycleState.STARTED }
     return this
 }
 
