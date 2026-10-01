@@ -27,7 +27,6 @@ import space.kscience.dataforge.meta.set
 import space.kscience.tables.*
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.forEach
 import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.typeOf
 import kotlin.time.Clock
@@ -67,7 +66,7 @@ public class ReplayTagTable(
      */
     override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
-    override suspend fun readTagState(tag: String): TagState = tagStates[tag] ?: TagState.EMPTY
+    override suspend fun readTagQuality(tag: String): TagState = tagStates[tag] ?: TagState.EMPTY
 
     /**
      * Read current values of all tags
@@ -79,7 +78,7 @@ public class ReplayTagTable(
      *
      * @param interval the interval between row generation.
      */
-    override fun readTimeSeries(interval: Duration, withTagState: Boolean): TimeSeriesRows<Meta> {
+    override fun readTimeSeries(interval: Duration, withTagQuality: Boolean): TimeSeriesRows<Meta> {
 
         val propertyColumnHeaders: List<ColumnHeader<Meta>> = tags.map { (name, descriptor) ->
             SimpleColumnHeader(name, typeOf<Meta>(), Meta.EMPTY)
@@ -93,9 +92,9 @@ public class ReplayTagTable(
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 //FIXME process read errors
-                val values =if(withTagState){
+                val values =if(withTagQuality){
                     propertyColumnHeaders.associate { it.name to readTag(it.name) } +
-                            propertyColumnHeaders.associate { (it.name + TagState.TAG_STATE_SUFFIX) to readTagState(it.name).value }
+                            propertyColumnHeaders.associate { (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(it.name).value }
                 } else {
                     propertyColumnHeaders.associate { it.name to readTag(it.name) }
                 }
@@ -133,7 +132,7 @@ public class ReplayTagTable(
                         )
                     )
                 }
-                val tagState = row.getOrNull(tag + TagState.TAG_STATE_SUFFIX)
+                val tagState = row.getOrNull(tag + TagState.TAG_QUALITY_SUFFIX)
                 if(tagState != null) {
                     tagStates[tag] = TagState(tagState)
                 }

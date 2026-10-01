@@ -201,7 +201,7 @@ public class PlcTagTable(
         return values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
     }
 
-    override suspend fun readTagState(tag: String): TagState {
+    override suspend fun readTagQuality(tag: String): TagState {
         if (tag !in propertyNames) error("Tag $tag not found")
         return tagStates[tag] ?: TagState.EMPTY
     }
@@ -243,6 +243,7 @@ public class PlcTagTable(
                                 entries as List<Map.Entry<String, OpcTagTableColumn>>
                             ).forEach { (propertyName, value) ->
                                 values[propertyName] = value
+                                updateTagState(propertyName, TagState.GOOD_QUALITY)
                                 lastTime = if (value.time > lastTime) value.time else lastTime
                                 messageFlow.emit(
                                     PropertyChangedMessage(
@@ -397,13 +398,13 @@ public class PlcTagTable(
 
     public override fun readTimeSeries(
         interval: Duration,
-        withTagState: Boolean
+        withTagQuality: Boolean
     ): TimeSeriesRows<Meta> {
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
-                val values = if (withTagState) {
+                val values = if (withTagQuality) {
                     propertyColumnHeaders.associate { it.name to readTag(it.name) } +
-                            propertyColumnHeaders.associate { (it.name + TagState.TAG_STATE_SUFFIX) to readTagState(it.name).value }
+                            propertyColumnHeaders.associate { (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(it.name).value }
                 } else {
                     propertyColumnHeaders.associate { it.name to readTag(it.name) }
                 }

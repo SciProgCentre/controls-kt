@@ -12,7 +12,10 @@ import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.io.Envelope
-import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.names.Name
 import space.kscience.tables.SimpleColumnHeader
 import kotlin.reflect.typeOf
@@ -45,7 +48,7 @@ class FlowBinaryDataTest {
 
             override fun readAllValues(): Map<String, Meta> = mapOf("value" to Meta(999))
 
-            override fun readTimeSeries(interval: Duration, withTagState: Boolean): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
+            override fun readTimeSeries(interval: Duration, withTagQuality: Boolean): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
                 override val headers = this@FlowBinaryDataTest.headers
                 override fun subscribe() = samples.asFlow()
             }
