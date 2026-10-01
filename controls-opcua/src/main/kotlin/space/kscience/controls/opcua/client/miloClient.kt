@@ -72,30 +72,32 @@ internal fun Context.createOpcUaClient(
 
 
 /**
- * Read OPC-UA value as [Meta] with timestamp
+ * Read OPC-UA value as [Meta], retaining DataValue provenance in `@opc`.
+ * The sample timestamp remains the server time; a missing server time fails the read.
  */
 public suspend fun OpcUaClient.readMetaWithTime(
     nodeId: NodeId,
     maxAge: Double = 500.0
 ): ValueWithTime<Meta> {
-    val data: DataValue = readValuesAsync(maxAge, TimestampsToReturn.Server, listOf(nodeId)).await().first()
+    val data: DataValue = readValuesAsync(maxAge, TimestampsToReturn.Both, listOf(nodeId)).await().first()
     val time = data.serverTime ?: error("No server time provided")
-    val meta: Meta = Meta.fromOpc(data.value.value)
+    val meta: Meta = Meta.fromOpc(data)
 
     return ValueWithTime(meta, time.javaInstant.toKotlinInstant())
 }
 
 /**
- * Read multiple OPC-UA values as [Meta] in a single request
+ * Read multiple OPC-UA values as [Meta] in a single request, retaining provenance in `@opc`.
+ * Each sample uses its server time; source time is retained separately when available.
  */
 public suspend fun OpcUaClient.readMultipleMetaWithTime(
     nodeIds: List<NodeId>,
     maxAge: Double = 500.0
-): List<ValueWithTime<Meta>> = readValuesAsync(maxAge, TimestampsToReturn.Server, nodeIds)
+): List<ValueWithTime<Meta>> = readValuesAsync(maxAge, TimestampsToReturn.Both, nodeIds)
     .await()
     .map {
         ValueWithTime(
-            value = Meta.fromOpc(it.value.value),
+            value = Meta.fromOpc(it),
             time = (it.serverTime ?: error("No server time provided")).javaInstant.toKotlinInstant()
         )
     }
