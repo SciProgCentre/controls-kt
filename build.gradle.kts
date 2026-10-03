@@ -10,6 +10,7 @@ allprojects {
     group = "space.kscience"
     version = "0.5.0-dev-2"
     repositories{
+        mavenLocal()
         google()
     }
     tasks.withType<AbstractTestTask>().configureEach {

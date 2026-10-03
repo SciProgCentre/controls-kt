@@ -32,6 +32,7 @@ dependencyResolutionManagement {
     repositories {
         mavenLocal()
         mavenCentral()
+        google()
         maven("https://repo.kotlin.link")
     }
 
@@ -70,7 +71,7 @@ include(
     ":controls-storage:controls-xodus",
     ":controls-storage:controls-exposed",
     ":controls-constructor",
-    ":controls-expressions",
+    ":controls-functions",
     ":controls-visualisation-compose",
     ":controls-vision",
     ":controls-jupyter",

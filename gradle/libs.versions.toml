@@ -2,7 +2,7 @@
 
 dataforge = "0.11.1"
 visionforge = "0.5.2"
-kmath = "0.5.0"
+kmath = "0.5.1-dev"
 
 rsocket = "0.20.0"
 xodus = "2.0.1"
