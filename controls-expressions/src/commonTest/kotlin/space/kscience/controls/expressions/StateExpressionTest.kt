@@ -200,7 +200,7 @@ class StateExpressionTest {
                 ConstructorDeviceConfiguration(
                     properties = mapOf(
                         "short" to PropertyConfiguration("expression", parameters),
-                        "full" to PropertyConfiguration("controls.constructor.expression", parameters),
+                        "full" to PropertyConfiguration("controls-expression.expression", parameters),
                     ),
                 ),
             )
@@ -210,9 +210,9 @@ class StateExpressionTest {
             assertSame(ExpressionValueStateFactory, constructor.resolveValueStateFactory("expression"))
             assertSame(
                 ExpressionValueStateFactory,
-                constructor.resolveValueStateFactory("controls.constructor.expression")
+                constructor.resolveValueStateFactory("controls-expression.expression")
             )
-            assertEquals(setOf("expression", "deviceProperty"), constructor.valueStateFactories.keys)
+            assertEquals(setOf("expression", "deviceProperty", "math"), constructor.valueStateFactories.keys)
             assertNull(constructor.resolveValueStateFactory("missing"))
         } finally {
             context.close()
@@ -224,11 +224,12 @@ class StateExpressionTest {
         val context = Context("build-value-factory-name") {
             coroutineContext(backgroundScope.coroutineContext)
             plugin(ConstructorPlugin)
+            plugin(ControlsExpressionPlugin)
         }
         try {
             val constructor = context.request(ConstructorPlugin)
             val state = constructor.buildValueState(Meta {
-                "type" put "controls.constructor.expression"
+                "type" put "controls-expression.expression"
                 set(ExpressionValueStateFactory.expression, StateExpression.Constant("pi", Meta.EMPTY))
             })
 
@@ -236,7 +237,7 @@ class StateExpressionTest {
             val error = assertFailsWith<IllegalStateException> {
                 constructor.buildValueState(Meta { "type" put "missing" })
             }
-            assertContains(error.message.orEmpty(), "controls.constructor.expression")
+            assertContains(error.message.orEmpty(), "controls-expression.expression")
             assertContains(error.message.orEmpty(), "controls.constructor.deviceProperty")
         } finally {
             context.close()
@@ -317,6 +318,7 @@ class StateExpressionTest {
         val context = Context("named-binding-inputs") {
             coroutineContext(backgroundScope.coroutineContext)
             plugin(ConstructorPlugin)
+            plugin(ControlsExpressionPlugin)
             plugin(InputsPlugin)
         }
         try {
@@ -344,6 +346,7 @@ class StateExpressionTest {
         val context = Context("nested-device-binding") {
             coroutineContext(backgroundScope.coroutineContext)
             plugin(ConstructorPlugin)
+            plugin(ControlsExpressionPlugin)
             plugin(InputsPlugin)
         }
         try {
