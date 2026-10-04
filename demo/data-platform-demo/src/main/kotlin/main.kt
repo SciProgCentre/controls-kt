@@ -19,6 +19,7 @@ import space.kscience.controls.api.onPropertyChange
 import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.install
 import space.kscience.controls.demo.visual.DeviceVisualisation
+import space.kscience.controls.expressions.ControlsExpressionPlugin
 import space.kscience.controls.manager.install
 import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.TagTableDevice
@@ -67,6 +68,7 @@ fun main() {
     val context = Context {
         plugin(IOPlugin)
         plugin(TagTablePlugin)
+        plugin(ControlsExpressionPlugin)
         plugin(ControlsUtilitiesPlugin)
         plugin(SlfLogManager)
     }

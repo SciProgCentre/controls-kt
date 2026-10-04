@@ -1,12 +1,9 @@
 package space.kscience.controls.expressions
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.serialization.Serializable
-import space.kscience.controls.constructor.ConstructorPlugin
-import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.ValueStateFactory
+import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.expressions.differentiate
 import space.kscience.controls.constructor.expressions.integrate
-import space.kscience.controls.constructor.map
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.kmath.expressions.Expression
@@ -20,11 +17,10 @@ import kotlin.time.Duration.Companion.seconds
 
 public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
 
-    @Serializable
-    public data class DependencySpec(val symbol: String, val configuration: Meta)
+    public const val TYPE: String = "math"
 
     public val expression: MetaRef<String> by string()
-    public val dependencies: MetaRef<List<DependencySpec>> by serializable()
+    public val arguments: MetaRef<Map<String, ValueStateConfiguration>> by serializable()
 
     public val arg: Symbol by symbol
 
@@ -43,6 +39,10 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
 
         "integrateDay" to { argValue ->
             argValue.integrate(1.days, scope)
+        },
+
+        "diff" to { argValue ->
+            argValue.differentiate(scope)
         }
     )
 
@@ -64,17 +64,27 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
             context.plugins[ConstructorPlugin] ?: error("Constructor plugin is not found in context")
         val expression = meta[expression] ?: error("Expression is not defined in meta")
 
-        val dependencies = meta[dependencies]?.associate {
-            it.symbol to constructorManager.buildValueState(it.configuration)
+        val arguments = meta[arguments]?.mapValues { (key, configuration) ->
+            constructorManager.buildValueState(configuration)
         } ?: emptyMap()
 
 
         return ValueStateAlgebra.interpret(
             expression = expression,
-            bindings = dependencies.entries.associate { (key, value) -> Symbol(key) to value.map { it.double } },
+            bindings = arguments.entries.associate { (key, value) -> Symbol(key) to value.map { it.double } },
             unaryOperations = defaultUnaryOperations(context),
             functions = defaultFunctions(context)
         ).map { if (it == null) Meta.EMPTY else Meta(it) }
     }
-
 }
+
+/**
+ * Create configuration to invoke for MathValueStateFactory
+ */
+public fun ValueStateConfiguration.Companion.math(
+    expression: String,
+    arguments: Map<String, ValueStateConfiguration> = emptyMap()
+): ValueStateConfiguration = ValueStateConfiguration(MathValueStateFactory.TYPE, Meta {
+    set(MathValueStateFactory.expression, expression)
+    set(MathValueStateFactory.arguments, arguments)
+})

@@ -4,13 +4,16 @@
 
 ### Added
 
+- Add tests for numerical correctness for `integrate` and `differentiate`.
+- Add tests for formula-based `math` expressions and `MathValueStateFactory`.
 - Separate module controls-expressions to evaluate expressions on ValueState
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
 - Add division, mean and numeric constants to state expressions.
 - Read holding registers, coils, discrete inputs and float values in Modbus tag table columns.
 
 ### Changed
-
+- StateExpressions renamed to ValueStateExpressions.
+- Expressions moved to a separate module.
 - **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
 
 ### Deprecated
@@ -19,6 +22,8 @@
 
 ### Fixed
 
+- Fix trapezoid accumulation and initial state in `ValueState.integrate`.
+- Fix duplicate registration of `deviceProperty` factory in `ControlsExpressionPlugin` and dependency list serialization in `MathValueStateFactory`.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.
 - Keep scalar OPC payloads scalar when Meta contains only reserved `@opc` annotations.
 - Do not add storage anchor rows when compression is disabled.

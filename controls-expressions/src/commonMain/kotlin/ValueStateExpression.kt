@@ -5,7 +5,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.getValue
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
@@ -21,38 +20,38 @@ import kotlin.properties.ReadOnlyProperty
  * A tree of expressions that can be evaluated to a value
  */
 @Serializable
-public sealed interface StateExpression {
-    public val dependencies: Set<StateExpression>
+public sealed interface ValueStateExpression {
+    public val dependencies: Set<ValueStateExpression>
 
     @Serializable
     @SerialName("unary")
     public data class Unary(
         public val operation: String,
-        public val argument: StateExpression,
+        public val argument: ValueStateExpression,
         public val parameters: Meta = Meta.EMPTY
-    ) : StateExpression {
-        override val dependencies: Set<StateExpression> get() = setOf(argument)
+    ) : ValueStateExpression {
+        override val dependencies: Set<ValueStateExpression> get() = setOf(argument)
     }
 
     @Serializable
     @SerialName("binary")
     public data class Binary(
         public val operation: String,
-        public val left: StateExpression,
-        public val right: StateExpression,
+        public val left: ValueStateExpression,
+        public val right: ValueStateExpression,
         public val parameters: Meta = Meta.EMPTY
-    ) : StateExpression {
-        override val dependencies: Set<StateExpression> get() = left.dependencies + right.dependencies
+    ) : ValueStateExpression {
+        override val dependencies: Set<ValueStateExpression> get() = left.dependencies + right.dependencies
     }
 
     @Serializable
     @SerialName("nary")
     public data class Nary(
         public val operation: String,
-        public val arguments: Map<String, StateExpression>,
+        public val arguments: Map<String, ValueStateExpression>,
         public val parameters: Meta = Meta.EMPTY
-    ) : StateExpression {
-        override val dependencies: Set<StateExpression> get() = arguments.values.toSet()
+    ) : ValueStateExpression {
+        override val dependencies: Set<ValueStateExpression> get() = arguments.values.toSet()
     }
 
     /**
@@ -65,8 +64,8 @@ public sealed interface StateExpression {
         public val propertyName: String,
         public val path: Name = Name.EMPTY,
         public val parameters: Meta = Meta.EMPTY
-    ) : StateExpression {
-        override val dependencies: Set<StateExpression> get() = emptySet()
+    ) : ValueStateExpression {
+        override val dependencies: Set<ValueStateExpression> get() = emptySet()
     }
 
     /**
@@ -79,28 +78,28 @@ public sealed interface StateExpression {
         public val parameters: Meta,
         public val valuePath: Name = Name.EMPTY,
         public val defaultValue: Double? = null
-    ) : StateExpression {
-        override val dependencies: Set<StateExpression> get() = emptySet()
+    ) : ValueStateExpression {
+        override val dependencies: Set<ValueStateExpression> get() = emptySet()
     }
 
     @Serializable
     @SerialName("constant")
-    public class Constant(public val name: String, public val parameters: Meta) : StateExpression {
-        override val dependencies: Set<StateExpression> get() = emptySet()
+    public class Constant(public val name: String, public val parameters: Meta) : ValueStateExpression {
+        override val dependencies: Set<ValueStateExpression> get() = emptySet()
     }
 }
 
 /**
- * A context for evaluating [StateExpression]
+ * A context for evaluating [ValueStateExpression]
  */
 public class StateExpressionContext(
     public val context: Context,
     public val hub: DeviceTree,
     public val scope: CoroutineScope = context
 ) {
-    public fun computeState(expression: StateExpression): ValueState<Double?> = when (expression) {
+    public fun computeState(expression: ValueStateExpression): ValueState<Double?> = when (expression) {
 
-        is StateExpression.Unary -> when (expression.operation) {
+        is ValueStateExpression.Unary -> when (expression.operation) {
             "-", "negate", "negative" -> computeState(expression.argument).map {
                 if (it == null) return@map null
                 -it
@@ -140,7 +139,7 @@ public class StateExpressionContext(
             else -> error("Unknown unary operation: ${expression.operation}")
         }
 
-        is StateExpression.Binary -> when (expression.operation) {
+        is ValueStateExpression.Binary -> when (expression.operation) {
             "+", "plus" -> ValueState.combine(
                 scope = scope,
                 state1 = computeState(expression.left),
@@ -180,7 +179,7 @@ public class StateExpressionContext(
             else -> error("Unknown binary operation: ${expression.operation}")
         }
 
-        is StateExpression.Nary -> when (expression.operation) {
+        is ValueStateExpression.Nary -> when (expression.operation) {
             "sum" -> ValueState.combine(
                 scope = scope,
                 states = expression.arguments.values.map { computeState(it) }
@@ -199,14 +198,14 @@ public class StateExpressionContext(
             else -> error("Unknown Nary operation: ${expression.operation}")
         }
 
-        is StateExpression.Constant -> when (expression.name) {
+        is ValueStateExpression.Constant -> when (expression.name) {
             "pi", "Pi", "PI" -> ValueState(PI)
             "e" -> ValueState(E)
             else -> expression.parameters["value"]?.double?.let { ValueState(it) }
                 ?: error("Unknown constant: ${expression.name}")
         }
 
-        is StateExpression.Property -> {
+        is ValueStateExpression.Property -> {
             val device = hub.resolveDevice(expression.deviceName)
 
             if (expression.path.isEmpty()) {
@@ -217,7 +216,7 @@ public class StateExpressionContext(
             }
         }
 
-        is StateExpression.State -> {
+        is ValueStateExpression.State -> {
             val constructor = context.request(ConstructorPlugin)
 
             val state = constructor.buildValueState(expression.parameters, expression.valueStateType)
@@ -233,7 +232,7 @@ public class StateExpressionContext(
 /**
  * Factory for creating instances of [ValueState] based on state expressions.
  *
- * This class represents a factory that processes a [StateExpression]
+ * This class represents a factory that processes a [ValueStateExpression]
  * within a given context to produce a corresponding [ValueState]. It serves
  * as a connection between high-level metadata and the underlying observable
  * state values.
@@ -249,12 +248,12 @@ public class StateExpressionContext(
  * to indicate the misconfiguration.
  *
  * Key features:
- * - Processes a [StateExpression] from metadata to compute a [ValueState].
+ * - Processes a [ValueStateExpression] from metadata to compute a [ValueState].
  * - Manages dependencies through the [DeviceManager] plugin in the context.
  * - Supports the evaluation of expressions using the [StateExpressionContext].
  *
  * Properties:
- * - `expression`: References the [StateExpression] metadata item used
+ * - `expression`: References the [ValueStateExpression] metadata item used
  *   to evaluate and compute the state.
  *
  * Implements:
@@ -263,9 +262,12 @@ public class StateExpressionContext(
  */
 public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
 
-    public val expressionConverter: MetaConverter<StateExpression> = MetaConverter.serializable<StateExpression>()
+    public const val TYPE: String = "expression"
 
-    public val expression: MetaRef<StateExpression> by item(expressionConverter)
+    public val expressionConverter: MetaConverter<ValueStateExpression> =
+        MetaConverter.serializable<ValueStateExpression>()
+
+    public val expression: MetaRef<ValueStateExpression> by item(expressionConverter)
 
     override fun build(
         context: Context,
@@ -281,20 +283,18 @@ public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
             if (it == null) Meta.EMPTY else Meta(it)
         }
     }
-
-    /**
-     * Create metadata for StateExpression value factory
-     */
-    public fun buildMeta(
-        stateExpression: StateExpression
-    ): Meta = Meta {
-        set(expression, stateExpression)
-    }
-
 }
 
+public fun ValueStateConfiguration.Companion.expression(
+    expression: ValueStateExpression
+): ValueStateConfiguration = ValueStateConfiguration(
+    ExpressionValueStateFactory.TYPE,
+    Meta {
+        set(ExpressionValueStateFactory.expression, expression)
+    })
+
 public fun DeviceConstructor.expression(
-    expression: StateExpression,
+    expression: ValueStateExpression,
     propertyDescriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double?>>> =

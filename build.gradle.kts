@@ -8,8 +8,8 @@ plugins {
 
 allprojects {
     group = "space.kscience"
-    version = "0.5.0-dev-2"
-    repositories{
+    version = "0.5.0-dev-3"
+    repositories {
         mavenLocal()
         google()
     }
@@ -23,7 +23,7 @@ kscienceProject {
         useApache2Licence()
         useSPCTeam()
     }
-    publishTo("spc","https://maven.sciprog.center/kscience")
+    publishTo("spc", "https://maven.sciprog.center/kscience")
     publishToCentral()
 }
 

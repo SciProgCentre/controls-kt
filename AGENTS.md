@@ -7,3 +7,4 @@
 ## Specific code guidelines
 
 * When converting string constant to a DataForge Name, use `parseAsName()` if name string has several tokens separated by dots.
+* When creating tests, ensure that minimal number of tests is used to cover functionality to avoid increasing code size and build time.

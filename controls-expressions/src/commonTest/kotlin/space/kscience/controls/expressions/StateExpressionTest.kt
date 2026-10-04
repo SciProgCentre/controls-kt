@@ -3,8 +3,8 @@ package space.kscience.controls.constructor
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.expressions.ExpressionValueStateFactory
-import space.kscience.controls.constructor.expressions.StateExpression
 import space.kscience.controls.constructor.expressions.StateExpressionContext
+import space.kscience.controls.constructor.expressions.ValueStateExpression
 import space.kscience.controls.constructor.expressions.expression
 import space.kscience.controls.expressions.ControlsExpressionPlugin
 import space.kscience.controls.manager.DeviceManager
@@ -31,11 +31,11 @@ class StateExpressionTest {
         try {
             val stateExpressionContext = StateExpressionContext(context, DeviceTree(), backgroundScope)
 
-            val a = StateExpression.Constant("pi", Meta.EMPTY)
+            val a = ValueStateExpression.Constant("pi", Meta.EMPTY)
             val state = stateExpressionContext.computeState(a)
             assertEquals(PI, state.value)
 
-            val b = StateExpression.Binary("+", a, a)
+            val b = ValueStateExpression.Binary("+", a, a)
             val state2 = stateExpressionContext.computeState(b)
             assertEquals(PI * 2, state2.value)
         } finally {
@@ -48,10 +48,10 @@ class StateExpressionTest {
         val y by virtualProperty(MetaConverter.double, 2.0)
 
         val zState by expression(
-            StateExpression.Binary(
+            ValueStateExpression.Binary(
                 operation = "+",
-                left = StateExpression.Property(deviceName = Name.of("test"), propertyName = "x"),
-                right = StateExpression.Property(deviceName = Name.of("test"), propertyName = "y")
+                left = ValueStateExpression.Property(deviceName = Name.of("test"), propertyName = "x"),
+                right = ValueStateExpression.Property(deviceName = Name.of("test"), propertyName = "y")
             )
         )
     }
@@ -79,49 +79,55 @@ class StateExpressionTest {
         val nullValue by virtualProperty(MetaConverter.double.nullable(), null)
 
         val divisionState by expression(
-            StateExpression.Binary(
+            ValueStateExpression.Binary(
                 operation = "/",
-                left = StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six"),
-                right = StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "three")
+                left = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six"),
+                right = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "three")
             )
         )
 
         val divisionWithNullState by expression(
-            StateExpression.Binary(
+            ValueStateExpression.Binary(
                 operation = "/",
-                left = StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six"),
-                right = StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue")
+                left = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six"),
+                right = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue")
             )
         )
 
         val meanState by expression(
-            StateExpression.Nary(
+            ValueStateExpression.Nary(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "one"),
-                    "b" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "two"),
-                    "c" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six")
+                    "a" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "one"),
+                    "b" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "two"),
+                    "c" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six")
                 )
             )
         )
 
         val meanWithNullState by expression(
-            StateExpression.Nary(
+            ValueStateExpression.Nary(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "one"),
-                    "b" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue"),
-                    "c" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "three")
+                    "a" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "one"),
+                    "b" to ValueStateExpression.Property(
+                        deviceName = Name.of("arithmetic"),
+                        propertyName = "nullValue"
+                    ),
+                    "c" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "three")
                 )
             )
         )
 
         val meanAllNullState by expression(
-            StateExpression.Nary(
+            ValueStateExpression.Nary(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue"),
-                    "b" to StateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue")
+                    "a" to ValueStateExpression.Property(
+                        deviceName = Name.of("arithmetic"),
+                        propertyName = "nullValue"
+                    ),
+                    "b" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue")
                 )
             )
         )
@@ -168,11 +174,11 @@ class StateExpressionTest {
         try {
             val stateExpressionContext = StateExpressionContext(context, DeviceTree(), backgroundScope)
 
-            val gravity = StateExpression.Constant("gravity", Meta { "value" put 9.81 })
+            val gravity = ValueStateExpression.Constant("gravity", Meta { "value" put 9.81 })
             assertEquals(9.81, stateExpressionContext.computeState(gravity).value)
 
             assertFailsWith<IllegalStateException> {
-                stateExpressionContext.computeState(StateExpression.Constant("unknown", Meta.EMPTY))
+                stateExpressionContext.computeState(ValueStateExpression.Constant("unknown", Meta.EMPTY))
             }
         } finally {
             context.close()
@@ -180,9 +186,8 @@ class StateExpressionTest {
     }
 
 
-    private fun constantProperty(name: String): PropertyConfiguration = PropertyConfiguration(
-        type = "expression",
-        parameters = ExpressionValueStateFactory.buildMeta(StateExpression.Constant(name, Meta.EMPTY)),
+    private fun constantProperty(name: String): ValueStateConfiguration = ValueStateConfiguration.expression(
+        ValueStateExpression.Constant(name, Meta.EMPTY)
     )
 
 
@@ -195,12 +200,14 @@ class StateExpressionTest {
         }
         try {
             val constructor = context.request(ConstructorPlugin)
-            val parameters = ExpressionValueStateFactory.buildMeta(StateExpression.Constant("pi", Meta.EMPTY))
+            val parameters = Meta {
+                set(ExpressionValueStateFactory.expression, ValueStateExpression.Constant("pi", Meta.EMPTY))
+            }
             val tree = constructor.construct(
                 ConstructorDeviceConfiguration(
                     properties = mapOf(
-                        "short" to PropertyConfiguration("expression", parameters),
-                        "full" to PropertyConfiguration("controls-expression.expression", parameters),
+                        "short" to ValueStateConfiguration("expression", parameters),
+                        "full" to ValueStateConfiguration("controls-expression.expression", parameters),
                     ),
                 ),
             )
@@ -229,8 +236,8 @@ class StateExpressionTest {
         try {
             val constructor = context.request(ConstructorPlugin)
             val state = constructor.buildValueState(Meta {
-                "type" put "controls-expression.expression"
-                set(ExpressionValueStateFactory.expression, StateExpression.Constant("pi", Meta.EMPTY))
+                "type" put "expression"
+                set(ExpressionValueStateFactory.expression, ValueStateExpression.Constant("pi", Meta.EMPTY))
             })
 
             assertEquals(PI, state.value.double)
@@ -257,8 +264,8 @@ class StateExpressionTest {
                 registerProperty(name = "value", converter = MetaConverter.double, state = ValueState(PI))
             }
             constructor.deviceManager.registerDevice("source", source)
-            val expression = StateExpression.State(
-                valueStateType = "controls.constructor.deviceProperty",
+            val expression = ValueStateExpression.State(
+                valueStateType = "deviceProperty",
                 parameters = Meta {
                     set(DeviceValueStateFactory.deviceName, "source")
                     set(DeviceValueStateFactory.propertyName, "value")
@@ -267,12 +274,9 @@ class StateExpressionTest {
             val tree = constructor.construct(
                 ConstructorDeviceConfiguration(
                     properties = mapOf(
-                        "value" to PropertyConfiguration(
-                            "expression",
-                            ExpressionValueStateFactory.buildMeta(expression)
-                        ),
-                    ),
-                ),
+                        "value" to ValueStateConfiguration.expression(expression)
+                    )
+                )
             )
 
             assertEquals(PI, tree.getCachedProperty("value")?.double)

@@ -48,6 +48,8 @@ public interface ValueStateFactory : Factory<ValueState<Meta>>, Described {
  */
 public object DeviceValueStateFactory : ValueStateFactory, MetaSpec() {
 
+    public const val TYPE: String = "deviceProperty"
+
     public val deviceName: MetaRef<String> by string()
 
     public val propertyName: MetaRef<String> by string()

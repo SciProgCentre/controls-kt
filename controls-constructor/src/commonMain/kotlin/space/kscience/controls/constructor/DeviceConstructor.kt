@@ -318,7 +318,7 @@ public fun DeviceConstructor.install(name: String, block: DeviceConstructor.() -
 /**
  * Register read-only property based on [state]
  */
-public fun <T : Any> DeviceConstructor.registerProperty(
+public fun <T> DeviceConstructor.registerProperty(
     name: String,
     converter: MetaConverter<T>,
     state: ValueState<T>,
@@ -337,7 +337,7 @@ public fun <T : Any> DeviceConstructor.registerProperty(
 /**
  * Register a mutable property based on mutable [state]
  */
-public fun <T : Any> DeviceConstructor.registerMutableProperty(
+public fun <T> DeviceConstructor.registerMutableProperty(
     name: String,
     converter: MetaConverter<T>,
     state: MutableValueState<T>,
@@ -358,7 +358,7 @@ public fun <T : Any> DeviceConstructor.registerMutableProperty(
  * Create a new virtual mutable state and a property based on it.
  * @return the mutable state used in property
  */
-public fun <T : Any> DeviceConstructor.registerVirtualProperty(
+public fun <T> DeviceConstructor.registerVirtualProperty(
     name: String,
     initialValue: T,
     converter: MetaConverter<T>,
@@ -422,7 +422,7 @@ public fun <T, S : ValueState<T>> DeviceConstructor.property(
 /**
  * Register an external state as a property
  */
-public fun <T : Any> DeviceConstructor.property(
+public fun <T> DeviceConstructor.property(
     metaConverter: MetaConverter<T>,
     reader: suspend () -> T,
     readInterval: Duration,
@@ -444,7 +444,7 @@ public fun <T : Any> DeviceConstructor.property(
 /**
  * Create and register a mutable external state as a property
  */
-public fun <T : Any> DeviceConstructor.mutableProperty(
+public fun <T> DeviceConstructor.mutableProperty(
     metaConverter: MetaConverter<T>,
     reader: suspend () -> T,
     writer: suspend (T) -> Unit,

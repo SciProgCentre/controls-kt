@@ -62,7 +62,7 @@ data class CanvasNode(
     val type: CanvasNodeType,
     val position: Offset,
     val size: IntSize = IntSize(240, 160),
-    val properties: Map<String, PropertyConfiguration> = emptyMap(),
+    val properties: Map<String, ValueStateConfiguration> = emptyMap(),
     val inputPorts: List<String> = listOf(DEFAULT_INPUT_NAME),
     val outputPorts: List<String> = emptyList(),
     val isTemplate: Boolean = false,
@@ -374,7 +374,7 @@ class DeviceConfiguratorModel(
         val trimmed = propertyName.trim()
         if (trimmed.isEmpty()) return
         updateSubConfiguration(devicePath) { target ->
-            val updatedProps = target.properties + (trimmed to PropertyConfiguration(
+            val updatedProps = target.properties + (trimmed to ValueStateConfiguration(
                 type = factoryType,
                 parameters = parameters
             ))
@@ -421,7 +421,7 @@ class DeviceConfiguratorModel(
         updateSubConfiguration(devicePath) { target ->
             val mutableProps = target.properties.toMutableMap()
             mutableProps.remove(oldName)
-            mutableProps[trimmed] = PropertyConfiguration(
+            mutableProps[trimmed] = ValueStateConfiguration(
                 type = type,
                 parameters = parameters,
                 metadata = metadata

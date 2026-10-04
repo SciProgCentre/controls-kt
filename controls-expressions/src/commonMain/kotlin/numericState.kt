@@ -22,7 +22,7 @@ public fun <T : Any> ValueWithTime<T?>.withDefault(default: T): ValueWithTime<T>
 }
 
 /**
- * Calculates a rolling sample sum, using the source value at construction as the default [startingValue].
+ * Calculates a rolling time trapezoid integral, using the source value at construction as the default [startingValue].
  * Adds a sample only when its time is later than the current result's time. Every event, including
  * null and out-of-order samples, trims the [window] and republishes the result with its own time.
  */
@@ -41,7 +41,20 @@ public fun ValueState<Double?>.integrate(
                 history.add(ValueWithTime(value, time))
             }
             history.removeAll { it.time < (time - window) }
-            state.emit(ValueWithTime(history.sumOf { it.value }, time))
+
+            var integral = 0.0
+            if (history.isNotEmpty()) {
+                var previous = history.first()
+
+                for (i in 1 until history.size) {
+                    val current = history[i]
+                    val dt = (current.time - previous.time).toDouble(DurationUnit.SECONDS)
+                    integral += (previous.value + current.value) / 2.0 * dt
+                    previous = current
+                }
+            }
+
+            state.emit(ValueWithTime(integral, time))
         }
     }.launchIn(scope)
 

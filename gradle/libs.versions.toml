@@ -115,5 +115,6 @@ testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "t
 
 [plugins]
 
+compose-jb = {id = "org.jetbrains.compose", version.ref = "compose" }
 versions = "com.github.ben-manes.versions:0.51.0"
 versions-update = "nl.littlerobots.version-catalog-update:0.8.4"

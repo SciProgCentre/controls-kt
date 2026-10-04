@@ -50,10 +50,13 @@ public class ConstructorPlugin : AbstractPlugin() {
     ): ValueState<Meta> = resolveValueStateFactory(type)?.build(context, parameters)
         ?: error("No value state factory for type $type. Available factories: ${valueStateFactoriesByName.keys.sortedBy { it.toString() }}")
 
+    public fun buildValueState(
+        valueStateConfiguration: ValueStateConfiguration
+    ): ValueState<Meta> = buildValueState(valueStateConfiguration.parameters, valueStateConfiguration.type)
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> mapOf(
-            Name.of("deviceProperty") to DeviceValueStateFactory,
+            Name.of(DeviceValueStateFactory.TYPE) to DeviceValueStateFactory,
         )
 
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(

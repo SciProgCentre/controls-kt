@@ -1,30 +1,18 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.api.Device
-import space.kscience.controls.api.DeviceFactory
-import space.kscience.controls.api.resolveDevice
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.dataforge.context.AbstractPlugin
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
-import kotlin.math.E
-import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertNull
-import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.seconds
 
 class ConstructorPluginTest {
@@ -61,7 +49,7 @@ class ConstructorPluginTest {
             val error = assertFailsWith<IllegalStateException> {
                 constructor.construct(
                     ConstructorDeviceConfiguration(
-                        properties = mapOf("value" to PropertyConfiguration("constant", Meta.EMPTY)),
+                        properties = mapOf("value" to ValueStateConfiguration("constant", Meta.EMPTY)),
                     ),
                 )
             }
@@ -70,8 +58,8 @@ class ConstructorPluginTest {
             val tree = constructor.construct(
                 ConstructorDeviceConfiguration(
                     properties = mapOf(
-                        "first" to PropertyConfiguration("a.constant", Meta.EMPTY),
-                        "second" to PropertyConfiguration("b.constant", Meta.EMPTY),
+                        "first" to ValueStateConfiguration("a.constant", Meta.EMPTY),
+                        "second" to ValueStateConfiguration("b.constant", Meta.EMPTY),
                     ),
                 ),
             )
