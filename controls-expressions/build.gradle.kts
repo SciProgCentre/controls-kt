@@ -16,6 +16,7 @@ kscience {
     }
 
     js()
+    native()
 
     useCoroutines()
     useSerialization()
@@ -28,6 +29,7 @@ kscience {
 
     commonTest {
         implementation(spclibs.logback.classic)
+        implementation(projects.controlsExpressions)
     }
 }
 

@@ -17,6 +17,7 @@ kscience {
 
     commonMain {
         api(projects.controlsConstructor)
+        api(projects.controlsExpressions)
     }
 }
 

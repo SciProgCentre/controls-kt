@@ -71,7 +71,7 @@ include(
     ":controls-storage:controls-xodus",
     ":controls-storage:controls-exposed",
     ":controls-constructor",
-    ":controls-functions",
+    ":controls-expressions",
     ":controls-visualisation-compose",
     ":controls-vision",
     ":controls-jupyter",

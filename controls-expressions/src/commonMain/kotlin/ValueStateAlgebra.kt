@@ -1,15 +1,11 @@
 package space.kscience.controls.expressions
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.map
-import space.kscience.controls.constructor.transformNotNull
+import space.kscience.controls.constructor.ValueStateWithDependencies
 import space.kscience.controls.time.ValueWithTime
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.double
 import space.kscience.kmath.ast.parseMath
 import space.kscience.kmath.ast.rendering.FeaturedMathRendererWithPostProcess
 import space.kscience.kmath.ast.rendering.LatexSyntaxRenderer
@@ -28,33 +24,35 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
     /**
      * A value state that holds MST expression and dependencies and computes value on demand
      */
-    private inner class MstValueState(
+    private class MstValueState(
         val mst: MST,
-        val dependencies: Map<Symbol, ValueState<Double?>>
-    ) : ValueState<Double?> {
+        val args: Map<Symbol, ValueState<Double?>>
+    ) : ValueStateWithDependencies<Double?> {
+
+        override val dependencies: Collection<ValueState<*>> get() = args.values
 
         override val value: Double?
             get() {
-                val dependencyValues = dependencies.mapValues { it.value.value ?: return null }
+                val dependencyValues = args.mapValues { it.value.value ?: return null }
                 return mst.interpret(Float64Field, dependencyValues)
             }
 
 
         override val valueWithTime: ValueWithTime<Double?>
             get() {
-                val dependencyValues = dependencies.mapValues { it.value.valueWithTime }
+                val dependencyValues = args.mapValues { it.value.valueWithTime }
                 val time = dependencyValues.maxOf { it.value.time }
                 val value = mst.interpret(
                     algebra = Float64Field,
-                    arguments = dependencies.mapValues { it.value.value ?: return ValueWithTime(null, time) }
+                    arguments = args.mapValues { it.value.value ?: return ValueWithTime(null, time) }
                 )
                 return ValueWithTime(value, time)
             }
 
         override fun subscribeWithTime(): Flow<ValueWithTime<Double?>> =
-            dependencies.values.map { it.subscribe() }.merge().map { valueWithTime }
+            args.values.map { it.subscribe() }.merge().map { valueWithTime }
 
-        override fun toString(): String = "MstValueState(mst=\"${mst.toLatexString()}\", dependencies=${dependencies})"
+        override fun toString(): String = "MstValueState(mst=\"${mst.toLatexString()}\", dependencies=${args})"
     }
 
     /**
@@ -72,7 +70,7 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
         transform: MstExtendedField.(MST) -> MST
     ): MstValueState {
         val mstArg = wrapValueState(arg)
-        return MstValueState(MstExtendedField.transform(mstArg.mst), mstArg.dependencies)
+        return MstValueState(MstExtendedField.transform(mstArg.mst), mstArg.args)
     }
 
     private fun binaryMstTransform(
@@ -84,7 +82,7 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
         val rightMstArg = wrapValueState(rightArg)
         return MstValueState(
             MstExtendedField.transform(leftMstArg.mst, rightMstArg.mst),
-            leftMstArg.dependencies + rightMstArg.dependencies
+            leftMstArg.args + rightMstArg.args
         )
     }
 
@@ -146,13 +144,22 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
         private fun MST.toLatexString() =
             LatexSyntaxRenderer.renderWithStringBuilder(FeaturedMathRendererWithPostProcess.Default.render(this))
 
-
         /**
          * Interpret a mathematical expression represented as an MST (Mathematical Syntax Tree) and evaluate it using the provided bindings.
          */
-        public fun interpret(expression: MST, bindings: Map<Symbol, ValueState<Double?>>): ValueState<Double?> {
+        public fun interpret(
+            expression: MST,
+            bindings: Map<Symbol, ValueState<Double?>>,
+            unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = emptyMap(),
+            functions: Map<String, Expression<ValueState<Double?>>> = emptyMap()
+        ): ValueState<Double?> {
             val algebra = ValueStateAlgebra()
-            val scope = MstInterpreterContext(algebra, bindings)
+            val scope = MstInterpreterContext(
+                algebra = algebra,
+                arguments = bindings,
+                unaryOperations = unaryOperations,
+                functions = functions,
+            )
             return context(scope) {
                 expression.interpret()
             }
@@ -161,8 +168,17 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
         /**
          * Interpret a mathematical expression represented as a string and evaluate it using the provided bindings.
          */
-        public fun interpret(expression: String, bindings: Map<Symbol, ValueState<Double?>>): ValueState<Double?> =
-            interpret(expression.parseMath(), bindings)
+        public fun interpret(
+            expression: String,
+            bindings: Map<Symbol, ValueState<Double?>>,
+            unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = emptyMap(),
+            functions: Map<String, Expression<ValueState<Double?>>> = emptyMap()
+        ): ValueState<Double?> = interpret(
+            expression = expression.parseMath(),
+            bindings = bindings,
+            unaryOperations = unaryOperations,
+            functions = functions
+        )
 
     }
 }

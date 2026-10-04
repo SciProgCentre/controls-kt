@@ -5,15 +5,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.getValue
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.ValueType
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.isEmpty
 import kotlin.math.*
@@ -91,10 +88,6 @@ public sealed interface StateExpression {
     public class Constant(public val name: String, public val parameters: Meta) : StateExpression {
         override val dependencies: Set<StateExpression> get() = emptySet()
     }
-
-    public companion object {
-
-    }
 }
 
 /**
@@ -109,33 +102,40 @@ public class StateExpressionContext(
 
         is StateExpression.Unary -> when (expression.operation) {
             "-", "negate", "negative" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 -it
             }
+
             "sin" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 sin(it)
             }
+
             "cos" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 cos(it)
             }
+
             "abs" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 it.absoluteValue
             }
+
             "sqrt" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 sqrt(it)
             }
+
             "exp" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 exp(it)
             }
+
             "ln" -> computeState(expression.argument).map {
-                if(it==null) return@map null
+                if (it == null) return@map null
                 ln(it)
             }
+
             "diff", "differentiate" -> computeState(expression.argument).differentiate(scope)
             else -> error("Unknown unary operation: ${expression.operation}")
         }
@@ -220,7 +220,7 @@ public class StateExpressionContext(
         is StateExpression.State -> {
             val constructor = context.request(ConstructorPlugin)
 
-            val state = constructor.buildValueState(expression.valueStateType, expression.parameters)
+            val state = constructor.buildValueState(expression.parameters, expression.valueStateType)
 
             state.map {
                 it[expression.valuePath].double ?: expression.defaultValue
@@ -228,6 +228,69 @@ public class StateExpressionContext(
         }
 
     }
+}
+
+/**
+ * Factory for creating instances of [ValueState] based on state expressions.
+ *
+ * This class represents a factory that processes a [StateExpression]
+ * within a given context to produce a corresponding [ValueState]. It serves
+ * as a connection between high-level metadata and the underlying observable
+ * state values.
+ *
+ * The factory integrates with the application context, where it resolves
+ * dependencies such as the [DeviceManager]. It uses a dedicated
+ * [StateExpressionContext] to evaluate state expressions and compute the
+ * observable state corresponding to those expressions.
+ *
+ * The factory expects a `Meta` object containing the state expression as
+ * input and ensures that the required components are available in the provided
+ * context. If necessary dependencies are missing, the factory throws errors
+ * to indicate the misconfiguration.
+ *
+ * Key features:
+ * - Processes a [StateExpression] from metadata to compute a [ValueState].
+ * - Manages dependencies through the [DeviceManager] plugin in the context.
+ * - Supports the evaluation of expressions using the [StateExpressionContext].
+ *
+ * Properties:
+ * - `expression`: References the [StateExpression] metadata item used
+ *   to evaluate and compute the state.
+ *
+ * Implements:
+ * - [ValueStateFactory]: For constructing [ValueState] instances.
+ * - [MetaSpec]: For managing metadata specifications.
+ */
+public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
+
+    public val expressionConverter: MetaConverter<StateExpression> = MetaConverter.serializable<StateExpression>()
+
+    public val expression: MetaRef<StateExpression> by item(expressionConverter)
+
+    override fun build(
+        context: Context,
+        meta: Meta
+    ): ValueState<Meta> {
+        val expression = meta[expression] ?: error("Expression not defined")
+
+        val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
+
+        val expressionScope = StateExpressionContext(context, deviceManager)
+
+        return expressionScope.computeState(expression).map {
+            if (it == null) Meta.EMPTY else Meta(it)
+        }
+    }
+
+    /**
+     * Create metadata for StateExpression value factory
+     */
+    public fun buildMeta(
+        stateExpression: StateExpression
+    ): Meta = Meta {
+        set(expression, stateExpression)
+    }
+
 }
 
 public fun DeviceConstructor.expression(

@@ -5,8 +5,6 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.DeviceMessageSource
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.resolveDevice
-import space.kscience.controls.constructor.expressions.StateExpression
-import space.kscience.controls.constructor.expressions.StateExpressionContext
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
@@ -65,69 +63,6 @@ public object DeviceValueStateFactory : ValueStateFactory, MetaSpec() {
         val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
         val defaultValue = meta[defaultValue] ?: Meta.EMPTY
         return deviceManager.resolveDevice(deviceName).propertyAsState(propertyName, MetaConverter.meta, defaultValue)
-    }
-
-}
-
-/**
- * Factory for creating instances of [ValueState] based on state expressions.
- *
- * This class represents a factory that processes a [StateExpression]
- * within a given context to produce a corresponding [ValueState]. It serves
- * as a connection between high-level metadata and the underlying observable
- * state values.
- *
- * The factory integrates with the application context, where it resolves
- * dependencies such as the [DeviceManager]. It uses a dedicated
- * [StateExpressionContext] to evaluate state expressions and compute the
- * observable state corresponding to those expressions.
- *
- * The factory expects a `Meta` object containing the state expression as
- * input and ensures that the required components are available in the provided
- * context. If necessary dependencies are missing, the factory throws errors
- * to indicate the misconfiguration.
- *
- * Key features:
- * - Processes a [StateExpression] from metadata to compute a [ValueState].
- * - Manages dependencies through the [DeviceManager] plugin in the context.
- * - Supports the evaluation of expressions using the [StateExpressionContext].
- *
- * Properties:
- * - `expression`: References the [StateExpression] metadata item used
- *   to evaluate and compute the state.
- *
- * Implements:
- * - [ValueStateFactory]: For constructing [ValueState] instances.
- * - [MetaSpec]: For managing metadata specifications.
- */
-public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
-
-    public val expressionConverter: MetaConverter<StateExpression> = MetaConverter.serializable<StateExpression>()
-
-    public val expression: MetaRef<StateExpression> by item(expressionConverter)
-
-    override fun build(
-        context: Context,
-        meta: Meta
-    ): ValueState<Meta> {
-        val expression = meta[expression] ?: error("Expression not defined")
-
-        val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
-
-        val expressionScope = StateExpressionContext(context, deviceManager)
-
-        return expressionScope.computeState(expression).map {
-            if (it == null) Meta.EMPTY else Meta(it)
-        }
-    }
-
-    /**
-     * Create metadata for StateExpression value factory
-     */
-    public fun buildMeta(
-        stateExpression: StateExpression
-    ): Meta = Meta {
-        set(expression, stateExpression)
     }
 
 }
