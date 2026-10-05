@@ -10,7 +10,7 @@
 
 ### Changed
 
-- **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
+- **BREAKING** `TagTable` implementations must provide `readTagWithTime` and expose messages as `SharedFlow`.
 
 ### Deprecated
 
