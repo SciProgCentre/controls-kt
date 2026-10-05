@@ -125,7 +125,7 @@ class PlcOpcProvenanceTest {
                         assertEquals(assertNotNull(reply.sourceTime).javaInstant.toKotlinInstant().toString(),
                             message.value["@opc.sourceTime"].string)
                         assertEquals(message.time.toString(), message.value["@opc.serverTime"].string)
-                        assertEquals(message.value, createdTable.readWithTime("sensor").value)
+                        assertEquals(message.value, createdTable.readTagWithTime("sensor").value)
                     }
                 }
             } finally {

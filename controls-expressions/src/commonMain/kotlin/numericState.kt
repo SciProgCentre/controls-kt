@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.expressions
+package space.kscience.controls.expressions
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -15,16 +15,14 @@ import kotlin.time.DurationUnit
 import kotlin.time.Instant
 
 /**
- *
+ * Returns a new [ValueWithTime] with the given [default] value if the original value is null.
  */
-public fun <T : Any> ValueWithTime<T?>.withDefault(default: T): ValueWithTime<T> {
-    return ValueWithTime(value ?: default, time)
-}
+public fun <T : Any> ValueWithTime<T?>.withDefault(default: T): ValueWithTime<T> = ValueWithTime(value ?: default, time)
 
 /**
  * Calculates a rolling time trapezoid integral, using the source value at construction as the default [startingValue].
  * Adds a sample only when its time is later than the current result's time. Every event, including
- * null and out-of-order samples, trims the [window] and republishes the result with its own time.
+ * null samples, trims the [window] and republishes the result with its own time. Out of order samples are ignored.
  */
 public fun ValueState<Double?>.integrate(
     window: Duration,
@@ -36,8 +34,11 @@ public fun ValueState<Double?>.integrate(
     private val mutex = Mutex()
 
     private val job = this@integrate.subscribeWithTime().onEach { (value, time) ->
+        //out of order samples are ignored
+        if (time <= state.value.time) return@onEach
+
         mutex.withLock {
-            if (value != null && time > state.value.time) {
+            if (value != null) {
                 history.add(ValueWithTime(value, time))
             }
             history.removeAll { it.time < (time - window) }
@@ -46,11 +47,15 @@ public fun ValueState<Double?>.integrate(
             if (history.isNotEmpty()) {
                 var previous = history.first()
 
-                for (i in 1 until history.size) {
-                    val current = history[i]
-                    val dt = (current.time - previous.time).toDouble(DurationUnit.SECONDS)
-                    integral += (previous.value + current.value) / 2.0 * dt
-                    previous = current
+                if (history.size == 1) {
+                    integral = previous.value
+                } else {
+                    for (i in 1 until history.size) {
+                        val current = history[i]
+                        val dt = (current.time - previous.time).toDouble(DurationUnit.SECONDS)
+                        integral += (previous.value + current.value) / 2.0 * dt
+                        previous = current
+                    }
                 }
             }
 
@@ -65,6 +70,41 @@ public fun ValueState<Double?>.integrate(
     override fun subscribeWithTime(): Flow<ValueWithTime<Double>> = state
 
     override fun toString(): String = "DeviceState.integrate(state=${state.value}, window=$window)"
+}
+
+/**
+ * Sum values in a time window. null samples do not add counter, but move window
+ * Out of order samples are ignored.
+ */
+public fun ValueState<Double?>.accumulate(
+    window: Duration,
+    scope: CoroutineScope,
+    startingValue: ValueWithTime<Double> = valueWithTime.withDefault(0.0)
+): ValueState<Double> = object : ValueStateWithDependencies<Double> {
+    private val history: MutableList<ValueWithTime<Double>> = mutableListOf(startingValue)
+    private val state: MutableStateFlow<ValueWithTime<Double>> = MutableStateFlow(startingValue)
+    private val mutex = Mutex()
+
+    private val job = this@accumulate.subscribeWithTime().onEach { (value, time) ->
+        //out of order samples are ignored
+        if (time < state.value.time) return@onEach
+        mutex.withLock {
+            if (value != null) {
+                history.add(ValueWithTime(value, time))
+            }
+            history.removeAll { it.time < (time - window) }
+
+            state.emit(ValueWithTime(history.sumOf { it.value }, time))
+        }
+    }.launchIn(scope)
+
+    override val dependencies = listOf(this@accumulate)
+
+    override val valueWithTime: ValueWithTime<Double> get() = state.value
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<Double>> = state
+
+    override fun toString(): String = "DeviceState.accumulate(state=${state.value}, window=$window)"
 }
 
 /**

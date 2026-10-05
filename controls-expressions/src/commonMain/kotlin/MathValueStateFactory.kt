@@ -2,8 +2,6 @@ package space.kscience.controls.expressions
 
 import kotlinx.coroutines.CoroutineScope
 import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.expressions.differentiate
-import space.kscience.controls.constructor.expressions.integrate
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.kmath.expressions.Expression
@@ -24,7 +22,7 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
 
     public val arg: Symbol by symbol
 
-    public val duration: Symbol by symbol
+    public val windows: Symbol by symbol
 
     public fun defaultUnaryOperations(
         scope: CoroutineScope
@@ -49,7 +47,7 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
     public fun defaultFunctions(scope: CoroutineScope): Map<String, Expression<ValueState<Double?>>> = mapOf(
         "integrate" to Expression { args ->
             val argValue = args[arg] ?: error("Integrate argument is missing")
-            val duration = args[duration]?.value?.seconds ?: error("Duration argument is missing")
+            val duration = args[windows]?.value?.seconds ?: error("Duration argument is missing")
             argValue.integrate(duration, scope)
         }
     )

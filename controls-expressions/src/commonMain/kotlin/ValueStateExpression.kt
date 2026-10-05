@@ -1,4 +1,4 @@
-package space.kscience.controls.constructor.expressions
+package space.kscience.controls.expressions
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.SerialName
