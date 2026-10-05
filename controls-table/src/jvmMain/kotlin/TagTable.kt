@@ -25,7 +25,7 @@ public value class TagState(public val value: Meta) {
 
         public val EMPTY: TagState = TagState(Meta.EMPTY)
 
-        public const val TAG_STATE_SUFFIX: String = ".state"
+        public const val TAG_QUALITY_SUFFIX: String = ".@quality"
 
         public const val GOOD_QUALITY: String = "GOOD"
 
@@ -59,7 +59,7 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
     /**
      * Read a state of a tag single column in the table
      */
-    public suspend fun readTagState(tag: String): TagState
+    public suspend fun readTagQuality(tag: String): TagState
 
     /**
      * Read current values of all tags
@@ -70,9 +70,9 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
      * Starts generating a flow of rows for the current data platform with a specified interval.
      *
      * @param interval the interval between row generation.
-     * @param withTagState whether to include tag state in the rows. Tag states are automatically names as `tag.state`.
+     * @param withTagQuality whether to include tag state in the rows. Tag states are automatically names as `tag.state`.
      */
-    public fun readTimeSeries(interval: Duration, withTagState: Boolean = false): TimeSeriesRows<Meta>
+    public fun readTimeSeries(interval: Duration, withTagQuality: Boolean = false): TimeSeriesRows<Meta>
 
     /**
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
