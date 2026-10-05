@@ -122,6 +122,15 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
     }
 }
 
+/**
+ * Read all values with tag states from a [TagTable].
+ */
+public suspend fun TagTable.readAllValuesWithTagState(): Map<String, Meta> {
+    val allValues = readAllValues()
+    val tagStates = allValues.keys.associate { tag -> (tag + TagState.TAG_STATE_SUFFIX) to readTagState(tag).value }
+    return allValues + tagStates
+}
+
 
 /**
  * A value state that reads the value of a tag from a [TagTable].
