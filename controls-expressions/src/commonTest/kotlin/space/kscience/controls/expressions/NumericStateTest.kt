@@ -183,12 +183,16 @@ class NumericStateTest {
         val differentiated = integrated.differentiate(backgroundScope)
 
         // Emit constant samples at 1s, 2s, 3s, 4s
-        for (i in 1..4) {
+        for (i in 1..5) {
             val t = t0 + i.seconds
             source.emit(rate, t)
             val diff = differentiated.subscribeWithTime().first { it.time == t }
-            // Differentiating the integral of constant rate must recover the rate
-            assertEquals(rate, diff.value, 1e-9, "Equality failed on step $i")
+
+            if (i > 1) {
+                // Differentiating the integral of constant rate must recover the rate
+                assertEquals(rate * i, integrated.value, 1e-9, "Integral equality failed on step $i")
+                assertEquals(rate, diff.value, 1e-9, "Diff equality failed on step $i")
+            }
         }
     }
 }
