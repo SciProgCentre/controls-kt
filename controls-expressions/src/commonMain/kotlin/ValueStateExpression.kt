@@ -58,8 +58,8 @@ public sealed interface ValueStateExpression {
      * A state expression that binds a symbol from context
      */
     @Serializable
-    @SerialName("property")
-    public data class Binding(
+    @SerialName("symbol")
+    public data class Symbol(
         public val symbol: String,
         public val parameters: Meta = Meta.EMPTY
     ) : ValueStateExpression {
@@ -95,6 +95,9 @@ public class StateExpressionContext(
     private val scope: CoroutineScope = context,
     public val resolveBinding: (String) -> ValueState<Double?> = { error("Undefined symbol: $it") }
 ) {
+
+    //TODO add functions from ControlsExpressionPlugin
+
     public fun computeState(expression: ValueStateExpression): ValueState<Double?> = when (expression) {
 
         is ValueStateExpression.Unary -> when (expression.operation) {
@@ -213,7 +216,7 @@ public class StateExpressionContext(
             }
         }
 
-        is ValueStateExpression.Binding -> resolveBinding(expression.symbol)
+        is ValueStateExpression.Symbol -> resolveBinding(expression.symbol)
     }
 }
 

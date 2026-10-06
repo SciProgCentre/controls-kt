@@ -4,6 +4,8 @@ import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.request
+import space.kscience.dataforge.context.resolve
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.kmath.ast.parseMath
@@ -51,26 +53,37 @@ public class ComputationDevice(
             context: Context,
             mst: MST,
             argNames: Collection<String>,
-            unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = MathValueStateFactory.defaultUnaryOperations(
-                context
-            ),
-            binaryOperations: Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>> = MathValueStateFactory.defaultBinaryOperations(
-                context
-            ),
-            functions: Map<String, Expression<ValueState<Double?>>> = MathValueStateFactory.defaultFunctions(
-                context
+        ): ComputationDevice {
+            val expressionPlugin = context.request(ControlsExpressionPlugin)
+
+            return ComputationDevice(
+                context = context,
+                argNames = argNames.toSet(),
+                expression = Expression { args ->
+                    ValueStateAlgebra.interpret(
+                        expression = mst,
+                        bindings = args,
+                        unaryOperations = expressionPlugin.unaryOperations(),
+                        binaryOperations = expressionPlugin.binaryOperations(),
+                        functions = expressionPlugin.functions()
+                    )
+                }
             )
+        }
+
+        public fun ofExpression(
+            context: Context,
+            expression: ValueStateExpression,
+            argNames: Collection<String>
         ): ComputationDevice = ComputationDevice(
             context = context,
             argNames = argNames.toSet(),
-            expression = Expression { args ->
-                ValueStateAlgebra.interpret(
-                    expression = mst,
-                    bindings = args,
-                    unaryOperations = unaryOperations,
-                    binaryOperations = binaryOperations,
-                    functions = functions
-                )
+            expression = Expression { args: Map<Symbol, ValueState<Double?>> ->
+                val expressionScope = StateExpressionContext(context) {
+                    args[Symbol(it)] ?: error("Undefined symbol: $it")
+                }
+
+                expressionScope.computeState(expression)
             }
         )
 
@@ -85,6 +98,8 @@ public class ComputationDevice(
             meta: Meta
         ): ComputationDevice {
             val argNames = meta[argNames] ?: error("Argument names not defined")
+
+            //TODO add possibility to use expressions instead of formula
             val formula = meta[formula] ?: error("Formula not defined")
             return ofMath(context, formula.parseMath(), argNames)
         }
