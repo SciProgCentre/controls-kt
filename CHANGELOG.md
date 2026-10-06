@@ -10,12 +10,23 @@
 - Add `TagTablePlugin.register` to register tables without starting acquisition.
 - Add division, mean and numeric constants to state expressions.
 - Read holding registers, coils, discrete inputs and float values in Modbus tag table columns.
+- Renamed method `build` to `buildDevice` in DeviceWithStateBuilder to avoid possible conflict with `build` in Factory.
+- Add `SpecificDevice` and `SpecificDeviceTree` to add specification safety in the form of compile-time type safety.
+- Controls-utilities module with `Alarm` and `Accumulator` virtual devices.
+- `ConstructorBinding` and `BoundStateHolder` for named component inputs.
+- Nullable expressions and `StateExpression.State` for value-state factories.
+- Parameter descriptors for Alarm and Accumulator.
+- Add write extensions for modbus
 
 ### Changed
 - ValueStateExpression uses contextual bindings. Direct device property binding is removed. Instead, we use state via ConstructorPlugin.
 - StateExpressions renamed to ValueStateExpressions.
 - Expressions moved to a separate module.
 - **BREAKING** `TagTable` implementations must provide `readTagWithTime` and expose messages as `SharedFlow`.
+- **BREAKING** `DeviceConfiguration` is renamed to `ConstructorDeviceConfiguration`.
+- **BREAKING** `templates` is renamed to `components` in constructor configuration.
+- Device and value-state factories resolve by full name; ambiguous short names are rejected.
+- `AlarmSetting` thresholds default to null; at least one threshold is still required.
 
 ### Deprecated
 
@@ -43,30 +54,6 @@
 - Close every observer of a producer timeline instead of failing on the second one.
 - Compare the generation origin with the actual start event.
 - Use relative source names in remote device message flows.
-
-### Security
-
-## 0.5.0 - 2026-09-05
-
-### Added
-
-- Renamed method `build` to `buildDevice` in DeviceWithStateBuilder to avoid possible conflict with `build` in Factory.
-- Add `SpecificDevice` and `SpecificDeviceTree` to add specification safety in the form of compile-time type safety.
-- Controls-utilities module with `Alarm` and `Accumulator` virtual devices.
-- `ConstructorBinding` and `BoundStateHolder` for named component inputs.
-- Nullable expressions and `StateExpression.State` for value-state factories.
-- Parameter descriptors for Alarm and Accumulator.
-- Add write extensions for modbus
-
-### Changed
-
-- **BREAKING** `DeviceConfiguration` is renamed to `ConstructorDeviceConfiguration`.
-- **BREAKING** `templates` is renamed to `components` in constructor configuration.
-- Device and value-state factories resolve by full name; ambiguous short names are rejected.
-- `AlarmSetting` thresholds default to null; at least one threshold is still required.
-
-### Fixed
-
 - Pass the configured target input name to component bindings.
 - Fix initialization and source dependencies in `differentiate`; ignore null samples and invalid time marks.
 - Return null from `resolveDeviceOrNull` when an existing ancestor has a missing descendant.
