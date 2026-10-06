@@ -25,7 +25,7 @@ class StateExpressionTest {
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
-            val stateExpressionContext = StateExpressionContext(context, DeviceTree(), backgroundScope)
+            val stateExpressionContext = StateExpressionContext(context,  backgroundScope)
 
             val a = ValueStateExpression.Constant("pi", Meta.EMPTY)
             val state = stateExpressionContext.computeState(a)
@@ -46,8 +46,8 @@ class StateExpressionTest {
         val zState by expression(
             ValueStateExpression.Binary(
                 operation = "+",
-                left = ValueStateExpression.Property(deviceName = Name.of("test"), propertyName = "x"),
-                right = ValueStateExpression.Property(deviceName = Name.of("test"), propertyName = "y")
+                left = ValueStateExpression.deviceProperty(deviceName ="test", propertyName = "x"),
+                right = ValueStateExpression.deviceProperty(deviceName = "test", propertyName = "y")
             )
         )
     }
@@ -55,7 +55,7 @@ class StateExpressionTest {
     @Test
     fun testDeviceConstructorWithExpression() = runTest(timeout = 5.seconds) {
         val context = Context("deviceExpression") {
-            plugin(DeviceManager)
+            plugin(ConstructorPlugin)
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
@@ -77,16 +77,16 @@ class StateExpressionTest {
         val divisionState by expression(
             ValueStateExpression.Binary(
                 operation = "/",
-                left = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six"),
-                right = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "three")
+                left = ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "six"),
+                right = ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "three")
             )
         )
 
         val divisionWithNullState by expression(
             ValueStateExpression.Binary(
                 operation = "/",
-                left = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six"),
-                right = ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue")
+                left = ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "six"),
+                right = ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "nullValue")
             )
         )
 
@@ -94,9 +94,9 @@ class StateExpressionTest {
             ValueStateExpression.Nary(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "one"),
-                    "b" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "two"),
-                    "c" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "six")
+                    "a" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "one"),
+                    "b" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "two"),
+                    "c" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "six")
                 )
             )
         )
@@ -105,12 +105,12 @@ class StateExpressionTest {
             ValueStateExpression.Nary(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "one"),
-                    "b" to ValueStateExpression.Property(
-                        deviceName = Name.of("arithmetic"),
+                    "a" to ValueStateExpression.deviceProperty(deviceName ="arithmetic", propertyName = "one"),
+                    "b" to ValueStateExpression.deviceProperty(
+                        deviceName = "arithmetic",
                         propertyName = "nullValue"
                     ),
-                    "c" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "three")
+                    "c" to ValueStateExpression.deviceProperty(deviceName ="arithmetic", propertyName = "three")
                 )
             )
         )
@@ -119,11 +119,11 @@ class StateExpressionTest {
             ValueStateExpression.Nary(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to ValueStateExpression.Property(
-                        deviceName = Name.of("arithmetic"),
+                    "a" to ValueStateExpression.deviceProperty(
+                        deviceName = "arithmetic",
                         propertyName = "nullValue"
                     ),
-                    "b" to ValueStateExpression.Property(deviceName = Name.of("arithmetic"), propertyName = "nullValue")
+                    "b" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "nullValue")
                 )
             )
         )
@@ -132,7 +132,7 @@ class StateExpressionTest {
     @Test
     fun testDivisionExpression() = runTest(timeout = 5.seconds) {
         val context = Context("divisionExpression") {
-            plugin(DeviceManager)
+            plugin(ConstructorPlugin)
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
@@ -148,7 +148,7 @@ class StateExpressionTest {
     @Test
     fun testMeanExpression() = runTest(timeout = 5.seconds) {
         val context = Context("meanExpression") {
-            plugin(DeviceManager)
+            plugin(ConstructorPlugin)
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
@@ -168,7 +168,7 @@ class StateExpressionTest {
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
-            val stateExpressionContext = StateExpressionContext(context, DeviceTree(), backgroundScope)
+            val stateExpressionContext = StateExpressionContext(context, backgroundScope)
 
             val gravity = ValueStateExpression.Constant("gravity", Meta { "value" put 9.81 })
             assertEquals(9.81, stateExpressionContext.computeState(gravity).value)

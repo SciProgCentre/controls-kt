@@ -151,6 +151,7 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
             expression: MST,
             bindings: Map<Symbol, ValueState<Double?>>,
             unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = emptyMap(),
+            binaryOperations: Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>> = emptyMap(),
             functions: Map<String, Expression<ValueState<Double?>>> = emptyMap()
         ): ValueState<Double?> {
             val algebra = ValueStateAlgebra()
@@ -158,6 +159,7 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
                 algebra = algebra,
                 arguments = bindings,
                 unaryOperations = unaryOperations,
+                binaryOperations = binaryOperations,
                 functions = functions,
             )
             return context(scope) {
@@ -172,11 +174,13 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
             expression: String,
             bindings: Map<Symbol, ValueState<Double?>>,
             unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = emptyMap(),
+            binaryOperations: Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>> = emptyMap(),
             functions: Map<String, Expression<ValueState<Double?>>> = emptyMap()
         ): ValueState<Double?> = interpret(
             expression = expression.parseMath(),
             bindings = bindings,
             unaryOperations = unaryOperations,
+            binaryOperations = binaryOperations,
             functions = functions
         )
 

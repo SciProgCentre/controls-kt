@@ -44,6 +44,8 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
         }
     )
 
+    public fun defaultBinaryOperations(scope: CoroutineScope): Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>> = emptyMap()
+
     public fun defaultFunctions(scope: CoroutineScope): Map<String, Expression<ValueState<Double?>>> = mapOf(
         "integrate" to Expression { args ->
             val argValue = args[arg] ?: error("Integrate argument is missing")
@@ -71,6 +73,7 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
             expression = expression,
             bindings = arguments.entries.associate { (key, value) -> Symbol(key) to value.map { it.double } },
             unaryOperations = defaultUnaryOperations(context),
+            binaryOperations = defaultBinaryOperations(context),
             functions = defaultFunctions(context)
         ).map { if (it == null) Meta.EMPTY else Meta(it) }
     }

@@ -12,6 +12,7 @@
 - Read holding registers, coils, discrete inputs and float values in Modbus tag table columns.
 
 ### Changed
+- ValueStateExpression uses contextual bindings. Direct device property binding is removed. Instead, we use state via ConstructorPlugin.
 - StateExpressions renamed to ValueStateExpressions.
 - Expressions moved to a separate module.
 - **BREAKING** `TagTable` implementations must provide `readTagWithTime` and expose messages as `SharedFlow`.

@@ -1,15 +1,23 @@
 package space.kscience.controls.expressions
 
+import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.kmath.ast.parseMath
 import space.kscience.kmath.expressions.Expression
+import space.kscience.kmath.expressions.MST
 import space.kscience.kmath.expressions.Symbol
 
-public class ComputationDeviceAlarm(
+
+/**
+ * A device that performs a specific computation on bound args
+ * @param argNames The names of the arguments that the computation device will use.
+ * @param expression The expression that defines the computation to be performed.
+ */
+public class ComputationDevice(
     context: Context,
     public val argNames: Set<String>,
     public val expression: Expression<ValueState<Double?>>,
@@ -22,6 +30,7 @@ public class ComputationDeviceAlarm(
         args[inputName]?.bind(state.map { it.double }) ?: error("Input name $inputName not defined in $argNames")
     }
 
+    //args need to be declared in advance to allow creating result before binding
     public val result: ValueState<Double?> = expression(args.mapKeys { Symbol(it.key) })
 
 
@@ -33,4 +42,51 @@ public class ComputationDeviceAlarm(
         )
     }
 
+    public companion object : DeviceFactory, MetaSpec() {
+
+        /**
+         * Creates a computation device that uses MST expression to compute value
+         */
+        public fun ofMath(
+            context: Context,
+            mst: MST,
+            argNames: Collection<String>,
+            unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = MathValueStateFactory.defaultUnaryOperations(
+                context
+            ),
+            binaryOperations: Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>> = MathValueStateFactory.defaultBinaryOperations(
+                context
+            ),
+            functions: Map<String, Expression<ValueState<Double?>>> = MathValueStateFactory.defaultFunctions(
+                context
+            )
+        ): ComputationDevice = ComputationDevice(
+            context = context,
+            argNames = argNames.toSet(),
+            expression = Expression { args ->
+                ValueStateAlgebra.interpret(
+                    expression = mst,
+                    bindings = args,
+                    unaryOperations = unaryOperations,
+                    binaryOperations = binaryOperations,
+                    functions = functions
+                )
+            }
+        )
+
+        override val descriptor: MetaDescriptor = super<MetaSpec>.descriptor
+
+        public val formula: MetaRef<String> by string()
+
+        public val argNames: MetaRef<List<String>> by stringList()
+
+        override fun buildDevice(
+            context: Context,
+            meta: Meta
+        ): ComputationDevice {
+            val argNames = meta[argNames] ?: error("Argument names not defined")
+            val formula = meta[formula] ?: error("Formula not defined")
+            return ofMath(context, formula.parseMath(), argNames)
+        }
+    }
 }

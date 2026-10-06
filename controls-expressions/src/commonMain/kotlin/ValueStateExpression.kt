@@ -3,15 +3,15 @@ package space.kscience.controls.expressions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import space.kscience.controls.api.*
+import space.kscience.controls.api.PropertyDescriptor
+import space.kscience.controls.api.isStarted
+import space.kscience.controls.api.valueType
 import space.kscience.controls.constructor.*
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.isEmpty
 import kotlin.math.*
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
@@ -55,14 +55,12 @@ public sealed interface ValueStateExpression {
     }
 
     /**
-     * State expression that represents a property of a device.
+     * A state expression that binds a symbol from context
      */
     @Serializable
     @SerialName("property")
-    public data class Property(
-        public val deviceName: Name,
-        public val propertyName: String,
-        public val path: Name = Name.EMPTY,
+    public data class Binding(
+        public val symbol: String,
         public val parameters: Meta = Meta.EMPTY
     ) : ValueStateExpression {
         override val dependencies: Set<ValueStateExpression> get() = emptySet()
@@ -94,8 +92,8 @@ public sealed interface ValueStateExpression {
  */
 public class StateExpressionContext(
     public val context: Context,
-    public val hub: DeviceTree,
-    public val scope: CoroutineScope = context
+    private val scope: CoroutineScope = context,
+    public val resolveBinding: (String) -> ValueState<Double?> = { error("Undefined symbol: $it") }
 ) {
     public fun computeState(expression: ValueStateExpression): ValueState<Double?> = when (expression) {
 
@@ -205,17 +203,6 @@ public class StateExpressionContext(
                 ?: error("Unknown constant: ${expression.name}")
         }
 
-        is ValueStateExpression.Property -> {
-            val device = hub.resolveDevice(expression.deviceName)
-
-            if (expression.path.isEmpty()) {
-                device.propertyAsState(expression.propertyName, MetaConverter.double.nullable(), null)
-            } else {
-                device.propertyAsState(expression.propertyName, MetaConverter.meta, Meta.EMPTY)
-                    .map { it[expression.path].double }
-            }
-        }
-
         is ValueStateExpression.State -> {
             val constructor = context.request(ConstructorPlugin)
 
@@ -226,39 +213,23 @@ public class StateExpressionContext(
             }
         }
 
+        is ValueStateExpression.Binding -> resolveBinding(expression.symbol)
     }
 }
 
+public fun ValueStateExpression.Companion.deviceProperty(
+    deviceName: String,
+    propertyName: String
+): ValueStateExpression.State = ValueStateExpression.State(
+    valueStateType = DeviceValueStateFactory.TYPE,
+    parameters = Meta {
+        set(DeviceValueStateFactory.deviceName, deviceName)
+        set(DeviceValueStateFactory.propertyName, propertyName)
+    }
+)
+
 /**
- * Factory for creating instances of [ValueState] based on state expressions.
- *
- * This class represents a factory that processes a [ValueStateExpression]
- * within a given context to produce a corresponding [ValueState]. It serves
- * as a connection between high-level metadata and the underlying observable
- * state values.
- *
- * The factory integrates with the application context, where it resolves
- * dependencies such as the [DeviceManager]. It uses a dedicated
- * [StateExpressionContext] to evaluate state expressions and compute the
- * observable state corresponding to those expressions.
- *
- * The factory expects a `Meta` object containing the state expression as
- * input and ensures that the required components are available in the provided
- * context. If necessary dependencies are missing, the factory throws errors
- * to indicate the misconfiguration.
- *
- * Key features:
- * - Processes a [ValueStateExpression] from metadata to compute a [ValueState].
- * - Manages dependencies through the [DeviceManager] plugin in the context.
- * - Supports the evaluation of expressions using the [StateExpressionContext].
- *
- * Properties:
- * - `expression`: References the [ValueStateExpression] metadata item used
- *   to evaluate and compute the state.
- *
- * Implements:
- * - [ValueStateFactory]: For constructing [ValueState] instances.
- * - [MetaSpec]: For managing metadata specifications.
+ * A factory for creating instances of [ValueState] based on [ValueStateExpression].
  */
 public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
 
@@ -269,15 +240,23 @@ public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
 
     public val expression: MetaRef<ValueStateExpression> by item(expressionConverter)
 
+    public val bindings: MetaRef<Map<String, ValueStateConfiguration>> by serializable()
+
     override fun build(
         context: Context,
         meta: Meta
     ): ValueState<Meta> {
         val expression = meta[expression] ?: error("Expression not defined")
 
-        val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
+        val constructor = context.plugins.get(ConstructorPlugin) ?: error("Constructor plugin not found")
 
-        val expressionScope = StateExpressionContext(context, deviceManager)
+        val bindings = meta[bindings]?.mapValues { entry ->
+            constructor.buildValueState(entry.value).map { it.double }
+        }
+
+        val expressionScope = StateExpressionContext(context) {
+            bindings?.get(it) ?: error("Undefined symbol: $it")
+        }
 
         return expressionScope.computeState(expression).map {
             if (it == null) Meta.EMPTY else Meta(it)
@@ -297,6 +276,7 @@ public fun DeviceConstructor.expression(
     expression: ValueStateExpression,
     propertyDescriptorBuilder: PropertyDescriptor.() -> Unit = {},
     nameOverride: String? = null,
+    resolveBinding: (String) -> ValueState<Double?> = { error("Binding not found: $it") }
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, ValueState<Double?>>> =
     PropertyDelegateProvider { _: DeviceConstructor, property ->
         val name = nameOverride ?: property.name
@@ -311,14 +291,14 @@ public fun DeviceConstructor.expression(
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             when (val currentState = state) {
                 null if isStarted() -> {
-                    StateExpressionContext(context, context.request(DeviceManager), this).computeState(expression)
+                    StateExpressionContext(context, resolveBinding = resolveBinding).computeState(expression)
                         .also {
                             registerProperty(MetaConverter.double.nullable(), descriptor, it)
                             state = it
                         }
                 }
 
-                null -> error("Can't access expression proeperty if device is not started")
+                null -> error("Can't access expression property if device is not started")
                 else -> currentState
             }
         }

@@ -5,8 +5,8 @@ import space.kscience.controls.constructor.ConstructorBinding
 import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.TemplateDeviceConfiguration
 import space.kscience.controls.constructor.ValueStateConfiguration
-import space.kscience.controls.constructor.expressions.ValueStateExpression
-import space.kscience.controls.constructor.expressions.expression
+import space.kscience.controls.expressions.ValueStateExpression
+import space.kscience.controls.expressions.expression
 import space.kscience.controls.expressions.math
 import space.kscience.controls.opcua.server.read
 import space.kscience.controls.tagtable.TagTable
@@ -17,7 +17,6 @@ import space.kscience.controls.utilities.AlarmSetting
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.*
-import kotlin.to
 
 
 internal fun createDeviceConfiguration(configuration: TagTableConfiguration): ConstructorDeviceConfiguration {
