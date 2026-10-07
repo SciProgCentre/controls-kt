@@ -42,7 +42,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                         )
                     }
 
-                    val expression = ValueStateExpression.Nary(
+                    val expression = ValueStateExpression.Function(
                         operation = "sum",
                         arguments = tagProperties.mapValues { (_, pc) ->
                             ValueStateExpression.State(

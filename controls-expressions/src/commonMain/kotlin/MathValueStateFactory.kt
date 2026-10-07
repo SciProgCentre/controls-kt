@@ -37,9 +37,9 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
         return ValueStateAlgebra.interpret(
             expression = expression,
             bindings = arguments.entries.associate { (key, value) -> Symbol(key) to value.map { it.double } },
-            unaryOperations = expressionPlugin.unaryOperations(),
-            binaryOperations = expressionPlugin.binaryOperations(),
-            functions = expressionPlugin.functions()
+            unaryOperations = expressionPlugin.unaryOperations,
+            binaryOperations = expressionPlugin.binaryOperations,
+            functions = expressionPlugin.functions
         ).map { if (it == null) Meta.EMPTY else Meta(it) }
     }
 }

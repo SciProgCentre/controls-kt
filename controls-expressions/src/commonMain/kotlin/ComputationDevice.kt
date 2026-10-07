@@ -63,9 +63,9 @@ public class ComputationDevice(
                     ValueStateAlgebra.interpret(
                         expression = mst,
                         bindings = args,
-                        unaryOperations = expressionPlugin.unaryOperations(),
-                        binaryOperations = expressionPlugin.binaryOperations(),
-                        functions = expressionPlugin.functions()
+                        unaryOperations = expressionPlugin.unaryOperations,
+                        binaryOperations = expressionPlugin.binaryOperations,
+                        functions = expressionPlugin.functions
                     )
                 }
             )

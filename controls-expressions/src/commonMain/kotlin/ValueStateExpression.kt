@@ -12,6 +12,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
+import space.kscience.kmath.expressions.Symbol
 import kotlin.math.*
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
@@ -45,8 +46,8 @@ public sealed interface ValueStateExpression {
     }
 
     @Serializable
-    @SerialName("nary")
-    public data class Nary(
+    @SerialName("function")
+    public data class Function(
         public val operation: String,
         public val arguments: Map<String, ValueStateExpression>,
         public val parameters: Meta = Meta.EMPTY
@@ -96,6 +97,8 @@ public class StateExpressionContext(
     public val resolveBinding: (String) -> ValueState<Double?> = { error("Undefined symbol: $it") }
 ) {
 
+    private val expressionPlugin = context.plugins[ControlsExpressionPlugin]
+
     //TODO add functions from ControlsExpressionPlugin
 
     public fun computeState(expression: ValueStateExpression): ValueState<Double?> = when (expression) {
@@ -137,7 +140,11 @@ public class StateExpressionContext(
             }
 
             "diff", "differentiate" -> computeState(expression.argument).differentiate(scope)
-            else -> error("Unknown unary operation: ${expression.operation}")
+            else -> expressionPlugin
+                ?.unaryOperations
+                ?.get(expression.operation)
+                ?.invoke(computeState(expression.argument))
+                ?: error("Unknown unary operation: ${expression.operation}")
         }
 
         is ValueStateExpression.Binary -> when (expression.operation) {
@@ -177,10 +184,14 @@ public class StateExpressionContext(
                 l / r
             }
 
-            else -> error("Unknown binary operation: ${expression.operation}")
+            else -> expressionPlugin
+                ?.binaryOperations
+                ?.get(expression.operation)
+                ?.invoke(computeState(expression.left), computeState(expression.right))
+                ?: error("Unknown binary operation: ${expression.operation}")
         }
 
-        is ValueStateExpression.Nary -> when (expression.operation) {
+        is ValueStateExpression.Function -> when (expression.operation) {
             "sum" -> ValueState.combine(
                 scope = scope,
                 states = expression.arguments.values.map { computeState(it) }
@@ -196,7 +207,11 @@ public class StateExpressionContext(
                 if (values.isEmpty()) null else values.average()
             }
 
-            else -> error("Unknown Nary operation: ${expression.operation}")
+            else -> expressionPlugin
+                ?.functions
+                ?.get(expression.operation)
+                ?.invoke(expression.arguments.entries.associate { Symbol(it.key) to computeState(it.value) })
+                ?: error("Unknown Nary operation: ${expression.operation}")
         }
 
         is ValueStateExpression.Constant -> when (expression.name) {

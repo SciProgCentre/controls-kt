@@ -27,7 +27,7 @@ public class ControlsExpressionPlugin : AbstractPlugin() {
     override val tag: PluginTag get() = Companion.tag
 
 
-    public fun unaryOperations(): Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = mapOf(
+    public val unaryOperations: Map<String, (arg: ValueState<Double?>) -> ValueState<Double?>> = mapOf(
         "integrateMinute" to { argValue ->
             argValue.integrate(1.minutes, context)
         },
@@ -45,10 +45,10 @@ public class ControlsExpressionPlugin : AbstractPlugin() {
         }
     )
 
-    public fun binaryOperations(): Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>> =
-        emptyMap()
+    public val binaryOperations: Map<String, (arg1: ValueState<Double?>, arg2: ValueState<Double?>) -> ValueState<Double?>>
+        get() = emptyMap()
 
-    public fun functions(): Map<String, Expression<ValueState<Double?>>> = mapOf(
+    public val functions: Map<String, Expression<ValueState<Double?>>> = mapOf(
         "integrate" to Expression { args ->
             val argValue = args[arg] ?: error("Integrate argument is missing")
             val duration = args[windows]?.value?.seconds ?: error("Duration argument is missing")

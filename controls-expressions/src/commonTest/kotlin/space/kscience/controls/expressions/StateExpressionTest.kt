@@ -91,7 +91,7 @@ class StateExpressionTest {
         )
 
         val meanState by expression(
-            ValueStateExpression.Nary(
+            ValueStateExpression.Function(
                 operation = "mean",
                 arguments = mapOf(
                     "a" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "one"),
@@ -102,7 +102,7 @@ class StateExpressionTest {
         )
 
         val meanWithNullState by expression(
-            ValueStateExpression.Nary(
+            ValueStateExpression.Function(
                 operation = "mean",
                 arguments = mapOf(
                     "a" to ValueStateExpression.deviceProperty(deviceName ="arithmetic", propertyName = "one"),
@@ -116,7 +116,7 @@ class StateExpressionTest {
         )
 
         val meanAllNullState by expression(
-            ValueStateExpression.Nary(
+            ValueStateExpression.Function(
                 operation = "mean",
                 arguments = mapOf(
                     "a" to ValueStateExpression.deviceProperty(
