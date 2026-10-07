@@ -5,7 +5,6 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.nullable
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
-import space.kscience.dataforge.context.resolve
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.kmath.ast.parseMath
@@ -45,6 +44,8 @@ public class ComputationDevice(
     }
 
     public companion object : DeviceFactory, MetaSpec() {
+
+        public const val TYPE: String = "computation"
 
         /**
          * Creates a computation device that uses MST expression to compute value
@@ -91,6 +92,8 @@ public class ComputationDevice(
 
         public val formula: MetaRef<String> by string()
 
+        public val expression: MetaRef<ValueStateExpression> by serializable()
+
         public val argNames: MetaRef<List<String>> by stringList()
 
         override fun buildDevice(
@@ -99,9 +102,15 @@ public class ComputationDevice(
         ): ComputationDevice {
             val argNames = meta[argNames] ?: error("Argument names not defined")
 
-            //TODO add possibility to use expressions instead of formula
-            val formula = meta[formula] ?: error("Formula not defined")
-            return ofMath(context, formula.parseMath(), argNames)
+            meta[formula]?.let { formula ->
+                return ofMath(context, formula.parseMath(), argNames)
+            }
+
+            meta[expression]?.let { expression ->
+                return ofExpression(context, expression, argNames)
+            }
+
+            error("Either formula or expression must be defined")
         }
     }
 }

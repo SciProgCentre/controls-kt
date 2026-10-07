@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add tests to `ComputationDevice` and register it as device factory in `ControlsExpressionPlugin` for `ConstructorPlugin.construct` support.
 - Add tests for numerical correctness for `integrate` and `differentiate`.
 - Add tests for formula-based `math` expressions and `MathValueStateFactory`.
 - Separate module controls-expressions to evaluate expressions on ValueState

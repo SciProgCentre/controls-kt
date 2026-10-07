@@ -45,7 +45,7 @@ The code is Kotlin Multiplatform (JVM, JS, Native, Wasm JS) and depends on kotli
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-core:0.5.0-dev`.
+The Maven coordinates of this project are `space.kscience:controls-core:0.5.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -55,7 +55,7 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-core:0.5.0-dev")
+    implementation("space.kscience:controls-core:0.5.0-dev-4")
 }
 ```
 

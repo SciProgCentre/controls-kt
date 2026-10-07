@@ -28,8 +28,8 @@ The module provides tools for working with streaming data:
 
 ### 4. Storage and Data Replay
 The module includes interval-indexed storage and playback for time-series tag table data:
-* **[Tag Table Storage and Reading](storage.md)**: Envelope-based binary file storage, directory partitioning, AVL interval tree index (`TableStorageIndex`), query engine (`selectRows`), and historical replay (`ReplayTagTable`).
-* **[AsyncRows Compression](compression.md)**: Row-level and column-level compression algorithms for time-series streams.
+* **[Tag Table Storage and Reading](./docs/storage.md)**: Envelope-based binary file storage, directory partitioning, AVL interval tree index (`TableStorageIndex`), query engine (`selectRows`), and historical replay (`ReplayTagTable`).
+* **[AsyncRows Compression](./docs/compression.md)**: Row-level and column-level compression algorithms for time-series streams.
 
 ## Architectural Diagram
 
@@ -59,7 +59,7 @@ The module relies on the following technological solutions:
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-table:0.5.0-dev-1`.
+The Maven coordinates of this project are `space.kscience:controls-table:0.5.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -69,7 +69,7 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-table:0.5.0-dev-1")
+    implementation("space.kscience:controls-table:0.5.0-dev-4")
 }
 ```
 

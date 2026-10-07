@@ -63,6 +63,10 @@ public class ControlsExpressionPlugin : AbstractPlugin() {
             Name.of(MathValueStateFactory.TYPE) to MathValueStateFactory
         )
 
+        DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(
+            Name.of(ComputationDevice.TYPE) to ComputationDevice
+        )
+
         else -> super.content(target)
     }
 

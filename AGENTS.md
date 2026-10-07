@@ -7,4 +7,6 @@
 ## Specific code guidelines
 
 * When converting string constant to a DataForge Name, use `parseAsName()` if name string has several tokens separated by dots.
-* When creating tests, ensure that minimal number of tests is used to cover functionality to avoid increasing code size and build time.
+* When creating tests, ensure that a minimal number of tests is used to cover functionality and remove code duplication if possible to avoid increasing code size and build time.
+* When adding new features or changing the public behavior of existing ones, update markdown docs in a relevant module `docs` directory.
+* Keep documentation concise and simple. Introduce examples but keep implementation details to a minimum.
