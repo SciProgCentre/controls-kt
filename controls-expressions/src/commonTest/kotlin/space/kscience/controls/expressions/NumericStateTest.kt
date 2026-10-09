@@ -1,11 +1,17 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import space.kscience.controls.expressions.accumulate
 import space.kscience.controls.expressions.differentiate
 import space.kscience.controls.expressions.integrate
 import space.kscience.controls.time.ValueWithTime
@@ -13,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertSame
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -23,16 +30,111 @@ class NumericStateTest {
 
     private class CustomTimedState(initial: ValueWithTime<Double?>) : ValueState<Double?> {
         private val state = MutableStateFlow(initial)
+        var subscriptions: Int = 0
+            private set
 
         override val valueWithTime: ValueWithTime<Double?> get() = state.value
 
-        override fun subscribeWithTime(): Flow<ValueWithTime<Double?>> = state
+        override fun subscribeWithTime(): Flow<ValueWithTime<Double?>> = flow {
+            subscriptions++
+            emitAll(state)
+        }
 
         suspend fun emit(value: Double?, time: Instant) {
             state.emit(ValueWithTime(value, time))
         }
 
         override fun toString(): String = "CustomTimedState(${state.value})"
+    }
+
+    @Test
+    fun testAccumulateSnapshotAndExplicitSeed() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val sample = ValueWithTime(3.0, t0)
+        val source = CustomTimedState(sample)
+        val snapshot = source.accumulate(10.seconds, backgroundScope)
+        val explicit = source.accumulate(10.seconds, backgroundScope, sample)
+        runCurrent()
+
+        assertEquals(sample, snapshot.valueWithTime)
+        assertEquals(ValueWithTime(6.0, t0), explicit.valueWithTime)
+        source.emit(5.0, t0)
+        runCurrent()
+        assertEquals(ValueWithTime(8.0, t0), snapshot.valueWithTime)
+        assertEquals(ValueWithTime(11.0, t0), explicit.valueWithTime)
+    }
+
+    @Test
+    fun testAccumulateChangeBeforeSubscription() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.DISTANT_PAST
+        for (initial in listOf(null, 3.0)) {
+            val source = CustomTimedState(ValueWithTime(initial, t0))
+            val state = source.accumulate(10.seconds, backgroundScope)
+            source.emit(25.0, t0)
+            runCurrent()
+            assertEquals(ValueWithTime((initial ?: 0.0) + 25.0, t0), state.valueWithTime)
+        }
+    }
+
+    @Test
+    fun testAccumulateWindowAndOutOfOrderSamples() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val source = CustomTimedState(ValueWithTime(3.0, t0))
+        val state = source.accumulate(10.seconds, backgroundScope)
+        runCurrent()
+        val samples = listOf(
+            Triple(3.0, 2, 6.0),
+            Triple(null, 10, 6.0),
+            Triple(null, 11, 3.0),
+            Triple(100.0, 9, 3.0),
+            Triple(null, 13, 0.0),
+        )
+        for ((value, offset, expected) in samples) {
+            source.emit(value, t0 + offset.seconds)
+            runCurrent()
+            val resultTime = if (offset == 9) t0 + 11.seconds else t0 + offset.seconds
+            assertEquals(ValueWithTime(expected, resultTime), state.valueWithTime)
+        }
+    }
+
+    @Test
+    fun testAccumulateSingleCollectorAndOwnerCancellation() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val source = CustomTimedState(ValueWithTime(2.0, t0))
+        val owner = Job(backgroundScope.coroutineContext[Job])
+        val scope = CoroutineScope(backgroundScope.coroutineContext + owner)
+        val state = source.accumulate(10.seconds, scope, ValueWithTime(0.0, t0))
+        val first = backgroundScope.launch { state.subscribeWithTime().collect {} }
+        val second = backgroundScope.launch { state.subscribeWithTime().collect {} }
+        runCurrent()
+        assertEquals(1, source.subscriptions)
+        assertEquals(ValueWithTime(2.0, t0), state.valueWithTime)
+
+        first.cancel()
+        second.cancel()
+        source.emit(5.0, t0 + 1.seconds)
+        runCurrent()
+        val last = ValueWithTime(7.0, t0 + 1.seconds)
+        assertEquals(last, state.valueWithTime)
+        assertEquals(last, state.subscribeWithTime().first())
+        assertEquals(1, source.subscriptions)
+
+        owner.cancel()
+        runCurrent()
+        source.emit(10.0, t0 + 2.seconds)
+        runCurrent()
+        assertEquals(last, state.subscribeWithTime().first())
+        assertEquals(1, source.subscriptions)
+    }
+
+    @Test
+    fun testAccumulateWindowLimits() = runTest(timeout = 5.seconds) {
+        val sample = ValueWithTime(3.0, Instant.fromEpochSeconds(1_000))
+        for ((window, expected) in listOf(Duration.ZERO to 3.0, (-1).seconds to 0.0, Duration.INFINITE to 3.0)) {
+            val state = CustomTimedState(sample).accumulate(window, backgroundScope)
+            runCurrent()
+            assertEquals(ValueWithTime(expected, sample.time), state.valueWithTime)
+        }
     }
 
     @Test

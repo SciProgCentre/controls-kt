@@ -4,7 +4,13 @@ package space.kscience.controls.expressions
 
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
@@ -16,12 +22,91 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 
 /*
  * LLM generated code: Tests for ValueStateAlgebra verifying static expression evaluation,
  * reactive updates on source state changes, and flow subscription notifications.
  */
 class ValueStateAlgebraTest {
+
+    @Test
+    fun testSubscriptionKeepsTimestampOnlyChanges() = runTest {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val samples = MutableStateFlow(ValueWithTime<Double?>(2.0, t0))
+        val source = object : ValueState<Double?> {
+            override val valueWithTime get() = samples.value
+            override fun subscribeWithTime() = samples
+            override fun subscribe() = samples.map { it.value }.distinctUntilChanged()
+            override fun toString(): String = "TimedState(${samples.value})"
+        }
+        val algebra = ValueStateAlgebra()
+        val state = algebra.add(source, algebra.const(1.0))
+        val received = mutableListOf<ValueWithTime<Double?>>()
+        backgroundScope.launch { state.subscribeWithTime().collect { received.add(it) } }
+        runCurrent()
+        samples.value = ValueWithTime(2.0, t0 + 1_000.milliseconds)
+        runCurrent()
+        assertEquals(ValueWithTime(3.0, t0 + 1_000.milliseconds), received.last())
+    }
+
+    @Test
+    fun testConstantTimedValueAndSubscription() = runTest {
+        for (state in listOf(ValueStateAlgebra().const(2.0), ValueStateAlgebra.interpret("2 + 3", emptyMap()))) {
+            val expected = ValueWithTime(state.value, Instant.DISTANT_PAST)
+            assertEquals(expected, state.valueWithTime)
+            assertEquals(expected, state.subscribeWithTime().first())
+        }
+    }
+
+    @Test
+    fun testTimedEvaluationReadsEachDependencyOnce() {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        var reads = 0
+        val source = object : ValueState<Double?> {
+            override val valueWithTime: ValueWithTime<Double?>
+                get() = if (reads++ == 0) ValueWithTime(2.0, t0) else ValueWithTime(9.0, t0 + 1_000.milliseconds)
+
+            override fun subscribeWithTime() = flowOf(valueWithTime)
+            override fun toString(): String = "ChangingState(reads=$reads)"
+        }
+        val algebra = ValueStateAlgebra()
+        val state = algebra.add(source, algebra.const(1.0))
+
+        assertEquals(ValueWithTime(3.0, t0), state.valueWithTime)
+        assertEquals(1, reads)
+        assertEquals(ValueWithTime(10.0, t0 + 1_000.milliseconds), state.valueWithTime)
+        assertEquals(2, reads)
+    }
+
+    @Test
+    fun testHashCollisionsInNestedExpressions() {
+        class CollidingState(var currentValue: Double) : ValueState<Double?> {
+            override val valueWithTime get() = ValueWithTime<Double?>(currentValue, Instant.DISTANT_PAST)
+            override fun subscribeWithTime() = flowOf(valueWithTime)
+            override fun equals(other: Any?): Boolean = other is CollidingState
+            override fun hashCode(): Int = 7
+            override fun toString(): String = "CollidingState($currentValue)"
+        }
+        val a = CollidingState(1.0)
+        val b = CollidingState(2.0)
+        val direct = ValueStateAlgebra().add(a, b)
+        assertEquals(3.0, direct.value)
+        assertEquals(2.0, ValueStateAlgebra().add(a, a).value)
+
+        val leftAlgebra = ValueStateAlgebra()
+        val rightAlgebra = ValueStateAlgebra()
+        val left = leftAlgebra.add(a, leftAlgebra.const(3.0))
+        val right = rightAlgebra.add(b, rightAlgebra.const(4.0))
+        val nested = ValueStateAlgebra().add(left, right)
+        assertEquals(10.0, nested.value)
+        a.currentValue = 11.0
+        assertEquals(13.0, direct.value)
+        assertEquals(20.0, nested.value)
+        b.currentValue = 22.0
+        assertEquals(33.0, direct.value)
+        assertEquals(40.0, nested.value)
+    }
 
     @Test
     fun testStaticComputation() {
