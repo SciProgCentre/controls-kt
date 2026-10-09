@@ -10,15 +10,19 @@ The read-only `state: ValueState<Double>` is exposed as the `"state"` device pro
 
 ## Time and window semantics
 
-1. A non-null sample is added only when its timestamp is later than the current result's timestamp.
-2. Every incoming sample removes entries older than `sample.time - window` and gives the result
-   its timestamp, including null and out-of-order samples. The lower boundary is included.
-3. Null adds nothing, and an empty window sums to `0.0`. The window advances only on incoming
-   samples; there is no expiry timer.
+1. Samples older than the current result are ignored. Equal timestamps are accepted.
+2. Accepted samples remove entries older than `sample.time - window` and set the result
+   timestamp to `sample.time`. The lower boundary is included.
+3. Accepted null samples add nothing, and an empty window sums to `0.0`. The window advances
+   only on incoming samples; there is no expiry timer.
 
-`Accumulator` starts at `0.0`. A bound `ValueState(25.0)` uses `Instant.DISTANT_PAST` and adds
-nothing; use timestamped sources such as `MutableValueState`. Direct `integrate` instead uses
-the source's value at construction as its initial sum.
+`Accumulator` starts at `0.0`. On binding, the current source sample is processed,
+including a sample with `Instant.DISTANT_PAST`.
+Direct `accumulate` uses the current source sample as the initial value if `startingValue`
+is omitted or null. A matching first subscription sample is not added again.
+A non-null `startingValue` is a separate initial sample.
+
+A conflating source can skip intermediate updates.
 
 ## Direct binding
 

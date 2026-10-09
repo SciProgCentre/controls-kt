@@ -35,6 +35,9 @@
 
 ### Fixed
 
+- Preserve distinct expression inputs and compute values and timestamps from the same input samples.
+- Return timed values and an initial subscription sample for constant expressions.
+- Avoid counting the initial source sample twice in `ValueState.accumulate`; non-null starting values remain additive.
 - Fix trapezoid accumulation and initial state in `ValueState.integrate`.
 - Fix duplicate registration of `deviceProperty` factory in `ControlsExpressionPlugin` and dependency list serialization in `MathValueStateFactory`.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.

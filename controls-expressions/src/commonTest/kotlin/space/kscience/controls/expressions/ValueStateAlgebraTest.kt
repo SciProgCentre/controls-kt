@@ -24,10 +24,6 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
-/*
- * LLM generated code: Tests for ValueStateAlgebra verifying static expression evaluation,
- * reactive updates on source state changes, and flow subscription notifications.
- */
 class ValueStateAlgebraTest {
 
     @Test
@@ -92,6 +88,7 @@ class ValueStateAlgebraTest {
         val b = CollidingState(2.0)
         val direct = ValueStateAlgebra().add(a, b)
         assertEquals(3.0, direct.value)
+        assertEquals(0.5, ValueStateAlgebra().divide(a, b).value)
         assertEquals(2.0, ValueStateAlgebra().add(a, a).value)
 
         val leftAlgebra = ValueStateAlgebra()

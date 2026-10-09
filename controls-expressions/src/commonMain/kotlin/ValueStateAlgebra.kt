@@ -1,8 +1,9 @@
 package space.kscience.controls.expressions
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.ValueStateWithDependencies
 import space.kscience.controls.time.ValueWithTime
@@ -14,6 +15,7 @@ import space.kscience.kmath.expressions.*
 import space.kscience.kmath.operations.ExtendedField
 import space.kscience.kmath.operations.Float64Field
 import space.kscience.kmath.structures.MutableBufferFactory
+import kotlin.time.Instant
 
 /**
  * A class that represents a mathematical expression evaluation system for observable value states.
@@ -38,19 +40,22 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
             }
 
 
-        override val valueWithTime: ValueWithTime<Double?>
-            get() {
-                val dependencyValues = args.mapValues { it.value.valueWithTime }
-                val time = dependencyValues.maxOf { it.value.time }
-                val value = mst.interpret(
-                    algebra = Float64Field,
-                    arguments = args.mapValues { it.value.value ?: return ValueWithTime(null, time) }
-                )
-                return ValueWithTime(value, time)
-            }
+        private fun evaluate(samples: Map<Symbol, ValueWithTime<Double?>>): ValueWithTime<Double?> {
+            val time = samples.values.maxOfOrNull { it.time } ?: Instant.DISTANT_PAST
+            val values = samples.mapValues { it.value.value ?: return ValueWithTime(null, time) }
+            return ValueWithTime(mst.interpret(Float64Field, values), time)
+        }
 
-        override fun subscribeWithTime(): Flow<ValueWithTime<Double?>> =
-            args.values.map { it.subscribe() }.merge().map { valueWithTime }
+        override val valueWithTime: ValueWithTime<Double?>
+            get() = evaluate(args.mapValues { it.value.valueWithTime })
+
+        override fun subscribeWithTime(): Flow<ValueWithTime<Double?>> = if (args.isEmpty()) {
+            flowOf(valueWithTime)
+        } else {
+            combine(args.map { (symbol, state) ->
+                state.subscribeWithTime().map { symbol to it }
+            }) { samples -> evaluate(samples.toMap()) }
+        }
 
         override fun toString(): String = "MstValueState(mst=\"${mst.toLatexString()}\", dependencies=${args})"
     }
@@ -61,7 +66,7 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
     private fun wrapValueState(arg: ValueState<Double?>): MstValueState = if (arg is MstValueState) {
         arg
     } else {
-        val argSymbol = Symbol(arg.hashCode().toHexString())
+        val argSymbol = Symbol("_state0")
         MstValueState(argSymbol, mapOf(argSymbol to arg))
     }
 
@@ -80,9 +85,17 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
     ): MstValueState {
         val leftMstArg = wrapValueState(leftArg)
         val rightMstArg = wrapValueState(rightArg)
+        val args = linkedMapOf<Symbol, ValueState<Double?>>()
+        fun rebind(state: MstValueState): MST {
+            val symbols = state.args.mapValues { (_, source) ->
+                args.entries.firstOrNull { it.value === source }?.key
+                    ?: Symbol("_state${args.size}").also { args[it] = source }
+            }
+            return state.mst.interpret(MstNumericAlgebra, symbols)
+        }
         return MstValueState(
-            MstExtendedField.transform(leftMstArg.mst, rightMstArg.mst),
-            leftMstArg.args + rightMstArg.args
+            MstExtendedField.transform(rebind(leftMstArg), rebind(rightMstArg)),
+            args
         )
     }
 

@@ -21,7 +21,7 @@ val integratedFlow = powerState.integrate(
 
 ### 2. Time Window Accumulation (`accumulate`)
 
-Computes the sum of all numeric samples within a sliding `Duration` window:
+Computes the sum of observed numeric samples within a sliding `Duration` window:
 
 ```kotlin
 val accumulatedFlow = eventCountState.accumulate(
@@ -29,6 +29,16 @@ val accumulatedFlow = eventCountState.accumulate(
     scope = coroutineScope
 )
 ```
+
+If `startingValue` is omitted or null, use the current source sample as the initial value.
+A matching first subscription sample is not added again. A non-null `startingValue`
+is a separate initial sample, even if it equals the first source sample.
+
+Samples older than the current result are ignored; equal timestamps are accepted.
+Accepted null samples add nothing but advance the window and result time.
+The lower window boundary is included; there is no expiry timer.
+This operation does not integrate over time or compute changes in a cumulative counter.
+A conflating source can skip intermediate samples.
 
 ### 3. Time Differentiation (`differentiate`)
 
@@ -49,5 +59,3 @@ When `ControlsExpressionPlugin` is installed in the `Context`, these time-based 
 - `integrateHour`: 1-hour rolling integral
 - `integrateDay`: 1-day rolling integral
 - `integrate(arg, windows)`: Configurable duration integral function
-
-<!-- LLM generated code: Documentation for Time-Window Numeric Operations -->

@@ -24,7 +24,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-// LLM generated code: Tests for numerical correctness of differentiate and integrate
 @OptIn(ExperimentalCoroutinesApi::class)
 class NumericStateTest {
 
@@ -53,10 +52,12 @@ class NumericStateTest {
         val sample = ValueWithTime(3.0, t0)
         val source = CustomTimedState(sample)
         val snapshot = source.accumulate(10.seconds, backgroundScope)
+        val nullable = source.accumulate(10.seconds, backgroundScope, startingValue = null)
         val explicit = source.accumulate(10.seconds, backgroundScope, sample)
         runCurrent()
 
         assertEquals(sample, snapshot.valueWithTime)
+        assertEquals(sample, nullable.valueWithTime)
         assertEquals(ValueWithTime(6.0, t0), explicit.valueWithTime)
         source.emit(5.0, t0)
         runCurrent()
