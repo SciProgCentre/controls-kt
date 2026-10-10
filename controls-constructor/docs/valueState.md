@@ -1,6 +1,6 @@
 # Reactive State Abstraction
 
-The `valueState` feature provides the foundation for reactive data flow in `controls-constructor`. It revolves around the `ValueState` interface, which represents a value that can be observed over time.
+The `subscribe` feature provides the foundation for reactive data flow in `controls-constructor`. It revolves around the `ValueState` interface, which represents a value that can be observed over time.
 
 ## ValueState<T>
 

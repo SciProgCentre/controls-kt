@@ -40,6 +40,7 @@ Example view of a demo:
 ## Documentation
 
 * [Creating a device](docs/Device%20and%20DeviceSpec.md)
+* [Storage strategies](docs/storage.md)
 
 ## Modules
 
@@ -73,6 +74,11 @@ Example view of a demo:
 > - [ports](controls-core/src/commonMain/kotlin/space/kscience/controls/ports) : Working with asynchronous data sending and receiving raw byte arrays
 > - [clock](controls-core/src/commonMain/kotlin/space/kscience/controls/time) : Clock management and time manipulation (virtual and compressed time)
 
+
+### [controls-expressions](controls-expressions)
+> Mathematical expressions and functions.
+>
+> **Maturity**: EXPERIMENTAL
 
 ### [controls-jupyter](controls-jupyter)
 >

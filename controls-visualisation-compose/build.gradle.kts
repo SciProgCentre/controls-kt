@@ -1,7 +1,7 @@
 plugins {
     id("space.kscience.gradle.mpp")
     alias(spclibs.plugins.compose.compiler)
-    alias(spclibs.plugins.compose.jb)
+    alias(libs.plugins.compose.jb)
     `maven-publish`
 }
 

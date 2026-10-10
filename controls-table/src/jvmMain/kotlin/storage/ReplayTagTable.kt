@@ -11,6 +11,7 @@ import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
+import space.kscience.controls.tagtable.TagState
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableValueState
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
@@ -54,26 +55,30 @@ public class ReplayTagTable(
     override val coroutineContext: CoroutineContext get() = context.coroutineContext
 
     private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
+    private val tagStates = ConcurrentHashMap<String, TagState>()
+
+
+    override fun readTagWithTime(tag: String): ValueWithTime<Meta> =
+        values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
 
     /**
      * Read a value of a single column in the table
      */
-    override suspend fun read(tag: String): Meta = readWithTime(tag).value
+    override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
-    override fun readWithTime(tag: String): ValueWithTime<Meta> =
-        values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
+    override suspend fun readTagQuality(tag: String): TagState = tagStates[tag] ?: TagState.EMPTY
 
     /**
      * Read current values of all tags
      */
-    override fun readAll(): Map<String, Meta> = values.mapValues { it.value.value }
+    override fun readAllValues(): Map<String, Meta> = values.mapValues { it.value.value }
 
     /**
      * Starts generating a flow of rows for the current data platform with a specified interval.
      *
      * @param interval the interval between row generation.
      */
-    override fun readTimeSeries(interval: Duration): TimeSeriesRows<Meta> {
+    override fun readTimeSeries(interval: Duration, withTagQuality: Boolean): TimeSeriesRows<Meta> {
 
         val propertyColumnHeaders: List<ColumnHeader<Meta>> = tags.map { (name, descriptor) ->
             SimpleColumnHeader(name, typeOf<Meta>(), Meta.EMPTY)
@@ -87,7 +92,12 @@ public class ReplayTagTable(
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 //FIXME process read errors
-                val values = propertyColumnHeaders.associate { it.name to read(it.name) }
+                val values =if(withTagQuality){
+                    propertyColumnHeaders.associate { it.name to readTag(it.name) } +
+                            propertyColumnHeaders.associate { (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(it.name).value }
+                } else {
+                    propertyColumnHeaders.associate { it.name to readTag(it.name) }
+                }
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
@@ -122,6 +132,11 @@ public class ReplayTagTable(
                         )
                     )
                 }
+                val tagState = row.getOrNull(tag + TagState.TAG_QUALITY_SUFFIX)
+                if(tagState != null) {
+                    tagStates[tag] = TagState(tagState)
+                }
+
             }
             _messageFlow.emit(
                 PropertyChangedMessage(
@@ -172,7 +187,7 @@ public class ReplayTagTable(
 
     private val stateCache = mutableMapOf<String, ValueState<Meta>>()
 
-    override fun valueState(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
+    override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
         TagTableValueState(this, tag)
     }
 

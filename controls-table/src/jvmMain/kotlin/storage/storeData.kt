@@ -89,6 +89,7 @@ public sealed interface DataPlatformFileSplit {
 public fun TagTable.storeData(
     directory: Path,
     readInterval: Duration,
+    withTagState: Boolean = false,
     maxRowsPerEnvelope: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
@@ -100,6 +101,7 @@ public fun TagTable.storeData(
 ): Job = flowBinaryData(
     readInterval = readInterval,
     converter = rowsConverter,
+    withTagState = withTagState,
     maxRows = maxRowsPerEnvelope,
     maxDuration = maxDuration,
     maxPause = maxPause,

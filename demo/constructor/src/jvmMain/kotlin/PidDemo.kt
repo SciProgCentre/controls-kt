@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.onEach
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.api.deviceMessageFlow
 import space.kscience.controls.compose.NumberTextField
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
@@ -28,7 +29,6 @@ import space.kscience.controls.constructor.units.Meters
 import space.kscience.controls.constructor.units.NumericAmount
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
-import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.models.mechanical.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
@@ -156,7 +156,7 @@ fun main() = application {
     LaunchedEffect(Unit) {
 
         // start listening to local device hub
-        context.request(DeviceManager).messageFlow()
+        context.request(DeviceManager).deviceMessageFlow()
             .filterIsInstance<PropertyChangedMessage>() // filter only property change messages
             //.filter { it.sourceDevice == "linearDrive".asName()} //optionally filter by device name
             .onEach {

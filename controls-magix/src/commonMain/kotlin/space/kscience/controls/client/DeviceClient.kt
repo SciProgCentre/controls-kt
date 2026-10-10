@@ -242,6 +242,8 @@ public suspend fun MagixEndpoint.remoteDeviceTree(
                 .associate { (name, tree) ->
                     name.toString() to DeviceTree(tree)
                 }
+
+        override val treeMessageFlow = subscription.filterIsInstance<DeviceTreeMessage>()
     }
 }
 

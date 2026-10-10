@@ -160,7 +160,7 @@ val replayTable = TagTable.replay(
       timeScale = 2.0   // 2x speed playback
   )
   ```
-- **Live Device Message Stream**: Emits `PropertyChangedMessage` for individual tags and composite `TagTable.ROW_PROPERTY_NAME` updates to `messageFlow` matching recorded time deltas.
+- **Live Device Message Stream**: Emits `PropertyChangedMessage` for individual tags and composite `TagTable.ROW_PROPERTY_NAME` updates to `deviceMessageFlow` matching recorded time deltas.
 - **Synchronous and Time-Series Reads**: Implements `read(tag)`, `readAll()`, and `readTimeSeries(interval)` backed by current replay state.
 - **Value State Observation**: Supports observable properties via `valueState(tag)`.
 

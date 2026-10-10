@@ -11,6 +11,7 @@ import space.kscience.controls.tagtable.RowsCompression
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.compress
 import space.kscience.controls.tagtable.hasCompression
+import space.kscience.controls.tagtable.readAllValuesWithTagState
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.tagtable.timeseries.toRow
 import space.kscience.controls.time.ValueWithTime
@@ -38,15 +39,16 @@ import kotlin.time.Instant
 public fun TagTable.flowBinaryData(
     readInterval: Duration,
     converter: RowsEnvelopeConverter<Meta>,
+    withTagState: Boolean = false,
     maxRows: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
 ): Flow<Envelope> {
     val rows = if (compression == null) {
-        readTimeSeries(readInterval)
+        readTimeSeries(readInterval, withTagState)
     } else {
-        readTimeSeries(readInterval).compress(compression)
+        readTimeSeries(readInterval, withTagState).compress(compression)
     }
 
     return channelFlow {
@@ -75,7 +77,13 @@ public fun TagTable.flowBinaryData(
 
             // put a line with all values at the beginning of each block to avoid having unknown start values in binary blocks
             if (compression?.hasCompression == true) {
-                rowBuffer.add(ValueWithTime(readAll(), now))
+                rowBuffer.add(
+                    if(withTagState){
+                        ValueWithTime(readAllValuesWithTagState(), now)
+                    } else {
+                        ValueWithTime(readAllValues(), now)
+                    }
+                )
             }
 
             lastCollectionTime = now

@@ -72,20 +72,16 @@ public open class DeviceConstructor(
             ?.let { action(it)?.let { outputConverter.convert(it) } }
     }
 
+    final override val messageFlow: Flow<DeviceMessage>
+        field = MutableSharedFlow<DeviceMessage>()
 
-    private val sharedMessageFlow = MutableSharedFlow<DeviceMessage>()
-
-    override val messageFlow: Flow<DeviceMessage>
-        get() = sharedMessageFlow
-
-    @OptIn(ExperimentalCoroutinesApi::class)
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
                 context.deviceDispatcher +
                 CoroutineName("Device $id") +
                 CoroutineExceptionHandler { _, throwable ->
                     context.launch {
-                        sharedMessageFlow.emit(
+                        messageFlow.emit(
                             DeviceErrorMessage(
                                 time = clock.now(),
                                 errorMessage = throwable.message,
@@ -98,21 +94,24 @@ public open class DeviceConstructor(
                 }
     )
 
+    final override val children: Map<String, DeviceTree>
+        field = hashMapOf<String, DeviceTree>()
 
-    private val _devices = hashMapOf<String, DeviceTree>()
-
-    override val children: Map<String, DeviceTree> get() = _devices
+    override val treeMessageFlow: Flow<DeviceTreeMessage> get() = messageFlow.filterIsInstance<DeviceTreeMessage>()
 
     /**
      * Register and initialize (synchronize child's lifecycle state with group state) a new device tree in this group.
      */
     public fun <DT : DeviceTree> installTree(deviceName: String, child: DT): DT {
-        require(_devices[deviceName] == null) { "A child device with name $deviceName already exists" }
+        require(children[deviceName] == null) { "A child device with name $deviceName already exists" }
         //start the child device if this device is started
         if (isStarted()) child.start()
-        _devices[deviceName] = child
+        children[deviceName] = child
         if (child is Constructor) {
             registerElement(ChildConstructorElement(Name.of(deviceName), child))
+        }
+        launch {
+            messageFlow.emit(DeviceTreeChildDeviceChangedMessage(clock.now(), deviceName, Name.EMPTY))
         }
         return child
     }
@@ -145,7 +144,7 @@ public open class DeviceConstructor(
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
         state.subscribeWithTime().onEach { (value, time) ->
-            sharedMessageFlow.emit(
+            messageFlow.emit(
                 PropertyChangedMessage(
                     time = time,
                     property = descriptor.name,
@@ -212,7 +211,7 @@ public open class DeviceConstructor(
 
     private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
-        sharedMessageFlow.emit(
+        messageFlow.emit(
             DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
@@ -238,7 +237,7 @@ public open class DeviceConstructor(
 
     override val clock: Clock = context.clock
 
-    public companion object{
+    public companion object {
         public const val METADATA_KEY: String = "metadata"
     }
 }
@@ -299,7 +298,7 @@ public fun <D : Device> DeviceConstructor.install(
 /**
  * Add a device tree creating intermediate groups if necessary. If device with given [name] already exists, throws an error.
  */
-public fun <DT: DeviceTree> DeviceConstructor.installTree(
+public fun <DT : DeviceTree> DeviceConstructor.installTree(
     name: String,
     factory: Factory<DT>,
     deviceMeta: Meta? = null,
@@ -319,7 +318,7 @@ public fun DeviceConstructor.install(name: String, block: DeviceConstructor.() -
 /**
  * Register read-only property based on [state]
  */
-public fun <T : Any> DeviceConstructor.registerProperty(
+public fun <T> DeviceConstructor.registerProperty(
     name: String,
     converter: MetaConverter<T>,
     state: ValueState<T>,
@@ -338,7 +337,7 @@ public fun <T : Any> DeviceConstructor.registerProperty(
 /**
  * Register a mutable property based on mutable [state]
  */
-public fun <T : Any> DeviceConstructor.registerMutableProperty(
+public fun <T> DeviceConstructor.registerMutableProperty(
     name: String,
     converter: MetaConverter<T>,
     state: MutableValueState<T>,
@@ -359,7 +358,7 @@ public fun <T : Any> DeviceConstructor.registerMutableProperty(
  * Create a new virtual mutable state and a property based on it.
  * @return the mutable state used in property
  */
-public fun <T : Any> DeviceConstructor.registerVirtualProperty(
+public fun <T> DeviceConstructor.registerVirtualProperty(
     name: String,
     initialValue: T,
     converter: MetaConverter<T>,
@@ -423,7 +422,7 @@ public fun <T, S : ValueState<T>> DeviceConstructor.property(
 /**
  * Register an external state as a property
  */
-public fun <T : Any> DeviceConstructor.property(
+public fun <T> DeviceConstructor.property(
     metaConverter: MetaConverter<T>,
     reader: suspend () -> T,
     readInterval: Duration,
@@ -445,7 +444,7 @@ public fun <T : Any> DeviceConstructor.property(
 /**
  * Create and register a mutable external state as a property
  */
-public fun <T : Any> DeviceConstructor.mutableProperty(
+public fun <T> DeviceConstructor.mutableProperty(
     metaConverter: MetaConverter<T>,
     reader: suspend () -> T,
     writer: suspend (T) -> Unit,

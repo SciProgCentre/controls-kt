@@ -111,7 +111,7 @@ val rows: Rows<Meta> = index.selectRows(fromInstant..toInstant)
 
 `ReplayTagTable` wraps a `TableStorageIndex` and acts as a virtual, live `TagTable`:
 
-- Emits real-time or scaled `PropertyChangedMessage` events into `messageFlow`.
+- Emits real-time or scaled `PropertyChangedMessage` events into `deviceMessageFlow`.
 - Supports virtual clock execution for simulations.
 
 ```kotlin

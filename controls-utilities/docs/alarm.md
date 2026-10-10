@@ -37,7 +37,7 @@ val result = alarm.state.subscribe().first { it.value == 75.0 }
 
 ## Factory configuration
 
-The factory reads `settings` and optional `metadata`, not `deviceName` or `propertyName`.
+The factory reads `settings` and optional `metadata`, not `childDeviceName` or `propertyName`.
 An absent `settings` node means an empty list. Use the helper to preserve its indexed format:
 
 ```kotlin
