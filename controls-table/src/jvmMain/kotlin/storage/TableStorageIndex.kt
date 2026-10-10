@@ -24,30 +24,47 @@ import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
 import space.kscience.tables.get
 import java.nio.file.ClosedWatchServiceException
-import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
+import java.nio.file.StandardWatchEventKinds.OVERFLOW
 import java.nio.file.WatchEvent
+import java.nio.file.WatchService
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
+ * Create a watcher for file creation and deletion events in this directory.
+ */
+internal fun Path.watchFiles(): WatchService = fileSystem.newWatchService().also { watchService ->
+    try {
+        register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    } catch (ex: Throwable) {
+        watchService.close()
+        throw ex
+    }
+}
+
+/**
  * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
- * for each file creation or deletion event.
+ * for each file creation or deletion event, and without a path for [OVERFLOW], when events were lost.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
     directory: Path,
-    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path) -> Unit
-): Job = launch(Dispatchers.IO) {
-    FileSystems.getDefault().newWatchService().use { watchService ->
-        directory.register(
-            watchService,
-            ENTRY_CREATE, ENTRY_DELETE,
-        )
+    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path?) -> Unit
+): Job = launchDirectoryMonitor(directory.watchFiles(), onEvent)
 
+/**
+ * Launch a directory monitor for an already registered [watchService] and close it when the monitor stops,
+ * including a monitor that is cancelled before it starts.
+ */
+internal fun CoroutineScope.launchDirectoryMonitor(
+    watchService: WatchService,
+    onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path?) -> Unit
+): Job = launch(Dispatchers.IO) {
+    watchService.use { watchService ->
         while (isActive) {
             val key = try {
                 runInterruptible { watchService.take() }
@@ -57,14 +74,14 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 
             for (event in key.pollEvents()) {
                 ensureActive()
-                val file = event.context() as Path
+                val file = event.context() as Path?
                 onEvent(event.kind(), file)
             }
 
             if (!key.reset()) break
         }
     }
-}
+}.apply { invokeOnCompletion { watchService.close() } }
 
 /**
  * A class that represents an index for a data platform's storage, providing capabilities for
@@ -218,12 +235,11 @@ public class TableStorageIndex(
     private fun insert(node: IntervalNode?, interval: Interval): IntervalNode {
         node ?: return IntervalNode(interval)
 
+        val comparison = compareIntervals(interval, node.interval)
         when {
-            compareIntervals(interval, node.interval) < 0 ->
-                node.left = insert(node.left, interval)
-
-            else ->
-                node.right = insert(node.right, interval)
+            comparison < 0 -> node.left = insert(node.left, interval)
+            comparison > 0 -> node.right = insert(node.right, interval)
+            else -> return node // the same file could be found both by the scan and by the monitor
         }
 
         update(node)
@@ -381,8 +397,23 @@ public class TableStorageIndex(
 
         treeMutex.withLock { root = null }
 
-        operations.envelopeFilesSequence(dataDirectory).forEach { (_, path) ->
-            insert(path)
+        // watch before the scan, so that files created during the scan are not missed
+        val watchService = try {
+            dataDirectory.watchFiles()
+        } catch (ex: Throwable) {
+            lifecycleState = LifecycleState.STOPPED
+            throw ex
+        }
+        try {
+            operations.envelopeFilesSequence(dataDirectory).forEach { (_, path) ->
+                insert(path)
+            }
+            currentCoroutineContext().ensureActive()
+        } catch (ex: Throwable) {
+            watchService.close()
+            // a stopped index is started again by the next query
+            lifecycleState = LifecycleState.STOPPED
+            throw ex
         }
 
         lifecycleState = LifecycleState.STARTED
@@ -393,11 +424,12 @@ public class TableStorageIndex(
 
             val removalMutex: Mutex = Mutex()
 
-            launchDirectoryMonitor(dataDirectory) { kind, file ->
-                val path = dataDirectory.resolve(file)
+            launchDirectoryMonitor(watchService) { kind, file ->
+                // an overflow has no file, so the whole directory is scanned again; indexed files are not added twice
+                val path = file?.let { dataDirectory.resolve(it) } ?: dataDirectory
 
                 when (kind) {
-                    ENTRY_CREATE -> {
+                    ENTRY_CREATE, OVERFLOW -> {
                         operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
                             insert(createdPath)
                         }
@@ -420,7 +452,7 @@ public class TableStorageIndex(
                     }
                 }
             }
-        }
+        }.apply { invokeOnCompletion { watchService.close() } }
     }
 
     /**

@@ -10,7 +10,7 @@
 
 ### Changed
 
-- **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
+- **BREAKING** `TagTable` implementations must provide `readTagWithTime` and expose messages as `SharedFlow`.
 
 ### Deprecated
 
@@ -20,6 +20,8 @@
 
 - Announce devices of a remote tree when their descriptions arrive.
 - Read the initial device tree composition in the coroutine that handles composition changes.
+- Register the storage index monitor before the initial scan, so files created meanwhile are indexed once, and let the next query retry a failed start.
+- Scan the storage directory again after a watch overflow instead of stopping the storage index monitor.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.
 - Keep scalar OPC payloads scalar when Meta contains only reserved `@opc` annotations.
 - Do not add storage anchor rows when compression is disabled.
