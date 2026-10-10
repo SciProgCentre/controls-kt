@@ -106,7 +106,8 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
 
 
     override fun const(value: Double?): ValueState<Double?> =
-        MstValueState(MST.Numeric(value ?: Double.NaN), emptyMap())
+        if (value == null) ValueState<Double?>(null)
+        else MstValueState(MST.Numeric(value), emptyMap())
 
     override fun number(value: Number): ValueState<Double?> = const(value.toDouble())
 

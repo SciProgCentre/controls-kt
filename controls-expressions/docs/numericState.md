@@ -15,9 +15,15 @@ val integratedFlow = powerState.integrate(
 )
 ```
 
-- Adds samples when their timestamp is newer than previous samples.
-- Discards samples that fall outside the sliding time window.
-- Out-of-order samples are ignored.
+`startingValue` is the first signal sample, not an integral offset. The integral starts at zero.
+The default uses the source value at construction, replacing null with zero.
+`Instant.DISTANT_PAST` does not define an integration interval.
+
+- Only newer timestamps advance the result; equal and older timestamps are ignored.
+- Segments are clipped at the left window boundary by linear interpolation.
+- Null samples advance the window without adding a point; interpolation connects non-null samples.
+- No area is added before the first point or after the last one. There is no expiry timer.
+- A zero window gives zero; an infinite window keeps all timed history. Negative windows are rejected.
 
 ### 2. Time Window Accumulation (`accumulate`)
 
@@ -59,3 +65,5 @@ When `ControlsExpressionPlugin` is installed in the `Context`, these time-based 
 - `integrateHour`: 1-hour rolling integral
 - `integrateDay`: 1-day rolling integral
 - `integrate(arg, windows)`: Configurable duration integral function
+
+<!-- LLM generated code: Documentation for Time-Window Numeric Operations -->

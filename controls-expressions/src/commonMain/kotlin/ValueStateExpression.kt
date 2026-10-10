@@ -309,7 +309,7 @@ public fun DeviceConstructor.expression(
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             when (val currentState = state) {
                 null if isStarted() -> {
-                    StateExpressionContext(context, resolveBinding = resolveBinding).computeState(expression)
+                    StateExpressionContext(context, scope = this, resolveBinding = resolveBinding).computeState(expression)
                         .also {
                             registerProperty(MetaConverter.double.nullable(), descriptor, it)
                             state = it

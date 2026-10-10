@@ -20,43 +20,51 @@ import kotlin.time.Instant
 public fun <T : Any> ValueWithTime<T?>.withDefault(default: T): ValueWithTime<T> = ValueWithTime(value ?: default, time)
 
 /**
- * Calculates a rolling time trapezoid integral, using the source value at construction as the default [startingValue].
- * Adds a sample only when its time is later than the current result's time. Every event, including
- * null samples, trims the [window] and republishes the result with its own time. Out of order samples are ignored.
+ * Calculates a rolling trapezoid integral, clipping segments at the [window] boundary.
+ * [startingValue] is the first signal sample, not an integral offset; an untimed sample is ignored.
+ * The default uses the source value at construction, replacing null with zero.
+ * Only newer timestamps advance the result. Null samples advance the window without adding a point.
+ * Interpolation connects non-null samples; no area is added beyond the last point.
  */
 public fun ValueState<Double?>.integrate(
     window: Duration,
     scope: CoroutineScope,
     startingValue: ValueWithTime<Double> = valueWithTime.withDefault(0.0)
 ): ValueState<Double> = object : ValueStateWithDependencies<Double> {
-    private val history: MutableList<ValueWithTime<Double>> = mutableListOf(startingValue)
-    private val state: MutableStateFlow<ValueWithTime<Double>> = MutableStateFlow(startingValue)
+    private val history: MutableList<ValueWithTime<Double>> =
+        if (startingValue.time == Instant.DISTANT_PAST) mutableListOf() else mutableListOf(startingValue)
+    private val state = MutableStateFlow(ValueWithTime(0.0, startingValue.time))
     private val mutex = Mutex()
 
-    private val job = this@integrate.subscribeWithTime().onEach { (value, time) ->
-        //out of order samples are ignored
-        if (time <= state.value.time) return@onEach
+    init {
+        require(window >= Duration.ZERO) { "Window must not be negative" }
+    }
 
+    private val job = this@integrate.subscribeWithTime().onEach { (value, time) ->
         mutex.withLock {
+            if (time <= state.value.time) return@withLock
             if (value != null) {
                 history.add(ValueWithTime(value, time))
             }
-            history.removeAll { it.time < (time - window) }
+            val boundary = if (window.isInfinite()) null else time - window
+            if (boundary != null) {
+                val firstKept = history.indexOfLast { it.time <= boundary }
+                if (firstKept > 0) history.subList(0, firstKept).clear()
+            }
 
             var integral = 0.0
-            if (history.isNotEmpty()) {
-                var previous = history.first()
-
-                if (history.size == 1) {
-                    integral = previous.value
-                } else {
-                    for (i in 1 until history.size) {
-                        val current = history[i]
-                        val dt = (current.time - previous.time).toDouble(DurationUnit.SECONDS)
-                        integral += (previous.value + current.value) / 2.0 * dt
-                        previous = current
-                    }
+            for (i in 1 until history.size) {
+                val previous = history[i - 1]
+                val current = history[i]
+                val start = boundary?.let { maxOf(previous.time, it) } ?: previous.time
+                if (start >= current.time) continue
+                val startValue = if (start == previous.time) previous.value else {
+                    val fraction = (start - previous.time).toDouble(DurationUnit.SECONDS) /
+                            (current.time - previous.time).toDouble(DurationUnit.SECONDS)
+                    previous.value * (1.0 - fraction) + current.value * fraction
                 }
+                val dt = (current.time - start).toDouble(DurationUnit.SECONDS)
+                integral += (startValue + current.value) / 2.0 * dt
             }
 
             state.emit(ValueWithTime(integral, time))

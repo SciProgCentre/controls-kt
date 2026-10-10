@@ -36,6 +36,9 @@
 
 ### Fixed
 
+- Preserve null constants in `ValueStateAlgebra`.
+- Use the device scope for delegated expression properties.
+- Clip trapezoid integration at the window boundary and start from zero.
 - Preserve distinct expression inputs and compute values and timestamps from the same input samples.
 - Return timed values and an initial subscription sample for constant expressions.
 - Count the first observed sample once in `ValueState.accumulate`.
