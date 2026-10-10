@@ -1,6 +1,9 @@
 package center.sciprog.controls.demo.thermo
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import space.kscience.controls.api.DeviceTree
+import space.kscience.controls.api.DeviceTreeMessage
 import space.kscience.dataforge.context.ContextAware
 
 /**
@@ -33,6 +36,8 @@ import space.kscience.dataforge.context.ContextAware
 interface ThermoSensorHub : DeviceTree, ContextAware {
     val sensors: Map<String, ThermoSensorAnalyzer>
     val groups: Map<String, ThermoSensorGroupAnalyzer>
+
+    override val treeMessageFlow: Flow<DeviceTreeMessage> get() = emptyFlow()
 
     override val children: Map<String, DeviceTree> get() = sensors + groups.mapKeys { "group[${it.key}]" }
 }

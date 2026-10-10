@@ -2,6 +2,7 @@ package space.kscience.controls.client
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -9,9 +10,9 @@ import kotlinx.serialization.json.Json
 import space.kscience.controls.api.DescriptionMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
+import space.kscience.controls.api.deviceMessageFlow
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.installTree
-import space.kscience.controls.manager.messageFlow
 import space.kscience.controls.manager.respondMessage
 import space.kscience.controls.spec.*
 import space.kscience.dataforge.context.Context
@@ -32,10 +33,10 @@ import kotlin.time.Duration.Companion.seconds
 
 class VirtualMagixEndpoint(val tree: DeviceTree, val scope: CoroutineScope) : MagixEndpoint {
 
-    private val messages = MutableSharedFlow<DeviceMessage>(10, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val messages = MutableSharedFlow<DeviceMessage>(100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     init {
-        tree.messageFlow().onEach {
+        tree.deviceMessageFlow().onEach {
             messages.emit(it)
         }.launchIn(scope)
     }
@@ -94,6 +95,8 @@ internal class RemoteDeviceConnect {
 
         assertContains(0.0..1.0, remoteDevice.read(TestDevice.value))
 
+        context.close()
+
     }
 
     @Test
@@ -109,25 +112,26 @@ internal class RemoteDeviceConnect {
 
         assertEquals(0, remoteHub.children.size)
 
-        launch {
-            repeat(10) {
-                deviceManager.installTree("test[$it]", TestDevice)
+        coroutineScope {
+            launch {
+                repeat(10) {
+                    deviceManager.installTree("test[$it]", TestDevice)
+                }
             }
+
+            launch {
+                virtualMagixEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+                    .map { it.second }
+                    .filterIsInstance<DescriptionMessage>()
+                    .onEach { println(it.sourceDevice) }
+                    .take(10)
+                    .collect()
+
+                assertEquals(10, remoteHub.children.size)
+            }
+
+            virtualMagixEndpoint.requestDeviceUpdate("client", "device")
         }
-
-        launch {
-            virtualMagixEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
-                .map { it.second }
-                .filterIsInstance<DescriptionMessage>()
-                .onEach { println(it) }
-                .take(10)
-                .collect()
-
-            assertEquals(10, remoteHub.children.size)
-        }
-
-        virtualMagixEndpoint.requestDeviceUpdate("client", "device")
-
-
+        context.close()
     }
 }

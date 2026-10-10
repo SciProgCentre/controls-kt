@@ -10,7 +10,7 @@
 
 ### Changed
 
-- **BREAKING** `TagTable` implementations must provide `readWithTime` and expose messages as `SharedFlow`.
+- **BREAKING** `TagTable` implementations must provide `readTagWithTime` and expose messages as `SharedFlow`.
 
 ### Deprecated
 
@@ -18,6 +18,8 @@
 
 ### Fixed
 
+- Register the storage index monitor before the initial scan, so files created meanwhile are indexed once, and let the next query retry a failed start.
+- Scan the storage directory again after a watch overflow instead of stopping the storage index monitor.
 - Give native envelope metadata its final name only after it is written, so a running index does not read partial files.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.
 - Keep scalar OPC payloads scalar when Meta contains only reserved `@opc` annotations.

@@ -1,5 +1,6 @@
 package space.kscience.controls.tagtable
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -22,17 +23,33 @@ import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.set
+import space.kscience.dataforge.names.Name
 import space.kscience.tables.MapRow
 import space.kscience.tables.RowTable
 import space.kscience.tables.SimpleColumnHeader
+import java.nio.file.FileStore
+import java.nio.file.FileSystem
+import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
+import java.nio.file.PathMatcher
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardWatchEventKinds.OVERFLOW
+import java.nio.file.WatchEvent
+import java.nio.file.WatchKey
+import java.nio.file.WatchService
+import java.nio.file.Watchable
+import java.nio.file.attribute.UserPrincipalLookupService
+import java.nio.file.spi.FileSystemProvider
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -262,6 +279,207 @@ class TableStorageIndexTest {
             context.coroutineContext[Job]?.cancelAndJoin()
             context.close()
             directory.toFile().deleteRecursively()
+        }
+    }
+
+    private class WatchFixture(name: String) {
+        val context = Context(name) { plugin(ControlsStoragePlugin) }
+        val storage = context.request(ControlsStoragePlugin)
+        val directory: Path = Files.createTempDirectory(name)
+        val watched: Path = Files.createDirectory(directory.resolve("data"))
+        private val staging = Files.createDirectory(directory.resolve("staging"))
+        private val writer = SingleFileEnvelopeOperations(storage.io)
+        private val headers = listOf(TagTable.timeColumnHeader, SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY))
+
+        fun publish(name: String, at: Instant) = publishTo(watched, name, at)
+
+        fun publishTo(target: Path, name: String, at: Instant) {
+            val row = MapRow(mapOf(
+                TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(at),
+                "value" to Meta(1),
+            ))
+            val envelope = ZipRowsEnvelopeConverter.meta.writeRows(RowTable(headers, listOf(row)), Meta {
+                set(RowEnvelopeMetaSpec.startTime, at)
+                set(RowEnvelopeMetaSpec.endTime, at)
+            })
+            writer.writeEnvelope(name, staging, envelope)
+            Files.move(staging.resolve("$name.df"), target.resolve("$name.df"), ATOMIC_MOVE)
+        }
+
+        suspend fun close(index: TableStorageIndex) {
+            index.stop()
+            context.coroutineContext[Job]?.cancelAndJoin()
+            context.close()
+            directory.toFile().deleteRecursively()
+        }
+    }
+
+    private suspend fun TableStorageIndex.awaitEnvelopes(range: ClosedRange<Instant>) = withContext(Dispatchers.IO) {
+        withTimeout(10.seconds) {
+            while (selectEnvelopes(range).isEmpty()) delay(10.milliseconds)
+        }
+    }
+
+    /**
+     * Operations that publish [name] while the initial scan runs, before or after the directory is listed.
+     */
+    private fun WatchFixture.publishingDuringScan(name: String, at: Instant, afterListing: Boolean): FileEnvelopeOperations {
+        val native = NativeFileEnvelopeOperations(storage.io)
+        val scans = AtomicInteger()
+        return object : FileEnvelopeOperations by native {
+            override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> {
+                if (root != watched || scans.getAndIncrement() != 0) return native.envelopeFilesSequence(root)
+                if (!afterListing) publish(name, at)
+                return native.envelopeFilesSequence(root) + sequence { if (afterListing) publish(name, at) }
+            }
+        }
+    }
+
+    @Test
+    fun testFailedStartIsRetriedByTheNextQuery() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-retry-test")
+        val missing = fixture.directory.resolve("missing")
+        val index = TableStorageIndex(fixture.storage, missing)
+        val time = Instant.fromEpochSeconds(1625097600)
+        try {
+            assertFailsWith<NoSuchFileException> { index.start() }
+            Files.move(fixture.watched, missing)
+            fixture.publishTo(missing, "created", time)
+            assertEquals(1, index.selectEnvelopes(time..time).size)
+        } finally {
+            fixture.close(index)
+        }
+    }
+
+    @Test
+    fun testFileCreatedAfterScanListingIsIndexed() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-after-listing-test")
+        val time = Instant.fromEpochSeconds(1625097600)
+        val operations = fixture.publishingDuringScan("created", time, afterListing = true)
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
+        try {
+            index.start()
+            index.awaitEnvelopes(time..time)
+        } finally {
+            fixture.close(index)
+        }
+    }
+
+    @Test
+    fun testFileFoundByScanAndMonitorIsIndexedOnce() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-scan-and-monitor-test")
+        val time = Instant.fromEpochSeconds(1625097600)
+        val operations = fixture.publishingDuringScan("created", time, afterListing = false)
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
+        try {
+            index.start()
+            // events are handled in order, so the sentinel shows that the event for the first file was handled too
+            val sentinelTime = time + 1.seconds
+            fixture.publish("sentinel", sentinelTime)
+            index.awaitEnvelopes(sentinelTime..sentinelTime)
+            assertEquals(1, index.selectEnvelopes(time..time).size)
+        } finally {
+            fixture.close(index)
+        }
+    }
+
+    /**
+     * A watcher that reports only the keys a test puts into it.
+     */
+    private class ControlledWatchService : WatchService {
+        val keys = LinkedBlockingQueue<WatchKey>()
+        override fun close() {}
+        override fun poll(): WatchKey? = keys.poll()
+        override fun poll(timeout: Long, unit: TimeUnit): WatchKey? = keys.poll(timeout, unit)
+        override fun take(): WatchKey = keys.take()
+    }
+
+    /**
+     * The default file system with its watcher replaced by [watcher].
+     */
+    private class ControlledFileSystem(private val watcher: WatchService) : FileSystem() {
+        private val default = FileSystems.getDefault()
+        override fun newWatchService(): WatchService = watcher
+        override fun provider(): FileSystemProvider = default.provider()
+        override fun close() {}
+        override fun isOpen(): Boolean = true
+        override fun isReadOnly(): Boolean = false
+        override fun getSeparator(): String = default.separator
+        override fun getRootDirectories(): Iterable<Path> = default.rootDirectories
+        override fun getFileStores(): Iterable<FileStore> = default.fileStores
+        override fun supportedFileAttributeViews(): Set<String> = default.supportedFileAttributeViews()
+        override fun getPath(first: String, vararg more: String): Path = default.getPath(first, *more)
+        override fun getPathMatcher(syntaxAndPattern: String): PathMatcher = default.getPathMatcher(syntaxAndPattern)
+        override fun getUserPrincipalLookupService(): UserPrincipalLookupService = default.userPrincipalLookupService
+    }
+
+    /**
+     * A key that reports an overflow each time it is taken.
+     */
+    private class OverflowKey : WatchKey {
+        private val overflow = object : WatchEvent<Any> {
+            override fun kind(): WatchEvent.Kind<Any> = OVERFLOW
+            override fun count(): Int = 1
+            override fun context(): Any? = null
+        }
+
+        override fun isValid(): Boolean = true
+        override fun pollEvents(): List<WatchEvent<*>> = listOf(overflow)
+        override fun reset(): Boolean = true
+        override fun cancel() {}
+        override fun watchable(): Watchable = error("Not used by this fixture")
+    }
+
+    /**
+     * [directory] as seen by [fileSystem], which registers it with [key].
+     */
+    private class ControlledDirectory(
+        private val directory: Path,
+        private val fileSystem: FileSystem,
+        private val key: WatchKey,
+    ) : Path by directory {
+        override fun getFileSystem(): FileSystem = fileSystem
+        override fun register(watcher: WatchService, vararg events: WatchEvent.Kind<*>): WatchKey = key
+        override fun register(
+            watcher: WatchService,
+            events: Array<out WatchEvent.Kind<*>>,
+            vararg modifiers: WatchEvent.Modifier,
+        ): WatchKey = key
+
+        override fun toString(): String = directory.toString()
+    }
+
+    @Test
+    fun testWatchOverflowScansTheDirectoryAgain() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-overflow-test")
+        val watcher = ControlledWatchService()
+        val overflow = OverflowKey()
+        val directory = ControlledDirectory(fixture.watched, ControlledFileSystem(watcher), overflow)
+        val native = NativeFileEnvelopeOperations(fixture.storage.io)
+        val scans = AtomicInteger()
+        val rescanned = CompletableDeferred<Unit>()
+        val operations = object : FileEnvelopeOperations by native {
+            override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> {
+                if (root !== directory) return native.envelopeFilesSequence(root)
+                val scan = scans.incrementAndGet()
+                return native.envelopeFilesSequence(fixture.watched) + sequence { if (scan == 2) rescanned.complete(Unit) }
+            }
+        }
+        val index = TableStorageIndex(fixture.storage, directory, operations = operations)
+        val time = Instant.fromEpochSeconds(1625097600)
+        try {
+            fixture.publish("indexed", time)
+            index.start()
+            // the controlled watcher reports no file events, so these files are found only by the next scan
+            fixture.publish("first", time)
+            fixture.publish("second", time)
+            watcher.keys.put(overflow)
+            withContext(Dispatchers.IO) {
+                withTimeout(10.seconds) { rescanned.await() }
+            }
+            assertEquals(3, index.selectEnvelopes(time..time).size)
+        } finally {
+            fixture.close(index)
         }
     }
 }

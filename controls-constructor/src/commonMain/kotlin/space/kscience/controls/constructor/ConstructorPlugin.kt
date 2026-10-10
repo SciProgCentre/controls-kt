@@ -6,7 +6,6 @@ import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
-import space.kscience.controls.manager.messageFlow
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -175,7 +174,7 @@ public fun DeviceTree.resolvePropertyState(
         context.logger.warn { "Requested property $propertyName of device $deviceName is not found. Using late-binding state instead." }
         val lateBindValueState = LateBindValueState(Meta.EMPTY)
         context.launch {
-            messageFlow().filterIsInstance<DeviceLifeCycleMessage>().first {
+            deviceMessageFlow().filterIsInstance<DeviceLifeCycleMessage>().first {
                 it.sourceDevice == deviceName && it.state == LifecycleState.STARTED
             }
             val device = resolveDeviceOrNull(deviceName)
