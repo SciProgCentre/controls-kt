@@ -16,7 +16,7 @@ A `Device` instance allows you to:
 - `readProperty(name)`: Get the current value of a property.
 - `writeProperty(name, value)`: Set a new value for a property.
 - `execute(action, argument)`: Run a command on the device.
-- `messageFlow`: Subscribe to all messages emitted by the device.
+- `deviceMessageFlow`: Subscribe to all messages emitted by the device.
 
 Example of reading a property:
 ```kotlin

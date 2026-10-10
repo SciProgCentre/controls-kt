@@ -1,7 +1,10 @@
 package space.kscience.controls.manager
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
+import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
@@ -41,14 +44,20 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
         }
     }
 
+    final override val treeMessageFlow: Flow<DeviceTreeMessage>
+        field = MutableSharedFlow<DeviceTreeMessage>()
+
     /**
      * Actual list of connected devices
      */
     override val children: Map<String, DeviceTree>
         field = HashMap<String, DeviceTree>()
 
-    public fun registerDeviceTree(name: String, tree: DeviceTree) {
-        children[name] = tree
+    public fun registerDeviceTree(deviceName: String, tree: DeviceTree) {
+        children[deviceName] = tree
+        context.launch {
+            treeMessageFlow.emit(DeviceTreeChildDeviceChangedMessage(context.clock.now(), deviceName, Name.EMPTY))
+        }
     }
 
     /**

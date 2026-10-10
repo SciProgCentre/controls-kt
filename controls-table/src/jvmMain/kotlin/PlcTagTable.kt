@@ -25,6 +25,7 @@ import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.SingleFileEnvelopeOperations
+import space.kscience.controls.tagtable.TagState.Companion.quality
 import space.kscience.controls.tagtable.storage.storeData
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
@@ -38,6 +39,7 @@ import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.io
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.set
 import space.kscience.tables.ColumnHeader
@@ -73,10 +75,19 @@ public class PlcTagTable(
 
     private val opcClients = mutableMapOf<String, OpcUaClient>()
 
-    //FIXME process connection errors
+
+    private val tagStates = ConcurrentHashMap<String, TagState>()
+
+    private fun updateTagState(tag: String, tagQuality: String, metaBuilder: MutableMeta.()->Unit = {}){
+        tagStates[tag] = TagState(Meta {
+            set(quality, tagQuality)
+            metaBuilder()
+        })
+    }
 
     private fun resolveOpcClient(source: String): OpcUaClient = opcClients.getOrPut(source) {
         val config = configuration.sources[source] as? OpcUaConfig ?: error("No OPC source found for $source")
+        //TODO add certificate configuration
         OpcUaClient.create(config.host).apply {
             connect()
         }
@@ -117,8 +128,8 @@ public class PlcTagTable(
     }
 
 
-    internal suspend fun read(propertyConfig: TagTableColumn): ValueWithTime<Meta> = when (propertyConfig) {
-        is ModbusTagTableColumn -> with(propertyConfig) {
+    internal suspend fun read(tagConfig: TagTableColumn): ValueWithTime<Meta> = when (tagConfig) {
+        is ModbusTagTableColumn -> with(tagConfig) {
             val client = resolveModbusClient(source)
 
             val meta = reader.read(client, unitId, address)
@@ -126,12 +137,12 @@ public class PlcTagTable(
             ValueWithTime(meta, clock.now())
         }
 
-        is OpcTagTableColumn -> with(propertyConfig) {
+        is OpcTagTableColumn -> with(tagConfig) {
             val client = resolveOpcClient(source)
             client.readMetaWithTime(NodeId.parse(nodeId))
         }
 
-        is PlcTagTableColumn -> with(propertyConfig) {
+        is PlcTagTableColumn -> with(tagConfig) {
             val connection = resolvePlcClient(source)
 
             require(connection.metadata.isReadSupported) { "Read actions are not supported on connections" }
@@ -149,7 +160,7 @@ public class PlcTagTable(
 
         is InternalTagTableColumn -> {
             val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in the context")
-            val value = deviceManager.readProperty(propertyConfig.deviceName, propertyConfig.propertyName)
+            val value = deviceManager.readProperty(tagConfig.deviceName, tagConfig.propertyName)
             ValueWithTime(value, clock.now())
         }
     }
@@ -174,21 +185,25 @@ public class PlcTagTable(
 
     private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
 
-    private val _messageFlow = MutableSharedFlow<DeviceMessage>(
-        extraBufferCapacity = configuration.properties.size * 4,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-
-    override val messageFlow: SharedFlow<DeviceMessage> get() = _messageFlow
+    override val messageFlow: SharedFlow<DeviceMessage>
+        field = MutableSharedFlow<DeviceMessage>(
+            extraBufferCapacity = configuration.properties.size * 4,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
 
 
     private val propertyNames = configuration.properties.keys
 
-    override suspend fun read(tag: String): Meta = readWithTime(tag).value
+    override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
-    override fun readWithTime(tag: String): ValueWithTime<Meta> {
-        if (tag !in propertyNames) error("Property $tag not found")
+    override fun readTagWithTime(tag: String): ValueWithTime<Meta> {
+        if (tag !in propertyNames) error("Tag $tag not found")
         return values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
+    }
+
+    override suspend fun readTagQuality(tag: String): TagState {
+        if (tag !in propertyNames) error("Tag $tag not found")
+        return tagStates[tag] ?: TagState.EMPTY
     }
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
@@ -197,7 +212,7 @@ public class PlcTagTable(
 
     private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
-        _messageFlow.emit(
+        messageFlow.emit(
             DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
@@ -220,22 +235,32 @@ public class PlcTagTable(
 
                 if (entries.all { it.value is OpcTagTableColumn }) {
                     //optimization to read multiple OPC properties at once
-                    withTimeout(timeout) {
-                        @Suppress("UNCHECKED_CAST")
-                        readMultipleOpc(
-                            source,
-                            entries as List<Map.Entry<String, OpcTagTableColumn>>
-                        ).forEach { (propertyName, value) ->
-                            values[propertyName] = value
-                            lastTime = if (value.time > lastTime) value.time else lastTime
-                            _messageFlow.emit(
-                                PropertyChangedMessage(
-                                    time = value.time,
-                                    property = propertyName,
-                                    value = value.value,
+                    try {
+                        withTimeout(timeout) {
+                            @Suppress("UNCHECKED_CAST")
+                            readMultipleOpc(
+                                source,
+                                entries as List<Map.Entry<String, OpcTagTableColumn>>
+                            ).forEach { (propertyName, value) ->
+                                values[propertyName] = value
+                                updateTagState(propertyName, TagState.GOOD_QUALITY)
+                                lastTime = if (value.time > lastTime) value.time else lastTime
+                                messageFlow.emit(
+                                    PropertyChangedMessage(
+                                        time = value.time,
+                                        property = propertyName,
+                                        value = value.value,
+                                    )
                                 )
-                            )
+                            }
                         }
+                    }catch (ex: Exception) {
+                        entries.forEach { (propertyName, _) ->
+                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
+                                ex.message?.let { set("error", it) }
+                            }
+                        }
+                        logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
                     }
                 } else {
                     entries.forEach { (propertyName, property) ->
@@ -244,7 +269,8 @@ public class PlcTagTable(
                                 val value = read(property)
                                 values[propertyName] = value
                                 lastTime = if (value.time > lastTime) value.time else lastTime
-                                _messageFlow.emit(
+                                updateTagState(propertyName, TagState.GOOD_QUALITY)
+                                messageFlow.emit(
                                     PropertyChangedMessage(
                                         time = value.time,
                                         property = propertyName,
@@ -253,13 +279,16 @@ public class PlcTagTable(
                                 )
                             }
                         } catch (ex: Exception) {
+                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY){
+                                ex.message?.let { set("error", it) }
+                            }
                             logger.error(ex) { "Failed to read property $propertyName" }
                         }
                     }
                 }
                 //emit row change
                 if (lastTime > Instant.DISTANT_PAST) {
-                    _messageFlow.emit(
+                    messageFlow.emit(
                         PropertyChangedMessage(
                             time = lastTime,
                             property = TagTable.ROW_PROPERTY_NAME,
@@ -320,6 +349,7 @@ public class PlcTagTable(
             storageJob = storeData(
                 directory = Path(storageConfig.path),
                 readInterval = storageConfig.readInterval,
+                withTagState = storageConfig.withTagState,
                 maxRowsPerEnvelope = storageConfig.maxRowsPerEnvelope,
                 maxDuration = storageConfig.maxDuration,
                 maxPause = storageConfig.maxPause,
@@ -327,7 +357,7 @@ public class PlcTagTable(
                 strategy = storageConfig.splitStrategy,
                 rowsConverter = storagePlugin.rowEnvelopeConverters[storageConfig.rowsConverterType]
                     ?: error("No row envelope converter found for type ${storageConfig.rowsConverterType}"),
-                operations = if(storageConfig.separateMeta){
+                operations = if (storageConfig.separateMeta) {
                     NativeFileEnvelopeOperations(context.io)
                 } else {
                     SingleFileEnvelopeOperations(context.io)
@@ -363,16 +393,21 @@ public class PlcTagTable(
     /**
      * Read current values of all properties
      */
-    override fun readAll(): Map<String, Meta> = values.mapValues { it.value.value }
+    override fun readAllValues(): Map<String, Meta> = values.mapValues { it.value.value }
 
 
     public override fun readTimeSeries(
         interval: Duration,
+        withTagQuality: Boolean
     ): TimeSeriesRows<Meta> {
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
-                //FIXME process read errors
-                val values = propertyColumnHeaders.associate { it.name to read(it.name) }
+                val values = if (withTagQuality) {
+                    propertyColumnHeaders.associate { it.name to readTag(it.name) } +
+                            propertyColumnHeaders.associate { (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(it.name).value }
+                } else {
+                    propertyColumnHeaders.associate { it.name to readTag(it.name) }
+                }
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
@@ -385,7 +420,7 @@ public class PlcTagTable(
     /**
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
      */
-    override fun valueState(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
+    override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
         TagTableValueState(this, tag)
     }
 }
