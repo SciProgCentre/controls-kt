@@ -16,11 +16,10 @@ The read-only `state: ValueState<Double>` is exposed as the `"state"` device pro
 3. Accepted null samples add nothing, and an empty window sums to `0.0`. The window advances
    only on incoming samples; there is no expiry timer.
 
-`Accumulator` starts at `0.0`. On binding, the current source sample is processed,
-including a sample with `Instant.DISTANT_PAST`.
-Direct `accumulate` uses the current source sample as the initial value if `startingValue`
-is omitted or null. A matching first subscription sample is not added again.
-A non-null `startingValue` is a separate initial sample.
+By default, `Accumulator` and direct `accumulate` start at `0.0`.
+The current source sample is processed by the subscription, including a sample with
+`Instant.DISTANT_PAST`. An explicit `startingValue` for `accumulate` is a separate
+sample in the window.
 
 A conflating source can skip intermediate updates.
 

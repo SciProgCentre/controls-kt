@@ -19,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertSame
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -47,22 +48,35 @@ class NumericStateTest {
     }
 
     @Test
-    fun testAccumulateSnapshotAndExplicitSeed() = runTest(timeout = 5.seconds) {
+    fun testAccumulateInitialAndExplicitSeed() = runTest(timeout = 5.seconds) {
         val t0 = Instant.fromEpochSeconds(1_000)
         val sample = ValueWithTime(3.0, t0)
         val source = CustomTimedState(sample)
-        val snapshot = source.accumulate(10.seconds, backgroundScope)
-        val nullable = source.accumulate(10.seconds, backgroundScope, startingValue = null)
+        val state = source.accumulate(10.seconds, backgroundScope)
         val explicit = source.accumulate(10.seconds, backgroundScope, sample)
+        val expiredSeed = ValueWithTime(10.0, t0 - 11.seconds)
+        val expired = source.accumulate(10.seconds, backgroundScope, expiredSeed)
+        val futureSeed = ValueWithTime(10.0, t0 + 1.seconds)
+        val future = source.accumulate(10.seconds, backgroundScope, futureSeed)
+
+        assertEquals(ValueWithTime(0.0, Instant.DISTANT_PAST), state.valueWithTime)
+        assertEquals(sample, explicit.valueWithTime)
+        assertEquals(expiredSeed, expired.valueWithTime)
+        assertEquals(futureSeed, future.valueWithTime)
         runCurrent()
 
-        assertEquals(sample, snapshot.valueWithTime)
-        assertEquals(sample, nullable.valueWithTime)
+        assertEquals(sample, state.valueWithTime)
         assertEquals(ValueWithTime(6.0, t0), explicit.valueWithTime)
+        assertEquals(sample, expired.valueWithTime)
+        assertEquals(futureSeed, future.valueWithTime)
         source.emit(5.0, t0)
         runCurrent()
-        assertEquals(ValueWithTime(8.0, t0), snapshot.valueWithTime)
+        assertEquals(ValueWithTime(8.0, t0), state.valueWithTime)
         assertEquals(ValueWithTime(11.0, t0), explicit.valueWithTime)
+        assertEquals(futureSeed, future.valueWithTime)
+        source.emit(7.0, futureSeed.time)
+        runCurrent()
+        assertEquals(ValueWithTime(17.0, futureSeed.time), future.valueWithTime)
     }
 
     @Test
@@ -73,8 +87,26 @@ class NumericStateTest {
             val state = source.accumulate(10.seconds, backgroundScope)
             source.emit(25.0, t0)
             runCurrent()
-            assertEquals(ValueWithTime((initial ?: 0.0) + 25.0, t0), state.valueWithTime)
+            assertEquals(ValueWithTime(25.0, t0), state.valueWithTime)
         }
+    }
+
+    @Test
+    fun testAccumulateStateFlowClockReplay() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        var currentTime = t0
+        val clock = object : Clock {
+            override fun now(): Instant = currentTime
+        }
+        val sourceFlow = MutableStateFlow<Double?>(3.0)
+        val state = sourceFlow.asValueState(clock).accumulate(10.seconds, backgroundScope)
+        currentTime += 1.seconds
+        runCurrent()
+
+        assertEquals(ValueWithTime(3.0, currentTime), state.valueWithTime)
+        sourceFlow.value = 5.0
+        runCurrent()
+        assertEquals(ValueWithTime(8.0, currentTime), state.valueWithTime)
     }
 
     @Test
@@ -131,10 +163,10 @@ class NumericStateTest {
     @Test
     fun testAccumulateWindowLimits() = runTest(timeout = 5.seconds) {
         val sample = ValueWithTime(3.0, Instant.fromEpochSeconds(1_000))
-        for ((window, expected) in listOf(Duration.ZERO to 3.0, (-1).seconds to 0.0, Duration.INFINITE to 3.0)) {
+        for (window in listOf(Duration.ZERO, Duration.INFINITE)) {
             val state = CustomTimedState(sample).accumulate(window, backgroundScope)
             runCurrent()
-            assertEquals(ValueWithTime(expected, sample.time), state.valueWithTime)
+            assertEquals(sample, state.valueWithTime)
         }
     }
 

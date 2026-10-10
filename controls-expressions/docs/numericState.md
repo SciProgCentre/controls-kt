@@ -30,9 +30,9 @@ val accumulatedFlow = eventCountState.accumulate(
 )
 ```
 
-If `startingValue` is omitted or null, use the current source sample as the initial value.
-A matching first subscription sample is not added again. A non-null `startingValue`
-is a separate initial sample, even if it equals the first source sample.
+The default starting value is `0.0` at `Instant.DISTANT_PAST`.
+The current source sample is added when the subscription starts.
+An explicit `startingValue` is a separate sample in the window.
 
 Samples older than the current result are ignored; equal timestamps are accepted.
 Accepted null samples add nothing but advance the window and result time.

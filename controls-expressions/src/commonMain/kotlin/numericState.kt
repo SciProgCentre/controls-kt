@@ -77,29 +77,22 @@ public fun ValueState<Double?>.integrate(
  * Samples older than the current result are ignored; equal timestamps are accepted.
  * Accepted null samples add nothing but advance the window and result time.
  *
- * If [startingValue] is null, use the current source sample as the initial value.
- * A matching first subscription sample is not added again.
- * A non-null [startingValue] is a separate initial sample.
+ * [startingValue] is a separate initial sample, zero by default.
+ * The first source sample is taken from the subscription.
  */
 public fun ValueState<Double?>.accumulate(
     window: Duration,
     scope: CoroutineScope,
-    startingValue: ValueWithTime<Double>? = null
+    startingValue: ValueWithTime<Double> = ValueWithTime(0.0, Instant.DISTANT_PAST)
 ): ValueState<Double> = object : ValueStateWithDependencies<Double> {
-    private val initialSample: ValueWithTime<Double?> = startingValue ?: this@accumulate.valueWithTime
-    private val initialValue = initialSample.withDefault(0.0)
-    private val history: MutableList<ValueWithTime<Double>> = mutableListOf(initialValue)
-    private val state: MutableStateFlow<ValueWithTime<Double>> = MutableStateFlow(initialValue)
+    private val history: MutableList<ValueWithTime<Double>> = mutableListOf(startingValue)
+    private val state: MutableStateFlow<ValueWithTime<Double>> = MutableStateFlow(startingValue)
     private val mutex = Mutex()
-    private var firstSample = true
 
-    private val job = this@accumulate.subscribeWithTime().onEach { sample ->
+    private val job = this@accumulate.subscribeWithTime().onEach { (value, time) ->
         mutex.withLock {
-            val initialReplay = firstSample && startingValue == null && sample == initialSample
-            firstSample = false
-            val (value, time) = sample
             if (time < state.value.time) return@withLock
-            if (value != null && !initialReplay) {
+            if (value != null) {
                 history.add(ValueWithTime(value, time))
             }
             history.removeAll { it.time < (time - window) }

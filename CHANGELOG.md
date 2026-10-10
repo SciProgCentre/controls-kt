@@ -20,6 +20,7 @@
 - Add write extensions for modbus
 
 ### Changed
+- Start `ValueState.accumulate` from zero unless a starting value is given.
 - ValueStateExpression uses contextual bindings. Direct device property binding is removed. Instead, we use state via ConstructorPlugin.
 - StateExpressions renamed to ValueStateExpressions.
 - Expressions moved to a separate module.
@@ -37,7 +38,8 @@
 
 - Preserve distinct expression inputs and compute values and timestamps from the same input samples.
 - Return timed values and an initial subscription sample for constant expressions.
-- Avoid counting the initial source sample twice in `ValueState.accumulate`; non-null starting values remain additive.
+- Count the first observed sample once in `ValueState.accumulate`.
+- Reuse expression trees when their bindings do not change.
 - Fix trapezoid accumulation and initial state in `ValueState.integrate`.
 - Fix duplicate registration of `deviceProperty` factory in `ControlsExpressionPlugin` and dependency list serialization in `MathValueStateFactory`.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.

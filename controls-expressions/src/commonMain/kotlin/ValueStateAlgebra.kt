@@ -60,22 +60,29 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
         override fun toString(): String = "MstValueState(mst=\"${mst.toLatexString()}\", dependencies=${args})"
     }
 
-    /**
-     * Wrap arbitrary value state into MstValueState
-     */
-    private fun wrapValueState(arg: ValueState<Double?>): MstValueState = if (arg is MstValueState) {
-        arg
-    } else {
-        val argSymbol = Symbol("_state0")
-        MstValueState(argSymbol, mapOf(argSymbol to arg))
+    private fun registerSource(
+        source: ValueState<Double?>,
+        args: MutableMap<Symbol, ValueState<Double?>>,
+        preferred: Symbol? = null,
+        reserved: Set<Symbol> = emptySet(),
+    ): Symbol {
+        args.entries.firstOrNull { it.value === source }?.let { return it.key }
+        var index = args.size
+        var symbol = preferred ?: Symbol("_state$index")
+        while (symbol in args || (symbol != preferred && symbol in reserved)) {
+            symbol = Symbol("_state${index++}")
+        }
+        args[symbol] = source
+        return symbol
     }
 
     private fun unaryMstTransform(
         arg: ValueState<Double?>,
         transform: MstExtendedField.(MST) -> MST
     ): MstValueState {
-        val mstArg = wrapValueState(arg)
-        return MstValueState(MstExtendedField.transform(mstArg.mst), mstArg.args)
+        if (arg is MstValueState) return MstValueState(MstExtendedField.transform(arg.mst), arg.args)
+        val args = linkedMapOf<Symbol, ValueState<Double?>>()
+        return MstValueState(MstExtendedField.transform(registerSource(arg, args)), args)
     }
 
     private fun binaryMstTransform(
@@ -83,20 +90,18 @@ public class ValueStateAlgebra : ExpressionAlgebra<Double?, ValueState<Double?>>
         rightArg: ValueState<Double?>,
         transform: MstExtendedField.(left: MST, right: MST) -> MST
     ): MstValueState {
-        val leftMstArg = wrapValueState(leftArg)
-        val rightMstArg = wrapValueState(rightArg)
-        val args = linkedMapOf<Symbol, ValueState<Double?>>()
-        fun rebind(state: MstValueState): MST {
-            val symbols = state.args.mapValues { (_, source) ->
-                args.entries.firstOrNull { it.value === source }?.key
-                    ?: Symbol("_state${args.size}").also { args[it] = source }
+        val left = leftArg as? MstValueState
+        val right = rightArg as? MstValueState
+        val args = left?.args?.toMutableMap() ?: linkedMapOf()
+        val leftMst = left?.mst ?: registerSource(leftArg, args)
+        val rightMst = if (right == null) registerSource(rightArg, args) else {
+            val symbols = right.args.mapValues { (symbol, source) ->
+                registerSource(source, args, symbol, right.args.keys)
             }
-            return state.mst.interpret(MstNumericAlgebra, symbols)
+            if (symbols.all { (original, mapped) -> original == mapped }) right.mst
+            else right.mst.interpret(MstNumericAlgebra, symbols)
         }
-        return MstValueState(
-            MstExtendedField.transform(rebind(leftMstArg), rebind(rightMstArg)),
-            args
-        )
+        return MstValueState(MstExtendedField.transform(leftMst, rightMst), args)
     }
 
 

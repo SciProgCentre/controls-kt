@@ -15,6 +15,8 @@ import kotlinx.coroutines.test.runTest
 import space.kscience.controls.constructor.MutableValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.time.ValueWithTime
+import space.kscience.kmath.expressions.Expression
+import space.kscience.kmath.expressions.MST
 import space.kscience.kmath.expressions.Symbol
 import kotlin.math.PI
 import kotlin.math.sin
@@ -76,6 +78,49 @@ class ValueStateAlgebraTest {
     }
 
     @Test
+    fun testSharedSourceInNestedExpressions() = runTest {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val samples = MutableStateFlow(ValueWithTime<Double?>(2.0, t0))
+        var reads = 0
+        val source = object : ValueState<Double?> {
+            override val valueWithTime get() = samples.value.also { reads++ }
+            override fun subscribeWithTime() = samples
+            override fun toString(): String = "SharedState"
+        }
+        val x = Symbol("x")
+        val left = ValueStateAlgebra().run { add(source, const(1.0)) }
+        val right = ValueStateAlgebra.interpret(
+            MST.FunctionCall("twice", mapOf(x to x)), mapOf(x to source),
+            functions = mapOf("twice" to Expression { arguments ->
+                ValueStateAlgebra().scale(arguments.getValue(x), 2.0)
+            }),
+        )
+        val state = ValueStateAlgebra().add(left, right)
+        assertEquals(0, reads)
+        assertEquals(0, samples.subscriptionCount.value)
+        assertEquals(ValueWithTime(7.0, t0), state.valueWithTime)
+        assertEquals(1, reads)
+
+        val received = mutableListOf<ValueWithTime<Double?>>()
+        val job = backgroundScope.launch { state.subscribeWithTime().collect { received.add(it) } }
+        runCurrent()
+        assertEquals(1, samples.subscriptionCount.value)
+        assertEquals(ValueWithTime(7.0, t0), received.last())
+        samples.value = ValueWithTime(null, t0 + 1_000.milliseconds)
+        runCurrent()
+        assertEquals(ValueWithTime<Double?>(null, t0 + 1_000.milliseconds), received.last())
+        samples.value = ValueWithTime(2.0, t0 + 2_000.milliseconds)
+        runCurrent()
+        samples.value = ValueWithTime(2.0, t0 + 3_000.milliseconds)
+        runCurrent()
+        assertEquals(ValueWithTime(7.0, t0 + 3_000.milliseconds), received.last())
+        assertEquals(1, reads)
+        job.cancel()
+        runCurrent()
+        assertEquals(0, samples.subscriptionCount.value)
+    }
+
+    @Test
     fun testHashCollisionsInNestedExpressions() {
         class CollidingState(var currentValue: Double) : ValueState<Double?> {
             override val valueWithTime get() = ValueWithTime<Double?>(currentValue, Instant.DISTANT_PAST)
@@ -90,6 +135,11 @@ class ValueStateAlgebraTest {
         assertEquals(3.0, direct.value)
         assertEquals(0.5, ValueStateAlgebra().divide(a, b).value)
         assertEquals(2.0, ValueStateAlgebra().add(a, a).value)
+
+        val swapped = ValueStateAlgebra().run {
+            divide(add(a, b), add(b, -a))
+        }
+        assertEquals(3.0, swapped.value)
 
         val leftAlgebra = ValueStateAlgebra()
         val rightAlgebra = ValueStateAlgebra()
