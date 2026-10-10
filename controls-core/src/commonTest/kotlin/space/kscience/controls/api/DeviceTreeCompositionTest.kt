@@ -9,6 +9,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -65,6 +66,34 @@ internal class DeviceTreeCompositionTest {
         assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
         collector.cancelAndJoin()
         context.close()
+    }
+
+    @Test
+    fun testDeviceRegisteredWhileCompositionFlowStartsIsObserved() = runTest {
+        val context = Context("tree-composition-flow-start") {
+            coroutineContext(UnconfinedTestDispatcher(testScheduler))
+            plugin(DeviceManager)
+        }
+        val manager = context.request(DeviceManager)
+        val child = TestDevice()
+        val tree = object : DeviceTree by manager {
+            override val treeMessageFlow = manager.treeMessageFlow.onStart {
+                manager.registerDevice("child", child)
+            }
+        }
+        val received = mutableListOf<DeviceMessage>()
+        val collector = backgroundScope.launch { tree.deviceMessageFlow().collect { received.add(it) } }
+        try {
+            runCurrent()
+            assertEquals(child, manager.children["child"]?.device)
+            val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
+            child.events.emit(event)
+            runCurrent()
+            assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
+        } finally {
+            collector.cancelAndJoin()
+            context.close()
+        }
     }
 
     @Test

@@ -1,7 +1,9 @@
 package space.kscience.controls.api
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.dataforge.meta.Meta
@@ -138,13 +140,22 @@ public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
         }
     }
 
-    // read the initial composition in the same coroutine that handles its changes
-    treeMessageFlow.onStart {
-        updateRootFlow(device)
-        children.forEach { (childName, childDevice) ->
-            updateChildFlow(childName, childDevice)
+    val changes = Channel<DeviceTreeMessage>()
+    launch(start = CoroutineStart.UNDISPATCHED) {
+        try {
+            treeMessageFlow.collect { changes.send(it) }
+        } finally {
+            changes.close()
         }
-    }.onEach { treeMessage ->
+    }
+
+    // read the initial composition in the same coroutine that handles its changes
+    updateRootFlow(device)
+    children.forEach { (childName, childDevice) ->
+        updateChildFlow(childName, childDevice)
+    }
+
+    for (treeMessage in changes) {
         when (treeMessage) {
             is DeviceTreeChildDeviceChangedMessage -> updateChildFlow(
                 treeMessage.childDeviceName,
@@ -153,5 +164,5 @@ public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
 
             is DeviceTreeRootDeviceChangedMessage -> updateRootFlow(device)
         }
-    }.launchIn(this)
+    }
 }
