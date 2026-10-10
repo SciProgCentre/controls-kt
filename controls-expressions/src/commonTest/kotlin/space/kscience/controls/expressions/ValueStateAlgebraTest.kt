@@ -50,11 +50,35 @@ class ValueStateAlgebraTest {
 
     @Test
     fun testConstantTimedValueAndSubscription() = runTest {
-        for (state in listOf(ValueStateAlgebra().const(2.0), ValueStateAlgebra.interpret("2 + 3", emptyMap()))) {
+        val algebra = ValueStateAlgebra()
+        for (state in listOf(algebra.const(2.0), ValueStateAlgebra.interpret("2 + 3", emptyMap()))) {
             val expected = ValueWithTime(state.value, Instant.DISTANT_PAST)
             assertEquals(expected, state.valueWithTime)
             assertEquals(expected, state.subscribeWithTime().first())
         }
+
+        val missing = algebra.const(null)
+        for (state in listOf(
+            missing, algebra.multiply(missing, algebra.zero),
+            algebra.add(algebra.one, missing), algebra.power(missing, 0.0)
+        )) {
+            val expected = ValueWithTime<Double?>(null, Instant.DISTANT_PAST)
+            assertEquals(null, state.value)
+            assertEquals(null, state.subscribe().first())
+            assertEquals(expected, state.valueWithTime)
+            assertEquals(expected, state.subscribeWithTime().first())
+        }
+
+        assertEquals(1.0, algebra.power(missing, 0).value)
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val timedMissing = algebra.add(missing, ValueState(2.0, t0))
+        val expected = ValueWithTime<Double?>(null, t0)
+        assertEquals(expected, timedMissing.valueWithTime)
+        assertEquals(expected, timedMissing.subscribeWithTime().first())
+
+        val nan = algebra.const(Double.NaN)
+        assertTrue(nan.value?.isNaN() == true)
+        assertTrue(nan.subscribeWithTime().first().value?.isNaN() == true)
     }
 
     @Test

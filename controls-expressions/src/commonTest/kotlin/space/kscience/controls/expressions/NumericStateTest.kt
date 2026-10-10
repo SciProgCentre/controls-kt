@@ -17,6 +17,7 @@ import space.kscience.controls.expressions.integrate
 import space.kscience.controls.time.ValueWithTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.time.Clock
@@ -241,11 +242,11 @@ class NumericStateTest {
     }
 
     @Test
-    fun testIntegrateCountsStartingValue() = runTest(timeout = 5.seconds) {
+    fun testIntegrateStartsWithZero() = runTest(timeout = 5.seconds) {
         val state = ValueState(25.0).integrate(10.seconds, backgroundScope)
-        val expected = ValueWithTime(25.0, Instant.DISTANT_PAST)
+        val expected = ValueWithTime(0.0, Instant.DISTANT_PAST)
 
-        assertEquals(25.0, state.value)
+        assertEquals(0.0, state.value)
         runCurrent()
         assertEquals(expected, state.valueWithTime)
     }
@@ -256,7 +257,7 @@ class NumericStateTest {
         val source = CustomTimedState(ValueWithTime(10.0, t0))
         // Window of 100 seconds to cover all samples
         val integralState = source.integrate(100.seconds, backgroundScope)
-        assertEquals(ValueWithTime(10.0, t0), integralState.valueWithTime)
+        assertEquals(ValueWithTime(0.0, t0), integralState.valueWithTime)
 
         // Step 1: Constant signal y = 10.0 over 2 seconds -> trapezoid = (10+10)/2 * 2 = 20.0
         source.emit(10.0, t0 + 2.seconds)
@@ -297,15 +298,75 @@ class NumericStateTest {
         source.emit(30.0, t0 + 4.seconds)
         assertEquals(80.0, integralState.subscribeWithTime().first { it.time == t0 + 4.seconds }.value, 1e-9)
 
-        // t = t0 + 6s (y=40): window is [t0+1, t0+6], t0 point expired -> history = [(20, t0+2), (30, t0+4), (40, t0+6)]
-        // Area = (20+30)/2 * 2 + (30+40)/2 * 2 = 50 + 70 = 120.0
+        // The boundary at 1s cuts the first trapezoid: 17.5 + 50 + 70.
         source.emit(40.0, t0 + 6.seconds)
-        assertEquals(120.0, integralState.subscribeWithTime().first { it.time == t0 + 6.seconds }.value, 1e-9)
+        assertEquals(137.5, integralState.subscribeWithTime().first { it.time == t0 + 6.seconds }.value, 1e-9)
 
-        // Null sample at t = t0 + 10s: window is [t0+5, t0+10] -> only (40, t0+6) remains
+        // A null event moves the boundary to 5s, without extrapolation beyond 6s.
         source.emit(null, t0 + 10.seconds)
         val sampleNull = integralState.subscribeWithTime().first { it.time == t0 + 10.seconds }
-        assertEquals(40.0, sampleNull.value, 1e-9)
+        assertEquals(37.5, sampleNull.value, 1e-9)
+        source.emit(null, t0 + 11.seconds)
+        assertEquals(0.0, integralState.subscribeWithTime().first { it.time == t0 + 11.seconds }.value, 1e-9)
+
+        // Keep the last endpoint after expiry so the next segment can be clipped at 7s.
+        source.emit(60.0, t0 + 12.seconds)
+        assertEquals(775.0 / 3.0, integralState.subscribeWithTime().first { it.time == t0 + 12.seconds }.value, 1e-9)
+    }
+
+    @Test
+    fun testIntegrateInitialSamplesAndTimestampOrder() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val source = CustomTimedState(ValueWithTime(4.0, t0))
+        val state = source.integrate(10.seconds, backgroundScope, ValueWithTime(2.0, t0))
+        assertEquals(ValueWithTime(0.0, t0), state.valueWithTime)
+        runCurrent()
+        source.emit(6.0, t0 + 2.seconds)
+        runCurrent()
+        val firstArea = ValueWithTime(8.0, t0 + 2.seconds)
+        assertEquals(firstArea, state.valueWithTime)
+        for (offset in listOf(2, 1)) {
+            source.emit(100.0, t0 + offset.seconds)
+            runCurrent()
+            assertEquals(firstArea, state.valueWithTime)
+        }
+        source.emit(null, t0 + 3.seconds)
+        runCurrent()
+        assertEquals(ValueWithTime(8.0, t0 + 3.seconds), state.valueWithTime)
+        source.emit(10.0, t0 + 4.seconds)
+        runCurrent()
+        assertEquals(ValueWithTime(24.0, t0 + 4.seconds), state.valueWithTime)
+
+        for (initial in listOf(null, 25.0)) {
+            val initialTime = if (initial == null) t0 else Instant.DISTANT_PAST
+            val missing = CustomTimedState(ValueWithTime(initial, initialTime))
+            val integrated = missing.integrate(Duration.INFINITE, backgroundScope)
+            missing.emit(10.0, t0 + 2.seconds)
+            runCurrent()
+            val first = if (initial == null) 10.0 else 0.0
+            assertEquals(ValueWithTime(first, t0 + 2.seconds), integrated.valueWithTime)
+            missing.emit(10.0, t0 + 3.seconds)
+            runCurrent()
+            assertEquals(ValueWithTime(first + 10.0, t0 + 3.seconds), integrated.valueWithTime)
+        }
+    }
+
+    @Test
+    fun testIntegrateWindowLimits() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        for ((window, expected) in listOf(Duration.ZERO to 0.0, Duration.INFINITE to 8.0)) {
+            val source = CustomTimedState(ValueWithTime(2.0, t0))
+            val state = source.integrate(window, backgroundScope)
+            source.emit(6.0, t0 + 2.seconds)
+            runCurrent()
+            assertEquals(ValueWithTime(expected, t0 + 2.seconds), state.valueWithTime)
+            source.emit(null, t0 + 3.seconds)
+            runCurrent()
+            assertEquals(ValueWithTime(expected, t0 + 3.seconds), state.valueWithTime)
+        }
+        for (window in listOf((-1).seconds, -Duration.INFINITE)) {
+            assertFailsWith<IllegalArgumentException> { ValueState(2.0).integrate(window, backgroundScope) }
+        }
     }
 
     @Test
@@ -323,11 +384,8 @@ class NumericStateTest {
             source.emit(rate, t)
             val diff = differentiated.subscribeWithTime().first { it.time == t }
 
-            if (i > 1) {
-                // Differentiating the integral of constant rate must recover the rate
-                assertEquals(rate * i, integrated.value, 1e-9, "Integral equality failed on step $i")
-                assertEquals(rate, diff.value, 1e-9, "Diff equality failed on step $i")
-            }
+            assertEquals(rate * i, integrated.value, 1e-9, "Integral equality failed on step $i")
+            assertEquals(rate, diff.value, 1e-9, "Diff equality failed on step $i")
         }
     }
 }

@@ -1,11 +1,17 @@
 package space.kscience.controls.constructor
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
 import space.kscience.controls.expressions.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.nullable
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -16,6 +22,7 @@ import kotlin.math.E
 import kotlin.math.PI
 import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 class StateExpressionTest {
 
@@ -35,6 +42,52 @@ class StateExpressionTest {
             val state2 = stateExpressionContext.computeState(b)
             assertEquals(PI * 2, state2.value)
         } finally {
+            context.close()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun testExpressionStopsWithOwningDevice() = runTest(timeout = 5.seconds) {
+        val context = Context("expression-owner-cancellation") {
+            coroutineContext(backgroundScope.coroutineContext)
+        }
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val samples = MutableStateFlow(ValueWithTime<Double?>(10.0, t0))
+        val source = object : ValueState<Double?> {
+            override val valueWithTime get() = samples.value
+            override fun subscribeWithTime() = samples
+            override fun toString(): String = "TimedSource"
+        }
+        val device = object : DeviceConstructor(context) {
+            val derived by expression(
+                ValueStateExpression.Unary("diff", ValueStateExpression.Symbol("x")),
+                resolveBinding = { source }
+            )
+        }
+        try {
+            device.start()
+            val derived = device.derived
+            runCurrent()
+            assertEquals(1, samples.subscriptionCount.value)
+
+            samples.value = ValueWithTime(20.0, t0 + 1.seconds)
+            runCurrent()
+            val last = ValueWithTime(10.0, t0 + 1.seconds)
+            assertEquals(last, derived.valueWithTime)
+
+            device.stop()
+            runCurrent()
+            assertEquals(LifecycleState.STOPPED, device.lifecycleState)
+            assertTrue(context.isActive)
+            assertEquals(0, samples.subscriptionCount.value)
+
+            samples.value = ValueWithTime(40.0, t0 + 2.seconds)
+            runCurrent()
+            assertEquals(last, derived.valueWithTime)
+        } finally {
+            device.stop()
+            context.cancel()
             context.close()
         }
     }
