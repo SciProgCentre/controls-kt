@@ -1,13 +1,7 @@
 package space.kscience.controls.manager
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import space.kscience.controls.api.*
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.NameToken
-import space.kscience.dataforge.names.plus
 
 /**
  * Process a message targeted at this [Device], assuming its name to be used in responses is [targetDeviceName].
@@ -65,6 +59,7 @@ public suspend fun Device.respondMessage(targetDeviceName: Name, request: Device
         is EmptyDeviceMessage,
         is DeviceLogMessage,
         is DeviceLifeCycleMessage,
+        is DeviceTreeMessage
             -> null
     }
 } catch (ex: Exception) {
@@ -85,7 +80,7 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
         val targetName = request.targetDevice
         //broadcast to all devices in this hub
         if (targetName == null) {
-            descendantDevices().mapNotNull {(deviceName, device)->
+            descendantDevices().mapNotNull { (deviceName, device) ->
                 device.respondMessage(deviceName, request)
             }
         } else {
@@ -102,20 +97,4 @@ public suspend fun DeviceTree.respondMessage(request: DeviceMessage): List<Devic
             )
         )
     }
-}
-
-/**
- * Collect all messages from given [DeviceTree], applying proper relative names.
- */
-public fun DeviceTree.messageFlow(): Flow<DeviceMessage> {
-
-    val deviceMessageFlow = device?.messageFlow ?: emptyFlow()
-
-    val childrenFlows = children.map { (deviceName, childDevice) ->
-        childDevice.messageFlow().map { deviceMessage ->
-            deviceMessage.changeSource { NameToken(deviceName) + it }
-        }
-    }
-
-    return merge(deviceMessageFlow, *childrenFlows.toTypedArray())
 }

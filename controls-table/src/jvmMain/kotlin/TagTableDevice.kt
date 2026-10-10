@@ -25,7 +25,7 @@ public class TagTableDevice(
 
     override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 
-    override suspend fun readProperty(propertyName: String): Meta = platform.read(propertyName)
+    override suspend fun readProperty(propertyName: String): Meta = platform.readTag(propertyName)
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         error("Write is not supported")
