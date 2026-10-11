@@ -127,7 +127,7 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
  */
 public suspend fun TagTable.readAllValuesWithTagState(): Map<String, Meta> {
     val allValues = readAllValues()
-    val tagStates = allValues.keys.associate { tag -> (tag + TagState.TAG_STATE_SUFFIX) to readTagState(tag).value }
+    val tagStates = allValues.keys.associate { tag -> (tag + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(tag).value }
     return allValues + tagStates
 }
 

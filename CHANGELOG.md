@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Use quality names when reading tag values with quality metadata.
 - Register the storage index monitor before the initial scan, so files created meanwhile are indexed once, and let the next query retry a failed start.
 - Scan the storage directory again after a watch overflow instead of stopping the storage index monitor.
 - Preserve OPC status and source timestamps in Meta reads while keeping server-time samples; outbound quality-only forwarding is unchanged.

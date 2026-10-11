@@ -66,6 +66,32 @@ class TagTableValueStateTest {
     }
 
     @Test
+    fun testReadAllValuesIncludesTagQuality() = runTest(timeout = 5.seconds) {
+        val context = Context("tag-table-values-with-quality") { coroutineContext(backgroundScope.coroutineContext) }
+        try {
+            val value = Meta(25)
+            val quality = Meta { set(TagState.quality, TagState.GOOD_QUALITY) }
+            val table = object : TagTable by MessageTable(
+                PlcTagTable(context, configuration),
+                ValueWithTime(value, Instant.DISTANT_PAST),
+            ) {
+                override suspend fun readTagQuality(tag: String): TagState {
+                    assertEquals("sensor", tag)
+                    return TagState(quality)
+                }
+            }
+
+            assertEquals(
+                mapOf("sensor" to value, "sensor.@quality" to quality),
+                table.readAllValuesWithTagState(),
+            )
+        } finally {
+            context.cancel()
+            context.close()
+        }
+    }
+
+    @Test
     fun testCreatingStatesDoesNotSubscribe() = runTest(timeout = 5.seconds) {
         val context = Context("tag-state-subscriptions") { coroutineContext(backgroundScope.coroutineContext) }
         try {
