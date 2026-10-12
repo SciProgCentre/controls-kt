@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import space.kscience.controls.api.DeviceFactory
-import space.kscience.controls.tagtable.InternalTagTableColumn
+import space.kscience.controls.tagtable.ControlsTagTableColumn
 import space.kscience.controls.tagtable.OpcTagTableColumn
 import space.kscience.controls.tagtable.PlcTagTableColumn
 import space.kscience.controls.tagtable.TagTableColumn
@@ -150,7 +150,7 @@ private fun TagExplorerTab(
                     name.contains(searchQuery, ignoreCase = true) ||
                     col.source.contains(searchQuery, ignoreCase = true) ||
                     (col is OpcTagTableColumn && col.nodeId.contains(searchQuery, ignoreCase = true)) ||
-                    (col is PlcTagTableColumn && col.address.contains(searchQuery, ignoreCase = true))
+                    (col is PlcTagTableColumn && col.plcAddress.contains(searchQuery, ignoreCase = true))
         }.groupBy { it.value.source }
     }
 
@@ -218,8 +218,8 @@ private fun TagItemCard(
                 )
                 val detail = when (column) {
                     is OpcTagTableColumn -> "OPC: ${column.nodeId}"
-                    is PlcTagTableColumn -> "PLC: ${column.address} (${column.plcValueType})"
-                    is InternalTagTableColumn -> "Internal: ${column.deviceName}.${column.propertyName}"
+                    is PlcTagTableColumn -> "PLC: ${column.plcAddress} (${column.plcValueType})"
+                    is ControlsTagTableColumn -> "Internal: ${column.deviceName}.${column.propertyName}"
                     else -> "Source: ${column.source}"
                 }
                 Text(

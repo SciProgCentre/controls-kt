@@ -1,27 +1,12 @@
 package space.kscience.controls.tagtable
 
-import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
-import com.ghgande.j2mod.modbus.facade.ModbusSerialMaster
-import com.ghgande.j2mod.modbus.facade.ModbusTCPMaster
-import com.ghgande.j2mod.modbus.util.SerialParameters
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.future.await
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toKotlinLocalDateTime
-import org.apache.plc4x.java.DefaultPlcDriverManager
-import org.apache.plc4x.java.api.PlcConnection
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient
-import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.opcua.client.readMetaWithTime
-import space.kscience.controls.opcua.client.readMultipleMetaWithTime
-import space.kscience.controls.plc4x.Plc4xProperty
-import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.SingleFileEnvelopeOperations
@@ -38,10 +23,8 @@ import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.io
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MutableMeta
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.dataforge.meta.set
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -69,119 +52,9 @@ public class PlcTagTable(
     override val clock: Clock = context.clock,
 ) : TagTable, CoroutineScope {
 
-
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + SupervisorJob(context.coroutineContext[Job.Key])
 
-    private val opcClients = mutableMapOf<String, OpcUaClient>()
-
-
-    private val tagStates = ConcurrentHashMap<String, TagState>()
-
-    private fun updateTagState(tag: String, tagQuality: String, metaBuilder: MutableMeta.()->Unit = {}){
-        tagStates[tag] = TagState(Meta {
-            set(quality, tagQuality)
-            metaBuilder()
-        })
-    }
-
-    private fun resolveOpcClient(source: String): OpcUaClient = opcClients.getOrPut(source) {
-        val config = configuration.sources[source] as? OpcUaConfig ?: error("No OPC source found for $source")
-        //TODO add certificate configuration
-        OpcUaClient.create(config.host).apply {
-            connect()
-        }
-    }
-
-    private val plcClients = mutableMapOf<String, PlcConnection>()
-
-    private fun resolvePlcClient(source: String): PlcConnection = plcClients.getOrPut(source) {
-        val config = configuration.sources[source] as? Plc4xConfig ?: error("No PLC source found for $source")
-        DefaultPlcDriverManager().getConnection(config.address).apply {
-            connect()
-        }
-    }
-
-
-    private val modbusClients = mutableMapOf<String, AbstractModbusMaster>()
-
-    private fun resolveModbusClient(source: String): AbstractModbusMaster = modbusClients.getOrPut(source) {
-        val config = configuration.sources[source] as? ModbusConfig ?: error("No Modbus source found for $source")
-        when (config) {
-            is ModbusRtuConfig -> {
-                val serialParameters = SerialParameters().apply {
-                    this.portName = config.portName
-                    this.baudRate = config.baudRate
-                    this.databits = config.databits
-                    this.stopbits = config.stopbits
-                    this.parity = config.parity
-                    this.flowControlIn = config.flowControlIn
-                    this.flowControlOut = config.flowControlOut
-                }
-                ModbusSerialMaster(serialParameters, config.timeout, config.transmitDelay)
-            }
-
-            is ModbusTcpConfig -> ModbusTCPMaster(config.addr, config.port, config.timeout, true)
-        }.apply {
-            connect()
-        }
-    }
-
-
-    internal suspend fun read(tagConfig: TagTableColumn): ValueWithTime<Meta> = when (tagConfig) {
-        is ModbusTagTableColumn -> with(tagConfig) {
-            val client = resolveModbusClient(source)
-
-            val meta = reader.read(client, unitId, address)
-
-            ValueWithTime(meta, clock.now())
-        }
-
-        is OpcTagTableColumn -> with(tagConfig) {
-            val client = resolveOpcClient(source)
-            client.readMetaWithTime(NodeId.parse(nodeId))
-        }
-
-        is PlcTagTableColumn -> with(tagConfig) {
-            val connection = resolvePlcClient(source)
-
-            require(connection.metadata.isReadSupported) { "Read actions are not supported on connections" }
-
-            with(Plc4xProperty(address, plcValueType, name)) {
-                val request = connection.readRequestBuilder().request().build()
-                val response = request.execute().await()
-                response.throwOnFail()
-
-                val time = response.getDateTime(name).toKotlinLocalDateTime().toInstant(timeZone)
-                val value = response.readProperty()
-                ValueWithTime(value, time)
-            }
-        }
-
-        is InternalTagTableColumn -> {
-            val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in the context")
-            val value = deviceManager.readProperty(tagConfig.deviceName, tagConfig.propertyName)
-            ValueWithTime(value, clock.now())
-        }
-    }
-
-    /**
-     * Read multiple opc properties from the same source
-     */
-    private suspend fun readMultipleOpc(
-        source: String,
-        properties: List<Map.Entry<String, OpcTagTableColumn>>,
-        maxAge: Double = 500.0,
-    ): List<Pair<String, ValueWithTime<Meta>>> {
-        check(properties.all { it.value.source == source }) { "All properties must have the same source" }
-        val client = resolveOpcClient(source)
-
-        val samples = client.readMultipleMetaWithTime(properties.map { NodeId.parse(it.value.nodeId) }, maxAge)
-
-        return properties.zip(samples).map { (entry, sample) ->
-            entry.key to sample
-        }
-    }
 
     private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
 
@@ -191,6 +64,38 @@ public class PlcTagTable(
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
 
+    private val tagStates = ConcurrentHashMap<String, TagState>()
+
+    private fun updateTagState(tag: String, tagQuality: String, metaBuilder: MutableMeta.() -> Unit = {}) {
+        tagStates[tag] = TagState(Meta {
+            set(quality, tagQuality)
+            metaBuilder()
+        })
+    }
+
+    private val sources = mutableMapOf<String, TagSource>()
+
+    private suspend fun getSource(sourceName: String): TagSource = sources.getOrPut(sourceName) {
+        if(sourceName == "@controls") return@getOrPut ControlsTagSource(context.request(DeviceManager))
+        val sourceConfig = configuration.sources[sourceName] ?: error("No source found for $sourceName")
+
+        when (sourceConfig) {
+            is OpcTagSourceConfig -> OpcTagSource(sourceConfig)
+            is ModbusTagSourceConfig -> ModbusTagSource(sourceConfig, clock)
+            is Plc4xTagSourceConfig -> Plc4xTagSource(sourceConfig, timeZone)
+        }.also {
+            it.open()
+        }
+    }
+
+    /**
+     * Read multiple opc properties from the same source
+     *
+     * Returns null if the source is not connected
+     */
+    internal suspend fun read(tagConfig: TagTableColumn): ValueWithTime<Meta>? {
+        return getSource(tagConfig.source).readTag(tagConfig.config)
+    }
 
     private val propertyNames = configuration.properties.keys
 
@@ -228,20 +133,17 @@ public class PlcTagTable(
         properties.groupBy { it.value.source }.forEach { (source, entries) ->
             //launch reading process for each separate source
             launch {
-                //TODO maybe partition properties beforehand to avoid unnecessary computations
                 val timeout = entries.maxOf { it.value.timeout }
 
                 var lastTime = Instant.DISTANT_PAST
 
-                if (entries.all { it.value is OpcTagTableColumn }) {
-                    //optimization to read multiple OPC properties at once
-                    try {
-                        withTimeout(timeout) {
-                            @Suppress("UNCHECKED_CAST")
-                            readMultipleOpc(
-                                source,
-                                entries as List<Map.Entry<String, OpcTagTableColumn>>
-                            ).forEach { (propertyName, value) ->
+                try {
+                    withTimeout(timeout) {
+                        val source = getSource(source)
+
+                        val result = source.readMultipleTags(entries.map { it.key to it.value.config })
+                        if (result != null) {
+                            result.forEach { (propertyName, value) ->
                                 values[propertyName] = value
                                 updateTagState(propertyName, TagState.GOOD_QUALITY)
                                 lastTime = if (value.time > lastTime) value.time else lastTime
@@ -253,39 +155,29 @@ public class PlcTagTable(
                                     )
                                 )
                             }
-                        }
-                    }catch (ex: Exception) {
-                        entries.forEach { (propertyName, _) ->
-                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
-                                ex.message?.let { set("error", it) }
+                        } else {
+                            entries.forEach { (propertyName, _) ->
+                                updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
                             }
-                        }
-                        logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
-                    }
-                } else {
-                    entries.forEach { (propertyName, property) ->
-                        try {
-                            withTimeout(property.timeout) {
-                                val value = read(property)
-                                values[propertyName] = value
-                                lastTime = if (value.time > lastTime) value.time else lastTime
-                                updateTagState(propertyName, TagState.GOOD_QUALITY)
-                                messageFlow.emit(
-                                    PropertyChangedMessage(
-                                        time = value.time,
-                                        property = propertyName,
-                                        value = value.value,
-                                    )
-                                )
-                            }
-                        } catch (ex: Exception) {
-                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY){
-                                ex.message?.let { set("error", it) }
-                            }
-                            logger.error(ex) { "Failed to read property $propertyName" }
                         }
                     }
+                } catch (ex: Exception) {
+                    entries.forEach { (propertyName, _) ->
+                        updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
+                            ex.message?.let { set("error", it) }
+                        }
+                    }
+                    messageFlow.emit(
+                        DeviceErrorMessage(
+                            time = clock.now(),
+                            errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
+                            errorType = ex::class.simpleName,
+                            errorStackTrace = ex.stackTraceToString()
+                        )
+                    )
+                    logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
                 }
+
                 //emit row change
                 if (lastTime > Instant.DISTANT_PAST) {
                     messageFlow.emit(
@@ -372,9 +264,7 @@ public class PlcTagTable(
         readJob = null
         storageJob?.cancel()
         storageJob = null
-        opcClients.values.forEach { it.disconnect() }
-        plcClients.values.forEach { it.close() }
-        modbusClients.values.forEach { it.disconnect() }
+        sources.values.forEach { it.close() }
     }
 
     override val tags: Map<String, MetaDescriptor> by lazy {
@@ -404,7 +294,11 @@ public class PlcTagTable(
             while (true) {
                 val values = if (withTagQuality) {
                     propertyColumnHeaders.associate { it.name to readTag(it.name) } +
-                            propertyColumnHeaders.associate { (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(it.name).value }
+                            propertyColumnHeaders.associate {
+                                (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(
+                                    it.name
+                                ).value
+                            }
                 } else {
                     propertyColumnHeaders.associate { it.name to readTag(it.name) }
                 }

@@ -47,7 +47,7 @@ suspend fun main(): Unit = coroutineScope {
         repeat(200) { index ->
             put(
                 key = "property[$index]".parseAsName(),
-                value = InternalTagTableColumn(
+                value = ControlsTagTableColumn(
                     timer = "default",
                     deviceName = Name.of("generator"),
                     propertyName = RandomGeneratorDevice.random.name

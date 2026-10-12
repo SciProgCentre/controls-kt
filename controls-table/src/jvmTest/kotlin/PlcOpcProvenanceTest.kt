@@ -2,9 +2,10 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.test.runTest
 import org.eclipse.milo.opcua.sdk.server.AddressSpace
 import org.eclipse.milo.opcua.sdk.server.ManagedNamespace
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
@@ -34,8 +35,11 @@ import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
 
 class PlcOpcProvenanceTest {
-    private class ReadNamespace(server: OpcUaServer) : ManagedNamespace(server, "urn:controls:test:table-reads") {
-        @Volatile
+    private class ReadNamespace(
+        server: OpcUaServer,
+        val scope: CoroutineScope
+    ) : ManagedNamespace(server, "urn:controls:test:table-reads"), AutoCloseable {
+
         var sample = DataValue(Variant(7.0), StatusCode.BAD)
         val permits = Channel<Unit>(Channel.UNLIMITED)
         val replies = Channel<DataValue>(Channel.UNLIMITED)
@@ -45,15 +49,18 @@ class PlcOpcProvenanceTest {
             maxAge: Double,
             timestamps: TimestampsToReturn,
             ids: List<ReadValueId>,
-        ): List<DataValue> {
-            return ids.map { id ->
-                if (id.nodeId == NodeId(namespaceIndex, "value") && id.attributeId == AttributeId.Value.uid()) {
-                    val permitted = runBlocking { withTimeout(15.seconds) { permits.receiveCatching().isSuccess } }
-                    if (!permitted) return@map DataValue(StatusCode.BAD)
-                    sample.also { replies.trySend(it).getOrThrow() }
-                } else {
-                    super.read(context, maxAge, timestamps, listOf(id)).single()
-                }
+        ): List<DataValue> = ids.map { id ->
+            if (id.nodeId == NodeId(namespaceIndex, "value") && id.attributeId == AttributeId.Value.uid()) {
+                scope.async {
+                    val permitted = permits.receiveCatching().isSuccess
+                    if (!permitted) {
+                        DataValue(StatusCode.BAD)
+                    } else {
+                        sample.also { replies.send(it) }
+                    }
+                }.asCompletableFuture().get()
+            } else {
+                super.read(context, maxAge, timestamps, listOf(id)).single()
             }
         }
 
@@ -61,10 +68,15 @@ class PlcOpcProvenanceTest {
         override fun onDataItemsModified(items: List<DataItem>) = Unit
         override fun onDataItemsDeleted(items: List<DataItem>) = Unit
         override fun onMonitoringModeChanged(items: List<MonitoredItem>) = Unit
+
+        override fun close() {
+            permits.close()
+            replies.close()
+        }
     }
 
     @Test
-    fun batchReadsPublishQualityOnlyChangesWithTheirServerTime() = runBlocking {
+    fun batchReadsPublishQualityOnlyChangesWithTheirServerTime() = runTest(timeout = 20.seconds) {
         val port = ServerSocket(0).use { it.localPort }
         val server = OpcUaServer {
             endpoint {
@@ -77,80 +89,63 @@ class PlcOpcProvenanceTest {
             coroutineContext(SupervisorJob() + Dispatchers.Default)
             plugin(ClockManager)
         }
-        var table: PlcTagTable? = null
-        var namespaceToClose: ReadNamespace? = null
-        var registered = false
-        try {
-            server.startup().await()
-            val namespace = ReadNamespace(server)
-            namespaceToClose = namespace
-            server.addressSpaceManager.register(namespace)
-            registered = true
-            val column = OpcTagTableColumn(
-                source = "server", timer = "scan",
-                nodeId = NodeId(namespace.namespaceIndex, "value").toParseableString(),
-            )
-            val createdTable = PlcTagTable(context, TagTableConfiguration(
-                sources = mapOf("server" to OpcUaConfig("opc.tcp://127.0.0.1:$port")),
+
+        server.startup().await()
+        val namespace = ReadNamespace(server, backgroundScope)
+
+        server.addressSpaceManager.register(namespace)
+        val column = TagTableColumn.opc(
+            source = "server", timer = "scan",
+            nodeId = NodeId(namespace.namespaceIndex, "value").toParseableString(),
+        )
+        val table = PlcTagTable(
+            context, TagTableConfiguration(
+                sources = mapOf("server" to OpcTagSourceConfig("opc.tcp://127.0.0.1:$port")),
                 timers = mapOf("scan" to FixedRateTimer(20.milliseconds)),
                 properties = mapOf("sensor" to column),
-            ))
-            table = createdTable
-            // Establish the session before the table's one-second polling timeout applies.
-            namespace.permits.send(Unit)
-            createdTable.read(column)
-            namespace.replies.receive()
-            val messages = Channel<PropertyChangedMessage>(Channel.UNLIMITED)
-            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
-                createdTable.messageFlow.filterIsInstance<PropertyChangedMessage>().collect {
-                    if (it.property == "sensor") messages.send(it)
-                }
-            }
-            try {
-                createdTable.start()
-                for ((index, status) in listOf(StatusCode.BAD, StatusCode.UNCERTAIN).withIndex()) {
-                    namespace.sample = DataValue(
-                        Variant(7.0), status,
-                        DateTime(Instant.parse("2026-09-21T10:00:00Z").toJavaInstant()),
-                        DateTime(Instant.parse("2026-09-21T10:00:1${index}Z").toJavaInstant()),
-                    )
-                    // The server cannot capture the next DataValue until this permit is released.
-                    namespace.permits.send(Unit)
-                    withTimeout(20.seconds) {
-                        val reply = namespace.replies.receive()
-                        assertEquals(status, reply.statusCode)
-                        val message = messages.receive()
-                        assertEquals(7.0, MetaConverter.double.read(message.value))
-                        assertEquals(status.value, message.value["@opc.status"].long)
-                        assertEquals(assertNotNull(reply.sourceTime).javaInstant.toKotlinInstant().toString(),
-                            message.value["@opc.sourceTime"].string)
-                        assertEquals(message.time.toString(), message.value["@opc.serverTime"].string)
-                        assertEquals(message.value, createdTable.readTagWithTime("sensor").value)
-                    }
-                }
-            } finally {
-                collector.cancelAndJoin()
-            }
-        } finally {
-            namespaceToClose?.permits?.cancel()
-            try {
-                try {
-                    table?.stop()
-                } finally {
-                    table?.coroutineContext?.get(Job)?.cancelAndJoin()
-                }
-            } finally {
-                try {
-                    if (registered) server.addressSpaceManager.unregister(checkNotNull(namespaceToClose))
-                } finally {
-                    try {
-                        server.shutdown().await()
-                    } finally {
-                        context.cancel()
-                        context.close()
-                    }
-                }
+            )
+        )
+        table.start()
+
+        // Establish the session before the table's one-second polling timeout applies.
+        namespace.permits.send(Unit)
+        table.read(column)
+        namespace.replies.receive()
+        val messages = Channel<PropertyChangedMessage>(Channel.UNLIMITED)
+
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            table.messageFlow.filterIsInstance<PropertyChangedMessage>().collect {
+                if (it.property == "sensor") messages.send(it)
             }
         }
+
+        for ((index, status) in listOf(StatusCode.BAD, StatusCode.UNCERTAIN).withIndex()) {
+            namespace.sample = DataValue(
+                Variant(7.0), status,
+                DateTime(Instant.parse("2026-09-21T10:00:00Z").toJavaInstant()),
+                DateTime(Instant.parse("2026-09-21T10:00:1${index}Z").toJavaInstant()),
+            )
+            // The server cannot capture the next DataValue until this permit is released.
+            namespace.permits.send(Unit)
+
+            val reply = namespace.replies.receive()
+            assertEquals(status, reply.statusCode)
+            val message = messages.receive()
+            assertEquals(7.0, MetaConverter.double.read(message.value))
+            assertEquals(status.value, message.value["@opc.status"].long)
+            assertEquals(
+                assertNotNull(reply.sourceTime).javaInstant.toKotlinInstant().toString(),
+                message.value["@opc.sourceTime"].string
+            )
+            assertEquals(message.time.toString(), message.value["@opc.serverTime"].string)
+            assertEquals(message.value, table.readTagWithTime("sensor").value)
+
+        }
+
+        namespace.close()
+        table.stop()
+        server.shutdown().await()
+        context.close()
+
     }
 }

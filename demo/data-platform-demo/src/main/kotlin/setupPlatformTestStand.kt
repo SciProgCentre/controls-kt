@@ -25,8 +25,8 @@ internal fun DeviceManager.setupPlatformTestStand(
     val modbusSourceName = "modbus"
 
     val sources = mapOf(
-        opcSourceName to OpcUaConfig("opc.tcp://localhost:9091"),
-        modbusSourceName to ModbusTcpConfig("localhost", 9093)
+        opcSourceName to OpcTagSourceConfig("opc.tcp://localhost:9091"),
+        modbusSourceName to ModbusTcpTagSourceConfig("localhost", 9093)
     )
 
     val timerName = "default"
