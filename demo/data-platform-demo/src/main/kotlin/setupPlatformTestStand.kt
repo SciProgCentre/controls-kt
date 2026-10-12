@@ -52,7 +52,7 @@ internal fun DeviceManager.setupPlatformTestStand(
             repeat(propertiesPerDevice) { propertyNum ->
                 put(
                     key = "opc[${opcDeviceNum}].property[${propertyNum}]".parseAsName(),
-                    value = OpcTagTableColumn(
+                    value = TagTableColumn.opc(
                         source = opcSourceName,
                         timer = timerName,
                         nodeId = "ns=2;s=device[$opcDeviceNum]/property[$propertyNum]"
@@ -66,7 +66,7 @@ internal fun DeviceManager.setupPlatformTestStand(
             registryMap.keys.forEach { (name, key) ->
                 put(
                     key = "modbus[${modbusDeviceNum}]".parseAsName() + name,
-                    value = ModbusTagTableColumn(
+                    value = TagTableColumn.modbus(
                         source = modbusSourceName,
                         timer = timerName,
                         reader = ModbusDoubleReader,
@@ -84,7 +84,7 @@ internal fun DeviceManager.setupPlatformTestStand(
     val configuration = TagTableConfiguration(
         sources = sources,
         timers = timers,
-        properties = platformProperties.mapKeys { it.key.toString() },
+        tags = platformProperties.mapKeys { it.key.toString() },
         storage = TagTableStorageConfiguration(
             path = dataDirectory.toString(),
             readInterval = 1.seconds,

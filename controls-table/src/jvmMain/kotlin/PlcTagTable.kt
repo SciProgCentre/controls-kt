@@ -7,6 +7,7 @@ import kotlinx.datetime.TimeZone
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.opcua.server.Opc
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.SingleFileEnvelopeOperations
@@ -27,6 +28,8 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.set
+import space.kscience.dataforge.meta.valueSequence
+import space.kscience.dataforge.names.firstOrNull
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -62,7 +65,7 @@ public class PlcTagTable(
 
     override val messageFlow: SharedFlow<DeviceMessage>
         field = MutableSharedFlow<DeviceMessage>(
-            extraBufferCapacity = configuration.properties.size * 4,
+            extraBufferCapacity = configuration.tags.size * 4,
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
 
@@ -73,6 +76,53 @@ public class PlcTagTable(
             set(quality, tagQuality)
             metaBuilder()
         })
+    }
+
+    private fun updateSourceState(sourceName: String, metaBuilder: MutableMeta.() -> Unit) {
+        TODO()
+    }
+
+    /**
+     * Compute tag state and tag new value based on previous value and current raw value.
+     * Filter value if necessary
+     */
+    private fun processTag(
+        tag: String,
+        column: TagTableColumn,
+        previousValue: ValueWithTime<Meta>?,
+        rawValue: ValueWithTime<Meta>
+    ): ValueWithTime<Meta> {
+        val opcStatus = Opc.getOpcStatus(rawValue.value)
+        val opcServerTime = Opc.getServerTime(rawValue.value)
+        val opcSourceTime = Opc.getSourceTime(rawValue.value)
+
+        when (opcStatus?.isGood) {
+            null, true -> {
+                updateTagState(tag, TagState.GOOD_QUALITY)
+            }
+
+            else -> {
+                updateTagState(tag, TagState.BAD_QUALITY) {
+                    "opcStatus" put opcStatus.value
+                }
+            }
+        }
+
+
+        val value = if (column.removeAuxiliaryValues) {
+            Meta {
+                rawValue.value.valueSequence().forEach { (name, value) ->
+                    //filter names starting with '@'
+                    if (name.firstOrNull()?.body?.first() != '@') {
+                        set(name, value)
+                    }
+                }
+            }
+        } else {
+            rawValue.value
+        }
+
+        return ValueWithTime(value, rawValue.time)
     }
 
     private val sources = mutableMapOf<String, TagSource>()
@@ -99,17 +149,15 @@ public class PlcTagTable(
         return getSource(tagConfig.source).readTag(tagConfig.config)
     }
 
-    private val propertyNames = configuration.properties.keys
-
     override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
     override fun readTagWithTime(tag: String): ValueWithTime<Meta> {
-        if (tag !in propertyNames) error("Tag $tag not found")
+        if (tag !in configuration.tags.keys) error("Tag $tag not found")
         return values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
     }
 
     override suspend fun readTagQuality(tag: String): TagState {
-        if (tag !in propertyNames) error("Tag $tag not found")
+        if (tag !in configuration.tags.keys) error("Tag $tag not found")
         return tagStates[tag] ?: TagState.EMPTY
     }
 
@@ -145,20 +193,24 @@ public class PlcTagTable(
 
                         val result = source.readMultipleTags(entries.map { it.key to it.value.config })
                         if (result != null) {
-                            result.forEach { (propertyName, value) ->
-                                value.getOrNull()?.let { value ->
-                                    values[propertyName] = value
-                                    updateTagState(propertyName, TagState.GOOD_QUALITY)
-                                    lastTime = if (value.time > lastTime) value.time else lastTime
+                            result.forEach { (tag, value) ->
+                                value.getOrNull()?.let { rawValue ->
+                                    val column = configuration.tags[tag]
+                                        ?: error("Configuration for tag $tag not found")
+
+                                    val newValue = processTag(tag, column, values[tag], rawValue)
+                                    values[tag] = newValue
+
+                                    lastTime = if (newValue.time > lastTime) newValue.time else lastTime
                                     messageFlow.emit(
                                         PropertyChangedMessage(
-                                            time = value.time,
-                                            property = propertyName,
-                                            value = value.value,
+                                            time = newValue.time,
+                                            property = tag,
+                                            value = newValue.value,
                                         )
                                     )
                                 } ?: run {
-                                    updateTagState(propertyName, TagState.READ_FAILED_QUALITY)
+                                    updateTagState(tag, TagState.READ_FAILED_QUALITY)
                                 }
                             }
                         } else {
@@ -211,7 +263,7 @@ public class PlcTagTable(
 
         //start read job
         readJob = launch {
-            configuration.properties.entries.groupBy { it.value.timer }
+            configuration.tags.entries.groupBy { it.value.timer }
                 .forEach { (timerName, properties: List<Map.Entry<String, TagTableColumn>>) ->
                     val timer = configuration.timers[timerName]?.createTimerState(clockManager)
                         ?: error("Timer $timerName not found")
@@ -227,7 +279,7 @@ public class PlcTagTable(
             val storagePlugin = context.request(ControlsStoragePlugin)
 
             //merge global parameters and per-column configuration
-            val columnCompression = configuration.properties.entries.mapNotNull { (key, value) ->
+            val columnCompression = configuration.tags.entries.mapNotNull { (key, value) ->
                 value.compression?.let { compression -> key to compression }
             }.toMap()
 
@@ -274,10 +326,10 @@ public class PlcTagTable(
     }
 
     override val tags: Map<String, MetaDescriptor> by lazy {
-        configuration.properties.mapValues { MetaDescriptor() }
+        configuration.tags.mapValues { MetaDescriptor() }
     }
 
-    private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.properties.map { (name, property) ->
+    private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.tags.map { (name, property) ->
         SimpleColumnHeader(name, typeOf<Meta>(), property.meta)
     }
 

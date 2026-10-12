@@ -29,6 +29,8 @@ public value class TagState(public val value: Meta) {
 
         public const val GOOD_QUALITY: String = "GOOD"
 
+        public const val BAD_QUALITY: String = "BAD"
+
         public const val READ_FAILED_QUALITY: String = "READ_FAILED"
 
         public const val NOT_CONNECTED_QUALITY: String = "NOT_CONNECTED"

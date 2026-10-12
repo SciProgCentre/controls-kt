@@ -12,8 +12,9 @@ import space.kscience.controls.demo.loadDeviceConfiguration
 import space.kscience.controls.demo.loadTagTableConfiguration
 import space.kscience.controls.demo.visual.configurator.DeviceConfiguratorModel
 import space.kscience.controls.demo.visual.configurator.DiagnosticSeverity
-import space.kscience.controls.tagtable.OpcTagTableColumn
+import space.kscience.controls.tagtable.TagTableColumn
 import space.kscience.controls.tagtable.TagTableConfiguration
+import space.kscience.controls.tagtable.opc
 import space.kscience.dataforge.context.Global
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
@@ -129,8 +130,8 @@ class DeviceConfiguratorTest {
         val tagTable = TagTableConfiguration(
             sources = emptyMap(),
             timers = emptyMap(),
-            properties = mapOf(
-                "registered.tag" to OpcTagTableColumn(source = "opc", timer = "default", nodeId = "ns=2;s=Temp")
+            tags = mapOf(
+                "registered.tag" to TagTableColumn.opc(source = "opc", timer = "default", nodeId = "ns=2;s=Temp")
             )
         )
         model.setTagTable(tagTable)
@@ -224,19 +225,19 @@ class DeviceConfiguratorTest {
             val sampleTagTable = TagTableConfiguration(
                 sources = emptyMap(),
                 timers = emptyMap(),
-                properties = mapOf("sens.temp" to OpcTagTableColumn(source = "src1", timer = "t1", nodeId = "node.temp"))
+                tags = mapOf("sens.temp" to TagTableColumn.opc(source = "src1", timer = "t1", nodeId = "node.temp"))
             )
             val modelWithTT = DeviceConfiguratorModel(context = Global, initialTagTable = sampleTagTable)
             modelWithTT.exportTagTableToFile(tagTableFile)
 
             assertTrue(Files.exists(tagTableFile))
             val loadedTT = loadTagTableConfiguration(tagTableFile)
-            assertTrue(loadedTT.properties.containsKey("sens.temp"))
+            assertTrue(loadedTT.tags.containsKey("sens.temp"))
 
             val modelImportTT = DeviceConfiguratorModel(context = Global)
             modelImportTT.importTagTableFromFile(tagTableFile)
             assertNotNull(modelImportTT.tagTableConfiguration)
-            assertTrue(modelImportTT.tagTableConfiguration!!.properties.containsKey("sens.temp"))
+            assertTrue(modelImportTT.tagTableConfiguration!!.tags.containsKey("sens.temp"))
         } finally {
             tempDir.toFile().deleteRecursively()
         }

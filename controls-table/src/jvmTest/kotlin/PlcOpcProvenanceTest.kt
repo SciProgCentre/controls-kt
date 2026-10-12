@@ -5,7 +5,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.test.runTest
 import org.eclipse.milo.opcua.sdk.server.AddressSpace
 import org.eclipse.milo.opcua.sdk.server.ManagedNamespace
 import org.eclipse.milo.opcua.sdk.server.OpcUaServer
@@ -26,12 +25,10 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.long
 import space.kscience.dataforge.meta.string
 import java.net.ServerSocket
-import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 import kotlin.time.toKotlinInstant
@@ -105,7 +102,7 @@ class PlcOpcProvenanceTest {
             context, TagTableConfiguration(
                 sources = mapOf("server" to OpcTagSourceConfig("opc.tcp://127.0.0.1:$port")),
                 timers = mapOf("scan" to FixedRateTimer(20.milliseconds)),
-                properties = mapOf("sensor" to column),
+                tags = mapOf("sensor" to column),
             )
         )
         table.start()

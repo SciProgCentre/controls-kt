@@ -30,7 +30,7 @@ class TagTableValueStateTest {
     private val configuration = TagTableConfiguration(
         sources = emptyMap(),
         timers = mapOf("scan" to FixedRateTimer(1.seconds)),
-        properties = mapOf(
+        tags = mapOf(
             "sensor" to TagTableColumn.controls(
                 timer = "scan",
                 deviceName = Name.of("source"),

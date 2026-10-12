@@ -740,7 +740,7 @@ class DeviceConfiguratorModel(
                                 target = ConfiguratorSelection.Property(path, propName)
                             )
                         )
-                    } else if (tagTableConfiguration?.properties?.containsKey(tag) == false) {
+                    } else if (tagTableConfiguration?.tags?.containsKey(tag) == false) {
                         diagnostics.add(
                             ConfiguratorDiagnostic(
                                 severity = DiagnosticSeverity.WARNING,

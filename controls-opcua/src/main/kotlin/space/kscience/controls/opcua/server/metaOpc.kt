@@ -78,14 +78,12 @@ public fun Meta.Companion.fromOpc(value: Any?): Meta = when (value) {
     is DataValue -> Meta {
         val variant= fromOpc(value.value)
         update(variant)// need SerializationContext to do that properly
-        //TODO remove after DF 0.7.2
-        this.value =  variant.value
-        "@opc" put {
-            value.statusCode.value.let { "status" put Meta(it.asValue()) }
-            value.sourceTime?.javaInstant?.let { "sourceTime" put it.toKotlinInstant().toMeta() }
-            value.sourcePicoseconds?.let { "sourcePicoseconds" put Meta(it.asValue()) }
-            value.serverTime?.javaInstant?.let { "serverTime" put it.toKotlinInstant().toMeta() }
-            value.serverPicoseconds?.let { "serverPicoseconds" put Meta(it.asValue()) }
+        Opc.opcAuxiliaryKey put {
+            value.statusCode.value.let { Opc.opcStatusKey put Meta(it.asValue()) }
+            value.sourceTime?.javaInstant?.let { Opc.opcSourceTimeKey put it.toKotlinInstant().toMeta() }
+            value.sourcePicoseconds?.let { Opc.opcSourcePicosecondsKey put Meta(it.asValue()) }
+            value.serverTime?.javaInstant?.let { Opc.opcServerTimeKey put it.toKotlinInstant().toMeta() }
+            value.serverPicoseconds?.let { Opc.opcServerPicosecondsKey put Meta(it.asValue()) }
         }
     }
     is ByteString -> Meta(value.bytesOrEmpty().asValue())

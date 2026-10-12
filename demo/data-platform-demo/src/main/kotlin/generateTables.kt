@@ -47,7 +47,7 @@ suspend fun main(): Unit = coroutineScope {
         repeat(200) { index ->
             put(
                 key = "property[$index]".parseAsName(),
-                value = ControlsTagTableColumn(
+                value = TagTableColumn.controls(
                     timer = "default",
                     deviceName = Name.of("generator"),
                     propertyName = RandomGeneratorDevice.random.name
@@ -62,7 +62,7 @@ suspend fun main(): Unit = coroutineScope {
     val configuration = TagTableConfiguration(
         sources = emptyMap(),
         timers = timers,
-        properties = platformProperties.mapKeys { it.key.toString() },
+        tags = platformProperties.mapKeys { it.key.toString() },
         storage = TagTableStorageConfiguration(
             path = dataDirectory.toString(),
             readInterval = 2.milliseconds,

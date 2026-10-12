@@ -26,7 +26,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
         AlarmSetting(-10.0, 10.0, "OUT10")
     )
 
-    val blocks = configuration.properties.mapKeys { it.key.parseAsName() }.entries
+    val blocks = configuration.tags.mapKeys { it.key.parseAsName() }.entries
         .groupBy { (tag, property) ->
             tag.first()
         }.entries.associate { (source, properties) ->

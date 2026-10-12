@@ -25,7 +25,7 @@ class TagTablePluginTest {
         TagTableConfiguration(
             sources = emptyMap(),
             timers = mapOf("scan" to FixedRateTimer(1.seconds)),
-            properties = mapOf("sensor" to TagTableColumn.controls("scan", Name.of("source"), "reading")),
+            tags = mapOf("sensor" to TagTableColumn.controls("scan", Name.of("source"), "reading")),
         ),
     ) {
         var starts = 0

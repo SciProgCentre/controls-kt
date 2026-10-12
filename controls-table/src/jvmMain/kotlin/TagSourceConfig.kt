@@ -73,38 +73,23 @@ public data class Plc4xTagSourceConfig(
 
 /**
  * Represents a platform-specific property that can be read from a data platform.
+ *
+ * @param source The name of the source
+ * @param timer The name of the timer that is used to read the property
+ * @param config The configuration of the column property inside the source
+ * @param timeout The timeout for reading the property, defaults to 1 second
+ * @param compression The compression configuration for storage of property values. If not defined, global platform compression configuration is used.
+ * @param removeAuxiliaryValues Whether to remove auxiliary values like `@opc` parameters from the tag value.
+ * @param meta Metadata of the property
  */
 @Serializable
 public data class TagTableColumn(
-    /**
-     * The name of the source
-     */
     public val source: String,
-
-    /**
-     * The name of the timer that is used to read the property
-     */
     public val timer: String,
-
-    /**
-     * The configuration of the column property inside the source
-     */
     public val config: Meta,
-
-    /**
-     * The timeout for reading the property, defaults to 1 second
-     */
     public val timeout: Duration = 1.seconds,
-
-    /**
-     * The compression configuration for storage of property values.
-     * If not defined, global platform compression configuration is used.
-     */
     public val compression: ColumnCompression? = null,
-
-    /**
-     * Metadata of the property
-     */
+    public val removeAuxiliaryValues: Boolean = true,
     public val meta: Meta = Meta.EMPTY,
 ) {
     public companion object
@@ -247,7 +232,7 @@ public data class TagTableStorageConfiguration(
  *                   specifying how data is sourced for the platform.
  * @property timers A map of timer identifiers to their corresponding timer configurations,
  *                  defining the timing mechanisms used within the platform.
- * @property properties A map of property identifiers to their platform-specific properties,
+ * @property tags A map of property identifiers to their platform-specific properties,
  *                      used to read and manage data attributes from the platform.
  * @property storage The optional storage configuration for the platform, which manages
  *                   persistence settings such as file paths, intervals, compression, and
@@ -257,7 +242,7 @@ public data class TagTableStorageConfiguration(
 public class TagTableConfiguration(
     public val sources: Map<String, TagSourceConfig>,
     public val timers: Map<String, TimerConfiguration>,
-    public val properties: Map<String, TagTableColumn>,
+    public val tags: Map<String, TagTableColumn>,
     public val storage: TagTableStorageConfiguration? = null,
 )
 
