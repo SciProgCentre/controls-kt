@@ -12,7 +12,7 @@ Create utility components without a source, then connect their default or `value
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-utilities:0.5.0-dev`.
+The Maven coordinates of this project are `space.kscience:controls-utilities:0.5.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -22,6 +22,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-utilities:0.5.0-dev")
+    implementation("space.kscience:controls-utilities:0.5.0-dev-4")
 }
 ```

@@ -4,7 +4,7 @@ Property expressions in `controls-constructor` provide a way to define computed 
 
 ## StateExpression
 
-The core of the system is the `StateExpression` interface, which represents a node in the expression tree. It can be one of the following:
+The core of the system is the `ValueStateExpression` interface, which represents a node in the expression tree. It can be one of the following:
 
 ### Constants
 Represent fixed values.
@@ -43,7 +43,7 @@ Apply a function to multiple arguments.
 
 ## Using Expressions in DeviceConstructor
 
-To use a `StateExpression` in a `DeviceConstructor`, you can use the `expression` delegate. This registers a new property that is automatically computed based on the expression.
+To use a `ValueStateExpression` in a `DeviceConstructor`, you can use the `expression` delegate. This registers a new property that is automatically computed based on the expression.
 
 ```kotlin
 class MyDevice(context: Context) : DeviceConstructor(context) {

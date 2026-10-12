@@ -6,7 +6,7 @@ Implementation of byte ports on top os ktor-io asynchronous API
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-ports-ktor:0.5.0-dev`.
+The Maven coordinates of this project are `space.kscience:controls-ports-ktor:0.5.0-dev-4`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-ports-ktor:0.5.0-dev")
+    implementation("space.kscience:controls-ports-ktor:0.5.0-dev-4")
 }
 ```

@@ -4,8 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
-import space.kscience.controls.constructor.expressions.integrate
 import space.kscience.controls.duration
+import space.kscience.controls.expressions.accumulate
+import space.kscience.controls.expressions.integrate
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
@@ -40,7 +41,7 @@ public class Accumulator(
         }
     }
 
-    public val state: ValueState<Double> = value.integrate(window, coroutineScope)
+    public val state: ValueState<Double> = value.accumulate(window, coroutineScope)
 
     init {
         registerProperty(

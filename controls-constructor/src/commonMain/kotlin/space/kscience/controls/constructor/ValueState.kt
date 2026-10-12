@@ -189,6 +189,55 @@ public suspend fun <T, R> ValueState<T>.transform(
 )
 
 /**
+ * A hot transformation that emits only not null values
+ */
+public fun <T, R : Any> ValueState.Companion.transformNotNull(
+    scope: CoroutineScope,
+    state: ValueState<T>,
+    initialValue: R,
+    transform: suspend (T) -> R?
+): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
+    override val dependencies: Collection<ValueState<*>> = listOf(state)
+
+    private val valueFlow = MutableStateFlow<R>(initialValue)
+
+    val transformJob = scope.launch {
+        transform(state.value)?.let { valueFlow.emit(it) }
+        state.subscribe().collect { newValue ->
+            transform(newValue)?.let { valueFlow.emit(it) }
+        }
+    }
+
+    override val value: R get() = valueFlow.value
+
+    override val valueWithTime: ValueWithTime<R> get() = ValueWithTime(valueFlow.value, state.valueWithTime.time)
+
+    override fun subscribe(): StateFlow<R> = valueFlow
+
+    override fun subscribeWithTime(): Flow<ValueWithTime<R>> = state.subscribeWithTime().map {
+        ValueWithTime(valueFlow.value, it.time)
+    }
+
+    override fun toString(): String = "DeviceState.transformNotNull(state=${state.value}, value=$value)"
+}
+
+/**
+ * Transform the value of this state using the given [transform] function. The [transform] function is called
+ * whenever the value of this state changes. If the [transform] function returns null, the value of this state
+ * is not updated.
+ */
+public fun <T, R:Any> ValueState<T>.transformNotNull(
+    scope: CoroutineScope,
+    initialValue: R,
+    transform: suspend (T) -> R?
+): ValueStateWithDependencies<R> = ValueState.transformNotNull(
+    scope = scope,
+    state = this,
+    initialValue = initialValue,
+    transform = transform
+)
+
+/**
  * Combine two device states into one read-only [ValueState]. Only the latest value of each state is used.
  */
 public fun <T1, T2, R> ValueState.Companion.combine(

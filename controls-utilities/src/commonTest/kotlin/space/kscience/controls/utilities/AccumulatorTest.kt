@@ -116,15 +116,15 @@ class AccumulatorTest {
     }
 
     @Test
-    fun testAccumulatorStartsFromZero() = runTest(timeout = 5.seconds) {
-        withTestContext("accumulatorStartsFromZero") { context ->
+    fun testAccumulatorStartingValue() = runTest(timeout = 5.seconds) {
+        withTestContext("testAccumulatorStartingValue") { context ->
             val source = CustomTimedState(ValueWithTime(25.0, Instant.DISTANT_PAST))
             val accumulator = Accumulator(context, 10.seconds, backgroundScope)
             val initial = accumulator.state.valueWithTime
+            assertEquals(ValueWithTime(0.0, Instant.DISTANT_PAST), initial, "Initial value is not 0")
             accumulator.bind(source.asMeta())
             runCurrent()
-            assertEquals(ValueWithTime(0.0, Instant.DISTANT_PAST), initial)
-            assertEquals(initial, accumulator.state.valueWithTime)
+            assertEquals(25.0, accumulator.state.value)
 
             val t1 = Instant.fromEpochMilliseconds(1000)
             source.emit(10.0, t1)

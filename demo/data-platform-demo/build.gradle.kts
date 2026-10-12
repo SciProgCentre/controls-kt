@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm")
     alias(spclibs.plugins.compose.compiler)
-    alias(spclibs.plugins.compose.jb)
+    alias(libs.plugins.compose.jb)
 }
 
 
