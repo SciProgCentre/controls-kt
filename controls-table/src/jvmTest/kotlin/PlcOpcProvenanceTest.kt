@@ -15,6 +15,7 @@ import org.eclipse.milo.opcua.stack.core.AttributeId
 import org.eclipse.milo.opcua.stack.core.types.builtin.*
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn
 import org.eclipse.milo.opcua.stack.core.types.structured.ReadValueId
+import org.junit.jupiter.api.Timeout
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.opcua.server.OpcUaServer
 import space.kscience.controls.opcua.server.endpoint
@@ -25,6 +26,7 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.long
 import space.kscience.dataforge.meta.string
 import java.net.ServerSocket
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -76,7 +78,8 @@ class PlcOpcProvenanceTest {
     }
 
     @Test
-    fun batchReadsPublishQualityOnlyChangesWithTheirServerTime() = runTest(timeout = 20.seconds) {
+    @Timeout(20)
+    fun batchReadsPublishQualityOnlyChangesWithTheirServerTime() = runBlocking{
         val port = ServerSocket(0).use { it.localPort }
         val server = OpcUaServer {
             endpoint {
@@ -91,7 +94,7 @@ class PlcOpcProvenanceTest {
         }
 
         server.startup().await()
-        val namespace = ReadNamespace(server, backgroundScope)
+        val namespace = ReadNamespace(server, context)
 
         server.addressSpaceManager.register(namespace)
         val column = TagTableColumn.opc(
@@ -113,7 +116,7 @@ class PlcOpcProvenanceTest {
         namespace.replies.receive()
         val messages = Channel<PropertyChangedMessage>(Channel.UNLIMITED)
 
-        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+        context.launch {
             table.messageFlow.filterIsInstance<PropertyChangedMessage>().collect {
                 if (it.property == "sensor") messages.send(it)
             }
