@@ -23,8 +23,10 @@ import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.io
-import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.set
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -76,7 +78,7 @@ public class PlcTagTable(
     private val sources = mutableMapOf<String, TagSource>()
 
     private suspend fun getSource(sourceName: String): TagSource = sources.getOrPut(sourceName) {
-        if(sourceName == "@controls") return@getOrPut ControlsTagSource(context.request(DeviceManager))
+        if (sourceName == "@controls") return@getOrPut ControlsTagSource(context.request(DeviceManager))
         val sourceConfig = configuration.sources[sourceName] ?: error("No source found for $sourceName")
 
         when (sourceConfig) {
@@ -144,16 +146,20 @@ public class PlcTagTable(
                         val result = source.readMultipleTags(entries.map { it.key to it.value.config })
                         if (result != null) {
                             result.forEach { (propertyName, value) ->
-                                values[propertyName] = value
-                                updateTagState(propertyName, TagState.GOOD_QUALITY)
-                                lastTime = if (value.time > lastTime) value.time else lastTime
-                                messageFlow.emit(
-                                    PropertyChangedMessage(
-                                        time = value.time,
-                                        property = propertyName,
-                                        value = value.value,
+                                value.getOrNull()?.let { value ->
+                                    values[propertyName] = value
+                                    updateTagState(propertyName, TagState.GOOD_QUALITY)
+                                    lastTime = if (value.time > lastTime) value.time else lastTime
+                                    messageFlow.emit(
+                                        PropertyChangedMessage(
+                                            time = value.time,
+                                            property = propertyName,
+                                            value = value.value,
+                                        )
                                     )
-                                )
+                                } ?: run {
+                                    updateTagState(propertyName, TagState.READ_FAILED_QUALITY)
+                                }
                             }
                         } else {
                             entries.forEach { (propertyName, _) ->

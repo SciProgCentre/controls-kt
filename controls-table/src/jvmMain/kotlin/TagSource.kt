@@ -18,8 +18,8 @@ public sealed interface TagSource : AutoCloseable {
      */
     public suspend fun readMultipleTags(
         addresses: Collection<Pair<String, Meta>>
-    ): Map<String, ValueWithTime<Meta>>? = addresses.associate {
-        val value = readTag(it.second) ?: return null
+    ): Map<String, Result<ValueWithTime<Meta>>>? = addresses.associate {
+        val value =  runCatching {  readTag(it.second) ?: return null}
         it.first to value
     }
 

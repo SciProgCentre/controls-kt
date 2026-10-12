@@ -42,9 +42,13 @@ public class OpcTagSource(
 
     override suspend fun readMultipleTags(
         addresses: Collection<Pair<String, Meta>>
-    ): Map<String, ValueWithTime<Meta>>? = client?.let { client ->
+    ): Map<String, Result<ValueWithTime<Meta>>>? = client?.let { client ->
         val keys = addresses.map { it.first }
-        val nodeIds = addresses.map { NodeId.parse(it.second[ColumnSpec.nodeId] ?: error("nodeId is not defined in OPC column config")) }
+        val nodeIds = addresses.map {
+            NodeId.parse(
+                it.second[ColumnSpec.nodeId] ?: error("nodeId is not defined in OPC column config")
+            )
+        }
 
         val samples = client.readMultipleMetaWithTime(
             nodeIds,
@@ -52,7 +56,7 @@ public class OpcTagSource(
         )
 
         return keys.zip(samples).associate { (key, sample) ->
-            key to sample
+            key to Result.success(sample)
         }
     }
 
