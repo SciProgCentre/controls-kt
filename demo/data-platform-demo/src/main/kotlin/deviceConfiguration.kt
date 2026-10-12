@@ -1,8 +1,13 @@
 package space.kscience.controls.demo
 
 import space.kscience.controls.api.DeviceTree
-import space.kscience.controls.constructor.*
-import space.kscience.controls.constructor.expressions.StateExpression
+import space.kscience.controls.constructor.ConstructorBinding
+import space.kscience.controls.constructor.ConstructorDeviceConfiguration
+import space.kscience.controls.constructor.TemplateDeviceConfiguration
+import space.kscience.controls.constructor.ValueStateConfiguration
+import space.kscience.controls.expressions.ValueStateExpression
+import space.kscience.controls.expressions.expression
+import space.kscience.controls.expressions.math
 import space.kscience.controls.opcua.server.read
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableColumn
@@ -29,7 +34,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                 properties.chunked(10).forEachIndexed { index, chunk: List<Map.Entry<Name, TagTableColumn>> ->
 
                     val tagProperties = chunk.associate { (tag, _) ->
-                        tag.cutFirst().toString() to PropertyConfiguration(
+                        tag.cutFirst().toString() to ValueStateConfiguration(
                             type = TagTable.TAG_TABLE_FACTORY_TYPE,
                             parameters = Meta {
                                 set(TagTable.ValueFactorySpec.tag, tag.toString())
@@ -37,25 +42,27 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                         )
                     }
 
-                    val expression = StateExpression.Nary(
+                    val expression = ValueStateExpression.Function(
                         operation = "sum",
                         arguments = tagProperties.mapValues { (_, pc) ->
-                            StateExpression.State(
+                            ValueStateExpression.State(
                                 valueStateType = pc.type,
                                 parameters = pc.parameters,
                             )
                         }
                     )
 
-                    val expressionPropertyConfiguration = PropertyConfiguration(
-                        type = "expression",
-                        parameters = ExpressionValueStateFactory.buildMeta(expression)
+                    val expressionValueStateConfiguration = ValueStateConfiguration.expression(expression)
+
+                    val mathValueStateConfiguration = ValueStateConfiguration.math(
+                        "diff(integrateMinute(arg))",
+                        mapOf("arg" to tagProperties.values.first())
                     )
 
                     put(
                         "part[$index]",
                         ConstructorDeviceConfiguration(
-                            properties = tagProperties + ("sum" to expressionPropertyConfiguration),
+                            properties = tagProperties + ("sum" to expressionValueStateConfiguration) + ("integral" to mathValueStateConfiguration),
                             components = mapOf(
                                 "alarm" to TemplateDeviceConfiguration(
                                     type = "controls.utilities.alarm",

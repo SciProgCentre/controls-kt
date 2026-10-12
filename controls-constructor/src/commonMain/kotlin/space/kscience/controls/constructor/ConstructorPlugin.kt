@@ -44,19 +44,19 @@ public class ConstructorPlugin : AbstractPlugin() {
         }
     }
 
-    public fun buildValueState(parameters: Meta): ValueState<Meta> {
-        val type = parameters["type"]?.string ?: error("Type not specified")
-        return buildValueState(type, parameters)
-    }
+    public fun buildValueState(
+        parameters: Meta,
+        type: String = parameters["type"]?.string ?: error("Type not specified")
+    ): ValueState<Meta> = resolveValueStateFactory(type)?.build(context, parameters)
+        ?: error("No value state factory for type $type. Available factories: ${valueStateFactoriesByName.keys.sortedBy { it.toString() }}")
 
-    internal fun buildValueState(type: String, parameters: Meta): ValueState<Meta> =
-        resolveValueStateFactory(type)?.build(context, parameters)
-            ?: error("No value state factory for type $type. Available factories: ${valueStateFactoriesByName.keys.sortedBy { it.toString() }}")
+    public fun buildValueState(
+        valueStateConfiguration: ValueStateConfiguration
+    ): ValueState<Meta> = buildValueState(valueStateConfiguration.parameters, valueStateConfiguration.type)
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> mapOf(
-            Name.of("deviceProperty") to DeviceValueStateFactory,
-            Name.of("expression") to ExpressionValueStateFactory
+            Name.of(DeviceValueStateFactory.TYPE) to DeviceValueStateFactory,
         )
 
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(
@@ -87,8 +87,8 @@ public class ConstructorPlugin : AbstractPlugin() {
                 name = name,
                 converter = MetaConverter.meta,
                 state = buildValueState(
-                    propertyConfiguration.type,
-                    propertyConfiguration.parameters
+                    parameters = propertyConfiguration.parameters,
+                    type = propertyConfiguration.type
                 ),
             )
         }
