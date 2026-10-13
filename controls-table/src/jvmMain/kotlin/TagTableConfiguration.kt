@@ -16,6 +16,7 @@ import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -80,6 +81,8 @@ public data class Plc4xTagSourceConfig(
  * @param timeout The timeout for reading the property, defaults to 1 second
  * @param compression The compression configuration for storage of property values. If not defined, global platform compression configuration is used.
  * @param removeAuxiliaryValues Whether to remove auxiliary values like `@opc` parameters from the tag value.
+ * @param maxAge The maximum age of the property value to consider it GOOD. Null means no maximum age.
+ * @param maxDelta The maximum delta of the property value relative to previous one to consider it GOOD. Null means no maximum delta.
  * @param meta Metadata of the property
  */
 @Serializable
@@ -90,6 +93,8 @@ public data class TagTableColumn(
     public val timeout: Duration = 1.seconds,
     public val compression: ColumnCompression? = null,
     public val removeAuxiliaryValues: Boolean = true,
+    public val maxAge: Duration? = null,
+    public val maxDelta: Double? = null,
     public val meta: Meta = Meta.EMPTY,
 ) {
     public companion object
@@ -225,6 +230,17 @@ public data class TagTableStorageConfiguration(
 )
 
 /**
+ * Configuration of additional tag table settings.
+ *
+ * @property sourceTimeOffsetGranularity Granularity of the source time offset. If null, then the source time offset is not recorded.
+ */
+@Serializable
+public data class TagTableSettings(
+    public val sourceTimeOffsetGranularity: Duration? = 1.minutes,
+)
+
+
+/**
  * Represents the configuration for a data platform, defining its sources, timers,
  * properties, and optional storage settings.
  *
@@ -244,5 +260,6 @@ public class TagTableConfiguration(
     public val timers: Map<String, TimerConfiguration>,
     public val tags: Map<String, TagTableColumn>,
     public val storage: TagTableStorageConfiguration? = null,
+    public val settings: TagTableSettings? = null
 )
 

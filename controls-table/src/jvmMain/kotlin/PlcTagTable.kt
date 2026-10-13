@@ -24,11 +24,8 @@ import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.io
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.MutableMeta
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.dataforge.meta.set
-import space.kscience.dataforge.meta.valueSequence
 import space.kscience.dataforge.names.firstOrNull
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
@@ -36,10 +33,20 @@ import space.kscience.tables.TableHeader
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
+import kotlin.math.abs
 import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
+
+@JvmInline
+public value class SourceState(public val value: Meta) {
+    public val sourceTimeOffset: Duration? get() = value[SourceState.sourceTimeOffset]?.let { Duration.parse(it) }
+
+    public companion object : MetaSpec() {
+        public val sourceTimeOffset: MetaRef<String> by string()
+    }
+}
 
 /**
  * The [PlcTagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
@@ -71,42 +78,84 @@ public class PlcTagTable(
 
     private val tagStates = ConcurrentHashMap<String, TagState>()
 
-    private fun updateTagState(tag: String, tagQuality: String, metaBuilder: MutableMeta.() -> Unit = {}) {
-        tagStates[tag] = TagState(Meta {
-            set(quality, tagQuality)
-            metaBuilder()
-        })
+    private suspend fun updateTagState(tag: String, tagState: TagState) {
+        tagStates[tag] = tagState
     }
 
-    private fun updateSourceState(sourceName: String, metaBuilder: MutableMeta.() -> Unit) {
-        TODO()
+    private suspend fun updateTagState(
+        tag: String,
+        tagQuality: String,
+        metaBuilder: MutableMeta.() -> Unit = {}
+    ) = updateTagState(
+        tag = tag,
+        tagState = TagState(
+            Meta {
+                set(quality, tagQuality)
+                metaBuilder()
+            }
+        )
+    )
+
+    private val sourceStates = ConcurrentHashMap<String, SourceState>()
+
+    private suspend fun updateSourceState(sourceName: String, newState: SourceState) {
+        val oldState = sourceStates[sourceName]
+        if (oldState != newState) {
+            sourceStates[sourceName] = newState
+            messageFlow.emit(
+                PropertyChangedMessage(
+                    time = clock.now(),
+                    property = "@source.$sourceName",
+                    value = newState.value
+                )
+            )
+        }
     }
 
     /**
      * Compute tag state and tag new value based on previous value and current raw value.
      * Filter value if necessary
      */
-    private fun processTag(
+    private suspend fun processTag(
         tag: String,
         column: TagTableColumn,
         previousValue: ValueWithTime<Meta>?,
         rawValue: ValueWithTime<Meta>
     ): ValueWithTime<Meta> {
+        val tagQualityValue = MutableMeta()
+
+
+        tagQualityValue[TagState.quality] = TagState.GOOD_QUALITY
+
+        // process opc status
         val opcStatus = Opc.getOpcStatus(rawValue.value)
-        val opcServerTime = Opc.getServerTime(rawValue.value)
-        val opcSourceTime = Opc.getSourceTime(rawValue.value)
 
-        when (opcStatus?.isGood) {
-            null, true -> {
-                updateTagState(tag, TagState.GOOD_QUALITY)
-            }
+        if (opcStatus?.isGood == false) {
+            tagQualityValue[TagState.quality] = TagState.BAD_QUALITY
+            tagQualityValue["opcStatus"] = opcStatus.value
+        }
 
-            else -> {
-                updateTagState(tag, TagState.BAD_QUALITY) {
-                    "opcStatus" put opcStatus.value
-                }
+        // process maximal age
+        column.maxAge?.let { maxAge ->
+            val age = clock.now() - rawValue.time
+            if (age > maxAge) {
+                tagQualityValue[TagState.quality] = TagState.BAD_QUALITY
+                tagQualityValue["age"] = age.toString()
             }
         }
+
+        // process max delta
+        column.maxDelta?.let {
+            val oldValue = previousValue?.value?.double
+            val newValue = rawValue.value.double
+            if (oldValue != null && newValue != null && abs(newValue - oldValue) > column.maxDelta) {
+                tagQualityValue[TagState.quality] = TagState.BAD_QUALITY
+                tagQualityValue["delta"] = newValue - oldValue
+            }
+        }
+
+        // commit tag state
+        updateTagState(tag, TagState(tagQualityValue.seal()))
 
 
         val value = if (column.removeAuxiliaryValues) {
@@ -179,80 +228,81 @@ public class PlcTagTable(
     /**
      * Read all properties on trigger
      */
-    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit = supervisorScope {
-        properties.groupBy { it.value.source }.forEach { (source, entries) ->
-            //launch reading process for each separate source
-            launch {
-                val timeout = entries.maxOf { it.value.timeout }
+    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit =
+        supervisorScope {
+            properties.groupBy { it.value.source }.forEach { (source, entries) ->
+                //launch reading process for each separate source
+                launch {
+                    val timeout = entries.maxOf { it.value.timeout }
 
-                var lastTime = Instant.DISTANT_PAST
+                    var lastTime = Instant.DISTANT_PAST
 
-                try {
-                    withTimeout(timeout) {
-                        val source = getSource(source)
+                    try {
+                        withTimeout(timeout) {
+                            val source = getSource(source)
 
-                        val result = source.readMultipleTags(entries.map { it.key to it.value.config })
-                        if (result != null) {
-                            result.forEach { (tag, value) ->
-                                value.getOrNull()?.let { rawValue ->
-                                    val column = configuration.tags[tag]
-                                        ?: error("Configuration for tag $tag not found")
+                            val result = source.readMultipleTags(entries.map { it.key to it.value.config })
+                            if (result != null) {
+                                result.forEach { (tag, value) ->
+                                    value.getOrNull()?.let { rawValue ->
+                                        val column = configuration.tags[tag]
+                                            ?: error("Configuration for tag $tag not found")
 
-                                    val newValue = processTag(tag, column, values[tag], rawValue)
-                                    values[tag] = newValue
+                                        val newValue = processTag(tag, column, values[tag], rawValue)
+                                        values[tag] = newValue
 
-                                    lastTime = if (newValue.time > lastTime) newValue.time else lastTime
-                                    messageFlow.emit(
-                                        PropertyChangedMessage(
-                                            time = newValue.time,
-                                            property = tag,
-                                            value = newValue.value,
+                                        lastTime = if (newValue.time > lastTime) newValue.time else lastTime
+                                        messageFlow.emit(
+                                            PropertyChangedMessage(
+                                                time = newValue.time,
+                                                property = tag,
+                                                value = newValue.value,
+                                            )
                                         )
-                                    )
-                                } ?: run {
-                                    updateTagState(tag, TagState.READ_FAILED_QUALITY)
+                                    } ?: run {
+                                        updateTagState(tag, TagState.READ_FAILED_QUALITY)
+                                    }
+                                }
+                            } else {
+                                entries.forEach { (propertyName, _) ->
+                                    updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
                                 }
                             }
-                        } else {
-                            entries.forEach { (propertyName, _) ->
-                                updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
+                        }
+                    } catch (ex: Exception) {
+                        entries.forEach { (propertyName, _) ->
+                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
+                                ex.message?.let { set("error", it) }
                             }
                         }
-                    }
-                } catch (ex: Exception) {
-                    entries.forEach { (propertyName, _) ->
-                        updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
-                            ex.message?.let { set("error", it) }
-                        }
-                    }
-                    messageFlow.emit(
-                        DeviceErrorMessage(
-                            time = clock.now(),
-                            errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
-                            errorType = ex::class.simpleName,
-                            errorStackTrace = ex.stackTraceToString()
+                        messageFlow.emit(
+                            DeviceErrorMessage(
+                                time = clock.now(),
+                                errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
+                                errorType = ex::class.simpleName,
+                                errorStackTrace = ex.stackTraceToString()
+                            )
                         )
-                    )
-                    logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
-                }
+                        logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
+                    }
 
-                //emit row change
-                if (lastTime > Instant.DISTANT_PAST) {
-                    messageFlow.emit(
-                        PropertyChangedMessage(
-                            time = lastTime,
-                            property = TagTable.ROW_PROPERTY_NAME,
-                            value = Meta {
-                                values.forEach { (key, value) ->
-                                    set(key, value.value)
-                                }
-                            },
+                    //emit row change
+                    if (lastTime > Instant.DISTANT_PAST) {
+                        messageFlow.emit(
+                            PropertyChangedMessage(
+                                time = lastTime,
+                                property = TagTable.ROW_PROPERTY_NAME,
+                                value = Meta {
+                                    values.forEach { (key, value) ->
+                                        set(key, value.value)
+                                    }
+                                },
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
-    }
 
 
     override suspend fun start() {

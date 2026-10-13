@@ -19,6 +19,9 @@ import kotlin.time.Instant
 
 @JvmInline
 public value class TagState(public val value: Meta) {
+
+    public val quality: String? get() = value[TagState.quality]
+
     public companion object : MetaSpec() {
 
         public val quality: MetaRef<String> by string()
