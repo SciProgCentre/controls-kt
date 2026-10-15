@@ -17,6 +17,7 @@ import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.registerProperty
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.tagtable.timeseries.collectTable
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
@@ -25,6 +26,8 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
+import space.kscience.tables.toColumnTable
+import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -85,6 +88,30 @@ class TagTableValueStateTest {
                 mapOf("sensor" to value, "sensor.@quality" to quality),
                 table.readAllValuesWithTagState(),
             )
+        } finally {
+            context.cancel()
+            context.close()
+        }
+    }
+
+    @Test
+    fun testTimeSeriesQualityHeaders() = runTest(timeout = 5.seconds) {
+        val context = Context("tag-table-quality-headers") { coroutineContext(backgroundScope.coroutineContext) }
+        try {
+            val table = PlcTagTable(context, configuration)
+            val qualityName = "sensor" + TagState.TAG_QUALITY_SUFFIX
+            for (withQuality in listOf(false, true)) {
+                val rows = table.readTimeSeries(1.seconds, withQuality).collectTable(1)
+                val expected = listOf(TagTable.timeColumnHeader.name, "sensor") +
+                        if (withQuality) listOf(qualityName) else emptyList()
+                assertEquals(expected, rows.headers.map { it.name })
+                val columns = rows.toColumnTable()
+                assertEquals(expected, columns.headers.map { it.name })
+                if (withQuality) {
+                    assertEquals(typeOf<Meta>(), rows.headers.last().type)
+                    assertEquals(Meta.EMPTY, columns.getOrNull(0, qualityName))
+                }
+            }
         } finally {
             context.cancel()
             context.close()

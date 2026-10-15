@@ -18,6 +18,7 @@ import space.kscience.controls.storage.ZipRowsEnvelopeConverter
 import space.kscience.controls.tagtable.storage.ReplayTagTable
 import space.kscience.controls.tagtable.storage.RowEnvelopeMetaSpec
 import space.kscience.controls.tagtable.storage.TableStorageIndex
+import space.kscience.controls.tagtable.timeseries.collectTable
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
@@ -28,6 +29,7 @@ import space.kscience.dataforge.meta.set
 import space.kscience.tables.MapRow
 import space.kscience.tables.RowTable
 import space.kscience.tables.SimpleColumnHeader
+import space.kscience.tables.toColumnTable
 import java.nio.file.Files
 import kotlin.reflect.typeOf
 import kotlin.test.Test
@@ -48,9 +50,12 @@ class ReplayTagTableTest {
             val operations = NativeFileEnvelopeOperations(storage.io)
             val recordedTime = Instant.fromEpochSeconds(1_000)
             val playbackTime = Instant.fromEpochSeconds(2_000)
+            val qualityName = "sensor" + TagState.TAG_QUALITY_SUFFIX
+            val quality = Meta { set(TagState.quality, TagState.GOOD_QUALITY) }
             val headers = listOf(
                 TagTable.timeColumnHeader,
                 SimpleColumnHeader("sensor", typeOf<Meta>(), Meta.EMPTY),
+                SimpleColumnHeader(qualityName, typeOf<Meta>(), Meta.EMPTY),
             )
             val rows = (0..1).map { index ->
                 MapRow(mapOf(
@@ -58,6 +63,7 @@ class ReplayTagTableTest {
                         recordedTime + index.milliseconds
                     ),
                     "sensor" to Meta(index),
+                    qualityName to quality,
                 ))
             }
             val envelope = ZipRowsEnvelopeConverter.meta.writeRows(RowTable(headers, rows), Meta {
@@ -80,6 +86,19 @@ class ReplayTagTableTest {
                 assertEquals(Meta(1), table.readTag("sensor"))
                 assertEquals(mapOf("sensor" to Meta(1)), table.readAllValues())
                 assertEquals(Meta { set("sensor", Meta(1)) }, row.await().value)
+                assertEquals(quality, table.readTagQuality("sensor").value)
+                for (withQuality in listOf(false, true)) {
+                    val sampled = table.readTimeSeries(1.milliseconds, withQuality).collectTable(1)
+                    val expectedHeaders = listOf(TagTable.timeColumnHeader.name, "sensor") +
+                            if (withQuality) listOf(qualityName) else emptyList()
+                    assertEquals(expectedHeaders, sampled.headers.map { it.name })
+                    val columns = sampled.toColumnTable()
+                    assertEquals(expectedHeaders, columns.headers.map { it.name })
+                    if (withQuality) {
+                        assertEquals(typeOf<Meta>(), sampled.headers.last().type)
+                        assertEquals(quality, columns.getOrNull(0, qualityName))
+                    }
+                }
             } finally {
                 table.stop()
             }
