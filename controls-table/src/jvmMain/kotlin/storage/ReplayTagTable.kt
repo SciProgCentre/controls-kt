@@ -87,6 +87,11 @@ public class ReplayTagTable(
         val tableHeaders: TableHeader<Meta> = buildList {
             add(TagTable.timeColumnHeader)
             addAll(propertyColumnHeaders)
+            if (withTagQuality) {
+                addAll(propertyColumnHeaders.map {
+                    SimpleColumnHeader<Meta>(it.name + TagState.TAG_QUALITY_SUFFIX, typeOf<Meta>(), Meta.EMPTY)
+                })
+            }
         }
 
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
