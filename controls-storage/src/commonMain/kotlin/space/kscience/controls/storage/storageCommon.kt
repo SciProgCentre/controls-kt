@@ -1,9 +1,10 @@
 package space.kscience.controls.storage
 
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,28 +26,38 @@ public fun DeviceManager.storage(
 ): DeviceMessageStorage = factory.build(context, meta)
 
 /**
- * Aggregates elements emitted by the source flow into lists based on a specified time window duration.
- * Each list corresponds to the elements collected during the time window, starting from the first emission.
- *
+ * Groups elements into non-empty windows starting with the first collected element.
+ * Normal completion emits the remaining elements; failure or cancellation does not flush them.
  */
-public fun <T> Flow<T>.timeWindowed(duration: Duration): Flow<List<T>> = channelFlow {
-    val mutex = Mutex()
-    val collector = ArrayList<T>()
-    collect {
-        mutex.withLock {
-            collector.add(it)
-        }
-    }
-    launch {
-        while (isActive) {
-            delay(duration)
+public fun <T> Flow<T>.timeWindowed(duration: Duration): Flow<List<T>> {
+    require(duration.isPositive()) { "Window duration must be positive" }
+    return channelFlow {
+        val mutex = Mutex()
+        val collector = ArrayList<T>()
+        var timerJob: Job? = null
+        suspend fun flush() {
             mutex.withLock {
                 if (collector.isNotEmpty()) {
                     send(collector.toList())
+                    collector.clear()
                 }
-                collector.clear()
             }
         }
+
+        collect { item ->
+            mutex.withLock {
+                val first = collector.isEmpty()
+                collector.add(item)
+                if (first) {
+                    timerJob = launch(start = CoroutineStart.UNDISPATCHED) {
+                        delay(duration)
+                        flush()
+                    }
+                }
+            }
+        }
+        flush()
+        timerJob?.cancelAndJoin()
     }
 }
 

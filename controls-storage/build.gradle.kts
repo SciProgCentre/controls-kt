@@ -15,6 +15,9 @@ kscience {
         api(spclibs.kotlinx.serialization.json)
         api(libs.tables.kt)
     }
+    commonTest {
+        implementation(spclibs.kotlinx.coroutines.test)
+    }
     jvmMain {
 //        api(projects.magix.magixApi)
 //        api(projects.controlsMagix)
