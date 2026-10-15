@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add explicit input rebinding and removal of constructor properties, actions and child trees.
+- Publish constructor descriptions at startup and after property or action changes.
 - Add tests to `ComputationDevice` and register it as device factory in `ControlsExpressionPlugin` for `ConstructorPlugin.construct` support.
 - Add tests for numerical correctness for `integrate` and `differentiate`.
 - Add tests for formula-based `math` expressions and `MathValueStateFactory`.

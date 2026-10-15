@@ -27,6 +27,7 @@ import kotlin.time.Duration
 
 /**
  * A mutable group of devices and properties to be used for lightweight design and simulations.
+ * Registration and removal must be serialized by the caller.
  */
 public open class DeviceConstructor(
     final override val context: Context,
@@ -51,6 +52,8 @@ public open class DeviceConstructor(
         val converter: MetaConverter<T>,
         val descriptor: PropertyDescriptor,
     ) {
+        var publicationJob: Job? = null
+
         val valueAsMeta get() = converter.convert(state.value)
 
         fun asMetaValueState() = state.map(converter::convert)
@@ -110,9 +113,19 @@ public open class DeviceConstructor(
         if (child is Constructor) {
             registerElement(ChildConstructorElement(Name.of(deviceName), child))
         }
-        launch {
-            messageFlow.emit(DeviceTreeChildDeviceChangedMessage(clock.now(), deviceName, Name.EMPTY))
+        val message = DeviceTreeChildDeviceChangedMessage(clock.now(), deviceName, Name.EMPTY)
+        launch(start = CoroutineStart.UNDISPATCHED) { messageFlow.emit(message) }
+        return child
+    }
+
+    /** Detach a child without stopping it. The caller retains responsibility for its lifecycle. */
+    public fun removeTree(deviceName: String): DeviceTree? {
+        val child = children.remove(deviceName) ?: return null
+        _constructorElements.removeAll {
+            it is ChildConstructorElement && it.name == Name.of(deviceName) && it.constructor === child
         }
+        val message = DeviceTreeChildDeviceChangedMessage(clock.now(), deviceName, Name.EMPTY)
+        launch(start = CoroutineStart.UNDISPATCHED) { messageFlow.emit(message) }
         return child
     }
 
@@ -142,8 +155,9 @@ public open class DeviceConstructor(
     ): S {
         val name = descriptor.name.parseAsName()
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
-        properties[name] = Property(state, converter, descriptor)
-        state.subscribeWithTime().onEach { (value, time) ->
+        val property = Property(state, converter, descriptor)
+        properties[name] = property
+        property.publicationJob = state.subscribeWithTime().onEach { (value, time) ->
             messageFlow.emit(
                 PropertyChangedMessage(
                     time = time,
@@ -153,7 +167,19 @@ public open class DeviceConstructor(
             )
         }.launchIn(this)
         registerElement(PropertyConstructorElement(this, descriptor.name, state))
+        descriptionChanged()
         return state
+    }
+
+    /** Remove a property and await its publisher, without stopping the source state. */
+    public suspend fun unregisterProperty(propertyName: String): Boolean {
+        val property = properties.remove(propertyName.parseAsName()) ?: return false
+        _constructorElements.removeAll {
+            it is PropertyConstructorElement<*> && it.device === this && it.propertyName == property.descriptor.name
+        }
+        property.publicationJob?.cancelAndJoin()
+        descriptionChanged()
+        return true
     }
 
     private val actions: MutableMap<Name, Action<*, *>> = hashMapOf()
@@ -172,8 +198,31 @@ public open class DeviceConstructor(
             descriptor = descriptor,
             action = action
         )
+        descriptionChanged()
         return {
             action(it)
+        }
+    }
+
+    /** Remove an action from lookup; running calls and previously returned functions are unchanged. */
+    public fun unregisterAction(actionName: String): Boolean {
+        actions.remove(actionName.parseAsName()) ?: return false
+        descriptionChanged()
+        return true
+    }
+
+    private fun descriptionMessage(): DescriptionMessage = DescriptionMessage(
+        time = clock.now(),
+        description = meta,
+        properties = propertyDescriptors,
+        actions = actionDescriptors,
+        sourceDevice = Name.EMPTY,
+    )
+
+    private fun descriptionChanged() {
+        if (lifecycleState == STARTED) {
+            val description = descriptionMessage()
+            launch(start = CoroutineStart.UNDISPATCHED) { messageFlow.emit(description) }
         }
     }
 
@@ -224,6 +273,7 @@ public open class DeviceConstructor(
         children.values.forEach {
             it.device?.start()
         }
+        messageFlow.emit(descriptionMessage())
         setLifecycleState(STARTED)
     }
 

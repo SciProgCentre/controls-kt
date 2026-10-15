@@ -71,6 +71,13 @@ public class Alarm(
         }
     }
 
+    override fun rebind(state: ValueState<Meta>, inputName: String) {
+        when (inputName) {
+            DEFAULT_INPUT_NAME, "value" -> value.rebind(state.map { it.double })
+            else -> error("Can't resolve input name $inputName in $this")
+        }
+    }
+
     public val state: ValueState<AlarmState> = combineState(alarmSettings, value) { settings, value ->
         //early return undefined value if value is missing or NaN
         if (value == null || value.isNaN()) return@combineState AlarmState(STATUS_UNDEFINED, null)

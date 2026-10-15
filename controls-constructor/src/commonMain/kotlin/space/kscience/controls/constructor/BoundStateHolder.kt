@@ -11,6 +11,11 @@ public interface BoundStateHolder {
      */
     public fun bind(state: ValueState<Meta>, inputName: String = DEFAULT_INPUT_NAME)
 
+    /** Set or replace an input source when this holder supports rebinding. */
+    public fun rebind(state: ValueState<Meta>, inputName: String = DEFAULT_INPUT_NAME) {
+        throw UnsupportedOperationException("Rebinding is not supported")
+    }
+
     public companion object{
         public const val DEFAULT_INPUT_NAME: String = ""
     }
