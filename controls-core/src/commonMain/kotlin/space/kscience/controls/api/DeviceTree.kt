@@ -115,6 +115,13 @@ public fun DeviceTree.start(): Job = coroutineScope.launch {
 
 /**
  * Collect all messages from given [DeviceTree], applying proper relative names.
+ *
+ * Collection of composition changes starts before the initial tree is read. The channel delivers
+ * changes to the same coroutine that reads the tree and owns the child subscriptions.
+ * Cancelling collection cancels the root and child subscriptions.
+ *
+ * [CoroutineStart.UNDISPATCHED] runs only until the first suspension; a flow that suspends before
+ * subscribing can still delay its subscription.
  */
 public fun DeviceTree.deviceMessageFlow(): Flow<DeviceMessage> = channelFlow {
 
