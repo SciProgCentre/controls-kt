@@ -38,7 +38,7 @@ internal fun StoreTransaction.writeMessage(message: DeviceMessage): Unit {
     message.targetDevice?.let {
         entity.setProperty(DeviceMessage::targetDevice.name, it.toString())
     }
-    entity.setProperty(DeviceMessage::targetDevice.name, message.time.toString())
+    entity.setProperty(DeviceMessage::time.name, message.time.toString())
     entity.setBlobString("json", Json.encodeToString(json))
 }
 
