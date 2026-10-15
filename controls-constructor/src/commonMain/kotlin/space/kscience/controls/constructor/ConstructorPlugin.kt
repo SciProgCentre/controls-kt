@@ -23,20 +23,19 @@ public class ConstructorPlugin : AbstractPlugin() {
 
     public val deviceManager: DeviceManager by require(DeviceManager)
 
-    private val valueStateFactoriesByName: Map<Name, ValueStateFactory> by lazy {
-        context.gather(ValueStateFactory.PROVIDER_TAGET, ValueStateFactory::class)
-    }
+    private val valueStateFactoriesByName: Map<Name, ValueStateFactory>
+        get() = context.gather(ValueStateFactory.PROVIDER_TAGET, ValueStateFactory::class)
 
-    public val valueStateFactories: Map<String, ValueStateFactory> by lazy {
-        valueStateFactoriesByName.mapKeys { it.key.last().toString() }
-    }
+    public val valueStateFactories: Map<String, ValueStateFactory>
+        get() = valueStateFactoriesByName.mapKeys { it.key.last().toString() }
 
     /**
      * Resolve value state factory by full name. Short name is accepted only if it is unique.
      */
     public fun resolveValueStateFactory(type: String): ValueStateFactory? {
-        valueStateFactoriesByName[type.parseAsName()]?.let { return it }
-        val candidates = valueStateFactoriesByName.filterKeys { it.last().toString() == type }
+        val factories = valueStateFactoriesByName
+        factories[type.parseAsName()]?.let { return it }
+        val candidates = factories.filterKeys { it.last().toString() == type }
         return when (candidates.size) {
             0 -> null
             1 -> candidates.values.single()

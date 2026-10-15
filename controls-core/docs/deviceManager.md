@@ -2,6 +2,10 @@
 
 `DeviceManager` is a DataForge `Plugin` that integrates `Controls-kt` with the DataForge Dependency Injection (DI) system. It manages the lifecycle of devices and provides a way to register and lookup devices within a `Context`.
 
+Factory lookup reads the current content of the plugins already attached to the context.
+A later update to a provider is visible on the next lookup. This does not add or
+remove plugins, or change the lifecycle of devices already created.
+
 ## Key Features
 
 - **Lifecycle Management**: Automatically starts and stops devices when the context is started or stopped.

@@ -20,6 +20,7 @@
 - Add write extensions for modbus
 
 ### Changed
+- Read current plugin content when resolving device and value-state factories.
 - ValueStateExpression uses contextual bindings. Direct device property binding is removed. Instead, we use state via ConstructorPlugin.
 - StateExpressions renamed to ValueStateExpressions.
 - Expressions moved to a separate module.

@@ -27,16 +27,16 @@ public class DeviceManager : AbstractPlugin(), DeviceTree {
     /**
      * Device factories available in the context
      */
-    public val factories: Map<Name, DeviceTreeFactory> by lazy {
-        context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class)
-    }
+    public val factories: Map<Name, DeviceTreeFactory>
+        get() = context.gather(DEVICE_FACTORY_TARGET, DeviceTreeFactory::class)
 
     /**
      * Resolve device factory by full name. Short name is accepted only if it is unique.
      */
     public fun resolveDeviceFactory(type: String): DeviceTreeFactory? {
-        factories[type.parseAsName()]?.let { return it }
-        val candidates = factories.filterKeys { it.last().toString() == type }
+        val available = factories
+        available[type.parseAsName()]?.let { return it }
+        val candidates = available.filterKeys { it.last().toString() == type }
         return when (candidates.size) {
             0 -> null
             1 -> candidates.values.single()
