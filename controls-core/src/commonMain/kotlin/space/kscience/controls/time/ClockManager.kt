@@ -44,14 +44,14 @@ private class CompressedTimeDispatcher(
         parentDelay.invokeOnTimeout((timeMillis / compression).roundToLong(), block, context)
 }
 
-private class CompressedClock(
+internal class CompressedClock(
     val baseClock: Clock = Clock.System,
     val compression: Double,
     val start: Instant = baseClock.now(),
 ) : Clock {
     override fun now(): Instant {
         val elapsed = (baseClock.now() - start)
-        return start + elapsed / compression
+        return start + elapsed * compression
     }
 }
 
@@ -177,7 +177,7 @@ public fun ContextBuilder.withTimeCompression(compression: Double) {
     plugin(ClockManager) {
         "clock" put {
             "mode" put "compressed"
-            "compression" to compression
+            "compression" put compression
         }
     }
 }
