@@ -43,13 +43,6 @@ public class Accumulator(
 
     public val state: ValueState<Double> = value.accumulate(window, coroutineScope)
 
-    override fun rebind(state: ValueState<Meta>, inputName: String) {
-        when (inputName) {
-            DEFAULT_INPUT_NAME, "value" -> value.rebind(state.map { it.double })
-            else -> error("Can't resolve input name $inputName in $this")
-        }
-    }
-
     init {
         registerProperty(
             name = "state",

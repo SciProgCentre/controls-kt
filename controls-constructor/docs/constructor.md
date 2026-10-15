@@ -12,7 +12,7 @@ The `constructor` feature provides a high-level DSL for hierarchical composition
 
 Call `start()` to start the constructor and its child devices. A repeated call while it is already starting or started returns without doing anything.
 
-For runtime edits and explicit state rebinding, see [Editing a running constructor](live-construction.md).
+For registration and removal, see [Editing a running constructor](live-construction.md).
 
 ### Defining Properties
 You can easily expose internal states as device properties using delegates:

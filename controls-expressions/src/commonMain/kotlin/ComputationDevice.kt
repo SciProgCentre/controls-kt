@@ -31,10 +31,6 @@ public class ComputationDevice(
         args[inputName]?.bind(state.map { it.double }) ?: error("Input name $inputName not defined in $argNames")
     }
 
-    override fun rebind(state: ValueState<Meta>, inputName: String) {
-        args[inputName]?.rebind(state.map { it.double }) ?: error("Input name $inputName not defined in $argNames")
-    }
-
     //args need to be declared in advance to allow creating result before binding
     public val result: ValueState<Double?> = expression(args.mapKeys { Symbol(it.key) })
 

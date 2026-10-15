@@ -7,13 +7,18 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.*
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -115,14 +120,30 @@ class DeviceConstructorMutationTest {
             val messages = recordMessages(device)
             val removed = MutableValueState(1.0)
             val retained = MutableValueState(10.0)
+            val publisherStopping = CompletableDeferred<Unit>()
+            val releasePublisher = CompletableDeferred<Unit>()
+            val published = object : ValueState<Double> by removed {
+                override fun subscribeWithTime(): Flow<ValueWithTime<Double>> =
+                    removed.subscribeWithTime().onCompletion {
+                        publisherStopping.complete(Unit)
+                        withContext(NonCancellable) { releasePublisher.await() }
+                    }
+            }
             val externalValues = mutableListOf<Double>()
             backgroundScope.launch { removed.subscribe().collect { externalValues.add(it) } }
-            device.registerProperty("removed", MetaConverter.double, removed)
+            device.registerProperty("removed", MetaConverter.double, published)
             device.registerProperty("retained", MetaConverter.double, retained)
             device.start()
             runCurrent()
 
-            assertTrue(device.unregisterProperty("removed"))
+            val removal = async { device.unregisterProperty("removed") }
+            publisherStopping.await()
+            try {
+                assertFalse(removal.isCompleted)
+            } finally {
+                releasePublisher.complete(Unit)
+            }
+            assertTrue(removal.await())
             messages.clear()
             removed.value = 2.0
             retained.value = 20.0
@@ -132,6 +153,9 @@ class DeviceConstructorMutationTest {
             assertTrue(messages.filterIsInstance<PropertyChangedMessage>().none { it.property == "removed" })
             assertEquals(20.0, messages.filterIsInstance<PropertyChangedMessage>().last().value.double)
             assertNull(device.getCachedProperty("removed"))
+            assertFailsWith<IllegalStateException> { device.readProperty("removed") }
+            assertFailsWith<IllegalStateException> { device.propertyAsState("removed", MetaConverter.double) }
+            assertTrue(device.propertyDescriptors.none { it.name == "removed" })
             assertTrue(device.constructorElements.filterIsInstance<PropertyConstructorElement<*>>()
                 .none { it.propertyName == "removed" })
             assertTrue(device.coroutineContext[Job]!!.isActive)
@@ -140,38 +164,13 @@ class DeviceConstructorMutationTest {
     }
 
     @Test
-    fun rebindChangesTheSourceOfARunningProperty() = runTest(timeout = 5.seconds) {
-        withDevice { device ->
-            val messages = recordMessages(device)
-            val first = MutableValueState(1.0)
-            val second = MutableValueState(2.0)
-            val input = LateBindValueState(0.0)
-            input.bind(first)
-            device.registerProperty("value", MetaConverter.double, input)
-            device.start()
-            runCurrent()
-            messages.clear()
-
-            input.rebind(second)
-            runCurrent()
-            first.value = 99.0
-            second.value = 3.0
-            runCurrent()
-
-            assertEquals(LifecycleState.STARTED, device.lifecycleState)
-            assertEquals(listOf(2.0, 3.0), messages.filterIsInstance<PropertyChangedMessage>().map { it.value.double })
-            assertEquals(3.0, device.getCachedProperty("value").double)
-        }
-    }
-
-    @Test
     fun unregisteredPropertyNameCanBeReused() = runTest(timeout = 5.seconds) {
         withDevice { device ->
-            device.registerProperty("value", MetaConverter.double, ValueState(1.0))
-            assertTrue(device.unregisterProperty("value"))
-            device.registerProperty("value", MetaConverter.double, ValueState(2.0))
+            device.registerProperty("group.value", MetaConverter.double, ValueState(1.0))
+            assertTrue(device.unregisterProperty("group.value"))
+            device.registerProperty("group.value", MetaConverter.double, ValueState(2.0))
 
-            assertEquals(2.0, device.readProperty("value").double)
+            assertEquals(2.0, device.readProperty("group.value").double)
             assertEquals(1, device.constructorElements.filterIsInstance<PropertyConstructorElement<*>>().size)
         }
     }
@@ -199,6 +198,9 @@ class DeviceConstructorMutationTest {
             assertEquals(3.0, invocation.await()?.double)
             assertEquals(4.0, direct(3.0))
             assertFalse(device.unregisterAction("increment"))
+            assertTrue(device.actionDescriptors.isEmpty())
+            device.registerAction(MetaConverter.double, MetaConverter.double, ActionDescriptor("increment")) { it + 2 }
+            assertEquals(5.0, device.execute("increment", Meta(3.0))?.double)
         }
     }
 
@@ -224,6 +226,11 @@ class DeviceConstructorMutationTest {
                 emptyList<String>() to listOf("increment"),
                 emptyList<String>() to emptyList(),
             ), snapshots)
+            messages.clear()
+            assertFalse(device.unregisterProperty("missing"))
+            assertFalse(device.unregisterAction("missing"))
+            runCurrent()
+            assertTrue(messages.isEmpty())
         }
     }
 
@@ -241,6 +248,8 @@ class DeviceConstructorMutationTest {
             runCurrent()
 
             assertFalse(device.children.containsKey("child"))
+            assertNull(device.resolveDeviceOrNull(Name.of("child")))
+            assertTrue(device.descendantDevices().isEmpty())
             assertTrue(device.constructorElements.filterIsInstance<ChildConstructorElement>()
                 .none { it.constructor === child })
             assertEquals(LifecycleState.STARTED, child.lifecycleState)
@@ -251,7 +260,11 @@ class DeviceConstructorMutationTest {
                 .map { it.childDeviceName })
             messages.clear()
             assertNull(device.removeTree("child"))
+            runCurrent()
             assertTrue(messages.isEmpty())
+            device.installTree("child", child)
+            assertSame(child, device.resolveDevice("child"))
+            assertSame(leaf, device.resolveDevice("child.leaf"))
         }
     }
 }
