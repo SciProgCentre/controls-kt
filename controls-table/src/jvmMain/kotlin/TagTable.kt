@@ -93,6 +93,8 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
     override val messageFlow: SharedFlow<DeviceMessage>
 
     public object ValueFactorySpec : MetaSpec() {
+        public val tagTable: MetaRef<String> by string()
+
         public val tag: MetaRef<String> by string()
     }
 

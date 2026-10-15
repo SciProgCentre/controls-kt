@@ -20,6 +20,7 @@
 - Add write extensions for modbus
 
 ### Changed
+- **BREAKING** Tag table value states use `type: controls.tags.tagTable` and optional `parameters.tagTable` instead of indexed factory names such as `controls.tags.tagTable[archive]`. Tables can be registered or replaced after the factory catalog is first used.
 - ValueStateExpression uses contextual bindings. Direct device property binding is removed. Instead, we use state via ConstructorPlugin.
 - StateExpressions renamed to ValueStateExpressions.
 - Expressions moved to a separate module.

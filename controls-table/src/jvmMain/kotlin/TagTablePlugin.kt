@@ -2,6 +2,7 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.launch
 import space.kscience.controls.constructor.ConstructorPlugin
+import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.storage.ControlsStoragePlugin
@@ -10,9 +11,9 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.PluginFactory
 import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.NameToken
-import space.kscience.dataforge.names.asName
 
 /**
  * A plugin that manages a collection of tag tables, allowing for the registration, initialization,
@@ -30,8 +31,19 @@ public class TagTablePlugin : AbstractPlugin() {
 
     public val tagTables: Map<String?, TagTable> get() = _tagTables
 
+    private val valueStateFactory = object : ValueStateFactory {
+        override fun build(context: Context, meta: Meta): ValueState<Meta> {
+            val plugin = context.plugins[TagTablePlugin] ?: error("Tag table plugin is not found in context")
+            val name = meta[TagTable.ValueFactorySpec.tagTable]
+            val table = plugin.tagTables[name] ?: error("Tag table not found for tagTable name $name")
+            return table.asValueStateFactory().build(context, meta)
+        }
+
+        override val descriptor: MetaDescriptor get() = TagTable.ValueFactorySpec.descriptor
+    }
+
     /**
-     * Register [tagTable] without starting it. Register tables before the first factory resolution in [ConstructorPlugin].
+     * Register [tagTable] without starting it. New value states use the current registration.
      */
     public fun register(tagTable: TagTable, name: String? = null): TagTable {
         _tagTables[name] = tagTable
@@ -53,9 +65,9 @@ public class TagTablePlugin : AbstractPlugin() {
         install(PlcTagTable(context, configuration), name)
 
     override fun content(target: String): Map<Name, Any> = when (target) {
-        ValueStateFactory.PROVIDER_TAGET -> tagTables.entries.associate { (name, table) ->
-            NameToken(TagTable.TAG_TABLE_FACTORY_TYPE, name).asName() to table.asValueStateFactory()
-        }
+        ValueStateFactory.PROVIDER_TAGET -> mapOf(
+            Name.of(TagTable.TAG_TABLE_FACTORY_TYPE) to valueStateFactory
+        )
 
         DeviceManager.DEVICE_FACTORY_TARGET -> mapOf(
             Name.of(TagTable.TAG_TABLE_FACTORY_TYPE) to TagTableDevice

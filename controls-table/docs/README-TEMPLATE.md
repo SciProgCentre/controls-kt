@@ -53,6 +53,23 @@ The module relies on the following technological solutions:
 *   **controls-opcua**, **controls-plc4x**, **controls-modbus**: specialized driver modules.
 *   **controls-constructor**: used for declarative description of platform configurations.
 
+## Tag table value states
+
+`TagTablePlugin` exports one value-state factory, `controls.tags.tagTable`. Its parameters are `tag` and an optional `tagTable` name; omit `tagTable` to use the default table.
+
+```yaml
+type: controls.tags.tagTable
+parameters:
+  tagTable: archive
+  tag: sensor
+```
+
+Migrate named factories from `type: controls.tags.tagTable[archive]` to the example above. The indexed factory name is no longer supported.
+
+Tables can be registered after the constructor's factory catalog is first used. Each build selects the current registration, so replacing a table affects future builds; existing value states keep their original table. Registration and state construction do not start acquisition. Use `install` to register and start a table.
+
+The exported descriptor contains the common `tagTable` and `tag` selectors. Calling `table.asValueStateFactory()` directly still binds the factory to that table; the selector does not change that binding.
+
 ## Features:
 
 ${features}
