@@ -383,6 +383,74 @@ class TableStorageIndexTest {
         }
     }
 
+
+    @Test
+    fun testNestedDirectoryChangesAndDeletion() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-nested-test")
+        val directory = Files.createDirectories(fixture.watched.resolve("2026/10/15"))
+        val time = Instant.fromEpochSeconds(1625097600)
+        val native = NativeFileEnvelopeOperations(fixture.storage.io)
+        val reads = AtomicInteger()
+        val operations = object : FileEnvelopeOperations by native {
+            override fun readEnvelope(path: Path): Envelope? {
+                reads.incrementAndGet()
+                return if (Files.exists(path)) native.readEnvelope(path) else null
+            }
+        }
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations,
+            removeFilesCycleDuration = 10.milliseconds)
+        try {
+            fixture.publishTo(directory, "before", time)
+            index.start()
+            assertEquals(1, index.selectEnvelopes(time..time).size)
+            val created = time + 1.seconds
+            fixture.publishTo(directory, "after", created)
+            index.awaitEnvelopes(created..created)
+            Files.delete(directory.resolve("before.df"))
+            Files.delete(directory.resolve("after.df"))
+            Files.delete(directory)
+            withContext(Dispatchers.IO) {
+                withTimeout(5.seconds) {
+                    do {
+                        reads.set(0)
+                        assertTrue(index.selectEnvelopes(time..created).isEmpty())
+                        if (reads.get() != 0) delay(10.milliseconds)
+                    } while (reads.get() != 0)
+                }
+            }
+            val next = Files.createDirectory(fixture.watched.resolve("2026/10/16"))
+            fixture.publishTo(next, "next", created + 1.seconds)
+            index.awaitEnvelopes((created + 1.seconds)..(created + 1.seconds))
+            index.stop()
+            reads.set(0)
+            fixture.publishTo(next, "stopped", created + 2.seconds)
+            delay(50.milliseconds)
+            assertEquals(0, reads.get())
+        } finally {
+            fixture.close(index)
+        }
+    }
+
+    @Test
+    fun testPopulatedSubdirectoryIsWatchedAfterMove() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-moved-directory-test")
+        val incoming = Files.createDirectories(fixture.directory.resolve("incoming/2026/10/16"))
+        val time = Instant.fromEpochSeconds(1625097600)
+        val index = TableStorageIndex(fixture.storage, fixture.watched)
+        try {
+            fixture.publishTo(incoming, "before-watch", time)
+            index.start()
+            Files.move(fixture.directory.resolve("incoming/2026"), fixture.watched.resolve("2026"), ATOMIC_MOVE)
+            index.awaitEnvelopes(time..time)
+            val later = time + 1.seconds
+            fixture.publishTo(fixture.watched.resolve("2026/10/16"), "after-watch", later)
+            index.awaitEnvelopes(later..later)
+            assertEquals(2, index.selectEnvelopes(time..later).size)
+        } finally {
+            fixture.close(index)
+        }
+    }
+
     /**
      * A watcher that reports only the keys a test puts into it.
      */

@@ -23,23 +23,48 @@ import space.kscience.tables.Row
 import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
 import space.kscience.tables.get
+import java.io.IOException
 import java.nio.file.ClosedWatchServiceException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.NoSuchFileException
+import java.nio.file.SimpleFileVisitor
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
 import java.nio.file.StandardWatchEventKinds.OVERFLOW
 import java.nio.file.WatchEvent
 import java.nio.file.WatchService
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
+private fun Path.registerDirectories(watchService: WatchService) {
+    register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    val root = toAbsolutePath()
+    Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
+        override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+            if (dir != root) try {
+                dir.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+            } catch (_: NoSuchFileException) {
+                return FileVisitResult.SKIP_SUBTREE
+            }
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult =
+            if (exc is NoSuchFileException) FileVisitResult.CONTINUE else throw exc
+    })
+}
+
 /**
- * Create a watcher for file creation and deletion events in this directory.
+ * Create a watcher for file creation and deletion events in this directory and its existing subdirectories.
  */
 internal fun Path.watchFiles(): WatchService = fileSystem.newWatchService().also { watchService ->
     try {
-        register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+        registerDirectories(watchService)
     } catch (ex: Throwable) {
         watchService.close()
         throw ex
@@ -47,14 +72,14 @@ internal fun Path.watchFiles(): WatchService = fileSystem.newWatchService().also
 }
 
 /**
- * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
- * for each file creation or deletion event, and without a path for [OVERFLOW], when events were lost.
+ * Launch a recursive directory monitor that calls [onEvent] with a path relative to [directory]
+ * for each creation or deletion event, and without a path for [OVERFLOW], when events were lost.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
     directory: Path,
     onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path?) -> Unit
-): Job = launchDirectoryMonitor(directory.watchFiles(), onEvent)
+): Job = launchDirectoryMonitor(directory.watchFiles(), directory, onEvent)
 
 /**
  * Launch a directory monitor for an already registered [watchService] and close it when the monitor stops,
@@ -62,8 +87,10 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
     watchService: WatchService,
+    directory: Path? = null,
     onEvent: suspend (kind: WatchEvent.Kind<*>, file: Path?) -> Unit
 ): Job = launch(Dispatchers.IO) {
+    val root = directory?.toAbsolutePath()
     watchService.use { watchService ->
         while (isActive) {
             val key = try {
@@ -74,11 +101,21 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 
             for (event in key.pollEvents()) {
                 ensureActive()
-                val file = event.context() as Path?
+                val context = event.context() as Path?
+                val file = if (context == null || root == null) context
+                    else root.relativize((key.watchable() as Path).resolve(context).toAbsolutePath())
+                if (root != null) {
+                    val path = file?.let(root::resolve)
+                    if (event.kind() == ENTRY_CREATE && path != null && Files.isDirectory(path, NOFOLLOW_LINKS)) {
+                        try {
+                            path.registerDirectories(watchService)
+                        } catch (_: NoSuchFileException) { /* The directory was removed before registration. */ }
+                    } else if (event.kind() == OVERFLOW) directory.registerDirectories(watchService)
+                }
                 onEvent(event.kind(), file)
             }
 
-            if (!key.reset()) break
+            if (!key.reset() && (root == null || (key.watchable() as Path).toAbsolutePath() == root)) break
         }
     }
 }.apply { invokeOnCompletion { watchService.close() } }
@@ -424,7 +461,7 @@ public class TableStorageIndex(
 
             val removalMutex: Mutex = Mutex()
 
-            launchDirectoryMonitor(watchService) { kind, file ->
+            launchDirectoryMonitor(watchService, dataDirectory) { kind, file ->
                 // an overflow has no file, so the whole directory is scanned again; indexed files are not added twice
                 val path = file?.let { dataDirectory.resolve(it) } ?: dataDirectory
 
@@ -433,6 +470,7 @@ public class TableStorageIndex(
                         operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
                             insert(createdPath)
                         }
+                        if (kind == OVERFLOW) removeIf { !Files.exists(it.path) }
                     }
 
                     ENTRY_DELETE -> removalMutex.withLock {
@@ -448,7 +486,9 @@ public class TableStorageIndex(
                         removedFiles.toSet().also { removedFiles.clear() }
                     }
                     if (pathsToRemove.isNotEmpty()) {
-                        removeIf { it.path in pathsToRemove }
+                        removeIf { interval ->
+                            pathsToRemove.any { interval.path.startsWith(it) } && !Files.exists(interval.path)
+                        }
                     }
                 }
             }

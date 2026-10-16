@@ -35,6 +35,7 @@
 
 ### Fixed
 
+- Watch existing and newly created storage subdirectories, including date partitions.
 - Include quality columns in PLC and replay time-series headers when requested.
 - Give native envelope metadata its final name only after it is written, so a running index does not read partial files.
 - Use quality names when reading tag values with quality metadata.
