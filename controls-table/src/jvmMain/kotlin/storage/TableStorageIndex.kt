@@ -316,7 +316,7 @@ public class TableStorageIndex(
         n.height = 1 + maxOf(height(n.left), height(n.right))
         n.maxEnd = maxOf(
             n.interval.end,
-            n.left?.maxEnd ?: Instant.DISTANT_FUTURE,
+            n.left?.maxEnd ?: Instant.DISTANT_PAST,
             n.right?.maxEnd ?: Instant.DISTANT_PAST
         )
     }

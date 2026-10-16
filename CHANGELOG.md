@@ -35,6 +35,8 @@
 
 ### Fixed
 
+- Include quality columns in PLC and replay time-series headers when requested.
+- Give native envelope metadata its final name only after it is written, so a running index does not read partial files.
 - Use quality names when reading tag values with quality metadata.
 - Register the storage index monitor before the initial scan, so files created meanwhile are indexed once, and let the next query retry a failed start.
 - Scan the storage directory again after a watch overflow instead of stopping the storage index monitor.

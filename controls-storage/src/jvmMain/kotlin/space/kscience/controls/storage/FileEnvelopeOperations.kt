@@ -8,6 +8,7 @@ import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.*
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.io.path.*
 
 //TODO move to DataForge
@@ -138,9 +139,20 @@ public class NativeFileEnvelopeOperations(
             }
         }
 
+        // the metadata is the envelope anchor, so it gets its final name only when complete
         val metaFile = directory.resolve("$fileName$metaExtension")
-        metaFile.write {
-            metaFormatFactory.writeMeta(this, envelope.meta)
+        // the temporary name does not grow with the envelope name, so it fits wherever the metadata name fits
+        val temporaryFile = directory.resolve("${UUID.randomUUID()}.tmp")
+        var created = false
+        try {
+            // write refuses existing files, so a name used by another envelope is never overwritten
+            temporaryFile.write {
+                created = true
+                metaFormatFactory.writeMeta(this, envelope.meta)
+            }
+            temporaryFile.moveTo(metaFile)
+        } finally {
+            if (created) temporaryFile.deleteIfExists()
         }
     }
 

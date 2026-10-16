@@ -77,7 +77,8 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
      * Starts generating a flow of rows for the current data platform with a specified interval.
      *
      * @param interval the interval between row generation.
-     * @param withTagQuality whether to include tag state in the rows. Tag states are automatically names as `tag.state`.
+     * @param withTagQuality whether to include tag state in the rows and headers.
+     * Quality column names append [TagState.TAG_QUALITY_SUFFIX] to the tag name.
      */
     public fun readTimeSeries(interval: Duration, withTagQuality: Boolean = false): TimeSeriesRows<Meta>
 

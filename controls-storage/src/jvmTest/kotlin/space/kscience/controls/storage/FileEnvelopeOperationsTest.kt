@@ -5,11 +5,24 @@ import org.junit.jupiter.api.io.TempDir
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.io.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
+import kotlinx.io.Sink
+import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.name
+import kotlin.io.path.readText
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FileEnvelopeOperationsTest {
@@ -157,5 +170,69 @@ class FileEnvelopeOperationsTest {
         assertEquals(1, read.size, "Should be able to read single meta file as envelope")
         assertTrue(read.containsKey(Name.EMPTY))
         assertEquals("Hello", read[Name.EMPTY]?.data?.toByteArray()?.decodeToString())
+    }
+
+    @Test
+    fun testNativeMetadataAppearsOnlyWhenComplete() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val slowFormat = object : MetaFormatFactory by JsonMetaFormat {
+            override fun writeMeta(sink: Sink, meta: Meta, descriptor: MetaDescriptor?) {
+                entered.countDown()
+                check(release.await(10, TimeUnit.SECONDS))
+                JsonMetaFormat.writeMeta(sink, meta, descriptor)
+            }
+        }
+        val operations = NativeFileEnvelopeOperations(ioPlugin, slowFormat)
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val writer = executor.submit {
+                operations.writeEnvelope("record", tempDir, Envelope(Meta { "key" put "value" }, "body".toByteArray().asBinary()))
+            }
+            assertTrue(entered.await(10, TimeUnit.SECONDS))
+            assertFalse(tempDir.resolve("record${operations.metaExtension}").exists())
+            assertTrue(operations.envelopeFilesSequence(tempDir).none())
+            release.countDown()
+            writer.get(10, TimeUnit.SECONDS)
+        } finally {
+            release.countDown()
+            executor.shutdown()
+        }
+        val envelope = operations.readEnvelope(tempDir.resolve("record${operations.metaExtension}"))
+        assertEquals("value", envelope?.meta?.get("key")?.string)
+        assertEquals(listOf("record", "record${operations.metaExtension}"), tempDir.listDirectoryEntries().map { it.name }.sorted())
+    }
+
+    @Test
+    fun testNativeMetadataDoesNotOverwriteAnotherEnvelope() {
+        val operations = NativeFileEnvelopeOperations(ioPlugin)
+        // a body name that matches a temporary metadata name of another envelope
+        val bodyName = "record${operations.metaExtension}.tmp"
+        operations.writeEnvelope(bodyName, tempDir, Envelope(Meta.EMPTY, "keep".toByteArray().asBinary()))
+        operations.writeEnvelope("record", tempDir, Envelope(Meta { "key" put "value" }, null))
+        assertEquals("keep", tempDir.resolve(bodyName).readText())
+        assertEquals("value", operations.readEnvelope(tempDir.resolve("record${operations.metaExtension}"))?.meta?.get("key")?.string)
+    }
+
+    @Test
+    fun testNativeEnvelopeWithLongNameIsWritable() {
+        val operations = NativeFileEnvelopeOperations(ioPlugin)
+        // the metadata name still fits the usual file name limit
+        val name = "r".repeat(220)
+        operations.writeEnvelope(name, tempDir, Envelope(Meta { "key" put "value" }, "body".toByteArray().asBinary()))
+        val envelope = operations.readEnvelope(tempDir.resolve("$name${operations.metaExtension}"))
+        assertEquals("value", envelope?.meta?.get("key")?.string)
+    }
+
+    @Test
+    fun testNativeMetadataIsNotReplaced() {
+        val operations = NativeFileEnvelopeOperations(ioPlugin)
+        operations.writeEnvelope("record", tempDir, Envelope(Meta { "key" put "first" }, null))
+        assertFailsWith<FileAlreadyExistsException> {
+            operations.writeEnvelope("record", tempDir, Envelope(Meta { "key" put "second" }, null))
+        }
+        val envelope = operations.readEnvelope(tempDir.resolve("record${operations.metaExtension}"))
+        assertEquals("first", envelope?.meta?.get("key")?.string)
+        assertEquals(listOf("record${operations.metaExtension}"), tempDir.listDirectoryEntries().map { it.name })
     }
 }

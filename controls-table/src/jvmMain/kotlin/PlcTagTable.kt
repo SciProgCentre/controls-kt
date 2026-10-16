@@ -398,6 +398,12 @@ public class PlcTagTable(
         interval: Duration,
         withTagQuality: Boolean
     ): TimeSeriesRows<Meta> {
+        val headers = if (withTagQuality) {
+            tableHeaders + propertyColumnHeaders.map {
+                SimpleColumnHeader<Meta>(it.name + TagState.TAG_QUALITY_SUFFIX, typeOf<Meta>(), Meta.EMPTY)
+            }
+        } else tableHeaders
+
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
                 val values = if (withTagQuality) {
@@ -414,7 +420,7 @@ public class PlcTagTable(
                 delay(interval)
             }
         }.shareIn(this, SharingStarted.WhileSubscribed())
-        return TimeSeriesRowsFlow(tableHeaders, rowFlow)
+        return TimeSeriesRowsFlow(headers, rowFlow)
     }
 
     private val stateCache = mutableMapOf<String, ValueState<Meta>>()
