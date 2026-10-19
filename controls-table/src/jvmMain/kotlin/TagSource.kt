@@ -14,6 +14,9 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.string
 import kotlin.time.Duration
 
+/**
+ * Represents the state of a tag source, encapsulating metadata and relevant attributes.
+ */
 @JvmInline
 public value class SourceState(public val value: Meta) {
     public val sourceTimeOffset: Duration? get() = value[SourceState.sourceTimeOffset]?.let { Duration.parse(it) }

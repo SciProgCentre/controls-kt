@@ -2,6 +2,7 @@ package space.kscience.controls.demo
 
 import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.storage.PlainRowsEnvelopeConverter
 import space.kscience.controls.tagtable.*
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
@@ -90,7 +91,8 @@ internal fun DeviceManager.setupPlatformTestStand(
             readInterval = 1.seconds,
             maxDuration = 30.seconds,
             compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05),
-            separateMeta = false
+            separateMeta = false,
+            withTagState = true,
 //            rowsConverterType = PlainRowsEnvelopeConverter.meta.envelopeType
         )
     )

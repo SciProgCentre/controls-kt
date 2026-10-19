@@ -41,6 +41,7 @@ The `flowBinaryData` extension converts continuous time-series rows into a Kotli
 public fun TagTable.flowBinaryData(
     readInterval: Duration,
     converter: RowsEnvelopeConverter<Meta>,
+    withTagState: Boolean = false,
     maxRows: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
@@ -75,6 +76,7 @@ Each envelope metadata is populated according to `RowEnvelopeMetaSpec`:
 public fun TagTable.storeData(
     directory: Path,
     readInterval: Duration,
+    withTagState: Boolean = false,
     maxRowsPerEnvelope: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,

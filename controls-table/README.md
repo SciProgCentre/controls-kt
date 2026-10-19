@@ -31,6 +31,10 @@ The module includes interval-indexed storage and playback for time-series tag ta
 * **[Tag Table Storage and Reading](./docs/storage.md)**: Envelope-based binary file storage, directory partitioning, AVL interval tree index (`TableStorageIndex`), query engine (`selectRows`), and historical replay (`ReplayTagTable`).
 * **[AsyncRows Compression](./docs/compression.md)**: Row-level and column-level compression algorithms for time-series streams.
 
+### 5. Tag State and Quality Validation
+The module provides automated validation, provenance tracking, and health evaluation for tag values:
+* **[Tag State and Quality](./docs/tag-state-quality.md)**: Quality evaluation algorithms (OPC status verification, maximum age staleness checks, maximum delta limits), diagnostic states (`GOOD`, `BAD`, `READ_FAILED`, `NOT_CONNECTED`), and companion quality streams (`.@quality`).
+
 ## Architectural Diagram
 
 A visual representation of the architecture is available in draw.io format:

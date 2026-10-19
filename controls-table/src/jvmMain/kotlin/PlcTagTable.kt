@@ -63,7 +63,7 @@ public class PlcTagTable(
 
     override val messageFlow: SharedFlow<DeviceMessage>
         field = MutableSharedFlow<DeviceMessage>(
-            extraBufferCapacity = configuration.tags.size * 4,
+            extraBufferCapacity = configuration.tags.size * 10,
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
 
