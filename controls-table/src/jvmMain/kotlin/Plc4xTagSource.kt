@@ -1,12 +1,20 @@
 package space.kscience.controls.tagtable
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.apache.plc4x.java.DefaultPlcDriverManager
 import org.apache.plc4x.java.api.PlcConnection
 import org.apache.plc4x.java.api.types.PlcValueType
+import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.isStarted
 import space.kscience.controls.plc4x.Plc4xProperty
 import space.kscience.controls.plc4x.throwOnFail
 import space.kscience.controls.time.ValueWithTime
@@ -18,24 +26,55 @@ import space.kscience.dataforge.meta.descriptors.required
  */
 public class Plc4xTagSource(
     private val config: Plc4xTagSourceConfig,
+    private val scope: CoroutineScope,
     private val timeZone: TimeZone
 ) : TagSource {
 
 
     private var client: PlcConnection? = null
 
-    override suspend fun open() {
-        client = DefaultPlcDriverManager().getConnection(config.address).apply {
-            connect()
-        }
+    override val state: StateFlow<SourceState>
+        field = MutableStateFlow(SourceState(Meta.EMPTY))
+
+
+    private fun updateState(block: MutableMeta.() -> Unit) {
+        state.value = state.value.copy(block)
     }
 
-    override fun close() {
+    override var lifecycleState: LifecycleState
+        get() = state.value.lifeCycleState
+        private set(value) {
+            updateState { set(SourceState.lifeCycle, value) }
+        }
+
+
+    private var connectionJob: Job? = null
+
+
+    override suspend fun start() {
+        if (lifecycleState.isStarted()) return
+        if (connectionJob?.isActive == true) return
+        val newClient = DefaultPlcDriverManager().getConnection(config.address)
+        client = newClient
+
+        connectionJob = scope.launch {
+            newClient.connect()
+            delay(config.reconnectionDelay)
+            }
+    }
+
+    override suspend fun stop() {
         client?.close()
         client = null
     }
 
     override suspend fun readTag(address: Meta): ValueWithTime<Meta>? = client?.let { client ->
+
+        if (!client.isConnected) {
+            start()
+            return null
+        }
+
         require(client.metadata.isReadSupported) { "Read actions are not supported on connections" }
 
         val plcAddress = address[ColumnSpec.address] ?: error("PLC address is required")

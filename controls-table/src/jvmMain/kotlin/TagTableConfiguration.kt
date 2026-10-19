@@ -23,7 +23,12 @@ import kotlin.time.Duration.Companion.seconds
  * A configuration for a tag source
  */
 @Serializable
-public sealed interface TagSourceConfig
+public sealed interface TagSourceConfig{
+    /**
+     * A delay between reconnection attempts
+     */
+    val reconnectionDelay: Duration
+}
 
 /**
  * A configuration for an OPC-UA tag source
@@ -35,7 +40,8 @@ public sealed interface TagSourceConfig
 @SerialName("opc")
 public data class OpcTagSourceConfig(
     val host: String,
-    val maxAge: Duration = 500.milliseconds
+    val maxAge: Duration = 500.milliseconds,
+    override val reconnectionDelay: Duration = 5.seconds
 ) : TagSourceConfig
 
 @Serializable
@@ -47,7 +53,8 @@ public data class ModbusTcpTagSourceConfig(
     val addr: String,
     val port: Int = Modbus.DEFAULT_PORT,
     val timeout: Int = Modbus.DEFAULT_TIMEOUT,
-    val reconnect: Boolean = false
+    val reconnect: Boolean = false,
+    override val reconnectionDelay: Duration = 5.seconds
 ) : ModbusTagSourceConfig
 
 @Serializable
@@ -63,13 +70,15 @@ public data class ModbusRtuTagSourceConfig(
     val flowControlOut: Int = SerialPort.FLOW_CONTROL_DISABLED,
     val timeout: Int = Modbus.DEFAULT_TIMEOUT,
     val transmitDelay: Int = Modbus.DEFAULT_TRANSMIT_DELAY,
+    override val reconnectionDelay: Duration = 5.seconds
 ) : ModbusTagSourceConfig
 
 
 @Serializable
 @SerialName("plc4x")
 public data class Plc4xTagSourceConfig(
-    val address: String
+    val address: String,
+    override val reconnectionDelay: Duration = 5.seconds
 ) : TagSourceConfig
 
 /**
@@ -108,6 +117,9 @@ public fun TagTableColumn.Companion.opc(
     timer: String,
     nodeId: String,
     compression: ColumnCompression? = null,
+    removeAuxiliaryValues: Boolean = true,
+    maxAge: Duration? = null,
+    maxDelta: Double? = null,
     meta: Meta = Meta.EMPTY,
 ): TagTableColumn = TagTableColumn(
     source = source,
@@ -116,6 +128,9 @@ public fun TagTableColumn.Companion.opc(
         set(OpcTagSource.ColumnSpec.nodeId, nodeId)
     },
     compression = compression,
+    removeAuxiliaryValues = removeAuxiliaryValues,
+    maxAge = maxAge,
+    maxDelta = maxDelta,
     meta = meta
 )
 
@@ -129,6 +144,8 @@ public fun TagTableColumn.Companion.plc4x(
     plcValueType: PlcValueType,
     name: String? = null,
     compression: ColumnCompression? = null,
+    maxAge: Duration? = null,
+    maxDelta: Double? = null,
     meta: Meta = Meta.EMPTY,
 ): TagTableColumn = TagTableColumn(
     source = source,
@@ -141,6 +158,8 @@ public fun TagTableColumn.Companion.plc4x(
         }
     },
     compression = compression,
+    maxAge = maxAge,
+    maxDelta = maxDelta,
     meta = meta
 )
 
@@ -154,6 +173,8 @@ public fun TagTableColumn.Companion.modbus(
     address: Int,
     unitId: Int = 1,
     compression: ColumnCompression? = null,
+    maxAge: Duration? = null,
+    maxDelta: Double? = null,
     meta: Meta = Meta.EMPTY,
 ): TagTableColumn = TagTableColumn(
     source = source,
@@ -164,6 +185,8 @@ public fun TagTableColumn.Companion.modbus(
         "reader" put ModbusTagReader.converter.convert(reader)
     },
     compression = compression,
+    maxAge = maxAge,
+    maxDelta = maxDelta,
     meta = meta
 )
 

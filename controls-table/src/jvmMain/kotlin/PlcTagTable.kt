@@ -11,7 +11,6 @@ import space.kscience.controls.opcua.server.Opc
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.SingleFileEnvelopeOperations
-import space.kscience.controls.tagtable.TagState.Companion.quality
 import space.kscience.controls.tagtable.storage.storeData
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
@@ -19,6 +18,7 @@ import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
+import space.kscience.controls.time.timeZone
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
@@ -39,15 +39,6 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
-@JvmInline
-public value class SourceState(public val value: Meta) {
-    public val sourceTimeOffset: Duration? get() = value[SourceState.sourceTimeOffset]?.let { Duration.parse(it) }
-
-    public companion object : MetaSpec() {
-        public val sourceTimeOffset: MetaRef<String> by string()
-    }
-}
-
 /**
  * The [PlcTagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
  * It provides methods to resolve clients for each source type based on their configurations.
@@ -60,7 +51,7 @@ public value class SourceState(public val value: Meta) {
 public class PlcTagTable(
     override val context: Context,
     public val configuration: TagTableConfiguration,
-    public val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    public val timeZone: TimeZone = context.timeZone,
     override val clock: Clock = context.clock,
 ) : TagTable, CoroutineScope {
 
@@ -90,27 +81,11 @@ public class PlcTagTable(
         tag = tag,
         tagState = TagState(
             Meta {
-                set(quality, tagQuality)
+                set(TagState.quality, tagQuality)
                 metaBuilder()
             }
         )
     )
-
-    private val sourceStates = ConcurrentHashMap<String, SourceState>()
-
-    private suspend fun updateSourceState(sourceName: String, newState: SourceState) {
-        val oldState = sourceStates[sourceName]
-        if (oldState != newState) {
-            sourceStates[sourceName] = newState
-            messageFlow.emit(
-                PropertyChangedMessage(
-                    time = clock.now(),
-                    property = "@source.$sourceName",
-                    value = newState.value
-                )
-            )
-        }
-    }
 
     /**
      * Compute tag state and tag new value based on previous value and current raw value.
@@ -181,11 +156,14 @@ public class PlcTagTable(
         val sourceConfig = configuration.sources[sourceName] ?: error("No source found for $sourceName")
 
         when (sourceConfig) {
-            is OpcTagSourceConfig -> OpcTagSource(sourceConfig)
-            is ModbusTagSourceConfig -> ModbusTagSource(sourceConfig, clock)
-            is Plc4xTagSourceConfig -> Plc4xTagSource(sourceConfig, timeZone)
+            is OpcTagSourceConfig -> OpcTagSource(sourceConfig, this, clock)
+            is ModbusTagSourceConfig -> ModbusTagSource(sourceConfig, this, clock)
+            is Plc4xTagSourceConfig -> Plc4xTagSource(sourceConfig, this, timeZone)
         }.also {
-            it.open()
+
+
+            // launches connection procedure. Does not wait for it to complete
+            it.start()
         }
     }
 
@@ -372,7 +350,7 @@ public class PlcTagTable(
         readJob = null
         storageJob?.cancel()
         storageJob = null
-        sources.values.forEach { it.close() }
+        sources.values.forEach { it.stop() }
     }
 
     override val tags: Map<String, MetaDescriptor> by lazy {

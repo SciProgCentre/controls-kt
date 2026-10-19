@@ -74,6 +74,34 @@ class PlcOpcProvenanceTest {
         }
     }
 
+    /**
+     * Tests the behavior of batch reads in an OPC UA server context by evaluating the publication of
+     * changes in sensor quality with their corresponding server times. This test uses a simulated
+     * OPC UA server and client table setup to verify quality and timestamp propagation.
+     *
+     * Key Assertions:
+     * - Confirms that the quality values from the server (e.g., BAD, UNCERTAIN) are correctly reflected
+     *   in the published messages and match the source DataValue.
+     * - Validates the synchronization and consistency between server-side source time and
+     *   message timestamp attributes.
+     * - Ensures the `sensor` value and metadata, provided during simulation, are consistently
+     *   propagated and reflected in messages received by the client.
+     *
+     * Test Setup:
+     * - Creates a simulated OPC UA server with a dynamically assigned port and a test namespace that
+     *   allows controlled responses for read operations.
+     * - Configures a tag table linked to the server, which periodically polls the sensor data.
+     * - Utilizes coroutines to manage asynchronous message flows and controlled server behaviors
+     *   during the test.
+     *
+     * Components Verified:
+     * - Server-side quality status code propagation.
+     * - Proper synchronization and formatting of `sourceTime` and `serverTime` in messages.
+     * - Preservation of `sensor` value integrity through all components of the simulated system.
+     *
+     * Timeout:
+     * - The test is configured with a timeout of 20 seconds to ensure timely execution.
+     */
     @Test
     @Timeout(20)
     fun batchReadsPublishQualityOnlyChangesWithTheirServerTime() = runBlocking{
@@ -97,12 +125,13 @@ class PlcOpcProvenanceTest {
         val column = TagTableColumn.opc(
             source = "server", timer = "scan",
             nodeId = NodeId(namespace.namespaceIndex, "value").toParseableString(),
+            removeAuxiliaryValues = false,
         )
         val table = PlcTagTable(
             context, TagTableConfiguration(
                 sources = mapOf("server" to OpcTagSourceConfig("opc.tcp://127.0.0.1:$port")),
                 timers = mapOf("scan" to FixedRateTimer(20.milliseconds)),
-                tags = mapOf("sensor" to column),
+                tags = mapOf("sensor" to column)
             )
         )
         table.start()
