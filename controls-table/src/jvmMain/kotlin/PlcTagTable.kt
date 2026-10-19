@@ -159,11 +159,19 @@ public class PlcTagTable(
             is OpcTagSourceConfig -> OpcTagSource(sourceConfig, this, clock)
             is ModbusTagSourceConfig -> ModbusTagSource(sourceConfig, this, clock)
             is Plc4xTagSourceConfig -> Plc4xTagSource(sourceConfig, this, timeZone)
-        }.also {
-
+        }.also { tagSource ->
+            tagSource.state.onEach {
+                messageFlow.emit(
+                    PropertyChangedMessage(
+                        time = clock.now(),
+                        property = "@source.$sourceName",
+                        value = it.value
+                    )
+                )
+            }.launchIn(this)
 
             // launches connection procedure. Does not wait for it to complete
-            it.start()
+            tagSource.start()
         }
     }
 
