@@ -3,7 +3,7 @@ package space.kscience.controls.api
 import kotlinx.serialization.Serializable
 
 /**
- * A lifecycle state of a device
+ * A lifecycle state of a device or similar object
  */
 @Serializable
 public enum class LifecycleState {
@@ -28,6 +28,8 @@ public enum class LifecycleState {
      */
     ERROR
 }
+
+public fun LifecycleState.isStarted(): Boolean = this == LifecycleState.STARTED || this == LifecycleState.STARTING
 
 
 /**

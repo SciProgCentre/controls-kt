@@ -19,6 +19,9 @@ import kotlin.time.Instant
 
 @JvmInline
 public value class TagState(public val value: Meta) {
+
+    public val quality: String? get() = value[TagState.quality]
+
     public companion object : MetaSpec() {
 
         public val quality: MetaRef<String> by string()
@@ -29,7 +32,11 @@ public value class TagState(public val value: Meta) {
 
         public const val GOOD_QUALITY: String = "GOOD"
 
+        public const val BAD_QUALITY: String = "BAD"
+
         public const val READ_FAILED_QUALITY: String = "READ_FAILED"
+
+        public const val NOT_CONNECTED_QUALITY: String = "NOT_CONNECTED"
     }
 }
 

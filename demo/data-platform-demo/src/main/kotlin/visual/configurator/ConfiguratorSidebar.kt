@@ -14,9 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import space.kscience.controls.api.DeviceFactory
-import space.kscience.controls.tagtable.InternalTagTableColumn
-import space.kscience.controls.tagtable.OpcTagTableColumn
-import space.kscience.controls.tagtable.PlcTagTableColumn
 import space.kscience.controls.tagtable.TagTableColumn
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
@@ -123,7 +120,7 @@ private fun TagExplorerTab(
 ) {
     val tagTable = model.tagTableConfiguration
 
-    if (tagTable == null || tagTable.properties.isEmpty()) {
+    if (tagTable == null || tagTable.tags.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
@@ -145,12 +142,10 @@ private fun TagExplorerTab(
     }
 
     val filteredTags = remember(tagTable, searchQuery) {
-        tagTable.properties.entries.filter { (name, col) ->
+        tagTable.tags.entries.filter { (name, col) ->
             searchQuery.isBlank() ||
                     name.contains(searchQuery, ignoreCase = true) ||
-                    col.source.contains(searchQuery, ignoreCase = true) ||
-                    (col is OpcTagTableColumn && col.nodeId.contains(searchQuery, ignoreCase = true)) ||
-                    (col is PlcTagTableColumn && col.address.contains(searchQuery, ignoreCase = true))
+                    col.source.contains(searchQuery, ignoreCase = true)
         }.groupBy { it.value.source }
     }
 
@@ -216,12 +211,7 @@ private fun TagItemCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                val detail = when (column) {
-                    is OpcTagTableColumn -> "OPC: ${column.nodeId}"
-                    is PlcTagTableColumn -> "PLC: ${column.address} (${column.plcValueType})"
-                    is InternalTagTableColumn -> "Internal: ${column.deviceName}.${column.propertyName}"
-                    else -> "Source: ${column.source}"
-                }
+                val detail = column.config.toString()
                 Text(
                     text = "$detail | timer: ${column.timer}",
                     style = MaterialTheme.typography.bodySmall,

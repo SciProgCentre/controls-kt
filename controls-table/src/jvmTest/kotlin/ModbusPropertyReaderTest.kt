@@ -22,13 +22,13 @@ class ModbusPropertyReaderTest {
 
     @Test
     fun decodesHoldingFloatReader() {
-        val decoded = Json.decodeFromString(ModbusPropertyReader.serializer(), """{"type":"holding-float"}""")
+        val decoded = Json.decodeFromString(ModbusTagReader.serializer(), """{"type":"holding-float"}""")
         assertEquals("ModbusHoldingFloatReader", decoded::class.simpleName)
     }
 
     @Test
     fun decodesCoilReader() {
-        val decoded = Json.decodeFromString(ModbusPropertyReader.serializer(), """{"type":"coil"}""")
+        val decoded = Json.decodeFromString(ModbusTagReader.serializer(), """{"type":"coil"}""")
         assertEquals("ModbusCoilReader", decoded::class.simpleName)
     }
 

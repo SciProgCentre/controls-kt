@@ -1,6 +1,7 @@
 package space.kscience.controls.time
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.TimeZone
 import space.kscience.controls.instant
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.*
@@ -110,6 +111,10 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
         }
     }
 
+    public val timeZone: TimeZone by lazy {
+        meta["clock.timeZone"].string?.let { TimeZone.of(it) } ?: TimeZone.currentSystemDefault()
+    }
+
     /**
      * Provide a [CoroutineDispatcher] with time management for simulations
      */
@@ -163,6 +168,8 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
 public val Context.clockManager: ClockManager get() = plugins[ClockManager] ?: ClockManager.DEFAULT
 
 public val Context.clock: Clock get() = plugins[ClockManager]?.clock ?: Clock.System
+
+public val Context.timeZone: TimeZone get() = plugins[ClockManager]?.timeZone ?: TimeZone.currentSystemDefault()
 
 /**
  * A special device dispatcher that takes into account context time management options

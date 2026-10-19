@@ -38,7 +38,7 @@ class FlowBinaryDataTest {
         object : TagTable by PlcTagTable(context, TagTableConfiguration(
             sources = emptyMap(),
             timers = emptyMap(),
-            properties = mapOf("value" to InternalTagTableColumn(
+            tags = mapOf("value" to TagTableColumn.controls(
                 timer = "unused", deviceName = Name.of("fixture"), propertyName = "value",
             )),
         )) {

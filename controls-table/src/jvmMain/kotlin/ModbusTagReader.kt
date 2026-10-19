@@ -3,40 +3,26 @@ package space.kscience.controls.tagtable
 import com.ghgande.j2mod.modbus.facade.AbstractModbusMaster
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import space.kscience.controls.modbus.ModbusRegistryKey
-import space.kscience.controls.modbus.readCoil
-import space.kscience.controls.modbus.readHoldingRegister
-import space.kscience.controls.modbus.readHoldingRegisters
-import space.kscience.controls.modbus.readInputDiscrete
-import space.kscience.controls.modbus.readInputRegister
-import space.kscience.controls.modbus.readInputRegisters
+import space.kscience.controls.modbus.*
 import space.kscience.dataforge.io.DoubleIOFormat
 import space.kscience.dataforge.io.FloatIOFormat
 import space.kscience.dataforge.meta.Meta
-
-/**
- * A property that is exposed as a Modbus register
- */
-@Serializable
-@SerialName("modbus")
-public class ModbusTagTableColumn(
-    override val source: String,
-    override val timer: String,
-    public val reader: ModbusPropertyReader,
-    public val address: Int,
-    public val unitId: Int = 1,
-    override val compression: ColumnCompression? = null,
-    override val meta: Meta = Meta.EMPTY,
-) : TagTableColumn
+import space.kscience.dataforge.meta.MetaConverter
 
 @Serializable
-public sealed interface ModbusPropertyReader {
+public sealed interface ModbusTagReader {
     public fun read(client: AbstractModbusMaster, unitId: Int, address: Int): Meta
+
+    public companion object {
+        public val converter: MetaConverter<ModbusTagReader> by lazy {
+            MetaConverter.serializable<ModbusTagReader>()
+        }
+    }
 }
 
 @Serializable
 @SerialName("double")
-public object ModbusDoubleReader : ModbusPropertyReader {
+public object ModbusDoubleReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
@@ -52,7 +38,7 @@ public object ModbusDoubleReader : ModbusPropertyReader {
 
 @Serializable
 @SerialName("short")
-public object ModbusIntReader : ModbusPropertyReader {
+public object ModbusIntReader : ModbusTagReader {
     override fun read(
         client: AbstractModbusMaster,
         unitId: Int,
@@ -69,7 +55,7 @@ public object ModbusIntReader : ModbusPropertyReader {
  */
 @Serializable
 @SerialName("float")
-public object ModbusFloatReader : ModbusPropertyReader {
+public object ModbusFloatReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
@@ -88,7 +74,7 @@ public object ModbusFloatReader : ModbusPropertyReader {
  */
 @Serializable
 @SerialName("holding-short")
-public object ModbusHoldingShortReader : ModbusPropertyReader {
+public object ModbusHoldingShortReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
@@ -107,7 +93,7 @@ public object ModbusHoldingShortReader : ModbusPropertyReader {
  */
 @Serializable
 @SerialName("holding-float")
-public object ModbusHoldingFloatReader : ModbusPropertyReader {
+public object ModbusHoldingFloatReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
@@ -126,7 +112,7 @@ public object ModbusHoldingFloatReader : ModbusPropertyReader {
  */
 @Serializable
 @SerialName("holding-double")
-public object ModbusHoldingDoubleReader : ModbusPropertyReader {
+public object ModbusHoldingDoubleReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
@@ -145,7 +131,7 @@ public object ModbusHoldingDoubleReader : ModbusPropertyReader {
  */
 @Serializable
 @SerialName("coil")
-public object ModbusCoilReader : ModbusPropertyReader {
+public object ModbusCoilReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
@@ -164,7 +150,7 @@ public object ModbusCoilReader : ModbusPropertyReader {
  */
 @Serializable
 @SerialName("discrete")
-public object ModbusDiscreteReader : ModbusPropertyReader {
+public object ModbusDiscreteReader : ModbusTagReader {
 
     override fun read(
         client: AbstractModbusMaster,
