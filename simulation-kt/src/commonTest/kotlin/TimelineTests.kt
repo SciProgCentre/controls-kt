@@ -17,7 +17,8 @@ class TimelineTests {
         val generation = GeneratingTimeline(
             origin = TimelineEvent(startTime, Unit),
             lookaheadInterval = 1.seconds,
-            timeOf = WithTime::time
+            timeOf = WithTime::time,
+            coroutineContext = coroutineContext
         ) { event ->
             var time = event.time
             while (isActive) {
