@@ -126,8 +126,8 @@ flowchart TD
     K --> M[Commit TagState]
     L --> M
     M --> N{removeAuxiliaryValues?}
-    N -->|Yes| O[Strip attributes starting with '@']
-N -->|No|P[Keep all attributes]
+    N -->|Yes| O["Strip attributes starting with '@'"]
+    N -->|No| P[Keep all attributes]
 O --> Q[Update Cached Value & Emit Message]
 P --> Q
 ```
@@ -177,12 +177,14 @@ println("Diagnostics: ${state.value}")
 ### Time-Series Streaming with Quality Columns
 
 When generating time-series flows with `withTagQuality = true`, `TagTable` appends a companion quality column for every
-tag named `<tag>.@quality` (`TagState.TAG_QUALITY_SUFFIX`):
+tag named `<tag>.@quality` (`TagState.TAG_QUALITY_SUFFIX`). The `includeOldValues` flag (default: `true`) controls whether
+stale values older than `interval` are retained or omitted from the time-series rows:
 
 ```kotlin
 val timeSeries = tagTable.readTimeSeries(
     interval = 100.milliseconds,
-    withTagQuality = true
+    withTagQuality = true,
+    includeOldValues = true
 )
 ```
 

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add `includeOldValues` flag for `readTimeSeries`, `flowBinaryData`, and `storeData` in `controls-table`.
 - Add documentation on TagState, quality configuration, and evaluation algorithms to `controls-table` docs.
 - Add tests to `ComputationDevice` and register it as device factory in `ControlsExpressionPlugin` for `ConstructorPlugin.construct` support.
 - Add tests for numerical correctness for `integrate` and `differentiate`.

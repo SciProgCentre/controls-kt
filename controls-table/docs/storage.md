@@ -42,12 +42,17 @@ public fun TagTable.flowBinaryData(
     readInterval: Duration,
     converter: RowsEnvelopeConverter<Meta>,
     withTagState: Boolean = false,
+    includeOldValues: Boolean = true,
     maxRows: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
 ): Flow<Envelope>
 ```
+
+#### Old Values Handling (`includeOldValues`)
+- **`includeOldValues = true` (default)**: Retains and writes the last cached value for every tag in each generated row, even if no new value arrived during the current interval cycle.
+- **`includeOldValues = false`**: Excludes values older than `readInterval` (`currentTime - sampleTime >= readInterval`) from the row, ensuring that only fresh updates received within the interval are written.
 
 #### Envelope Flushing Triggers
 Envelopes are flushed and emitted downstream whenever any of the following conditions is met:
@@ -77,6 +82,7 @@ public fun TagTable.storeData(
     directory: Path,
     readInterval: Duration,
     withTagState: Boolean = false,
+    includeOldValues: Boolean = true,
     maxRowsPerEnvelope: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
@@ -163,7 +169,7 @@ val replayTable = TagTable.replay(
   )
   ```
 - **Live Device Message Stream**: Emits `PropertyChangedMessage` for individual tags and composite `TagTable.ROW_PROPERTY_NAME` updates to `deviceMessageFlow` matching recorded time deltas.
-- **Synchronous and Time-Series Reads**: Implements `read(tag)`, `readAll()`, and `readTimeSeries(interval)` backed by current replay state.
+- **Synchronous and Time-Series Reads**: Implements `read(tag)`, `readAll()`, and `readTimeSeries(interval, withTagQuality, includeOldValues)` backed by current replay state.
 - **Value State Observation**: Supports observable properties via `valueState(tag)`.
 
 
