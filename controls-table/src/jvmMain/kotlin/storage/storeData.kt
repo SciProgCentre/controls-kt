@@ -46,6 +46,7 @@ public sealed interface DataPlatformFileSplit {
 
     @Serializable
     @SerialName("byDate")
+    @Suppress("CanBeParameter")
     public class ByDate(public val timeZoneId: String = TimeZone.currentSystemDefault().id) : DataPlatformFileSplit {
         @Transient
         private val timeZone = TimeZone.of(timeZoneId)

@@ -113,6 +113,47 @@ class TagTableValueStateTest {
     }
 
     @Test
+    fun testTimeSeriesIncludeOldValues() = runTest(timeout = 5.seconds) {
+        val context = Context("tag-table-include-old-values") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(DeviceManager)
+            plugin(ClockManager)
+        }
+        try {
+            val source = DeviceConstructor(context)
+            source.registerProperty("reading", MetaConverter.meta, ValueState(Meta(25)))
+            context.request(DeviceManager).registerDevice("source", source)
+
+            val table = PlcTagTable(context, configuration)
+
+            // When includeOldValues is true, old values (such as initial DISTANT_PAST) are included
+            val rowsWithOld = table.readTimeSeries(1.seconds, includeOldValues = true).collectTable(1)
+            assertEquals(Meta.EMPTY, rowsWithOld.toColumnTable().getOrNull(0, "sensor"))
+
+            // When includeOldValues is false, old values are skipped
+            val rowsWithoutOld = table.readTimeSeries(1.seconds, includeOldValues = false).collectTable(1)
+            assertNull(rowsWithoutOld.toColumnTable().getOrNull(0, "sensor"))
+
+            // After the table starts and receives a fresh sample, readTimeSeries with includeOldValues = false includes it
+            val message = async {
+                table.messageFlow.filterIsInstance<PropertyChangedMessage>().first { it.property == "sensor" }
+            }
+            try {
+                table.start()
+                message.await()
+            } finally {
+                table.stop()
+            }
+
+            val rowsWithFresh = table.readTimeSeries(1.seconds, includeOldValues = false).collectTable(1)
+            assertEquals(Meta(25), rowsWithFresh.toColumnTable().getOrNull(0, "sensor"))
+        } finally {
+            context.cancel()
+            context.close()
+        }
+    }
+
+    @Test
     fun testCreatingStatesDoesNotSubscribe() = runTest(timeout = 5.seconds) {
         val context = Context("tag-state-subscriptions") { coroutineContext(backgroundScope.coroutineContext) }
         try {

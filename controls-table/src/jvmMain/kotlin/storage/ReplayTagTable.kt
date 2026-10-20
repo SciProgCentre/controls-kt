@@ -84,7 +84,7 @@ public class ReplayTagTable(
         includeOldValues: Boolean
     ): TimeSeriesRows<Meta> {
 
-        val propertyColumnHeaders: List<ColumnHeader<Meta>> = tags.map { (name, descriptor) ->
+        val propertyColumnHeaders: List<ColumnHeader<Meta>> = tags.map { (name, _) ->
             SimpleColumnHeader(name, typeOf<Meta>(), Meta.EMPTY)
         }
 

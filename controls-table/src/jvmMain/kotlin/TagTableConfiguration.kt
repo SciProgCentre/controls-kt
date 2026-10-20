@@ -27,7 +27,7 @@ public sealed interface TagSourceConfig {
     /**
      * A delay between reconnection attempts
      */
-    val reconnectionDelay: Duration
+    public val reconnectionDelay: Duration
 }
 
 /**
