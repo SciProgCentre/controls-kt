@@ -76,6 +76,8 @@ public sealed interface DataPlatformFileSplit {
  *
  * @param directory the filesystem path where the data file will be written.
  * @param readInterval the interval at which data will be collected from the data platform.
+ * @param withTagState include tag state/quality columns
+ * @param includeOldValues include values read in the previous read cycle in the envelope
  * @param maxRowsPerEnvelope the maximum number of rows to include in each data envelope. Default is 10,000.
  * @param maxDuration the maximum time duration for which data is collected into a single envelope. Default is 3 hours.
  * @param maxPause the maximum pause duration between data collection intervals. If null, no pause is enforced.
@@ -90,6 +92,7 @@ public fun TagTable.storeData(
     directory: Path,
     readInterval: Duration,
     withTagState: Boolean = false,
+    includeOldValues: Boolean = true,
     maxRowsPerEnvelope: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
@@ -102,6 +105,7 @@ public fun TagTable.storeData(
     readInterval = readInterval,
     converter = rowsConverter,
     withTagState = withTagState,
+    includeOldValues = includeOldValues,
     maxRows = maxRowsPerEnvelope,
     maxDuration = maxDuration,
     maxPause = maxPause,

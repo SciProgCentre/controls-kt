@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.seconds
  * A configuration for a tag source
  */
 @Serializable
-public sealed interface TagSourceConfig{
+public sealed interface TagSourceConfig {
     /**
      * A delay between reconnection attempts
      */
@@ -229,20 +229,20 @@ public class FixedRateTimer(
  *
  * @property path The base directory path where platform data files will be stored.
  * @property readInterval The interval between successive read operations from the storage.
- * @property maxRowsPerEnvelope The maximum number of rows to be included in a single data envelope.
- *                              Defaults to 10,000 rows.
- * @property maxDuration The maximum time interval for storing data before triggering a flush or split operation.
- *                       Defaults to 3 hours.
+ * @property maxRowsPerEnvelope The maximum number of rows to be included in a single data envelope. Defaults to 10,000 rows.
+ * @property maxDuration The maximum time interval for storing data before triggering a flush or split operation. Defaults to 3 hours.
+ * @property writeOldValues Write values that are read in previous rows in the stored table. If false, values that are not updated are not written. Defaults to true.
  * @property maxPause The maximum allowable pause duration between storage operations to create a new file.
  * @property compression Optional compression settings to be applied to the stored rows.
  * @property splitStrategy The strategy for organizing data into subdirectories, such as by date or by hour.
- * @property separateMeta if true place metadata to a separate file in a json instead of a single `df` container.
+ * @property separateMeta if true, place metadata to a separate file in a json instead of a single `df` container.
  */
 @Serializable
 public data class TagTableStorageConfiguration(
     val path: String,
     val readInterval: Duration,
     val withTagState: Boolean = false,
+    val writeOldValues: Boolean = true,
     val maxRowsPerEnvelope: Int = 10000,
     val maxDuration: Duration = 3.hours,
     val maxPause: Duration? = null,

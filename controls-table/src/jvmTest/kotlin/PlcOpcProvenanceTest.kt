@@ -63,7 +63,7 @@ class PlcOpcProvenanceTest {
 
     @Test
     @Timeout(10)
-    fun batchReadsPublishQualityOnlyChangesWithTheirServerTime() = runBlocking {
+    fun testQualityReading() = runBlocking {
         val port = ServerSocket(0).use { it.localPort }
         val server = OpcUaServer {
             endpoint {

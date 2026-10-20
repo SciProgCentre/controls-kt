@@ -336,6 +336,7 @@ public class PlcTagTable(
                 directory = Path(storageConfig.path),
                 readInterval = storageConfig.readInterval,
                 withTagState = storageConfig.withTagState,
+                includeOldValues = storageConfig.writeOldValues,
                 maxRowsPerEnvelope = storageConfig.maxRowsPerEnvelope,
                 maxDuration = storageConfig.maxDuration,
                 maxPause = storageConfig.maxPause,
@@ -382,7 +383,8 @@ public class PlcTagTable(
 
     public override fun readTimeSeries(
         interval: Duration,
-        withTagQuality: Boolean
+        withTagQuality: Boolean,
+        includeOldValues: Boolean
     ): TimeSeriesRows<Meta> {
         val headers = if (withTagQuality) {
             tableHeaders + propertyColumnHeaders.map {
@@ -392,17 +394,22 @@ public class PlcTagTable(
 
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
-                val values = if (withTagQuality) {
-                    propertyColumnHeaders.associate { it.name to readTag(it.name) } +
-                            propertyColumnHeaders.associate {
-                                (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(
-                                    it.name
-                                ).value
+                val currentTime = clock.now()
+                val values = buildMap {
+                    propertyColumnHeaders.forEach {
+                        val valueWithTime = readTagWithTime(it.name)
+                        // don't put value if !writeOldValues and value is too old
+                        if (includeOldValues || (currentTime - valueWithTime.time) < interval) {
+                            put(it.name, valueWithTime.value)
+                            // include quality if requested
+                            if (withTagQuality) {
+                                put(it.name + TagState.TAG_QUALITY_SUFFIX, readTagQuality(it.name).value)
                             }
-                } else {
-                    propertyColumnHeaders.associate { it.name to readTag(it.name) }
+                        }
+                    }
                 }
-                emit(ValueWithTime(values, clock.now()))
+
+                emit(ValueWithTime(values, currentTime))
                 delay(interval)
             }
         }.shareIn(this, SharingStarted.WhileSubscribed())

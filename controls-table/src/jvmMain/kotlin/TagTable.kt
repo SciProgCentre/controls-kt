@@ -79,8 +79,13 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
      * @param interval the interval between row generation.
      * @param withTagQuality whether to include tag state in the rows and headers.
      * Quality column names append [TagState.TAG_QUALITY_SUFFIX] to the tag name.
+     * @param includeOldValues if false values older than previous read time are not written
      */
-    public fun readTimeSeries(interval: Duration, withTagQuality: Boolean = false): TimeSeriesRows<Meta>
+    public fun readTimeSeries(
+        interval: Duration,
+        withTagQuality: Boolean = false,
+        includeOldValues: Boolean = true
+    ): TimeSeriesRows<Meta>
 
     /**
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table

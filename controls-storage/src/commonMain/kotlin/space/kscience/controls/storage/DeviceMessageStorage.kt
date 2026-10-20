@@ -26,7 +26,7 @@ public interface DeviceMessageStorage {
     public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
 
     /**
-     * Return all messages in a storage as a flow and optinally filters by [range], [sourceDevice] and [targetDevice].
+     * Return all messages in a storage as a flow and optionally filters by [range], [sourceDevice] and [targetDevice].
      */
     public fun read(
         range: ClosedRange<Instant>? = null,
@@ -35,8 +35,8 @@ public interface DeviceMessageStorage {
     ): Flow<DeviceMessage>
 
     /**
-     * Flow messages with given [eventType] and optinally filters by [range], [sourceDevice] and [targetDevice].
-     * Null in filters means that there is not filtering for this field.
+     * Flow messages with given [eventType] and optionally filters by [range], [sourceDevice] and [targetDevice].
+     * Null in filters means that there is no filtering for this field.
      */
     public fun read(
         eventType: String,
@@ -51,7 +51,6 @@ public interface DeviceMessageStorage {
 /**
  * Query all messages of a given type
  */
-@OptIn(ExperimentalSerializationApi::class)
 public inline fun <reified T : DeviceMessage> DeviceMessageStorage.read(
     range: ClosedRange<Instant>? = null,
     sourceDevice: Name? = null,
@@ -61,6 +60,14 @@ public inline fun <reified T : DeviceMessage> DeviceMessageStorage.read(
     it as T
 }
 
+/**
+ * Retrieves the historical data of a specific property from the device message storage.
+ *
+ * @param T The type of the property value.
+ * @param propertyName The name of the property for which the history is requested.
+ * @param converter A MetaConverter used to convert the property values from Meta format.
+ * @return A ValueHistory instance that allows access to the history of the specified property.
+ */
 public fun <T> DeviceMessageStorage.propertyHistory(
     propertyName: String,
     converter: MetaConverter<T>,

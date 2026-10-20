@@ -78,7 +78,11 @@ public class ReplayTagTable(
      *
      * @param interval the interval between row generation.
      */
-    override fun readTimeSeries(interval: Duration, withTagQuality: Boolean): TimeSeriesRows<Meta> {
+    override fun readTimeSeries(
+        interval: Duration,
+        withTagQuality: Boolean,
+        includeOldValues: Boolean
+    ): TimeSeriesRows<Meta> {
 
         val propertyColumnHeaders: List<ColumnHeader<Meta>> = tags.map { (name, descriptor) ->
             SimpleColumnHeader(name, typeOf<Meta>(), Meta.EMPTY)
@@ -96,13 +100,21 @@ public class ReplayTagTable(
 
         val rowFlow: SharedFlow<TimeSeriesValues<Meta>> = flow {
             while (true) {
-                //FIXME process read errors
-                val values =if(withTagQuality){
-                    propertyColumnHeaders.associate { it.name to readTag(it.name) } +
-                            propertyColumnHeaders.associate { (it.name + TagState.TAG_QUALITY_SUFFIX) to readTagQuality(it.name).value }
-                } else {
-                    propertyColumnHeaders.associate { it.name to readTag(it.name) }
+                val currentTime = clock.now()
+                val values = buildMap {
+                    propertyColumnHeaders.forEach {
+                        val valueWithTime = readTagWithTime(it.name)
+                        // don't put value if !writeOldValues and value is too old
+                        if (includeOldValues || (currentTime - valueWithTime.time) < interval) {
+                            put(it.name, valueWithTime.value)
+                            // include quality if requested
+                            if (withTagQuality) {
+                                put(it.name + TagState.TAG_QUALITY_SUFFIX, readTagQuality(it.name).value)
+                            }
+                        }
+                    }
                 }
+
                 emit(ValueWithTime(values, clock.now()))
                 delay(interval)
             }
@@ -138,7 +150,7 @@ public class ReplayTagTable(
                     )
                 }
                 val tagState = row.getOrNull(tag + TagState.TAG_QUALITY_SUFFIX)
-                if(tagState != null) {
+                if (tagState != null) {
                     tagStates[tag] = TagState(tagState)
                 }
 

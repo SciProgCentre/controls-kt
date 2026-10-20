@@ -35,20 +35,28 @@ class FlowBinaryDataTest {
     )
 
     private fun table(context: Context, samples: List<TimeSeriesValues<Meta>>): TagTable =
-        object : TagTable by PlcTagTable(context, TagTableConfiguration(
-            sources = emptyMap(),
-            timers = emptyMap(),
-            tags = mapOf("value" to TagTableColumn.controls(
-                timer = "unused", deviceName = Name.of("fixture"), propertyName = "value",
-            )),
-        )) {
+        object : TagTable by PlcTagTable(
+            context, TagTableConfiguration(
+                sources = emptyMap(),
+                timers = emptyMap(),
+                tags = mapOf(
+                    "value" to TagTableColumn.controls(
+                        timer = "unused", deviceName = Name.of("fixture"), propertyName = "value",
+                    )
+                ),
+            )
+        ) {
             override val clock: Clock = object : Clock {
                 override fun now(): Instant = start
             }
 
             override fun readAllValues(): Map<String, Meta> = mapOf("value" to Meta(999))
 
-            override fun readTimeSeries(interval: Duration, withTagQuality: Boolean): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
+            override fun readTimeSeries(
+                interval: Duration,
+                withTagQuality: Boolean,
+                includeOldValues: Boolean
+            ): TimeSeriesRows<Meta> = object : TimeSeriesRows<Meta> {
                 override val headers = this@FlowBinaryDataTest.headers
                 override fun subscribe() = samples.asFlow()
             }

@@ -7,11 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.storage.RowsEnvelopeConverter
-import space.kscience.controls.tagtable.RowsCompression
-import space.kscience.controls.tagtable.TagTable
-import space.kscience.controls.tagtable.compress
-import space.kscience.controls.tagtable.hasCompression
-import space.kscience.controls.tagtable.readAllValuesWithTagState
+import space.kscience.controls.tagtable.*
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.tagtable.timeseries.toRow
 import space.kscience.controls.time.ValueWithTime
@@ -30,6 +26,8 @@ import kotlin.time.Instant
  *
  * @param readInterval the interval between the generation of each row.
  * @param converter the converter used to transform rows into envelopes.
+ * @param withTagState include tag state/quality columns
+ * @param includeOldValues include values read in the previous read cycle in the envelope
  * @param maxRows the number of rows to include in each envelope, default is 10000.
  * @param maxDuration the maximum duration of a single envelope collection, default is 3 hours.
  * @param maxPause the maximum delay between rows for them to be put in the same envelope, default is null.
@@ -40,15 +38,22 @@ public fun TagTable.flowBinaryData(
     readInterval: Duration,
     converter: RowsEnvelopeConverter<Meta>,
     withTagState: Boolean = false,
+    includeOldValues: Boolean = true,
     maxRows: Int = 10000,
     maxDuration: Duration = 3.hours,
     maxPause: Duration? = null,
     compression: RowsCompression? = null,
 ): Flow<Envelope> {
-    val rows = if (compression == null) {
-        readTimeSeries(readInterval, withTagState)
-    } else {
-        readTimeSeries(readInterval, withTagState).compress(compression)
+    val rows = readTimeSeries(
+        interval = readInterval,
+        withTagQuality = withTagState,
+        includeOldValues = includeOldValues
+    ).let {
+        if (compression == null) {
+            it
+        } else {
+            it.compress(compression)
+        }
     }
 
     return channelFlow {
@@ -78,7 +83,7 @@ public fun TagTable.flowBinaryData(
             // put a line with all values at the beginning of each block to avoid having unknown start values in binary blocks
             if (compression?.hasCompression == true) {
                 rowBuffer.add(
-                    if(withTagState){
+                    if (withTagState) {
                         ValueWithTime(readAllValuesWithTagState(), now)
                     } else {
                         ValueWithTime(readAllValues(), now)
