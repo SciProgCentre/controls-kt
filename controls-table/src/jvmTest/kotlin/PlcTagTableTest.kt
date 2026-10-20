@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 
-class PlcOpcProvenanceTest {
+class PlcTagTableTest {
     private class ReadNamespace(
         server: OpcUaServer,
     ) : ManagedNamespace(server, "urn:controls:test:table-reads"), AutoCloseable {
@@ -106,7 +106,7 @@ class PlcOpcProvenanceTest {
                 /* serverTime = */ DateTime(Instant.parse("2026-09-21T10:00:1${index}Z").toJavaInstant()),
             )
 
-            delay(100.milliseconds)
+            delay(200.milliseconds)
             val tagValueWithTime = table.readTagWithTime("sensor")
             if (status.isGood) {
                 assertEquals(TagState.GOOD_QUALITY, table.readTagQuality("sensor").quality)
