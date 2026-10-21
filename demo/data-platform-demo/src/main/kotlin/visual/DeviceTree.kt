@@ -22,6 +22,7 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.constructor.propertyAsState
+import space.kscience.controls.nullable
 import space.kscience.controls.utilities.Alarm
 import space.kscience.controls.utilities.AlarmState
 import space.kscience.dataforge.meta.MetaConverter
@@ -166,7 +167,7 @@ fun PropertyNode(
             )
         } else {
             if (isSelected) {
-                val value = device.propertyAsState(propertyName, MetaConverter.double, Double.NaN).asComposeState()
+                val value = device.propertyAsState(propertyName, MetaConverter.double.nullable(), null).asComposeState()
 
                 Text(
                     text = " : ${String.format("%.2f", value.value)}",

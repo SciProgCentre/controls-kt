@@ -252,15 +252,22 @@ public data class TagTableStorageConfiguration(
     val separateMeta: Boolean = true,
 )
 
-/**
- * Configuration of additional tag table settings.
- *
- * @property sourceTimeOffsetGranularity Granularity of the source time offset. If null, then the source time offset is not recorded.
- */
 @Serializable
-public data class TagTableSettings(
-    public val sourceTimeOffsetGranularity: Duration? = 1.minutes,
+public data class MessageStorageConfiguration(
+    val path: String,
+    val sourceDevicePrefixFilter: String? = PlcTagTable.SOURCE_DEVICE_KEY,
+    val maxMessagesPerFile: Int = 10000,
 )
+
+///**
+// * Configuration of additional tag table settings.
+// *
+// * @property sourceTimeOffsetGranularity Granularity of the source time offset. If null, then the source time offset is not recorded.
+// */
+//@Serializable
+//public data class TagTableSettings(
+//    public val sourceTimeOffsetGranularity: Duration? = 1.minutes,
+//)
 
 
 /**
@@ -276,6 +283,7 @@ public data class TagTableSettings(
  * @property storage The optional storage configuration for the platform, which manages
  *                   persistence settings such as file paths, intervals, compression, and
  *                   split strategies.
+ * @property messageStorage The configuration for non-data message storage
  */
 @Serializable
 public class TagTableConfiguration(
@@ -283,6 +291,7 @@ public class TagTableConfiguration(
     public val timers: Map<String, TimerConfiguration>,
     public val tags: Map<String, TagTableColumn>,
     public val storage: TagTableStorageConfiguration? = null,
-    public val settings: TagTableSettings? = null
+    public val messageStorage: MessageStorageConfiguration? = null,
+//    public val settings: TagTableSettings? = null
 )
 

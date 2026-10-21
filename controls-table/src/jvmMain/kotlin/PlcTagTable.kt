@@ -4,11 +4,13 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
+import org.slf4j.LoggerFactory
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.server.Opc
 import space.kscience.controls.storage.ControlsStoragePlugin
+import space.kscience.controls.storage.FileDeviceMessageStorage
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.SingleFileEnvelopeOperations
 import space.kscience.controls.tagtable.storage.storeData
@@ -20,13 +22,17 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.timeZone
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.io
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.firstOrNull
+import space.kscience.dataforge.names.startsWith
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
@@ -155,6 +161,8 @@ public class PlcTagTable(
         if (sourceName == "@controls") return@getOrPut ControlsTagSource(context.request(DeviceManager))
         val sourceConfig = configuration.sources[sourceName] ?: error("No source found for $sourceName")
 
+        logger.debug { "PlcTagTable is creating source $sourceName" }
+
         when (sourceConfig) {
             is OpcTagSourceConfig -> OpcTagSource(sourceConfig, this, clock)
             is ModbusTagSourceConfig -> ModbusTagSource(sourceConfig, this, clock)
@@ -164,11 +172,14 @@ public class PlcTagTable(
                 messageFlow.emit(
                     PropertyChangedMessage(
                         time = clock.now(),
-                        property = "@source.$sourceName",
+                        sourceDevice = Name.of(SOURCE_DEVICE_KEY, sourceName),
+                        property = "state",
                         value = it.value
                     )
                 )
             }.launchIn(this)
+
+            logger.info { "PlcTagTable is connecting to the source $sourceName" }
 
             // launches connection procedure. Does not wait for it to complete
             tagSource.start()
@@ -210,6 +221,8 @@ public class PlcTagTable(
     private var readJob: Job? = null
 
     private var storageJob: Job? = null
+
+    private var messageStorageJob: Job? = null
 
     /**
      * Read all properties on trigger
@@ -351,6 +364,20 @@ public class PlcTagTable(
                 }
             )
         }
+
+        //start message recording job
+        configuration.messageStorage?.let { messageStorageConfiguration ->
+            val storage = FileDeviceMessageStorage(
+                directory = Path(messageStorageConfiguration.path),
+                maxMessagesPerFile = messageStorageConfiguration.maxMessagesPerFile,
+                clock = clock
+            )
+            messageStorageJob = messageFlow.onEach {
+                if(it.sourceDevice?.startsWith(SOURCE_DEVICE_KEY) == true){
+                    storage.write(it)
+                }
+            }.launchIn(this)
+        }
     }
 
     override suspend fun stop() {
@@ -424,4 +451,11 @@ public class PlcTagTable(
     override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
         TagTableValueState(this, tag)
     }
+
+    public companion object{
+        /**
+         * A prefix name for device messages describing sources behavior
+         */
+        public const val SOURCE_DEVICE_KEY: String = "source"
+        }
 }

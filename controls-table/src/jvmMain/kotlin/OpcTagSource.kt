@@ -9,6 +9,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId
+import org.slf4j.LoggerFactory
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.isStarted
 import space.kscience.controls.opcua.client.readMetaWithTime
@@ -42,46 +43,46 @@ public class OpcTagSource(
         field = MutableStateFlow(SourceState(Meta.EMPTY))
 
 
-    private fun updateState(block: MutableMeta.() -> Unit) {
-        state.value = state.value.copy(block)
+    private fun setState(block: MutableMeta.() -> Unit) {
+        state.value = SourceState(Meta(block))
     }
-
     override var lifecycleState: LifecycleState
         get() = state.value.lifeCycleState
         private set(value) {
-            updateState { set(SourceState.lifeCycle, value) }
+            setState { set(SourceState.lifeCycle, value) }
         }
 
     private var connectionJob: Job? = null
 
-    override suspend fun start(): Unit {
+    override suspend fun start(): Unit = synchronized(this){
         if (lifecycleState.isStarted()) return
         if (connectionJob?.isActive == true) return
 
         connectionJob = scope.launch {
-
+            lifecycleState = LifecycleState.STARTING
             val newClient = OpcUaClient.create(config.host)
             client = newClient
-            lifecycleState = LifecycleState.STARTING
 
             newClient.connectAsync().whenComplete { openClient: OpcUaClient, throwable ->
                 if (throwable != null) {
                     lifecycleState = LifecycleState.ERROR
+                    logger.error("Error during OPC UA client connection: ${throwable.message}")
                     client = null
                 } else {
-                    lifecycleState = LifecycleState.STARTED
 
                     //update server time offset
                     val serverStatusNode = openClient.addressSpace.serverNode.serverStatusNode
                     val state = serverStatusNode.state
-                    //TODO process state errors
                     val serverTime = serverStatusNode.currentTime
 
                     //write time offset between server and client
                     val timeDelta = clock.now() - serverTime.javaInstant.toKotlinInstant()
-                    updateState {
+                    setState {
+                        set(SourceState.lifeCycle, LifecycleState.STARTED)
+                        set("serverState", state.asValue())
                         set(SourceState.sourceTimeOffset, timeDelta.toString())
                     }
+                    logger.info("OPC UA client connected")
                 }
             }.await()
 
@@ -128,5 +129,9 @@ public class OpcTagSource(
         public val nodeId: MetaRef<String> by string {
             required()
         }
+    }
+
+    public companion object{
+        private val logger = LoggerFactory.getLogger(OpcTagSource::class.java)
     }
 }

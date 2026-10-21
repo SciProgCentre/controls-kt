@@ -94,6 +94,9 @@ internal fun DeviceManager.setupPlatformTestStand(
             separateMeta = false,
             withTagState = true,
 //            rowsConverterType = PlainRowsEnvelopeConverter.meta.envelopeType
+        ),
+        messageStorage = MessageStorageConfiguration(
+            path = dataDirectory.resolve("tableMessages").toString()
         )
     )
 

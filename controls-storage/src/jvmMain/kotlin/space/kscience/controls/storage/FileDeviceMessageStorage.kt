@@ -58,8 +58,8 @@ public class FileDeviceMessageStorage(
 
     private suspend fun getOrCreateCurrentFileForEvent(
         messageType: String
-    ): Path = currentFiles.getOrPut(messageType) {
-        fileUpdateMutex.withLock {
+    ): Path = fileUpdateMutex.withLock {
+        currentFiles.getOrPut(messageType) {
             val suffix = clock.now().toString().replace(":", "-")
             val fileName = "${messageType}-$suffix.jsonl"
             logger.info("Creating a storage file for message type $messageType: $fileName")
@@ -70,6 +70,8 @@ public class FileDeviceMessageStorage(
     }
 
     override suspend fun write(event: DeviceMessage) {
+        //TODO add buffering
+
         val messageType = DeviceMessage.serialNameFor(event)
         val file = getOrCreateCurrentFileForEvent(messageType)
         logger.trace("Writing event {} to file {}", event, file)
@@ -138,7 +140,10 @@ public class FileDeviceMessageStorage(
                                 )
                             )
                         } catch (e: Exception) {
-                            logger.error("Failed to index message in file ${path.fileName} at offset $indexerPosition", e)
+                            logger.error(
+                                "Failed to index message in file ${path.fileName} at offset $indexerPosition",
+                                e
+                            )
                             _entries.add(
                                 IndexEntry(
                                     time = Clock.System.now(),

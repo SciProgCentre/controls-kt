@@ -37,21 +37,21 @@ public class Plc4xTagSource(
         field = MutableStateFlow(SourceState(Meta.EMPTY))
 
 
-    private fun updateState(block: MutableMeta.() -> Unit) {
-        state.value = state.value.copy(block)
+    private fun setState(block: MutableMeta.() -> Unit) {
+        state.value = SourceState(Meta(block))
     }
 
     override var lifecycleState: LifecycleState
         get() = state.value.lifeCycleState
         private set(value) {
-            updateState { set(SourceState.lifeCycle, value) }
+            setState { set(SourceState.lifeCycle, value) }
         }
 
 
     private var connectionJob: Job? = null
 
 
-    override suspend fun start() {
+    override suspend fun start(): Unit = synchronized(this) {
         if (lifecycleState.isStarted()) return
         if (connectionJob?.isActive == true) return
         val newClient = DefaultPlcDriverManager().getConnection(config.address)

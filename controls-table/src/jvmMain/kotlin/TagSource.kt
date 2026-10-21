@@ -27,6 +27,7 @@ public value class SourceState(public val value: Meta) {
     public companion object : MetaSpec() {
         public val sourceTimeOffset: MetaRef<String> by string()
         public val lifeCycle: MetaRef<LifecycleState> by enum<LifecycleState>()
+        public val error: MetaRef<String> by string()
     }
 }
 
