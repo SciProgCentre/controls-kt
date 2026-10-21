@@ -11,16 +11,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.io.readLine
 import kotlinx.io.writeString
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
+import space.kscience.controls.api.DeviceErrorMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.dataforge.io.append
 import space.kscience.dataforge.io.read
 import space.kscience.dataforge.names.Name
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.io.path.fileSize
-import kotlin.io.path.getLastModifiedTime
-import kotlin.io.path.listDirectoryEntries
-import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.*
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -62,13 +61,18 @@ public class FileDeviceMessageStorage(
     ): Path = currentFiles.getOrPut(messageType) {
         fileUpdateMutex.withLock {
             val suffix = clock.now().toString().replace(":", "-")
-            directory.resolve("${messageType}-$suffix.jsonl")
+            val fileName = "${messageType}-$suffix.jsonl"
+            logger.info("Creating a storage file for message type $messageType: $fileName")
+            directory.resolve(fileName).also {
+                it.parent.createDirectories()
+            }
         }
     }
 
     override suspend fun write(event: DeviceMessage) {
         val messageType = DeviceMessage.serialNameFor(event)
         val file = getOrCreateCurrentFileForEvent(messageType)
+        logger.trace("Writing event {} to file {}", event, file)
         file.append {
             writeString(Json.encodeToString(event))
             writeString("\n")
@@ -76,6 +80,7 @@ public class FileDeviceMessageStorage(
         val count = messageCounters.getOrDefault(messageType, 0) + 1
         messageCounters[messageType] = count
         if (count >= maxMessagesPerFile) {
+            logger.info("Rotating file for message type {}", messageType)
             fileUpdateMutex.withLock {
                 //remove file from cache to rotate it on next write
                 currentFiles.remove(messageType)
@@ -86,11 +91,20 @@ public class FileDeviceMessageStorage(
 
     // indexing and reading
 
-    private data class IndexEntry(val time: Instant, val path: Path, val offset: Int) {
+    private class IndexEntry(val time: Instant, val path: Path, val offset: Int) {
         fun readOrNull(): DeviceMessage? = path.read {
-            skip(offset.toLong())
-            val string = readLine() ?: return@read null
-            Json.decodeFromString<DeviceMessage>(string)
+            try {
+                skip(offset.toLong())
+                val string = readLine() ?: return@read null
+                Json.decodeFromString<DeviceMessage>(string)
+            } catch (e: Exception) {
+                logger.error("Failed to read message from file ${path.fileName}", e)
+                DeviceErrorMessage(
+                    time = Clock.System.now(),
+                    errorMessage = "Failed to read message from file ${path.fileName}: ${e.message}",
+                    errorStackTrace = e.stackTraceToString()
+                )
+            }
         }
     }
 
@@ -114,14 +128,25 @@ public class FileDeviceMessageStorage(
                     skip(indexerPosition.toLong())
                     while (true) {
                         val line = readLine() ?: break
-                        val message = Json.decodeFromString<DeviceMessage>(line)
-                        _entries.add(
-                            IndexEntry(
-                                time = message.time,
-                                path = path,
-                                offset = indexerPosition
+                        try {
+                            val message = Json.decodeFromString<DeviceMessage>(line)
+                            _entries.add(
+                                IndexEntry(
+                                    time = message.time,
+                                    path = path,
+                                    offset = indexerPosition
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            logger.error("Failed to index message in file ${path.fileName} at offset $indexerPosition", e)
+                            _entries.add(
+                                IndexEntry(
+                                    time = Clock.System.now(),
+                                    path = path,
+                                    offset = indexerPosition
+                                )
+                            )
+                        }
                         indexerPosition += line.encodeToByteArray().size + 1
                     }
                 }
@@ -154,6 +179,7 @@ public class FileDeviceMessageStorage(
         }.groupBy { it.nameWithoutExtension.substringBefore("-") }.mapValues {
             it.value.map { path ->
                 indexCache.get(path) {
+                    logger.debug("Loading index for file {}", path)
                     FileIndex(path)
                 }
             }
@@ -211,5 +237,9 @@ public class FileDeviceMessageStorage(
 
     override fun close() {
 
+    }
+
+    public companion object {
+        private val logger = LoggerFactory.getLogger(FileDeviceMessageStorage::class.java)
     }
 }

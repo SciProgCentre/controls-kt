@@ -7,17 +7,19 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import space.kscience.controls.api.DeviceErrorMessage
 import space.kscience.controls.api.DeviceLogMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
-import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.parseAsName
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.writeText
+import kotlinx.serialization.json.Json
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -312,5 +314,47 @@ class FileDeviceMessageStorageTest {
         assertEquals(2, read.size)
         assertEquals(m1.message, (read[0] as DeviceLogMessage).message)
         assertEquals(m2.message, (read[1] as DeviceLogMessage).message)
+    }
+
+    @Test
+    fun testMalformedFileReading() = runBlocking {
+        val storage = FileDeviceMessageStorage(tempDir)
+        val validMsg1 = DeviceLogMessage(
+            time = Instant.parse("2026-10-21T10:00:00Z"),
+            message = "Valid message 1",
+            sourceDevice = "device".parseAsName()
+        )
+        val validMsg2 = DeviceLogMessage(
+            time = Instant.parse("2026-10-21T10:02:00Z"),
+            message = "Valid message 2",
+            sourceDevice = "device".parseAsName()
+        )
+
+        // Write a file with a valid message, a corrupted line, and another valid message
+        val file = tempDir.resolve("DeviceLogMessage-2026-10-21T10-00-00Z.jsonl")
+        val json1 = Json.encodeToString<DeviceMessage>(validMsg1)
+        val json2 = Json.encodeToString<DeviceMessage>(validMsg2)
+        val content = "$json1\n{invalid json line}\n$json2\n"
+        file.writeText(content)
+
+        val messages = storage.read().toList()
+        assertEquals(3, messages.size)
+
+        val first = messages[0] as DeviceLogMessage
+        assertEquals("Valid message 1", first.message)
+
+        val errorMsg = messages[1] as DeviceErrorMessage
+        assertEquals(true, errorMsg.errorMessage?.contains("Failed to read message from file"))
+        assertEquals(true, errorMsg.errorMessage?.contains(file.fileName.toString()))
+
+        val third = messages[2] as DeviceLogMessage
+        assertEquals("Valid message 2", third.message)
+
+        // Also test reading with eventType filter
+        val logMessages = storage.read("DeviceLogMessage").toList()
+        assertEquals(3, logMessages.size)
+        assertTrue(logMessages[0] is DeviceLogMessage)
+        assertTrue(logMessages[1] is DeviceErrorMessage)
+        assertTrue(logMessages[2] is DeviceLogMessage)
     }
 }
