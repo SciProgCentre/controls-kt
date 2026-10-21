@@ -14,6 +14,7 @@ kscience {
         api(projects.controlsCore)
         api(spclibs.kotlinx.serialization.json)
         api(libs.tables.kt)
+        api(libs.cache4k)
     }
     jvmMain {
 //        api(projects.magix.magixApi)

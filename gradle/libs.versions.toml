@@ -111,6 +111,8 @@ testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "testcontainers" }
 
+cache4k = "io.github.reactivecircus.cache4k:cache4k:0.14.0"
+
 # Buildscript
 
 [plugins]
