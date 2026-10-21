@@ -30,9 +30,9 @@ public fun <T : Any> MetaConverter<T>.nullable(): MetaConverter<T?> = object : M
 
     override fun convert(obj: T?): Meta = obj?.let { this@nullable.convert(it) } ?: Meta(Null)
 
-    override fun readOrNull(source: Meta): T? = if (source.value == Null) null else this@nullable.readOrNull(source)
+    override fun readOrNull(source: Meta): T? = if (source.value == Null || source.isEmpty()) null else this@nullable.readOrNull(source)
 
-    override fun read(source: Meta): T? = if (source.value == Null) null else this@nullable.read(source)
+    override fun read(source: Meta): T? = if (source.value == Null || source.isEmpty()) null else this@nullable.read(source)
 }
 
 //TODO to be moved to DF
