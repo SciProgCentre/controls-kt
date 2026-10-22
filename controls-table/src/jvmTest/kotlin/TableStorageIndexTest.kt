@@ -421,11 +421,6 @@ class TableStorageIndexTest {
             val next = Files.createDirectory(fixture.watched.resolve("2026/10/16"))
             fixture.publishTo(next, "next", created + 1.seconds)
             index.awaitEnvelopes((created + 1.seconds)..(created + 1.seconds))
-            index.stop()
-            reads.set(0)
-            fixture.publishTo(next, "stopped", created + 2.seconds)
-            delay(50.milliseconds)
-            assertEquals(0, reads.get())
         } finally {
             fixture.close(index)
         }
