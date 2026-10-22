@@ -47,7 +47,7 @@ class DeviceConstructorMutationTest {
             }
         }
 
-    private class ReverseDispatcher : CoroutineDispatcher() {
+    private class LastInFirstOutDispatcher : CoroutineDispatcher() {
         private val pending = ArrayDeque<Runnable>()
 
         override fun dispatch(context: CoroutineContext, block: Runnable) {
@@ -61,7 +61,7 @@ class DeviceConstructorMutationTest {
 
     @Test
     fun descriptionNotificationsKeepMutationOrder() = runTest(timeout = 5.seconds) {
-        val dispatcher = ReverseDispatcher()
+        val dispatcher = LastInFirstOutDispatcher()
         val context = Context {
             coroutineContext(backgroundScope.coroutineContext + dispatcher)
         }
@@ -136,10 +136,12 @@ class DeviceConstructorMutationTest {
             device.start()
             runCurrent()
 
-            val removal = async { device.unregisterProperty("removed") }
-            publisherStopping.await()
-            try {
+            val removal = try {
+                val removal = async { device.unregisterProperty("removed") }
+                runCurrent()
+                assertTrue(publisherStopping.isCompleted)
                 assertFalse(removal.isCompleted)
+                removal
             } finally {
                 releasePublisher.complete(Unit)
             }
@@ -152,13 +154,24 @@ class DeviceConstructorMutationTest {
             assertEquals(listOf(1.0, 2.0), externalValues)
             assertTrue(messages.filterIsInstance<PropertyChangedMessage>().none { it.property == "removed" })
             assertEquals(20.0, messages.filterIsInstance<PropertyChangedMessage>().last().value.double)
+            assertTrue(device.coroutineContext[Job]!!.isActive)
+        }
+    }
+
+    @Test
+    fun unregisterPropertyRemovesRegistryEntries() = runTest(timeout = 5.seconds) {
+        withDevice { device ->
+            device.registerProperty("removed", MetaConverter.double, ValueState(1.0))
+            device.start()
+            runCurrent()
+            assertTrue(device.unregisterProperty("removed"))
+
             assertNull(device.getCachedProperty("removed"))
             assertFailsWith<IllegalStateException> { device.readProperty("removed") }
             assertFailsWith<IllegalStateException> { device.propertyAsState("removed", MetaConverter.double) }
             assertTrue(device.propertyDescriptors.none { it.name == "removed" })
             assertTrue(device.constructorElements.filterIsInstance<PropertyConstructorElement<*>>()
                 .none { it.propertyName == "removed" })
-            assertTrue(device.coroutineContext[Job]!!.isActive)
             assertFalse(device.unregisterProperty("removed"))
         }
     }
