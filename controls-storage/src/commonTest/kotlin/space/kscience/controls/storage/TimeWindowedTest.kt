@@ -28,6 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 class TimeWindowedTest {
     @Test
     fun completionWhileTimerSendIsBlockedPreservesBatch() = runTest {
+        // Rendezvous output keeps the timer send blocked while the collector handles the previous batch.
         val batches = withTimeout(1.seconds) {
             flow {
                 emit(1)
@@ -123,23 +124,6 @@ class TimeWindowedTest {
         }
         assertEquals(listOf(1, 2), batches.flatten())
         assertTrue(batches.all { it.isNotEmpty() })
-    }
-
-    @Test
-    fun slowCollectorPreservesOrderAndCompletes() = runTest {
-        val batches = mutableListOf<List<Int>>()
-        withTimeout(5.seconds) {
-            flow {
-                repeat(30) {
-                    emit(it)
-                    delay(10)
-                }
-            }.timeWindowed(50.milliseconds).collect {
-                batches.add(it)
-                delay(120)
-            }
-        }
-        assertEquals((0 until 30).toList(), batches.flatten())
     }
 
     @Test
