@@ -42,9 +42,10 @@ internal class LifecycleWaitTest {
 
     @Test
     fun testReachedStateReturnsWithoutSubscribing() = runTest {
-        val device = TestDevice(LifecycleState.STARTED)
+        var subscriptions = 0
+        val device = TestDevice(LifecycleState.STARTED) { subscriptions++ }
         device.awaitLifecycleState(LifecycleState.STARTED)
-        assertEquals(0, device.events.subscriptionCount.value)
+        assertEquals(0, subscriptions)
     }
 
     @Test
