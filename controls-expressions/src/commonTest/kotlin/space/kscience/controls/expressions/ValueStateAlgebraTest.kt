@@ -22,6 +22,7 @@ import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
@@ -60,11 +61,15 @@ class ValueStateAlgebraTest {
             assertEquals(expected, state.valueWithTime)
             assertEquals(expected, state.subscribeWithTime().first())
         }
+    }
 
+    @Test
+    fun testNullPropagatesThroughArithmetic() = runTest {
+        val algebra = ValueStateAlgebra()
         val missing = algebra.const(null)
         for (state in listOf(
             missing, algebra.multiply(missing, algebra.zero),
-            algebra.add(algebra.one, missing), algebra.power(missing, 0.0)
+            algebra.add(algebra.one, missing)
         )) {
             val expected = ValueWithTime<Double?>(null, Instant.DISTANT_PAST)
             assertEquals(null, state.value)
@@ -72,14 +77,37 @@ class ValueStateAlgebraTest {
             assertEquals(expected, state.valueWithTime)
             assertEquals(expected, state.subscribeWithTime().first())
         }
+    }
 
-        assertEquals(1.0, algebra.power(missing, 0).value)
+    @Test
+    fun testNullResultKeepsDependencyTime() = runTest {
+        val algebra = ValueStateAlgebra()
+        val missing = algebra.const(null)
         val t0 = Instant.fromEpochSeconds(1_000)
         val timedMissing = algebra.add(missing, ValueState(2.0, t0))
         val expected = ValueWithTime<Double?>(null, t0)
         assertEquals(expected, timedMissing.valueWithTime)
         assertEquals(expected, timedMissing.subscribeWithTime().first())
+    }
 
+    @Test
+    fun testZeroPowerOverloadsPreserveTheirNullSemantics() = runTest {
+        val algebra = ValueStateAlgebra()
+        val missing = algebra.const(null)
+        val integerPower = algebra.power(missing, 0)
+        val floatingPower = algebra.power(missing, 0.0)
+
+        assertEquals(1.0, integerPower.value)
+        assertEquals(1.0, integerPower.subscribe().first())
+        assertEquals(null, floatingPower.value)
+        assertEquals(ValueWithTime<Double?>(null, Instant.DISTANT_PAST), floatingPower.valueWithTime)
+        assertEquals(null, floatingPower.subscribe().first())
+        assertEquals(floatingPower.valueWithTime, floatingPower.subscribeWithTime().first())
+    }
+
+    @Test
+    fun testNaNRemainsAValue() = runTest {
+        val algebra = ValueStateAlgebra()
         val nan = algebra.const(Double.NaN)
         assertTrue(nan.value?.isNaN() == true)
         assertTrue(nan.subscribeWithTime().first().value?.isNaN() == true)
@@ -149,16 +177,19 @@ class ValueStateAlgebraTest {
     }
 
     @Test
-    fun testHashCollisionsInNestedExpressions() {
-        class CollidingState(var currentValue: Double) : ValueState<Double?> {
+    fun testEqualDependenciesRemainDistinctInNestedExpressions() {
+        class EqualState(var currentValue: Double) : ValueState<Double?> {
             override val valueWithTime get() = ValueWithTime<Double?>(currentValue, Instant.DISTANT_PAST)
             override fun subscribeWithTime() = flowOf(valueWithTime)
-            override fun equals(other: Any?): Boolean = other is CollidingState
+            override fun equals(other: Any?): Boolean = other is EqualState
             override fun hashCode(): Int = 7
-            override fun toString(): String = "CollidingState($currentValue)"
+            override fun toString(): String = "EqualState($currentValue)"
         }
-        val a = CollidingState(1.0)
-        val b = CollidingState(2.0)
+        val a = EqualState(1.0)
+        val b = EqualState(2.0)
+        assertNotSame(a, b)
+        assertEquals(a, b)
+        assertEquals(a.hashCode(), b.hashCode())
         val direct = ValueStateAlgebra().add(a, b)
         assertEquals(3.0, direct.value)
         assertEquals(0.5, ValueStateAlgebra().divide(a, b).value)

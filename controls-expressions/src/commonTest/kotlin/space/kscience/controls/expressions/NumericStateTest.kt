@@ -55,25 +55,44 @@ class NumericStateTest {
         val source = CustomTimedState(sample)
         val state = source.accumulate(10.seconds, backgroundScope)
         val explicit = source.accumulate(10.seconds, backgroundScope, sample)
-        val expiredSeed = ValueWithTime(10.0, t0 - 11.seconds)
-        val expired = source.accumulate(10.seconds, backgroundScope, expiredSeed)
-        val futureSeed = ValueWithTime(10.0, t0 + 1.seconds)
-        val future = source.accumulate(10.seconds, backgroundScope, futureSeed)
 
         assertEquals(ValueWithTime(0.0, Instant.DISTANT_PAST), state.valueWithTime)
         assertEquals(sample, explicit.valueWithTime)
-        assertEquals(expiredSeed, expired.valueWithTime)
-        assertEquals(futureSeed, future.valueWithTime)
         runCurrent()
 
         assertEquals(sample, state.valueWithTime)
         assertEquals(ValueWithTime(6.0, t0), explicit.valueWithTime)
-        assertEquals(sample, expired.valueWithTime)
-        assertEquals(futureSeed, future.valueWithTime)
         source.emit(5.0, t0)
         runCurrent()
         assertEquals(ValueWithTime(8.0, t0), state.valueWithTime)
         assertEquals(ValueWithTime(11.0, t0), explicit.valueWithTime)
+    }
+
+    @Test
+    fun testAccumulateExpiresSeedOutsideWindow() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val sample = ValueWithTime(3.0, t0)
+        val source = CustomTimedState(sample)
+        val expiredSeed = ValueWithTime(10.0, t0 - 11.seconds)
+        val expired = source.accumulate(10.seconds, backgroundScope, expiredSeed)
+
+        assertEquals(expiredSeed, expired.valueWithTime)
+        runCurrent()
+        assertEquals(sample, expired.valueWithTime)
+    }
+
+    @Test
+    fun testAccumulateIgnoresSamplesBeforeFutureSeed() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val source = CustomTimedState(ValueWithTime(3.0, t0))
+        val futureSeed = ValueWithTime(10.0, t0 + 1.seconds)
+        val future = source.accumulate(10.seconds, backgroundScope, futureSeed)
+
+        assertEquals(futureSeed, future.valueWithTime)
+        runCurrent()
+        assertEquals(futureSeed, future.valueWithTime)
+        source.emit(5.0, t0)
+        runCurrent()
         assertEquals(futureSeed, future.valueWithTime)
         source.emit(7.0, futureSeed.time)
         runCurrent()
@@ -111,7 +130,7 @@ class NumericStateTest {
     }
 
     @Test
-    fun testAccumulateWindowAndOutOfOrderSamples() = runTest(timeout = 5.seconds) {
+    fun testAccumulateWindowExpiry() = runTest(timeout = 5.seconds) {
         val t0 = Instant.fromEpochSeconds(1_000)
         val source = CustomTimedState(ValueWithTime(3.0, t0))
         val state = source.accumulate(10.seconds, backgroundScope)
@@ -120,15 +139,32 @@ class NumericStateTest {
             Triple(3.0, 2, 6.0),
             Triple(null, 10, 6.0),
             Triple(null, 11, 3.0),
-            Triple(100.0, 9, 3.0),
             Triple(null, 13, 0.0),
         )
         for ((value, offset, expected) in samples) {
             source.emit(value, t0 + offset.seconds)
             runCurrent()
-            val resultTime = if (offset == 9) t0 + 11.seconds else t0 + offset.seconds
-            assertEquals(ValueWithTime(expected, resultTime), state.valueWithTime)
+            assertEquals(ValueWithTime(expected, t0 + offset.seconds), state.valueWithTime)
         }
+    }
+
+    @Test
+    fun testAccumulateIgnoresOutOfOrderSample() = runTest(timeout = 5.seconds) {
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val source = CustomTimedState(ValueWithTime(3.0, t0))
+        val state = source.accumulate(10.seconds, backgroundScope)
+        runCurrent()
+        source.emit(3.0, t0 + 2.seconds)
+        runCurrent()
+        source.emit(null, t0 + 11.seconds)
+        runCurrent()
+
+        source.emit(100.0, t0 + 9.seconds)
+        runCurrent()
+        assertEquals(ValueWithTime(3.0, t0 + 11.seconds), state.valueWithTime)
+        source.emit(null, t0 + 13.seconds)
+        runCurrent()
+        assertEquals(ValueWithTime(0.0, t0 + 13.seconds), state.valueWithTime)
     }
 
     @Test
@@ -163,12 +199,18 @@ class NumericStateTest {
 
     @Test
     fun testAccumulateWindowLimits() = runTest(timeout = 5.seconds) {
-        val sample = ValueWithTime(3.0, Instant.fromEpochSeconds(1_000))
-        for (window in listOf(Duration.ZERO, Duration.INFINITE)) {
-            val state = CustomTimedState(sample).accumulate(window, backgroundScope)
-            runCurrent()
-            assertEquals(sample, state.valueWithTime)
-        }
+        val t0 = Instant.fromEpochSeconds(1_000)
+        val source = CustomTimedState(ValueWithTime(3.0, t0))
+        val zeroWindow = source.accumulate(Duration.ZERO, backgroundScope)
+        val infiniteWindow = source.accumulate(Duration.INFINITE, backgroundScope)
+        runCurrent()
+        assertEquals(ValueWithTime(3.0, t0), zeroWindow.valueWithTime)
+        assertEquals(ValueWithTime(3.0, t0), infiniteWindow.valueWithTime)
+
+        source.emit(7.0, t0 + 1.seconds)
+        runCurrent()
+        assertEquals(ValueWithTime(7.0, t0 + 1.seconds), zeroWindow.valueWithTime)
+        assertEquals(ValueWithTime(10.0, t0 + 1.seconds), infiniteWindow.valueWithTime)
     }
 
     @Test
