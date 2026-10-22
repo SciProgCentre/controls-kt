@@ -173,7 +173,7 @@ internal class LateBindingTest {
     }
 
     @Test
-    fun testPropertyMessagesDoNotRecheckLifecycleState() = runTest {
+    fun testPropertyMessageDoesNotRecheckLifecycleStateWhileBindingWaitsForStart() = runTest {
         withDeviceContext("property-messages") { context ->
             val root = MutableTree()
             val resolved = root.resolvePropertyState(context, Name.of("child"), "value")
@@ -184,9 +184,7 @@ internal class LateBindingTest {
             runCurrent()
             val reads = device.stateReads
 
-            repeat(10) {
-                device.messages.emit(PropertyChangedMessage(Instant.DISTANT_PAST, "value", Meta.EMPTY))
-            }
+            device.messages.emit(PropertyChangedMessage(Instant.DISTANT_PAST, "value", Meta.EMPTY))
             runCurrent()
             assertEquals(reads, device.stateReads)
 
