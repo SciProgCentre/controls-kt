@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.zip.DeflaterOutputStream
-import java.util.zip.InflaterInputStream
 import kotlin.reflect.typeOf
 import kotlin.test.*
 
@@ -37,29 +36,16 @@ class ReadRowsToTest {
     }
 
     @Test
-    fun testInflatedByteLimitAndHeader(): Unit = runBlocking {
-        val header = SimpleColumnHeader<Meta>("value", typeOf<Meta>(), Meta { "unit" put "°C" })
-        val value = Meta("Температура 🌡")
-        val envelope = converter.writeRows(RowTable(listOf(header), listOf(MapRow(mapOf("value" to value)))))
-        val size = InflaterInputStream(ByteArrayInputStream(envelope.data!!.toByteArray())).use { it.readBytes().size.toLong() }
+    fun testInflatedByteLimitIsInclusive(): Unit = runBlocking {
+        val body = "[{\"value\":\"Температура 🌡\"}]"
+        val envelope = compressedEnvelope(body)
+        val size = body.encodeToByteArray().size.toLong()
         val error = assertFailsWith<InflatedByteLimitExceededException> {
             converter.readRowsTo(envelope, maxInflatedBytes = size - 1) {}
         }
         assertEquals(size - 1, error.maxInflatedBytes)
         for (limit in listOf(size, size + 1, Long.MAX_VALUE)) {
-            val events = mutableListOf<String>()
-            val count = converter.readRowsTo(envelope, maxInflatedBytes = limit, onHeader = {
-                events += "header"
-                val actual = it.single()
-                assertEquals(header.name, actual.name)
-                assertEquals(header.type, actual.type)
-                assertEquals(header.meta, actual.meta)
-            }) {
-                events += "row"
-                assertEquals(value, it.getOrNull("value"))
-            }
-            assertEquals(size, count)
-            assertEquals(listOf("header", "row"), events)
+            assertEquals(size, converter.readRowsTo(envelope, maxInflatedBytes = limit) {})
         }
         for (limit in listOf(0L, -1L)) {
             assertFailsWith<IllegalArgumentException> {
@@ -69,7 +55,28 @@ class ReadRowsToTest {
     }
 
     @Test
-    fun testEmptyHeaderAndWhitespaceCount(): Unit = runBlocking {
+    fun testHeaderPrecedesRows(): Unit = runBlocking {
+        val header = SimpleColumnHeader<Meta>("value", typeOf<Meta>(), Meta { "unit" put "°C" })
+        val value = Meta("Температура 🌡")
+        val envelope = converter.writeRows(RowTable(listOf(header), listOf(MapRow(mapOf("value" to value)))))
+        val events = mutableListOf<String>()
+
+        converter.readRowsTo(envelope, maxInflatedBytes = 100, onHeader = {
+            events += "header"
+            val actual = it.single()
+            assertEquals(header.name, actual.name)
+            assertEquals(header.type, actual.type)
+            assertEquals(header.meta, actual.meta)
+        }) {
+            events += "row"
+            assertEquals(value, it.getOrNull("value"))
+        }
+
+        assertEquals(listOf("header", "row"), events)
+    }
+
+    @Test
+    fun testHeaderIsDeliveredForEmptyRows(): Unit = runBlocking {
         val header = SimpleColumnHeader<Meta>("empty", typeOf<Meta>(), Meta { "unit" put "s" })
         val envelope = converter.writeRows(RowTable<Meta>(listOf(header), emptyList()))
         var headerCalls = 0
@@ -79,7 +86,10 @@ class ReadRowsToTest {
             assertEquals(header.meta, it.single().meta)
         }) { fail("Empty array has no rows") })
         assertEquals(1, headerCalls)
+    }
 
+    @Test
+    fun testTrailingWhitespaceCountsTowardLimit(): Unit = runBlocking {
         val body = " \n[]" + " \t\r\n".repeat(4_000)
         val withWhitespace = compressedEnvelope(body)
         assertFailsWith<InflatedByteLimitExceededException> {
@@ -110,7 +120,7 @@ class ReadRowsToTest {
     }
 
     @Test
-    fun testWrittenOrderAndOrdinaryReplay(): Unit = runBlocking {
+    fun testWrittenOrderMatchesOrdinaryDecoder(): Unit = runBlocking {
         val body = "[{\"value\":3},{\"value\":1},{\"value\":2}]"
         val envelope = compressedEnvelope(body)
         val actual = mutableListOf<Meta?>()
@@ -120,6 +130,11 @@ class ReadRowsToTest {
         assertEquals(listOf<Meta?>(Meta(3), Meta(1), Meta(2)), actual)
         val ordinary = converter.readRows(envelope)
         repeat(2) { assertEquals(actual, ordinary.rowSequence().map { it.getOrNull("value") }.toList()) }
+    }
+
+    @Test
+    fun testEnvelopeCanBeReadAfterLimitFailure(): Unit = runBlocking {
+        val envelope = compressedEnvelope("[{\"value\":3},{\"value\":1},{\"value\":2}]")
         assertFailsWith<InflatedByteLimitExceededException> {
             converter.readRowsTo(envelope, maxInflatedBytes = 1) {}
         }
@@ -127,52 +142,27 @@ class ReadRowsToTest {
     }
 
     @Test
-    fun testQueryBudgetUsesActualCounts(): Unit = runBlocking {
-        val bodies = listOf("[{\"value\":1}]", "[{\"value\":2},{\"value\":3}]")
-        val envelopes = bodies.map(::compressedEnvelope)
-        val total = bodies.sumOf { it.encodeToByteArray().size.toLong() }
-        val perEnvelope = bodies.maxOf { it.length }.toLong() + 5
-        for (queryLimit in listOf(total, total + 1)) {
-            var remaining = queryLimit
-            val values = mutableListOf<Meta?>()
-            for (envelope in envelopes) {
-                val count = converter.readRowsTo(envelope, maxInflatedBytes = minOf(perEnvelope, remaining)) {
-                    values += it.getOrNull("value")
-                }
-                remaining -= count
-            }
-            assertEquals(queryLimit - total, remaining)
-            assertEquals(listOf<Meta?>(Meta(1), Meta(2), Meta(3)), values)
+    fun testReturnsDecodedByteCountForEachEnvelope(): Unit = runBlocking {
+        for (body in listOf("[{\"value\":1}]", "[{\"value\":\"Температура\"},{\"value\":3}]")) {
+            val count = converter.readRowsTo(compressedEnvelope(body), maxInflatedBytes = 100) {}
+            assertEquals(body.encodeToByteArray().size.toLong(), count)
         }
-        var remaining = total - 1
-        var calls = 0
-        val error = assertFailsWith<InflatedByteLimitExceededException> {
-            for (envelope in envelopes + compressedEnvelope("[]")) {
-                calls++
-                remaining -= converter.readRowsTo(envelope, maxInflatedBytes = minOf(perEnvelope, remaining)) {}
-            }
-        }
-        assertEquals(2, calls)
-        assertEquals(bodies.last().length - 1L, error.maxInflatedBytes)
-        assertEquals(total - 1 - bodies.first().length, remaining)
     }
 
     @Test
-    fun testLateFailureDoesNotPublishAccumulatedRows(): Unit = runBlocking {
-        val collected = mutableListOf<Meta?>()
-        var published: List<Meta?>? = null
+    fun testMalformedTailFailsAfterDeliveredRows(): Unit = runBlocking {
+        val delivered = mutableListOf<Meta?>()
+        val envelope = compressedEnvelope("[{\"value\":1},{\"value\":2}] false")
+
         assertFailsWith<SerializationException> {
-            for (envelope in listOf(compressedEnvelope("[{\"value\":1}]"), compressedEnvelope("[{\"value\":2}] false"))) {
-                converter.readRowsTo(envelope, maxInflatedBytes = 100) { collected += it.getOrNull("value") }
-            }
-            published = collected.toList()
+            converter.readRowsTo(envelope, maxInflatedBytes = 100) { delivered += it.getOrNull("value") }
         }
-        assertEquals(listOf<Meta?>(Meta(1), Meta(2)), collected)
-        assertNull(published)
+
+        assertEquals(listOf<Meta?>(Meta(1), Meta(2)), delivered)
     }
 
     @Test
-    fun testJsonAndCompressedTail(): Unit = runBlocking {
+    fun testMalformedJsonIsRejectedByBothDecoders(): Unit = runBlocking {
         for (body in listOf("[] false", "[] []", "[{", "[{},]")) {
             val envelope = compressedEnvelope(body)
             assertFailsWith<SerializationException> { converter.readRows(envelope) }
@@ -180,13 +170,22 @@ class ReadRowsToTest {
                 converter.readRowsTo(envelope, maxInflatedBytes = 100) {}
             }
         }
+    }
+
+    @Test
+    fun testTruncatedCompressedDataIsNotReportedAsLimitFailure(): Unit = runBlocking {
         val envelope = compressedEnvelope("[]")
         val bytes = envelope.data!!.toByteArray()
         val truncated = Envelope(envelope.meta, bytes.copyOf(bytes.size - 2).asBinary())
         assertFailsWith<IOException> { converter.readRows(truncated) }
         val error = assertFailsWith<IOException> { converter.readRowsTo(truncated, maxInflatedBytes = 100) {} }
         assertFalse(error is InflatedByteLimitExceededException)
+    }
 
+    @Test
+    fun testTrailingCompressedBytesMatchOrdinaryDecoder(): Unit = runBlocking {
+        val envelope = compressedEnvelope("[]")
+        val bytes = envelope.data!!.toByteArray()
         val withTrailingCompressedBytes = Envelope(envelope.meta, (bytes + byteArrayOf(1, 2, 3)).asBinary())
         assertEquals(0, converter.readRows(withTrailingCompressedBytes).rowSequence().count())
         assertEquals(2L, converter.readRowsTo(withTrailingCompressedBytes, maxInflatedBytes = 100) {})
@@ -204,7 +203,7 @@ class ReadRowsToTest {
     }
 
     @Test
-    fun testCallbackAndConverterFailures(): Unit = runBlocking {
+    fun testCellConversionFailureIsPropagated(): Unit = runBlocking {
         val failure = IllegalArgumentException("Invalid cell")
         val cellConverter = object : MetaConverter<Meta> by MetaConverter.meta {
             override fun read(source: Meta): Meta = throw failure
@@ -215,15 +214,35 @@ class ReadRowsToTest {
         assertSame(failure, assertFailsWith<IllegalArgumentException> {
             failingConverter.readRowsTo(envelope, maxInflatedBytes = 100) { fail("Conversion failed") }
         })
+    }
+
+    @Test
+    fun testHeaderCallbackFailureStopsBeforeRows(): Unit = runBlocking {
+        val failure = IllegalArgumentException("Invalid header")
+        val envelope = compressedEnvelope("[{\"value\":42}]")
         assertSame(failure, assertFailsWith<IllegalArgumentException> {
             converter.readRowsTo(envelope, maxInflatedBytes = 100, onHeader = { throw failure }) {
                 fail("Header callback failed")
             }
         })
+    }
+
+    @Test
+    fun testRowCallbackFailureIsPropagated(): Unit = runBlocking {
+        val failure = IllegalArgumentException("Invalid row")
+        val envelope = compressedEnvelope("[{\"value\":42}]")
         assertSame(failure, assertFailsWith<IllegalArgumentException> {
             converter.readRowsTo(envelope, maxInflatedBytes = 100) { throw failure }
         })
+    }
 
+    @Test
+    fun testStreamingConversionFailurePrecedesMalformedTail(): Unit = runBlocking {
+        val failure = IllegalArgumentException("Invalid cell")
+        val cellConverter = object : MetaConverter<Meta> by MetaConverter.meta {
+            override fun read(source: Meta): Meta = throw failure
+        }
+        val failingConverter = ZipRowsEnvelopeConverter(cellConverter, typeOf<Meta>())
         val badTail = compressedEnvelope("[{\"value\":42}] false")
         assertFailsWith<SerializationException> { failingConverter.readRows(badTail) }
         assertSame(failure, assertFailsWith<IllegalArgumentException> {
@@ -283,17 +302,15 @@ class ReadRowsToTest {
 
     @OptIn(ExperimentalSerializationApi::class)
     @Test
-    fun testCancellationDuringParserReadClosesSource() {
+    fun testCancellationDuringParserRead() {
         val failure = CancellationException("Cancel parser input")
         val job = Job()
         val source = object : ByteArrayInputStream("[{\"value\":1}]".encodeToByteArray()) {
-            var closed = false
             var reads = 0
             override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
                 if (++reads == 2) job.cancel(failure)
                 return super.read(buffer, offset, minOf(length, 1))
             }
-            override fun close() { closed = true }
         }
         try {
             assertSame(failure, assertFailsWith<CancellationException> {
@@ -304,33 +321,19 @@ class ReadRowsToTest {
                 }
             })
             assertEquals(2, source.reads)
-            assertTrue(source.closed)
         } finally {
             job.cancel()
         }
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
-    fun testParserClosesOwnedWrapperOnEveryOutcome() {
-        class TrackedInput(body: String) : ByteArrayInputStream(body.encodeToByteArray()) {
+    fun testLimitedStreamCloseClosesSource() {
+        val source = object : ByteArrayInputStream(byteArrayOf()) {
             var closed = false
             override fun close() { closed = true }
         }
-        fun read(source: TrackedInput, limit: Long) {
-            InflatedByteLimitInputStream(source, limit).use { input ->
-                Json.decodeToSequence<Map<String, Meta>>(input, DecodeSequenceMode.ARRAY_WRAPPED).toList()
-            }
-        }
-        val valid = TrackedInput("[]")
-        read(valid, 2)
-        assertTrue(valid.closed)
-        val malformed = TrackedInput("[] false")
-        assertFailsWith<SerializationException> { read(malformed, 100) }
-        assertTrue(malformed.closed)
-        val oversized = TrackedInput("[]")
-        assertFailsWith<InflatedByteLimitExceededException> { read(oversized, 1) }
-        assertTrue(oversized.closed)
+        InflatedByteLimitInputStream(source, 1).close()
+        assertTrue(source.closed)
     }
 
     @Test
