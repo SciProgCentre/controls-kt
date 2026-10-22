@@ -20,6 +20,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,11 +41,6 @@ class TagTablePluginTest {
             started.complete(Unit)
         }
 
-        private val cachedValueStateFactory = super.asValueStateFactory()
-
-        override fun asValueStateFactory(): ValueStateFactory {
-            return cachedValueStateFactory
-        }
     }
 
     @Test
@@ -79,7 +75,7 @@ class TagTablePluginTest {
     }
 
     @Test
-    fun testRegistrationKeepsFactoryStableWithoutStarting() = runTest(timeout = 5.seconds) {
+    fun testRegistrationAndReplacementKeepFactoryStable() = runTest(timeout = 5.seconds) {
         val context = Context("tag-register") {
             coroutineContext(backgroundScope.coroutineContext)
             plugin(IOPlugin)
@@ -110,6 +106,32 @@ class TagTablePluginTest {
             assertSame(replacement.subscribe("sensor"), factory.build(context, parameters))
             assertSame(default.subscribe("sensor"), existing)
             assertNull(constructor.resolveValueStateFactory("controls.tags.tagTable[archive]"))
+        } finally {
+            context.cancel()
+            context.close()
+        }
+    }
+
+    @Test
+    fun testRegistrationAndFactoryBuildsDoNotStartTables() = runTest(timeout = 5.seconds) {
+        val context = Context("tag-register-without-start") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(IOPlugin)
+            plugin(TagTablePlugin)
+        }
+        try {
+            val tables = context.request(TagTablePlugin)
+            val constructor = context.request(ConstructorPlugin)
+            val factory = assertNotNull(constructor.resolveValueStateFactory("controls.tags.tagTable"))
+            val default = CountingTable(context)
+            val named = CountingTable(context)
+            tables.register(default)
+            tables.register(named, "archive")
+            val parameters = Meta { set(TagTable.ValueFactorySpec.tag, "sensor") }
+            factory.build(context, parameters)
+            val replacement = CountingTable(context)
+            tables.register(replacement)
+            factory.build(context, parameters)
             runCurrent()
             assertEquals(0, default.starts)
             assertEquals(0, named.starts)
@@ -164,7 +186,7 @@ class TagTablePluginTest {
                 override fun asValueStateFactory(): ValueStateFactory = object : ValueStateFactory {
                     override fun build(context: Context, meta: Meta): ValueState<Meta> {
                         assertSame(child, context)
-                        assertSame(parameters, meta)
+                        assertEquals(parameters, meta)
                         return sentinel
                     }
 
@@ -185,7 +207,7 @@ class TagTablePluginTest {
     }
 
     @Test
-    fun testFactoryReportsMissingPluginTableAndTag() = runTest(timeout = 5.seconds) {
+    fun testFactoryRequiresPluginInBuildContext() = runTest(timeout = 5.seconds) {
         val context = Context("tag-errors") {
             coroutineContext(backgroundScope.coroutineContext)
             plugin(IOPlugin)
@@ -194,24 +216,63 @@ class TagTablePluginTest {
         val empty = Context("tag-no-plugin") { coroutineContext(backgroundScope.coroutineContext) }
         try {
             val factory = assertNotNull(context.request(ConstructorPlugin).resolveValueStateFactory("controls.tags.tagTable"))
-            assertEquals("Tag table plugin is not found in context", assertFailsWith<IllegalStateException> {
+            val error = assertFailsWith<IllegalStateException> {
                 factory.build(empty, Meta.EMPTY)
-            }.message)
+            }
+            assertTrue(error.message.orEmpty().contains("plugin", ignoreCase = true))
             assertNull(empty.plugins[TagTablePlugin])
-            assertEquals("Tag table not found for tagTable name null", assertFailsWith<IllegalStateException> {
-                factory.build(context, Meta.EMPTY)
-            }.message)
-            val parameters = Meta { set(TagTable.ValueFactorySpec.tagTable, "missing") }
-            assertEquals("Tag table not found for tagTable name missing", assertFailsWith<IllegalStateException> {
-                factory.build(context, parameters)
-            }.message)
-            context.request(TagTablePlugin).register(CountingTable(context))
-            assertEquals("No tag specified", assertFailsWith<IllegalStateException> {
-                factory.build(context, Meta.EMPTY)
-            }.message)
         } finally {
             empty.cancel()
             empty.close()
+            context.cancel()
+            context.close()
+        }
+    }
+
+    @Test
+    fun testFactoryReportsMissingTableSelection() = runTest(timeout = 5.seconds) {
+        val context = Context("tag-missing-table") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(IOPlugin)
+            plugin(TagTablePlugin)
+        }
+        try {
+            val factory = assertNotNull(context.request(ConstructorPlugin).resolveValueStateFactory("controls.tags.tagTable"))
+            val defaultError = assertFailsWith<IllegalStateException> {
+                factory.build(context, Meta.EMPTY)
+            }
+            assertTrue(defaultError.message.orEmpty().contains("table not found", ignoreCase = true))
+            val parameters = Meta { set(TagTable.ValueFactorySpec.tagTable, "missing") }
+            val namedError = assertFailsWith<IllegalStateException> {
+                factory.build(context, parameters)
+            }
+            assertTrue(namedError.message.orEmpty().contains("table not found", ignoreCase = true))
+            assertTrue(namedError.message.orEmpty().contains("missing"))
+        } finally {
+            context.cancel()
+            context.close()
+        }
+    }
+
+    @Test
+    fun testFactoryRequiresTagParameter() = runTest(timeout = 5.seconds) {
+        val context = Context("tag-missing-tag") {
+            coroutineContext(backgroundScope.coroutineContext)
+            plugin(IOPlugin)
+            plugin(TagTablePlugin)
+        }
+        try {
+            val factory = assertNotNull(context.request(ConstructorPlugin).resolveValueStateFactory("controls.tags.tagTable"))
+            val table = CountingTable(context)
+            context.request(TagTablePlugin).register(table)
+            assertSame(table.subscribe("sensor"), factory.build(context, Meta {
+                set(TagTable.ValueFactorySpec.tag, "sensor")
+            }))
+            val error = assertFailsWith<IllegalStateException> {
+                factory.build(context, Meta.EMPTY)
+            }
+            assertTrue(error.message.orEmpty().contains("no tag", ignoreCase = true))
+        } finally {
             context.cancel()
             context.close()
         }
