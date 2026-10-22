@@ -58,14 +58,17 @@ internal class DeviceTreeCompositionTest {
         }
         val received = mutableListOf<DeviceMessage>()
         val collector = backgroundScope.launch { tree.deviceMessageFlow().collect { received.add(it) } }
-        runCurrent()
+        try {
+            runCurrent()
 
-        val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
-        child.events.emit(event)
-        runCurrent()
-        assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
-        collector.cancelAndJoin()
-        context.close()
+            val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
+            child.events.emit(event)
+            runCurrent()
+            assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
+        } finally {
+            collector.cancelAndJoin()
+            context.close()
+        }
     }
 
     @Test
@@ -108,15 +111,18 @@ internal class DeviceTreeCompositionTest {
         val collector = backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
             manager.deviceMessageFlow().collect { received.add(it) }
         }
-        // runs after the flow producer and before the composition collector it launches
-        backgroundScope.launch { manager.registerDevice("child", child) }
-        runCurrent()
+        try {
+            // runs after the flow producer and before the composition collector it launches
+            backgroundScope.launch { manager.registerDevice("child", child) }
+            runCurrent()
 
-        val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
-        child.events.emit(event)
-        runCurrent()
-        assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
-        collector.cancelAndJoin()
-        context.close()
+            val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(0), "value", Meta.EMPTY)
+            child.events.emit(event)
+            runCurrent()
+            assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), received)
+        } finally {
+            collector.cancelAndJoin()
+            context.close()
+        }
     }
 }

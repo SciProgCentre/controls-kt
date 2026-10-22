@@ -29,37 +29,39 @@ internal class DeviceClientMessageTest {
         val context = Context("device-client-names") {
             coroutineContext(backgroundScope.coroutineContext)
         }
-        for (remoteName in listOf(Name.EMPTY, Name.of("child"), Name.of("group", "child"))) {
-            val incoming = MutableSharedFlow<DeviceMessage>()
-            val client = DeviceClient(context, remoteName, emptyList(), emptyList(), incoming) {}
-            val direct = mutableListOf<DeviceMessage>()
-            val mounted = mutableListOf<DeviceMessage>()
-            val tree = DeviceTree(children = mapOf("child" to DeviceTree(client)))
-            val directJob = backgroundScope.launch { client.messageFlow.collect { direct.add(it) } }
-            val treeJob = backgroundScope.launch { tree.deviceMessageFlow().collect { mounted.add(it) } }
-            runCurrent()
+        try {
+            for (remoteName in listOf(Name.EMPTY, Name.of("child"), Name.of("group", "child"))) {
+                val incoming = MutableSharedFlow<DeviceMessage>()
+                val client = DeviceClient(context, remoteName, emptyList(), emptyList(), incoming) {}
+                val direct = mutableListOf<DeviceMessage>()
+                val mounted = mutableListOf<DeviceMessage>()
+                val tree = DeviceTree(children = mapOf("child" to DeviceTree(client)))
+                val directJob = backgroundScope.launch { client.messageFlow.collect { direct.add(it) } }
+                val treeJob = backgroundScope.launch { tree.deviceMessageFlow().collect { mounted.add(it) } }
+                runCurrent()
 
-            val event = PropertyChangedMessage(
-                time = Instant.fromEpochMilliseconds(123),
-                property = "value",
-                value = Meta.EMPTY,
-                sourceDevice = remoteName,
-                targetDevice = Name.of("receiver"),
-                comment = "sample",
-            )
-            incoming.emit(event.copy(sourceDevice = Name.of("unrelated")))
-            incoming.emit(event)
-            runCurrent()
+                val event = PropertyChangedMessage(
+                    time = Instant.fromEpochMilliseconds(123),
+                    property = "value",
+                    value = Meta.EMPTY,
+                    sourceDevice = remoteName,
+                    targetDevice = Name.of("receiver"),
+                    comment = "sample",
+                )
+                incoming.emit(event.copy(sourceDevice = Name.of("unrelated")))
+                incoming.emit(event)
+                runCurrent()
 
-            assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), mounted)
-            assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.EMPTY)), direct)
-            assertSame(event.value, client.getCachedProperty("value"))
-            if (remoteName == Name.EMPTY) assertSame(event, direct.single())
-            directJob.cancel()
-            treeJob.cancel()
+                assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.of("child"))), mounted)
+                assertEquals(listOf<DeviceMessage>(event.copy(sourceDevice = Name.EMPTY)), direct)
+                assertSame(event.value, client.getCachedProperty("value"))
+                if (remoteName == Name.EMPTY) assertSame(event, direct.single())
+                directJob.cancel()
+                treeJob.cancel()
+            }
+        } finally {
+            context.close()
         }
-
-        context.close()
     }
 
     @Test
@@ -68,40 +70,25 @@ internal class DeviceClientMessageTest {
             coroutineContext(backgroundScope.coroutineContext)
         }
 
-        val incoming = MutableSharedFlow<MagixMessage>()
-        val endpoint = object : MagixEndpoint {
-            override fun subscribe(filter: MagixMessageFilter): Flow<MagixMessage> = incoming
-            override suspend fun broadcast(message: MagixMessage) {}
-            override fun close() {}
+        try {
+            val endpoint = TestEndpoint()
+
+            val hub = endpoint.remoteDeviceTree(context, "client", "device")
+            runCurrent()
+            val name = Name.of("child")
+            endpoint.emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
+            runCurrent()
+            val received = mutableListOf<DeviceMessage>()
+            backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
+            runCurrent()
+
+            val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(1), "value", Meta.EMPTY, name)
+            endpoint.emit(event)
+            runCurrent()
+            assertEquals(listOf<DeviceMessage>(event), received)
+        } finally {
+            context.close()
         }
-
-        suspend fun emit(message: DeviceMessage) {
-            incoming.emit(
-                MagixMessage(
-                    format = DeviceManager.magixFormat.defaultFormat,
-                    payload = MagixEndpoint.magixJson.encodeToJsonElement(
-                        DeviceManager.magixFormat.serializer, message
-                    ),
-                    sourceEndpoint = "device",
-                )
-            )
-        }
-
-        val hub = endpoint.remoteDeviceTree(context, "client", "device")
-        runCurrent()
-        val name = Name.of("child")
-        emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
-        runCurrent()
-        val received = mutableListOf<DeviceMessage>()
-        backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
-        runCurrent()
-
-        val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(1), "value", Meta.EMPTY, name)
-        emit(event)
-        runCurrent()
-        assertEquals(listOf<DeviceMessage>(event), received)
-
-        context.close()
     }
 
     private class TestEndpoint : MagixEndpoint {
@@ -129,20 +116,23 @@ internal class DeviceClientMessageTest {
             val context = Context("remote-hub-late-description") {
                 coroutineContext(backgroundScope.coroutineContext)
             }
-            val endpoint = TestEndpoint()
-            val hub = endpoint.remoteDeviceTree(context, "client", "device")
-            val received = mutableListOf<DeviceMessage>()
-            val collector = backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
-            runCurrent()
-            endpoint.emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
-            runCurrent()
+            try {
+                val endpoint = TestEndpoint()
+                val hub = endpoint.remoteDeviceTree(context, "client", "device")
+                val received = mutableListOf<DeviceMessage>()
+                val collector = backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
+                runCurrent()
+                endpoint.emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
+                runCurrent()
 
-            val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(1), "value", Meta.EMPTY, name)
-            endpoint.emit(event)
-            runCurrent()
-            assertEquals(listOf<DeviceMessage>(event), received, "$name")
-            collector.cancel()
-            context.close()
+                val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(1), "value", Meta.EMPTY, name)
+                endpoint.emit(event)
+                runCurrent()
+                assertEquals(listOf<DeviceMessage>(event), received, "$name")
+                collector.cancel()
+            } finally {
+                context.close()
+            }
         }
     }
 
@@ -151,30 +141,33 @@ internal class DeviceClientMessageTest {
         val context = Context("remote-hub-remote-tree-messages") {
             coroutineContext(backgroundScope.coroutineContext)
         }
-        val endpoint = TestEndpoint()
-        val hub = endpoint.remoteDeviceTree(context, "client", "device")
-        runCurrent()
-        val name = Name.of("child")
-        endpoint.emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
-        runCurrent()
+        try {
+            val endpoint = TestEndpoint()
+            val hub = endpoint.remoteDeviceTree(context, "client", "device")
+            runCurrent()
+            val name = Name.of("child")
+            endpoint.emit(DescriptionMessage(Instant.fromEpochMilliseconds(0), Meta.EMPTY, emptyList(), emptyList(), name))
+            runCurrent()
 
-        val changes = mutableListOf<DeviceTreeMessage>()
-        val received = mutableListOf<DeviceMessage>()
-        backgroundScope.launch { hub.treeMessageFlow.collect { changes.add(it) } }
-        backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
-        runCurrent()
-        // composition changes on the remote side do not change the devices known to this client
-        val time = Instant.fromEpochMilliseconds(1)
-        endpoint.emit(DeviceTreeChildDeviceChangedMessage(time, "child", Name.of("group")))
-        endpoint.emit(DeviceTreeRootDeviceChangedMessage(time, Name.EMPTY))
-        runCurrent()
+            val changes = mutableListOf<DeviceTreeMessage>()
+            val received = mutableListOf<DeviceMessage>()
+            backgroundScope.launch { hub.treeMessageFlow.collect { changes.add(it) } }
+            backgroundScope.launch { hub.deviceMessageFlow().collect { received.add(it) } }
+            runCurrent()
+            // composition changes on the remote side do not change the devices known to this client
+            val time = Instant.fromEpochMilliseconds(1)
+            endpoint.emit(DeviceTreeChildDeviceChangedMessage(time, "child", Name.of("group")))
+            endpoint.emit(DeviceTreeRootDeviceChangedMessage(time, Name.EMPTY))
+            runCurrent()
 
-        val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(2), "value", Meta.EMPTY, name)
-        endpoint.emit(event)
-        runCurrent()
-        assertEquals(emptyList(), changes)
-        assertEquals(listOf<DeviceMessage>(event), received.filterIsInstance<PropertyChangedMessage>())
-        context.close()
+            val event = PropertyChangedMessage(Instant.fromEpochMilliseconds(2), "value", Meta.EMPTY, name)
+            endpoint.emit(event)
+            runCurrent()
+            assertEquals(emptyList(), changes)
+            assertEquals(listOf<DeviceMessage>(event), received.filterIsInstance<PropertyChangedMessage>())
+        } finally {
+            context.close()
+        }
     }
 
     @Test
@@ -182,30 +175,33 @@ internal class DeviceClientMessageTest {
         val context = Context("device-client-requests") {
             coroutineContext(backgroundScope.coroutineContext)
         }
-        val name = Name.of("group", "child")
-        val incoming = MutableSharedFlow<DeviceMessage>()
-        val sent = mutableListOf<DeviceMessage>()
-        val client = DeviceClient(context, name, emptyList(), emptyList(), incoming) { sent.add(it) }
-        val read = backgroundScope.async { client.readProperty("value") }
-        runCurrent()
-        assertEquals(name, assertIs<PropertyGetMessage>(sent.last()).targetDevice)
-        incoming.emit(PropertyChangedMessage(Instant.fromEpochMilliseconds(123), "value", Meta.EMPTY, name))
-        runCurrent()
-        assertEquals(Meta.EMPTY, read.await())
+        try {
+            val name = Name.of("group", "child")
+            val incoming = MutableSharedFlow<DeviceMessage>()
+            val sent = mutableListOf<DeviceMessage>()
+            val client = DeviceClient(context, name, emptyList(), emptyList(), incoming) { sent.add(it) }
+            val read = backgroundScope.async { client.readProperty("value") }
+            runCurrent()
+            assertEquals(name, assertIs<PropertyGetMessage>(sent.last()).targetDevice)
+            incoming.emit(PropertyChangedMessage(Instant.fromEpochMilliseconds(123), "value", Meta.EMPTY, name))
+            runCurrent()
+            assertEquals(Meta.EMPTY, read.await())
 
-        client.writeProperty("value", Meta.EMPTY)
-        assertEquals(name, assertIs<PropertySetMessage>(sent.last()).targetDevice)
-        val execute = backgroundScope.async { client.execute("reset", Meta.EMPTY) }
-        runCurrent()
-        val request = assertIs<ActionExecuteMessage>(sent.last())
-        assertEquals(name, request.targetDevice)
-        incoming.emit(
-            ActionResultMessage(
-                Instant.fromEpochMilliseconds(124), "reset", Meta.EMPTY, request.requestId, name,
+            client.writeProperty("value", Meta.EMPTY)
+            assertEquals(name, assertIs<PropertySetMessage>(sent.last()).targetDevice)
+            val execute = backgroundScope.async { client.execute("reset", Meta.EMPTY) }
+            runCurrent()
+            val request = assertIs<ActionExecuteMessage>(sent.last())
+            assertEquals(name, request.targetDevice)
+            incoming.emit(
+                ActionResultMessage(
+                    Instant.fromEpochMilliseconds(124), "reset", Meta.EMPTY, request.requestId, name,
+                )
             )
-        )
-        runCurrent()
-        assertEquals(Meta.EMPTY, execute.await())
-        context.close()
+            runCurrent()
+            assertEquals(Meta.EMPTY, execute.await())
+        } finally {
+            context.close()
+        }
     }
 }
