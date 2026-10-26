@@ -105,7 +105,7 @@ public class ModbusTagSource(
     }
 
     override fun validate(column: TagTableColumn) {
-        if (!OpcTagSource.ColumnSpec.validate(column.config)) error("Invalid Modbus address for column $column")
+        if (!ColumnSpec.validate(column.config)) error("Invalid Modbus address for column $column")
     }
 
     public object ColumnSpec : MetaSpec() {
