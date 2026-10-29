@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.api.getOrReadProperty
 import space.kscience.controls.api.id
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
@@ -115,11 +116,21 @@ public fun <T> Device.mutablePropertyAsState(
     initialValue: T,
 ): MutableValueState<T> = MutablePropertyValueState(metaConverter, this, propertyName, initialValue)
 
+/**
+ * Binds a mutable property of a device to a state object, allowing for reactive updates and modifications.
+ *
+ * This method throws an exception if initial value could not be read
+ *
+ * @param propertyName the name of the property to be monitored and updated.
+ * @param metaConverter the converter used to transform the property's meta-representation to its concrete type.
+ * @return a [MutableValueState] representing the current state of the property, enabling updates and reactive state handling.
+ */
 public suspend fun <T> Device.mutablePropertyAsState(
     propertyName: String,
     metaConverter: MetaConverter<T>,
 ): MutableValueState<T> {
-    val initialValue = metaConverter.readOrNull(readProperty(propertyName)) ?: error("Conversion of property failed")
+    val initialValue = metaConverter.readOrNull(getOrReadProperty(propertyName))
+        ?: error("Failed to read initial value for property '$propertyName'")
     return mutablePropertyAsState(propertyName, metaConverter, initialValue)
 }
 

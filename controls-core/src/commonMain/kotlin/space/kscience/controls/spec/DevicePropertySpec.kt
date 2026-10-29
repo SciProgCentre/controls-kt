@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
 import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import kotlin.jvm.JvmName
@@ -133,7 +135,11 @@ public suspend fun <T> write(propertySpec: DevicePropertySpec<T>, value: T): Uni
  * Fire and forget variant of property writing. Actual write is performed asynchronously on a [Device] scope
  */
 public fun <T> Device.writeAsync(propertySpec: DevicePropertySpec<T>, value: T): Job = launch {
-    write(propertySpec, value)
+    try {
+        write(propertySpec, value)
+    } catch (e: Exception){
+        logger.error(e) { "Error writing property ${propertySpec.name}" }
+    }
 }
 
 /**
@@ -155,7 +161,7 @@ public fun <T> Device.onPropertyChange(
     .filterIsInstance<PropertyChangedMessage>()
     .filter { it.property == spec.name }
     .onEach { change ->
-        val newValue = spec.converter.read(change.value)
+        val newValue = spec.converter.readOrNull(change.value)
         if (newValue != null) {
             change.callback(newValue)
         }
@@ -169,16 +175,14 @@ public fun <T> Device.useProperty(
     scope: CoroutineScope = this,
     callback: suspend (T) -> Unit,
 ): Job = scope.launch {
-    callback(read(spec))
-    messageFlow
-        .filterIsInstance<PropertyChangedMessage>()
-        .filter { it.property == spec.name }
-        .collect { change ->
-            val newValue = spec.converter.readOrNull(change.value)
-            if (newValue != null) {
-                callback(newValue)
-            }
-        }
+    try {
+        callback(read(spec))
+    } catch (e: Exception) {
+        context.logger.error(e) { "Failed to read initial value of property ${spec.name}" }
+    }
+    onPropertyChange(spec, scope) {
+        callback(it)
+    }
 }
 
 /**
@@ -199,16 +203,14 @@ public fun <T> Device.usePropertyWithTime(
     scope: CoroutineScope = this,
     callback: suspend (ValueWithTime<T>) -> Unit,
 ): Job = scope.launch {
-    callback(ValueWithTime(read(spec), clock.now()))
-    messageFlow
-        .filterIsInstance<PropertyChangedMessage>()
-        .filter { it.property == spec.name }
-        .collect { change ->
-            val newValue = spec.converter.readOrNull(change.value)
-            if (newValue != null) {
-                callback(ValueWithTime(newValue, change.time))
-            }
-        }
+    try {
+        callback(ValueWithTime(read(spec), clock.now()))
+    } catch (e: Exception) {
+        context.logger.error(e) { "Failed to read initial value of property ${spec.name}" }
+    }
+    onPropertyChange(spec, scope) {
+        callback(ValueWithTime(it, clock.now()))
+    }
 }
 
 

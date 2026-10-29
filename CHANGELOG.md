@@ -39,6 +39,7 @@
 
 ### Fixed
 
+- Add error handling for property subscription and async writing (quasi-synchronous access is handled by the caller)
 - Include quality columns in PLC and replay time-series headers when requested.
 - Give native envelope metadata its final name only after it is written, so a running index does not read partial files.
 - Use quality names when reading tag values with quality metadata.

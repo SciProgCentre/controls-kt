@@ -13,9 +13,12 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.ports.readShort
 import space.kscience.controls.spec.DevicePropertySpec
+import space.kscience.controls.spec.name
 import space.kscience.controls.spec.useProperty
 import space.kscience.controls.spec.write
 import space.kscience.controls.spec.writeAsync
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.io.Binary
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.MetaReader
@@ -198,7 +201,11 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
         }
 
         registers.onChange { packet ->
-            device.write(propertySpec, key.format.readFrom(packet))
+            try {
+                device.write(propertySpec, key.format.readFrom(packet))
+            } catch (e: Exception) {
+                device.logger.error(e) { "Error writing property ${propertySpec.name}" }
+            }
         }
 
         device.useProperty(propertySpec) { value ->

@@ -6,7 +6,7 @@ Models for continuous and discrete flow systems
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-models-flow:0.5.0-dev-4`.
+The Maven coordinates of this project are `space.kscience:controls-models-flow:0.5.0-dev-5`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-models-flow:0.5.0-dev-4")
+    implementation("space.kscience:controls-models-flow:0.5.0-dev-5")
 }
 ```

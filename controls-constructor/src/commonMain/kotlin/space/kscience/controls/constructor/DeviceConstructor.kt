@@ -35,15 +35,15 @@ public open class DeviceConstructor(
 
     override val device: Device? get() = this
 
-    private val _constructorElements: MutableSet<ConstructorElement> = mutableSetOf()
-    override val constructorElements: Set<ConstructorElement> get() = _constructorElements
+    final override val constructorElements: Set<ConstructorElement>
+        field: MutableSet<ConstructorElement> = mutableSetOf()
 
     override fun registerElement(constructorElement: ConstructorElement) {
-        _constructorElements.add(constructorElement)
+        constructorElements.add(constructorElement)
     }
 
     override fun unregisterElement(constructorElement: ConstructorElement) {
-        _constructorElements.remove(constructorElement)
+        constructorElements.remove(constructorElement)
     }
 
     private class Property<T>(
@@ -205,7 +205,7 @@ public open class DeviceConstructor(
         return action(argument)
     }
 
-    final override var lifecycleState: LifecycleState = LifecycleState.STOPPED
+    final override var lifecycleState: LifecycleState = STOPPED
         private set
 
 

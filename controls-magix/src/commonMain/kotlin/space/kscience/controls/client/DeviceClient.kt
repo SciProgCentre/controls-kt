@@ -1,10 +1,7 @@
 package space.kscience.controls.client
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
@@ -14,6 +11,8 @@ import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.spec.name
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.Name
@@ -47,7 +46,11 @@ public class DeviceClient internal constructor(
     override var propertyDescriptors: Collection<PropertyDescriptor> = propertyDescriptors
         internal set
 
-    override val coroutineContext: CoroutineContext = context.coroutineContext + Job(context.coroutineContext[Job])
+    override val coroutineContext: CoroutineContext = context.coroutineContext +
+            SupervisorJob(context.coroutineContext[Job]) +
+            CoroutineExceptionHandler { _, throwable ->
+                context.logger.error(throwable) { "Error in device client" }
+            }
 
     private val mutex = Mutex()
 

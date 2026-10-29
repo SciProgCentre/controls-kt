@@ -9,6 +9,8 @@ import space.kscience.controls.api.getOrReadProperty
 import space.kscience.controls.spec.DeviceActionSpec
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 
 
@@ -30,7 +32,11 @@ public suspend fun <T> DeviceClient.write(propertySpec: DevicePropertySpec<T>, v
 }
 
 public fun <T> DeviceClient.writeAsync(propertySpec: DevicePropertySpec<T>, value: T): Job = launch {
-    write(propertySpec, value)
+    try {
+        write(propertySpec, value)
+    } catch (e: Exception) {
+        logger.error(e) { "Error writing property ${propertySpec.name}" }
+    }
 }
 
 public fun <T> DeviceClient.propertyFlow(spec: DevicePropertySpec<T>): Flow<T> = messageFlow
