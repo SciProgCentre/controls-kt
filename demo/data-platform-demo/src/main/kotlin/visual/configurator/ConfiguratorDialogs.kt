@@ -332,7 +332,7 @@ fun ExportSchemeDialog(
     onDismiss: () -> Unit,
     onSaveToFile: ((Path) -> Unit)? = null
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    @Suppress("DEPRECATION") val clipboardManager = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     var savedMessage by remember { mutableStateOf<String?>(null) }
 

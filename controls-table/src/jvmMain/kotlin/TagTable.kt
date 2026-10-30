@@ -52,7 +52,7 @@ public value class TagState(public val value: Meta) {
  * - `DeviceMessageSource`: Allows access to device messages via a shared flow.
  * - `ValueStateFactory`: Enables the creation and management of observable value states.
  */
-public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, CoroutineScope {
+public interface TagTable : Device {
     /**
      * Read a value of a single column in the table
      */
@@ -97,8 +97,6 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
      */
     public val tags: Map<String, MetaDescriptor>
 
-    public val clock: Clock
-
     /**
      * Tag table messages. Shared so that a subscriber can be attached atomically with reading the current value.
      */
@@ -125,11 +123,6 @@ public interface TagTable : ContextAware, WithLifeCycle, DeviceMessageSource, Co
         public val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
             title = "Time"
         }
-
-        /**
-         * A name for a property that represents a row of the table.
-         */
-        public const val ROW_PROPERTY_NAME: String = "@row"
 
         public const val TAG_TABLE_FACTORY_TYPE: String = "tagTable"
     }

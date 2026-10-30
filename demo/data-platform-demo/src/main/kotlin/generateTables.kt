@@ -106,6 +106,6 @@ suspend fun main(): Unit = coroutineScope {
     println(counter)
 
 
-    readerTable.stop()
+    readerTable.pause()
     context.close()
 }

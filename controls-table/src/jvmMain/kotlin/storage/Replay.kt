@@ -28,5 +28,5 @@ public interface Replay  {
     /**
      * Stop playback
      */
-    public suspend fun stop()
+    public suspend fun pause()
 }

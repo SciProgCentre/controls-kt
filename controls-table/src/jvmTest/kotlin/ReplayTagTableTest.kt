@@ -100,7 +100,7 @@ class ReplayTagTableTest {
                     }
                 }
             } finally {
-                table.stop()
+                table.pause()
             }
         } finally {
             context.cancel()
@@ -130,7 +130,7 @@ class ReplayTagTableTest {
                 table.start()
                 assertEquals(LifecycleState.STARTED, table.lifecycleState)
             } finally {
-                table.stop()
+                table.pause()
             }
             assertEquals(LifecycleState.STOPPED, table.lifecycleState)
             assertEquals(

@@ -314,10 +314,6 @@ fun ConfiguratorCanvas(
     }
 }
 
-private fun Offset.getDistance(): Float {
-    return sqrt(x * x + y * y)
-}
-
 private fun isNodeSelected(node: CanvasNode, selection: ConfiguratorSelection): Boolean {
     return when (val type = node.type) {
         is CanvasNodeType.DeviceBlock -> {

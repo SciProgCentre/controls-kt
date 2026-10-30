@@ -2,10 +2,7 @@ package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import space.kscience.controls.api.DeviceLifeCycleMessage
-import space.kscience.controls.api.DeviceMessage
-import space.kscience.controls.api.LifecycleState
-import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
@@ -22,8 +19,11 @@ import space.kscience.controls.time.clock
 import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
-import space.kscience.dataforge.meta.set
+import space.kscience.dataforge.meta.descriptors.value
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
 import space.kscience.tables.*
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -48,9 +48,8 @@ public class ReplayTagTable(
 
     override val context: Context get() = storageIndex.context
 
-    private val _messageFlow = MutableSharedFlow<DeviceMessage>()
-
-    override val messageFlow: SharedFlow<DeviceMessage> get() = _messageFlow
+    override val messageFlow: SharedFlow<DeviceMessage>
+        field = MutableSharedFlow<DeviceMessage>()
 
     override val coroutineContext: CoroutineContext get() = context.coroutineContext
 
@@ -141,7 +140,7 @@ public class ReplayTagTable(
                 val value = row.getOrNull(tag)
                 if (value != null) {
                     values[tag] = ValueWithTime(value, time)
-                    _messageFlow.emit(
+                    messageFlow.emit(
                         PropertyChangedMessage(
                             time = time,
                             property = tag,
@@ -155,17 +154,6 @@ public class ReplayTagTable(
                 }
 
             }
-            _messageFlow.emit(
-                PropertyChangedMessage(
-                    time = time,
-                    property = TagTable.ROW_PROPERTY_NAME,
-                    value = Meta {
-                        values.forEach { (key, value) ->
-                            set(key, value.value)
-                        }
-                    },
-                )
-            )
         }
 
         val rows = storageIndex.selectRows(from..to)
@@ -191,16 +179,88 @@ public class ReplayTagTable(
         }
     }
 
+    override suspend fun pause() {
+        playJob?.cancel()
+    }
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
         private set
 
     private suspend fun setLifecycleState(state: LifecycleState) {
         this.lifecycleState = state
-        _messageFlow.emit(
+        messageFlow.emit(
             DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
+
+    override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
+        tags.forEach { (name, descriptor) ->
+            PropertyDescriptor(name, metaDescriptor = descriptor)
+            PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor)
+        }
+    }
+
+    override val actionDescriptors: Collection<ActionDescriptor> = setOf(
+        ActionDescriptor("pause", "Pause playback"),
+        ActionDescriptor(
+            name = "play",
+            description = "Start playback",
+            inputMetaDescriptor = MetaDescriptor {
+                value("from", ValueType.STRING){
+
+                }
+                value("to", ValueType.STRING){
+
+                }
+
+                value("startTime", ValueType.STRING){
+                    default(null)
+                }
+
+                value("timeScale", ValueType.NUMBER){
+                    default(1.0)
+                }
+            }
+        )
+    )
+
+    override suspend fun readProperty(propertyName: String): Meta =
+        if (propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
+            readTagQuality(propertyName.removeSuffix(TagState.TAG_QUALITY_SUFFIX)).value
+        } else {
+            readTag(propertyName)
+        }
+
+    override suspend fun writeProperty(propertyName: String, value: Meta) {
+        error("Write is not supported")
+    }
+
+    override suspend fun execute(
+        actionName: String,
+        argument: Meta?
+    ): Meta? = when (actionName) {
+        "play" -> {
+            val from = argument?.get("from")?.instant ?: Instant.DISTANT_PAST
+            val to = argument?.get("to")?.instant ?: Instant.DISTANT_FUTURE
+            val startTime = argument?.get("startTime")?.instant
+            val timeScale = argument?.get("timeScale")?.double ?: 1.0
+            play(
+                from = from,
+                to = to,
+                startTime = startTime,
+                timeScale = timeScale
+            )
+            null
+        }
+
+        "pause" -> {
+            pause()
+            null
+        }
+
+        else -> error("Unknown action $actionName")
+    }
+
 
     private val stateCache = mutableMapOf<String, ValueState<Meta>>()
 
@@ -233,8 +293,14 @@ public fun TagTable.Companion.replay(
     operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
     scope: CoroutineScope = storage.context,
     removeFilesCycleDuration: Duration = 10.minutes,
-): ReplayTagTable {
-    val storageIndex =
-        TableStorageIndex(storage, dataDirectory, cacheMetadata, operations, scope, removeFilesCycleDuration)
-    return ReplayTagTable(storageIndex, tags)
-}
+): ReplayTagTable = ReplayTagTable(
+    storageIndex = TableStorageIndex(
+        storage = storage,
+        dataDirectory = dataDirectory,
+        cacheMetadata = cacheMetadata,
+        operations = operations,
+        scope = scope,
+        removeFilesCycleDuration = removeFilesCycleDuration
+    ),
+    tags = tags
+)

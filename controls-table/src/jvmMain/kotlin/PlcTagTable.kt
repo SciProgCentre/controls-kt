@@ -37,6 +37,7 @@ import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.map
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.math.abs
@@ -285,20 +286,6 @@ public class PlcTagTable(
                         logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
                     }
 
-                    //emit row change
-                    if (lastTime > Instant.DISTANT_PAST) {
-                        messageFlow.emit(
-                            PropertyChangedMessage(
-                                time = lastTime,
-                                property = TagTable.ROW_PROPERTY_NAME,
-                                value = Meta {
-                                    values.forEach { (key, value) ->
-                                        set(key, value.value)
-                                    }
-                                },
-                            )
-                        )
-                    }
                 }
             }
         }
@@ -400,6 +387,32 @@ public class PlcTagTable(
     private val tableHeaders: TableHeader<Meta> = buildList {
         add(TagTable.timeColumnHeader)
         addAll(propertyColumnHeaders)
+    }
+
+    override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
+        tags.forEach { (name, descriptor) ->
+            PropertyDescriptor(name, metaDescriptor = descriptor)
+            PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor)
+        }
+    }
+
+    override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
+
+    override suspend fun readProperty(propertyName: String): Meta = if(propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
+        readTagQuality(propertyName.removeSuffix(TagState.TAG_QUALITY_SUFFIX)).value
+    } else {
+        readTag(propertyName)
+    }
+
+    override suspend fun writeProperty(propertyName: String, value: Meta) {
+        error("Write is not supported")
+    }
+
+    override suspend fun execute(
+        actionName: String,
+        argument: Meta?
+    ): Meta? {
+        error("Actions are not supported")
     }
 
     /**

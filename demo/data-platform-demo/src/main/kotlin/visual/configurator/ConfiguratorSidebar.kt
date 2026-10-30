@@ -45,7 +45,7 @@ fun ConfiguratorSidebar(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Sidebar Tabs
-            TabRow(
+            SecondaryTabRow(
                 selectedTabIndex = selectedTab.ordinal,
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             ) {

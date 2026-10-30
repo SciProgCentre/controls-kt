@@ -43,7 +43,7 @@ fun ConfiguratorBottomPanel(
     val diagnostics = remember(model.rootConfiguration, model.tagTableConfiguration) {
         model.validate()
     }
-    val clipboardManager = LocalClipboardManager.current
+    @Suppress("DEPRECATION") val clipboardManager = LocalClipboardManager.current
     var copyNotice by remember { mutableStateOf(false) }
 
     Surface(

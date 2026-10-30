@@ -22,7 +22,6 @@ import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.expressions.ControlsExpressionPlugin
 import space.kscience.controls.manager.install
 import space.kscience.controls.tagtable.TagTableConfiguration
-import space.kscience.controls.tagtable.TagTableDevice
 import space.kscience.controls.tagtable.TagTablePlugin
 import space.kscience.controls.utilities.ControlsUtilitiesPlugin
 import space.kscience.dataforge.context.Context
@@ -94,11 +93,10 @@ fun main() {
     val platform = tagTablePlugin.install(configuration)
 
     //setup platform device (optional)
-    val platformDevice = TagTableDevice(platform)
-    deviceManager.install("platform", platformDevice)
+    deviceManager.install("platform", platform)
 
     // monitor changes
-    platformDevice.monitorDeviceChanges()
+    platform.monitorDeviceChanges()
 
 
     //read device config

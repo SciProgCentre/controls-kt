@@ -62,7 +62,7 @@ fun MetaDescriptorEditor(
                 meta = meta,
                 onMetaChange = onMetaChange
             )
-        } else if (descriptor != null && descriptor.children.isNotEmpty()) {
+        } else if (descriptor != null && descriptor.nodes.isNotEmpty()) {
             DescriptorFormEditor(
                 descriptor = descriptor,
                 meta = meta,
@@ -90,8 +90,7 @@ private fun DescriptorFormEditor(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        descriptor.children.forEach { (token, childDescriptor) ->
-            val key = token.toString()
+        descriptor.nodes.forEach { (key, childDescriptor) ->
             val childMeta = meta[key] ?: Meta.EMPTY
             val currentValue = meta[key]?.value
 
@@ -148,7 +147,7 @@ private fun DescriptorFormEditor(
                             )
                             Text(text = if (boolVal) "True" else "False", style = MaterialTheme.typography.bodyMedium)
                         }
-                    } else if (childDescriptor.children.isNotEmpty()) {
+                    } else if (childDescriptor.nodes.isNotEmpty()) {
                         // Nested child descriptor editor
                         DescriptorFormEditor(
                             descriptor = childDescriptor,
