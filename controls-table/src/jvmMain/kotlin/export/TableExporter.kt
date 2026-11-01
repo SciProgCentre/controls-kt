@@ -27,6 +27,7 @@ public data class DevicePropertyExportColumn(
 public data class TagExportColumn(
     val tagTable: Name,
     val tag: String,
+    val includeQuality: Boolean = false,
 ) : ExportColumn
 
 
@@ -58,18 +59,16 @@ public class TableExporter(
                     val exportValueColumn = "${column.tagTable}.$valueColumn"
                     val qualityColumn = valueColumn + TagState.TAG_QUALITY_SUFFIX
                     val exportQualityColumn = "${column.tagTable}.$qualityColumn"
-                    val hasQuality = !valueColumn.endsWith(TagState.TAG_QUALITY_SUFFIX) &&
-                            rows.headers.any { it.name == qualityColumn }
 
                     outputColumns += exportValueColumn
-                    if (hasQuality) outputColumns += exportQualityColumn
+                    if (column.includeQuality) outputColumns += exportQualityColumn
 
                     for (row in rows.rowSequence()) {
                         val time = row[TagTable.timeColumnHeader].instant ?: continue
                         row.getOrNull(valueColumn)?.let { value ->
                             events += exportValueColumn to ValueWithTime(value, time)
                         }
-                        if (hasQuality) {
+                        if (column.includeQuality) {
                             row.getOrNull(qualityColumn)?.let { quality ->
                                 events += exportQualityColumn to ValueWithTime(quality, time)
                             }

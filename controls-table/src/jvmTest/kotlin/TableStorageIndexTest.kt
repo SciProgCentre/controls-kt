@@ -2,31 +2,23 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import space.kscience.controls.asMeta
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.storage.SingleFileEnvelopeOperations
-import space.kscience.controls.storage.ZipRowsEnvelopeConverter
 import space.kscience.controls.tagtable.storage.RowEnvelopeMetaSpec
 import space.kscience.controls.tagtable.storage.TableStorageIndex
-import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.set
+import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
-import space.kscience.tables.MapRow
-import space.kscience.tables.RowTable
-import space.kscience.tables.SimpleColumnHeader
 import java.nio.file.FileStore
 import java.nio.file.FileSystem
 import java.nio.file.FileSystems
@@ -35,7 +27,6 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.PathMatcher
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
-import java.nio.file.StandardWatchEventKinds.OVERFLOW
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
@@ -46,7 +37,6 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -54,7 +44,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import kotlin.time.measureTime
+import kotlinx.coroutines.test.TestScope
 
 /**
  * LLM generated code: Added tests for DataPlatformStorageIndex.
@@ -63,90 +53,40 @@ class TableStorageIndexTest {
 
     @Test
     fun testIndexAndRead() = runTest {
-        val context = Context("TEST"){
-            plugin(ControlsStoragePlugin)
-        }
-        val storagePlugin = context.request(ControlsStoragePlugin)
-        val tempDir = Files.createTempDirectory("tagtable-index-test")
-
+        val fixture = WatchFixture("tagtable-index-test", this)
         try {
-            val converter = ZipRowsEnvelopeConverter.meta
-            val operations = NativeFileEnvelopeOperations(storagePlugin.io)
-
-            val headers = listOf(
-                TagTable.timeColumnHeader,
-                SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY)
-            )
-
+            val operations = NativeFileEnvelopeOperations(fixture.storage.io)
+            val headers = metaHeaders("value")
             val startTime = Instant.fromEpochSeconds(1625097600, 0) // 2021-07-01T00:00:00Z
             val nFiles = 10
             val rowsPerFile = 100
 
-            // 1. Create multiple files
-            val creationTime = measureTime {
-                (0 until nFiles).forEach { i ->
-                    val fileStartTime = startTime + (i * rowsPerFile).milliseconds
-                    val fileEndTime = fileStartTime + (rowsPerFile - 1).milliseconds
-                    val rows = (0 until rowsPerFile).map { j ->
-                        MapRow(
-                            mapOf(
-                                TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(
-                                    fileStartTime + j.milliseconds
-                                ),
-                                "value" to (i * rowsPerFile + j).asMeta()
-                            )
-                        )
-                    }
-                    val table = RowTable(headers, rows)
-                    val envelopeMeta = Meta {
-                        set(RowEnvelopeMetaSpec.startTime, fileStartTime)
-                        set(RowEnvelopeMetaSpec.endTime, fileEndTime)
-                    }
-                    val envelope = converter.writeRows(table, envelopeMeta)
-                    operations.writeEnvelope("data_$i", tempDir, envelope)
+            (0 until nFiles).forEach { i ->
+                val fileStartTime = startTime + (i * rowsPerFile).milliseconds
+                val fileEndTime = fileStartTime + (rowsPerFile - 1).milliseconds
+                val rows = (0 until rowsPerFile).map { j ->
+                    tagRow(fileStartTime + j.milliseconds, "value" to (i * rowsPerFile + j).asMeta())
                 }
+                operations.writeRows("data_$i", fixture.watched, headers, rows, fileStartTime, fileEndTime)
             }
-            println("[DEBUG_LOG] Created $nFiles files in $creationTime")
 
-            // 2. Index files
-            val index = TableStorageIndex(storagePlugin, tempDir)
-            val indexTime = measureTime {
-                index.start()
-            }
-            println("[DEBUG_LOG] Indexed $nFiles files in $indexTime")
+            val index = TableStorageIndex(fixture.storage, fixture.watched)
+            index.start()
 
-            // 3. Read from index
             val queryRange = (startTime + 50.milliseconds)..(startTime + 150.milliseconds)
-            val readTime = measureTime {
-                val rows = index.selectRows(queryRange)
-                val result = rows.rowSequence().toList()
-                // startTime+50 to startTime+150 inclusive is 101 points
-                assertEquals(101, result.size)
-            }
-            println("[DEBUG_LOG] Read $queryRange in $readTime")
-
-            index.stop()
+            val result = index.selectRows(queryRange).rowSequence().toList()
+            assertEquals(101, result.size)
         } finally {
-            tempDir.toFile().deleteRecursively()
+            fixture.close()
         }
     }
 
     @Test
     fun testRestartRebuildsIndex() = runTest {
-        val context = Context("tagtable-index-restart-test") {
-            plugin(ControlsStoragePlugin)
-        }
-        val storagePlugin = context.request(ControlsStoragePlugin)
-        val tempDir = Files.createTempDirectory("tagtable-index-restart-test")
-
+        val fixture = WatchFixture("tagtable-index-restart-test", this)
         try {
-            val converter = ZipRowsEnvelopeConverter.meta
-            val writer = SingleFileEnvelopeOperations(storagePlugin.io)
-
-            val headers = listOf(
-                TagTable.timeColumnHeader,
-                SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY)
-            )
+            val writer = SingleFileEnvelopeOperations(fixture.storage.io)
+            val headers = metaHeaders("value")
 
             val startTime = Instant.fromEpochSeconds(1700000000, 0)
             val nFiles = 5
@@ -157,26 +97,14 @@ class TableStorageIndexTest {
             val paths = (0 until nFiles).map { i ->
                 val fileStartTime = startTime + (i * gapMillis).milliseconds
                 val fileEndTime = fileStartTime + lengthMillis.milliseconds
-                val row = MapRow(
-                    mapOf(
-                        TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(fileStartTime),
-                        "value" to i.asMeta()
-                    )
-                )
-                val table = RowTable(headers, listOf(row))
-                val envelopeMeta = Meta {
-                    set(RowEnvelopeMetaSpec.startTime, fileStartTime)
-                    set(RowEnvelopeMetaSpec.endTime, fileEndTime)
-                }
-                val envelope = converter.writeRows(table, envelopeMeta)
                 val name = "restart_$i"
-                writer.writeEnvelope(name, tempDir, envelope)
-                tempDir.resolve("$name.${FileEnvelopeOperations.FILE_EXTENSION}")
+                writer.writeRows(name, fixture.watched, headers, listOf(tagRow(fileStartTime, "value" to i.asMeta())), fileStartTime, fileEndTime)
+                fixture.watched.resolve("$name.${FileEnvelopeOperations.FILE_EXTENSION}")
             }
 
             val fullRange = startTime..(startTime + (nFiles * gapMillis).milliseconds)
 
-            val index = TableStorageIndex(storagePlugin, tempDir)
+            val index = TableStorageIndex(fixture.storage, fixture.watched)
 
             // 2. Start, check all files are indexed, then stop
             index.start()
@@ -195,18 +123,14 @@ class TableStorageIndexTest {
 
             index.stop()
         } finally {
-            tempDir.toFile().deleteRecursively()
+            fixture.close()
         }
     }
 
     @Test
     fun testIndexTracksCreatedAndDeletedEnvelope() = runTest(timeout = 60.seconds) {
-        val context = Context("tagtable-index-watch-test") { plugin(ControlsStoragePlugin) }
-        val storage = context.request(ControlsStoragePlugin)
-        val directory = Files.createTempDirectory("tagtable-index-watch-test")
-        val watched = Files.createDirectory(directory.resolve("data"))
-        val staging = Files.createDirectory(directory.resolve("staging"))
-        val native = NativeFileEnvelopeOperations(storage.io)
+        val fixture = WatchFixture("tagtable-index-watch-test", this)
+        val native = NativeFileEnvelopeOperations(fixture.storage.io)
         val invalidRead = AtomicBoolean()
         val reads = AtomicInteger()
         val operations = object : FileEnvelopeOperations by native {
@@ -216,109 +140,83 @@ class TableStorageIndexTest {
                 return if (Files.exists(path)) native.readEnvelope(path) else null
             }
         }
-        val writer = SingleFileEnvelopeOperations(storage.io)
-        val converter = ZipRowsEnvelopeConverter.meta
         val time = Instant.fromEpochSeconds(1625097600)
-        val headers = listOf(TagTable.timeColumnHeader, SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY))
-        val index = TableStorageIndex(storage, watched, operations = operations, removeFilesCycleDuration = 10.milliseconds)
-
-        fun publish(name: String, at: Instant): Path {
-            val row = MapRow(mapOf(
-                TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(at),
-                "value" to Meta(1),
-            ))
-            val envelope = converter.writeRows(RowTable(headers, listOf(row)), Meta {
-                set(RowEnvelopeMetaSpec.startTime, at)
-                set(RowEnvelopeMetaSpec.endTime, at)
-            })
-            writer.writeEnvelope(name, staging, envelope)
-            return Files.move(staging.resolve("$name.df"), watched.resolve("$name.df"), ATOMIC_MOVE)
-        }
+        val index = TableStorageIndex(
+            fixture.storage,
+            fixture.watched,
+            operations = operations,
+            removeFilesCycleDuration = 10.milliseconds,
+        )
 
         try {
             index.start()
-            withContext(Dispatchers.IO) {
-                withTimeout(10.seconds) {
-                    var attempt = 0
-                    do {
-                        publish("probe-${attempt++}", time)
-                        delay(50.milliseconds)
-                    } while (index.selectEnvelopes(time..time).isEmpty())
-                }
+            fixture.awaitWatcher(index, time)
+            Files.createFile(fixture.watched.resolve("ignored.txt"))
+            val filterTime = time + 500.milliseconds
+            fixture.publish("filter-sentinel", filterTime)
+            index.awaitEnvelopes(filterTime..filterTime)
+            assertTrue(!invalidRead.get(), "A non-envelope CREATE event was passed to readEnvelope")
 
-                Files.createFile(watched.resolve("ignored.txt"))
-                val filterTime = time + 500.milliseconds
-                publish("filter-sentinel", filterTime)
-                withTimeout(5.seconds) {
-                    while (index.selectEnvelopes(filterTime..filterTime).isEmpty()) delay(10.milliseconds)
-                }
-                assertTrue(!invalidRead.get(), "A non-envelope CREATE event was passed to readEnvelope")
+            val sampleTime = time + 1.seconds
+            val range = sampleTime..sampleTime
+            val path = fixture.publish("created", sampleTime)
+            index.awaitEnvelopes(range)
+            assertEquals(1, index.selectEnvelopes(range).size)
 
-                val sampleTime = time + 1.seconds
-                val range = sampleTime..sampleTime
-                val path = publish("created", sampleTime)
-                withTimeout(5.seconds) {
-                    while (index.selectEnvelopes(range).isEmpty()) delay(10.milliseconds)
+            Files.delete(path)
+            // A missing file must be removed from the index, not just skipped by the reader.
+            val removedFromIndex = runCatching {
+                awaitUntil(timeout = 5.seconds) {
+                    reads.set(0)
+                    index.selectEnvelopes(range).isEmpty() && reads.get() == 0
                 }
-                assertEquals(1, index.selectEnvelopes(range).size)
-
-                Files.delete(path)
-                // A missing file must be removed from the index, not just skipped by the reader.
-                val removedFromIndex = withTimeoutOrNull(5.seconds) {
-                    do {
-                        reads.set(0)
-                        assertTrue(index.selectEnvelopes(range).isEmpty())
-                        if (reads.get() != 0) delay(10.milliseconds)
-                    } while (reads.get() != 0)
-                    true
-                }
-                assertTrue(removedFromIndex == true, "The deleted envelope remained in the index")
-            }
+            }.isSuccess
+            assertTrue(removedFromIndex, "The deleted envelope remained in the index")
         } finally {
-            index.stop()
-            context.coroutineContext[Job]?.cancelAndJoin()
-            context.close()
-            directory.toFile().deleteRecursively()
+            fixture.close()
         }
     }
 
-    private class WatchFixture(name: String) {
-        val context = Context(name) { plugin(ControlsStoragePlugin) }
+    private class WatchFixture(name: String, scope: TestScope) {
+        val context = scope.storageContext(name)
         val storage = context.request(ControlsStoragePlugin)
         val directory: Path = Files.createTempDirectory(name)
         val watched: Path = Files.createDirectory(directory.resolve("data"))
         private val staging = Files.createDirectory(directory.resolve("staging"))
         private val writer = SingleFileEnvelopeOperations(storage.io)
-        private val headers = listOf(TagTable.timeColumnHeader, SimpleColumnHeader("value", typeOf<Meta>(), Meta.EMPTY))
+        private val headers = metaHeaders("value")
 
-        fun publish(name: String, at: Instant) = publishTo(watched, name, at)
+        fun publish(name: String, at: Instant): Path = publishTo(watched, name, at)
 
-        fun publishTo(target: Path, name: String, at: Instant) {
-            val row = MapRow(mapOf(
-                TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(at),
-                "value" to Meta(1),
-            ))
-            val envelope = ZipRowsEnvelopeConverter.meta.writeRows(RowTable(headers, listOf(row)), Meta {
-                set(RowEnvelopeMetaSpec.startTime, at)
-                set(RowEnvelopeMetaSpec.endTime, at)
-            })
-            writer.writeEnvelope(name, staging, envelope)
-            Files.move(staging.resolve("$name.df"), target.resolve("$name.df"), ATOMIC_MOVE)
+        fun publishTo(target: Path, name: String, at: Instant): Path {
+            writer.writeRows(name, staging, headers, listOf(tagRow(at, "value" to Meta(1))), at, at, id = name)
+            return Files.move(staging.resolve("$name.df"), target.resolve("$name.df"), ATOMIC_MOVE)
         }
 
-        suspend fun close(index: TableStorageIndex) {
-            index.stop()
-            context.coroutineContext[Job]?.cancelAndJoin()
+        /**
+         * Publish probes before [time] until one of them is indexed, which shows that the watcher is registered.
+         */
+        suspend fun awaitWatcher(index: TableStorageIndex, time: Instant) {
+            var attempt = 0
+            awaitUntil(timeout = 10.seconds, interval = 50.milliseconds) {
+                if (attempt > 0 && index.selectEnvelopes((time - attempt.seconds)..(time - 1.seconds)).isNotEmpty()) {
+                    true
+                } else {
+                    attempt++
+                    publish("probe-$attempt", time - attempt.seconds)
+                    false
+                }
+            }
+        }
+
+        fun close() {
             context.close()
             directory.toFile().deleteRecursively()
         }
     }
 
-    private suspend fun TableStorageIndex.awaitEnvelopes(range: ClosedRange<Instant>) = withContext(Dispatchers.IO) {
-        withTimeout(10.seconds) {
-            while (selectEnvelopes(range).isEmpty()) delay(10.milliseconds)
-        }
-    }
+    private suspend fun TableStorageIndex.awaitEnvelopes(range: ClosedRange<Instant>) =
+        awaitUntil { selectEnvelopes(range).isNotEmpty() }
 
     /**
      * Operations that publish [name] while the initial scan runs, before or after the directory is listed.
@@ -337,7 +235,7 @@ class TableStorageIndexTest {
 
     @Test
     fun testFailedStartIsRetriedByTheNextQuery() = runTest(timeout = 60.seconds) {
-        val fixture = WatchFixture("tagtable-index-retry-test")
+        val fixture = WatchFixture("tagtable-index-retry-test", this)
         val missing = fixture.directory.resolve("missing")
         val index = TableStorageIndex(fixture.storage, missing)
         val time = Instant.fromEpochSeconds(1625097600)
@@ -347,13 +245,13 @@ class TableStorageIndexTest {
             fixture.publishTo(missing, "created", time)
             assertEquals(1, index.selectEnvelopes(time..time).size)
         } finally {
-            fixture.close(index)
+            fixture.close()
         }
     }
 
     @Test
     fun testFileCreatedAfterScanListingIsIndexed() = runTest(timeout = 60.seconds) {
-        val fixture = WatchFixture("tagtable-index-after-listing-test")
+        val fixture = WatchFixture("tagtable-index-after-listing-test", this)
         val time = Instant.fromEpochSeconds(1625097600)
         val operations = fixture.publishingDuringScan("created", time, afterListing = true)
         val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
@@ -361,13 +259,13 @@ class TableStorageIndexTest {
             index.start()
             index.awaitEnvelopes(time..time)
         } finally {
-            fixture.close(index)
+            fixture.close()
         }
     }
 
     @Test
     fun testFileFoundByScanAndMonitorIsIndexedOnce() = runTest(timeout = 60.seconds) {
-        val fixture = WatchFixture("tagtable-index-scan-and-monitor-test")
+        val fixture = WatchFixture("tagtable-index-scan-and-monitor-test", this)
         val time = Instant.fromEpochSeconds(1625097600)
         val operations = fixture.publishingDuringScan("created", time, afterListing = false)
         val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
@@ -379,7 +277,7 @@ class TableStorageIndexTest {
             index.awaitEnvelopes(sentinelTime..sentinelTime)
             assertEquals(1, index.selectEnvelopes(time..time).size)
         } finally {
-            fixture.close(index)
+            fixture.close()
         }
     }
 
@@ -417,14 +315,8 @@ class TableStorageIndexTest {
      * A key that reports an overflow each time it is taken.
      */
     private class OverflowKey : WatchKey {
-        private val overflow = object : WatchEvent<Any> {
-            override fun kind(): WatchEvent.Kind<Any> = OVERFLOW
-            override fun count(): Int = 1
-            override fun context(): Any? = null
-        }
-
         override fun isValid(): Boolean = true
-        override fun pollEvents(): List<WatchEvent<*>> = listOf(overflow)
+        override fun pollEvents(): List<WatchEvent<*>> = listOf(overflowEvent)
         override fun reset(): Boolean = true
         override fun cancel() {}
         override fun watchable(): Watchable = error("Not used by this fixture")
@@ -451,7 +343,7 @@ class TableStorageIndexTest {
 
     @Test
     fun testWatchOverflowScansTheDirectoryAgain() = runTest(timeout = 60.seconds) {
-        val fixture = WatchFixture("tagtable-index-overflow-test")
+        val fixture = WatchFixture("tagtable-index-overflow-test", this)
         val watcher = ControlledWatchService()
         val overflow = OverflowKey()
         val directory = ControlledDirectory(fixture.watched, ControlledFileSystem(watcher), overflow)
@@ -479,7 +371,102 @@ class TableStorageIndexTest {
             }
             assertEquals(3, index.selectEnvelopes(time..time).size)
         } finally {
-            fixture.close(index)
+            fixture.close()
+        }
+    }
+
+    /**
+     * Verifies that the `TableStorageIndex` correctly skips envelope intervals that end before the query's
+     * start time during a search operation. The test checks if unnecessary reads of interval upper bounds
+     * are avoided by counting how many intervals were checked against the query's end bound.
+     *
+     * This method uses a `WatchFixture` to simulate a storage environment with pre-defined envelope data.
+     * These envelopes have start and end times that correspond to a set of sequential timestamps.
+     *
+     * Key validations:
+     * - The `TableStorageIndex` is initialized and queried with a range where no intervals match.
+     * - The number of upper-bound interval checks remains within a valid range, confirming that the search
+     *   operation prunes irrelevant intervals effectively.
+     *
+     * Throws:
+     * - An assertion error if the pruning logic fails to exclude intervals ending before the query starts
+     *   or if excessive upper-bound checks occur.
+     */
+    @Test
+    fun searchPrunesIntervalsEndingBeforeQuery() = runTest {
+        val fixture = WatchFixture("tagtable-index-max-end", this)
+        val envelopes = (1..6).associate { position ->
+            val time = Instant.fromEpochSeconds(position.toLong())
+            fixture.directory.resolve("$position.df") to Envelope(Meta {
+                set(RowEnvelopeMetaSpec.startTime, time)
+                set(RowEnvelopeMetaSpec.endTime, time)
+            }, null)
+        }
+        val operations = object : FileEnvelopeOperations by NativeFileEnvelopeOperations(fixture.storage.io) {
+            override fun envelopeFilesSequence(root: Path) = envelopes.keys.asSequence().map { Name.EMPTY to it }
+            override fun readEnvelope(path: Path): Envelope? = envelopes[path]
+        }
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations)
+        var upperBoundReads = 0
+        val query = object : ClosedRange<Instant> {
+            override val start: Instant = Instant.fromEpochSeconds(10)
+            override val endInclusive: Instant
+                get() {
+                    upperBoundReads++
+                    return start
+                }
+        }
+
+        try {
+            index.start()
+            assertEquals(emptyList(), index.selectEnvelopes(query))
+            @Suppress("KotlinConstantConditions")
+            assertTrue(upperBoundReads in 1 until envelopes.size, "Checked $upperBoundReads of ${envelopes.size} intervals")
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun testDeleteSelectsIntervalByPathWhenBoundsAreEqual() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-equal-interval-test", this)
+        val targetTime = Instant.fromEpochSeconds(1625097600)
+        val reads = AtomicInteger()
+        val native = NativeFileEnvelopeOperations(fixture.storage.io)
+        val operations = object : FileEnvelopeOperations by native {
+            override fun readEnvelope(path: Path): Envelope? {
+                reads.incrementAndGet()
+                return native.readEnvelope(path)
+            }
+        }
+        val index = TableStorageIndex(
+            fixture.storage,
+            fixture.watched,
+            operations = operations,
+            removeFilesCycleDuration = 10.milliseconds,
+        )
+
+        try {
+            index.start()
+            fixture.awaitWatcher(index, targetTime)
+
+            val range = targetTime..targetTime
+            val names = listOf("first", "second", "third", "fourth")
+            val paths = names.map { fixture.publish(it, targetTime) }
+            awaitUntil(timeout = 5.seconds) { index.selectEnvelopes(range).size == names.size }
+            assertTrue(paths.all(Files::exists))
+
+            Files.delete(paths[1])
+            awaitUntil(timeout = 5.seconds) {
+                reads.set(0)
+                val remaining = index.selectEnvelopes(range)
+                if (reads.get() != 3) return@awaitUntil false
+                assertEquals(3, remaining.size, "Deletion removed another equal-bounds interval")
+                assertEquals(setOf("first", "third", "fourth"), remaining.map { it.meta["id"].string }.toSet())
+                true
+            }
+        } finally {
+            fixture.close()
         }
     }
 }

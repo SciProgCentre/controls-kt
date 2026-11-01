@@ -2,9 +2,9 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.TestScope
 import space.kscience.controls.constructor.ConstructorPlugin
 import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.dataforge.context.Context
@@ -20,6 +20,11 @@ import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TagTablePluginTest {
+    private fun TestScope.pluginContext(name: String) = testContext(name) {
+        plugin(IOPlugin)
+        plugin(TagTablePlugin)
+    }
+
     private class CountingTable(context: Context) : TagTable by PlcTagTable(
         context,
         TagTableConfiguration(
@@ -45,11 +50,7 @@ class TagTablePluginTest {
 
     @Test
     fun testRegisterPublishesDefaultAndNamedFactoriesWithoutStarting() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-register") {
-            coroutineContext(backgroundScope.coroutineContext)
-            plugin(IOPlugin)
-            plugin(TagTablePlugin)
-        }
+        val context = pluginContext("tag-register")
         try {
             val tables = context.request(TagTablePlugin)
             val default = CountingTable(context)
@@ -69,18 +70,13 @@ class TagTablePluginTest {
             assertEquals(0, default.starts)
             assertEquals(0, named.starts)
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testInstallRegistersBeforeItsSingleStart() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-install") {
-            coroutineContext(backgroundScope.coroutineContext)
-            plugin(IOPlugin)
-            plugin(TagTablePlugin)
-        }
+        val context = pluginContext("tag-install")
         try {
             val table = CountingTable(context)
             assertSame(table, context.request(TagTablePlugin).install(table))
@@ -91,7 +87,6 @@ class TagTablePluginTest {
             runCurrent()
             assertEquals(1, table.starts)
         } finally {
-            context.cancel()
             context.close()
         }
     }

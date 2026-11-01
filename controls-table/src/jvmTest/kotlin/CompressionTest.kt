@@ -29,30 +29,15 @@ class CompressionTest {
             override fun subscribe() = rows.asFlow()
         }
 
+    private fun row(time: Long, vararg values: Pair<String, Double>) =
+        ValueWithTime(values.associate { (name, value) -> name to value.asMeta() }, Instant.fromEpochMilliseconds(time))
+
     @Test
     fun testSkipUnchangedRows() = runTest {
         val rows = listOf(
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(1000)
-            ),
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(2000)
-            ), // Duplicate
-            ValueWithTime(
-                mapOf(
-                    "v1" to 11.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(3000)
-            )
+            row(1000, "v1" to 10.0, "v2" to 20.0),
+            row(2000, "v1" to 10.0, "v2" to 20.0), // Duplicate
+            row(3000, "v1" to 11.0, "v2" to 20.0),
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(RowsCompression(skipUnchangedRows = true))
@@ -66,27 +51,9 @@ class CompressionTest {
     @Test
     fun testSkipUnchangedValues() = runTest {
         val rows = listOf(
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(1000)
-            ),
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.0.asMeta(),
-                    "v2" to 21.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(2000)
-            ), // v1 unchanged
-            ValueWithTime(
-                mapOf(
-                    "v1" to 11.0.asMeta(),
-                    "v2" to 21.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(3000)
-            )  // v2 unchanged
+            row(1000, "v1" to 10.0, "v2" to 20.0),
+            row(2000, "v1" to 10.0, "v2" to 21.0), // v1 unchanged
+            row(3000, "v1" to 11.0, "v2" to 21.0), // v2 unchanged
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(RowsCompression(skipUnchangedRows = false, skipUnchangedValues = true))
@@ -110,19 +77,9 @@ class CompressionTest {
     @Test
     fun testNumericDelta() = runTest {
         val rows = listOf(
-            ValueWithTime(mapOf("v1" to 10.0.asMeta()), Instant.fromEpochMilliseconds(1000)),
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.5.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(2000)
-            ), // delta 0.5 <= 1.0, should skip only this value
-            ValueWithTime(
-                mapOf(
-                    "v1" to 11.1.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(3000)
-            )  // delta 1.1 > 1.0, should keep
+            row(1000, "v1" to 10.0),
+            row(2000, "v1" to 10.5), // delta 0.5 <= 1.0, should skip only this value
+            row(3000, "v1" to 11.1), // delta 1.1 > 1.0, should keep
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(
@@ -141,27 +98,9 @@ class CompressionTest {
     @Test
     fun testMixedCompression() = runTest {
         val rows = listOf(
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(1000)
-            ),
-            ValueWithTime(
-                mapOf(
-                    "v1" to 10.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(2000)
-            ), // identical row
-            ValueWithTime(
-                mapOf(
-                    "v1" to 11.0.asMeta(),
-                    "v2" to 20.0.asMeta()
-                ),
-                Instant.fromEpochMilliseconds(3000)
-            )  // only v1 changed
+            row(1000, "v1" to 10.0, "v2" to 20.0),
+            row(2000, "v1" to 10.0, "v2" to 20.0), // identical row
+            row(3000, "v1" to 11.0, "v2" to 20.0), // only v1 changed
         )
         val asyncRows = createAsyncRows(rows)
         val compressed = asyncRows.compress(

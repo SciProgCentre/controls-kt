@@ -15,8 +15,8 @@ import space.kscience.controls.tagtable.storage.launchDirectoryMonitor
 import space.kscience.dataforge.context.Context
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.OVERFLOW
+import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
@@ -60,8 +60,7 @@ class DirectoryMonitorTest {
         } finally {
             monitor.cancel()
             context.close()
-            Files.list(directory).use { files -> files.forEach { Files.deleteIfExists(it) } }
-            Files.deleteIfExists(directory)
+            directory.toFile().deleteRecursively()
         }
     }
 
@@ -84,14 +83,9 @@ class DirectoryMonitorTest {
 
     @Test
     fun testOverflowIsReportedWithoutFile() = runTest {
-        val overflow = object : WatchEvent<Any> {
-            override fun kind(): WatchEvent.Kind<Any> = OVERFLOW
-            override fun count(): Int = 1
-            override fun context(): Any? = null
-        }
         val key = object : WatchKey {
             override fun isValid(): Boolean = true
-            override fun pollEvents(): List<WatchEvent<*>> = listOf(overflow)
+            override fun pollEvents(): List<WatchEvent<*>> = listOf(overflowEvent)
             // an invalid key stops the monitor after this event
             override fun reset(): Boolean = false
             override fun cancel() {}

@@ -3,7 +3,6 @@ package space.kscience.controls.tagtable
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -23,7 +22,6 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import space.kscience.tables.toColumnTable
-import kotlin.reflect.typeOf
 import kotlin.test.*
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -62,9 +60,18 @@ class TagTableValueStateTest {
         override fun readAllValues(): Map<String, Meta> = mapOf("sensor" to readTagWithTime("sensor").value)
     }
 
+    private fun messageTable(context: Context, initial: ValueWithTime<Meta>) =
+        MessageTable(PlcTagTable(context, configuration), initial)
+
+    private fun registerSourceDevice(context: Context) {
+        val source = DeviceConstructor(context)
+        source.registerProperty("reading", MetaConverter.meta, ValueState(Meta(25)))
+        context.request(DeviceManager).registerDevice("source", source)
+    }
+
     @Test
     fun testReadAllValuesIncludesTagQuality() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-table-values-with-quality") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-table-values-with-quality")
         try {
             val value = Meta(25)
             val quality = Meta { set(TagState.quality, TagState.GOOD_QUALITY) }
@@ -83,46 +90,29 @@ class TagTableValueStateTest {
                 table.readAllValuesWithTagState(),
             )
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testTimeSeriesQualityHeaders() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-table-quality-headers") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-table-quality-headers")
         try {
             val table = PlcTagTable(context, configuration)
-            val qualityName = "sensor" + TagState.TAG_QUALITY_SUFFIX
-            for (withQuality in listOf(false, true)) {
-                val rows = table.readTimeSeries(1.seconds, withQuality).collectTable(1)
-                val expected = listOf(TagTable.timeColumnHeader.name, "sensor") +
-                        if (withQuality) listOf(qualityName) else emptyList()
-                assertEquals(expected, rows.headers.map { it.name })
-                val columns = rows.toColumnTable()
-                assertEquals(expected, columns.headers.map { it.name })
-                if (withQuality) {
-                    assertEquals(typeOf<Meta>(), rows.headers.last().type)
-                    assertEquals(Meta.EMPTY, columns.getOrNull(0, qualityName))
-                }
-            }
+            assertTimeSeriesHeaders(table, Meta.EMPTY)
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testTimeSeriesIncludeOldValues() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-table-include-old-values") {
-            coroutineContext(backgroundScope.coroutineContext)
+        val context = testContext("tag-table-include-old-values") {
             plugin(DeviceManager)
             plugin(ClockManager)
         }
         try {
-            val source = DeviceConstructor(context)
-            source.registerProperty("reading", MetaConverter.meta, ValueState(Meta(25)))
-            context.request(DeviceManager).registerDevice("source", source)
+            registerSourceDevice(context)
 
             val table = PlcTagTable(context, configuration)
 
@@ -148,17 +138,16 @@ class TagTableValueStateTest {
             val rowsWithFresh = table.readTimeSeries(1.seconds, includeOldValues = false).collectTable(1)
             assertEquals(Meta(25), rowsWithFresh.toColumnTable().getOrNull(0, "sensor"))
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testCreatingStatesDoesNotSubscribe() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-subscriptions") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-state-subscriptions")
         try {
             val initial = ValueWithTime(Meta(25), Instant.DISTANT_PAST)
-            val table = MessageTable(PlcTagTable(context, configuration), initial)
+            val table = messageTable(context, initial)
             val first = TagTableValueState(table, "sensor")
             val second = TagTableValueState(table, "sensor")
 
@@ -167,19 +156,15 @@ class TagTableValueStateTest {
             runCurrent()
             assertEquals(0, table.messageFlow.subscriptionCount.value)
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testCurrentValueReadsTableWithoutSubscription() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-current") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-state-current")
         try {
-            val table = MessageTable(
-                PlcTagTable(context, configuration),
-                ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST),
-            )
+            val table = messageTable(context, ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST))
             val state = TagTableValueState(table, "sensor")
             assertEquals(table.cached, state.valueWithTime)
 
@@ -190,17 +175,16 @@ class TagTableValueStateTest {
             runCurrent()
             assertEquals(0, table.messageFlow.subscriptionCount.value)
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testMessagesSupplyValueAndTimeTogether() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-messages") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-state-messages")
         try {
             val initial = ValueWithTime(Meta(25), Instant.DISTANT_PAST)
-            val table = MessageTable(PlcTagTable(context, configuration), initial)
+            val table = messageTable(context, initial)
             val state = TagTableValueState(table, "sensor")
             val samples = async(start = CoroutineStart.UNDISPATCHED) {
                 state.subscribeWithTime().take(2).toList()
@@ -218,17 +202,16 @@ class TagTableValueStateTest {
             runCurrent()
             assertEquals(0, table.messageFlow.subscriptionCount.value)
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testUpdateDuringInitialReadIsNotLost() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-first-update") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-state-first-update")
         try {
             val initial = ValueWithTime(Meta(25), Instant.DISTANT_PAST)
-            val table = MessageTable(PlcTagTable(context, configuration), initial)
+            val table = messageTable(context, initial)
             val state = TagTableValueState(table, "sensor")
             val last = ValueWithTime(Meta(30), Instant.fromEpochSeconds(1_000))
             table.onRead = {
@@ -239,19 +222,15 @@ class TagTableValueStateTest {
             assertEquals(listOf(initial, last), state.subscribeWithTime().take(2).toList())
             assertEquals(last, state.valueWithTime)
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testStoredSampleIsNotRepeatedByItsMessage() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-stored-sample") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-state-stored-sample")
         try {
-            val table = MessageTable(
-                PlcTagTable(context, configuration),
-                ValueWithTime(Meta(25), Instant.DISTANT_PAST),
-            )
+            val table = messageTable(context, ValueWithTime(Meta(25), Instant.DISTANT_PAST))
             val state = TagTableValueState(table, "sensor")
             val stored = ValueWithTime(Meta(30), Instant.fromEpochSeconds(1_000))
             val next = ValueWithTime(Meta(40), stored.time + 1.seconds)
@@ -269,19 +248,15 @@ class TagTableValueStateTest {
 
             assertEquals(listOf(stored, next), samples.await())
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testBufferedMessagesKeepIncreasingTime() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-buffered-order") { coroutineContext(backgroundScope.coroutineContext) }
+        val context = testContext("tag-state-buffered-order")
         try {
-            val table = MessageTable(
-                PlcTagTable(context, configuration),
-                ValueWithTime(Meta(25), Instant.DISTANT_PAST),
-            )
+            val table = messageTable(context, ValueWithTime(Meta(25), Instant.DISTANT_PAST))
             val state = TagTableValueState(table, "sensor")
             val time = Instant.fromEpochSeconds(1_000)
             val stale = ValueWithTime(Meta(30), time)
@@ -302,21 +277,18 @@ class TagTableValueStateTest {
 
             assertEquals(listOf(stored, next), samples.await())
         } finally {
-            context.cancel()
             context.close()
         }
     }
 
     @Test
     fun testPlcTableRetainsSampleTimeAfterStop() = runTest(timeout = 5.seconds) {
-        val context = Context("tag-state-table") {
+        val context = testContext("tag-state-table") {
             plugin(DeviceManager)
             plugin(ClockManager)
         }
 
-        val source = DeviceConstructor(context)
-        source.registerProperty("reading", MetaConverter.meta, ValueState(Meta(25)))
-        context.request(DeviceManager).registerDevice("source", source)
+        registerSourceDevice(context)
         val table = PlcTagTable(context, configuration)
         val state = table.subscribe("sensor")
         assertSame(state, table.subscribe("sensor"))
@@ -327,15 +299,9 @@ class TagTableValueStateTest {
         val message = async {
             table.messageFlow.filterIsInstance<PropertyChangedMessage>().first { it.property == "sensor" }
         }
-        val row = async {
-            table.messageFlow.filterIsInstance<PropertyChangedMessage>().first()
-        }
-
         val sample = try {
             table.start()
-            message.await().also {
-                assertEquals(Meta(25), row.await().value)
-            }
+            message.await()
         } finally {
             table.stop()
         }
