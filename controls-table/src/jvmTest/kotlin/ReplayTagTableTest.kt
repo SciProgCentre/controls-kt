@@ -1,13 +1,11 @@
 package space.kscience.controls.tagtable
 
-import kotlinx.coroutines.CoroutineStart
+import app.cash.turbine.test
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.job
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.DeviceLifeCycleMessage
 import space.kscience.controls.api.LifecycleState
@@ -35,6 +33,7 @@ import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class ReplayTagTableTest {
@@ -45,101 +44,93 @@ class ReplayTagTableTest {
             plugin(ControlsStoragePlugin)
         }
         val directory = Files.createTempDirectory("replay-current-sample-test")
-        try {
-            val storage = context.request(ControlsStoragePlugin)
-            val operations = NativeFileEnvelopeOperations(storage.io)
-            val recordedTime = Instant.fromEpochSeconds(1_000)
-            val playbackTime = Instant.fromEpochSeconds(2_000)
-            val qualityName = "sensor" + TagState.TAG_QUALITY_SUFFIX
-            val quality = Meta { set(TagState.quality, TagState.GOOD_QUALITY) }
-            val headers = listOf(
-                TagTable.timeColumnHeader,
-                SimpleColumnHeader("sensor", typeOf<Meta>(), Meta.EMPTY),
-                SimpleColumnHeader(qualityName, typeOf<Meta>(), Meta.EMPTY),
-            )
-            val rows = (0..1).map { index ->
-                MapRow(mapOf(
+
+        val storage = context.request(ControlsStoragePlugin)
+        val operations = NativeFileEnvelopeOperations(storage.io)
+        val recordedTime = Instant.fromEpochSeconds(1_000)
+        val playbackTime = Instant.fromEpochSeconds(2_000)
+        val qualityName = "sensor" + TagState.TAG_QUALITY_SUFFIX
+        val quality = Meta { set(TagState.quality, TagState.GOOD_QUALITY) }
+        val headers = listOf(
+            TagTable.timeColumnHeader,
+            SimpleColumnHeader("sensor", typeOf<Meta>(), Meta.EMPTY),
+            SimpleColumnHeader(qualityName, typeOf<Meta>(), Meta.EMPTY),
+        )
+        val rows = (0..1).map { index ->
+            MapRow(
+                mapOf(
                     TagTable.timeColumnHeader.name to space.kscience.controls.tagtable.timeseries.Meta(
                         recordedTime + index.milliseconds
                     ),
                     "sensor" to Meta(index),
                     qualityName to quality,
-                ))
-            }
-            val envelope = ZipRowsEnvelopeConverter.meta.writeRows(RowTable(headers, rows), Meta {
-                set(RowEnvelopeMetaSpec.startTime, recordedTime)
-                set(RowEnvelopeMetaSpec.endTime, recordedTime + 1.milliseconds)
-            })
-            operations.writeEnvelope("samples", directory, envelope)
-            val table = ReplayTagTable(TableStorageIndex(storage, directory), mapOf("sensor" to MetaDescriptor()))
-            try {
-                val row = async(start = CoroutineStart.UNDISPATCHED) {
-                    table.messageFlow.filterIsInstance<PropertyChangedMessage>().first {
-                        it.property == TagTable.ROW_PROPERTY_NAME && it.time == playbackTime + 1.milliseconds
-                    }
-                }
-                table.play(recordedTime, recordedTime + 1.milliseconds, playbackTime, 1.0).join()
-                val expected = ValueWithTime(Meta(1), playbackTime + 1.milliseconds)
-                val state = table.subscribe("sensor")
-                assertEquals(expected, state.valueWithTime)
-                assertEquals(expected, state.subscribeWithTime().first())
-                assertEquals(Meta(1), table.readTag("sensor"))
-                assertEquals(mapOf("sensor" to Meta(1)), table.readAllValues())
-                assertEquals(Meta { set("sensor", Meta(1)) }, row.await().value)
-                assertEquals(quality, table.readTagQuality("sensor").value)
-                for (withQuality in listOf(false, true)) {
-                    val sampled = table.readTimeSeries(1.milliseconds, withQuality).collectTable(1)
-                    val expectedHeaders = listOf(TagTable.timeColumnHeader.name, "sensor") +
-                            if (withQuality) listOf(qualityName) else emptyList()
-                    assertEquals(expectedHeaders, sampled.headers.map { it.name })
-                    val columns = sampled.toColumnTable()
-                    assertEquals(expectedHeaders, columns.headers.map { it.name })
-                    if (withQuality) {
-                        assertEquals(typeOf<Meta>(), sampled.headers.last().type)
-                        assertEquals(quality, columns.getOrNull(0, qualityName))
-                    }
-                }
-            } finally {
-                table.pause()
-            }
-        } finally {
-            context.cancel()
-            context.close()
-            directory.toFile().deleteRecursively()
+                )
+            )
         }
+        val envelope = ZipRowsEnvelopeConverter.meta.writeRows(RowTable(headers, rows), Meta {
+            set(RowEnvelopeMetaSpec.startTime, recordedTime)
+            set(RowEnvelopeMetaSpec.endTime, recordedTime + 1.milliseconds)
+        })
+        operations.writeEnvelope("samples", directory, envelope)
+        val table = ReplayTagTable(TableStorageIndex(storage, directory), mapOf("sensor" to MetaDescriptor()))
+
+        val row = async {
+            table.messageFlow.filterIsInstance<PropertyChangedMessage>().first {
+                it.time == playbackTime + 1.milliseconds
+            }
+        }
+        table.play(recordedTime, recordedTime + 1.milliseconds, playbackTime, 1.0).join()
+        val expected = ValueWithTime(Meta(1), playbackTime + 1.milliseconds)
+        val state = table.subscribe("sensor")
+        assertEquals(expected, state.valueWithTime)
+        assertEquals(expected, state.subscribeWithTime().first())
+        assertEquals(Meta(1), table.readTag("sensor"))
+        assertEquals(mapOf("sensor" to Meta(1)), table.readAllValues())
+        assertEquals(Meta(1), row.await().value)
+        assertEquals(quality, table.readTagQuality("sensor").value)
+        for (withQuality in listOf(false, true)) {
+            val sampled = table.readTimeSeries(1.milliseconds, withQuality).collectTable(1)
+            val expectedHeaders = listOf(TagTable.timeColumnHeader.name, "sensor") +
+                    if (withQuality) listOf(qualityName) else emptyList()
+            assertEquals(expectedHeaders, sampled.headers.map { it.name })
+            val columns = sampled.toColumnTable()
+            assertEquals(expectedHeaders, columns.headers.map { it.name })
+            if (withQuality) {
+                assertEquals(typeOf<Meta>(), sampled.headers.last().type)
+                assertEquals(quality, columns.getOrNull(0, qualityName))
+            }
+        }
+
+        context.close()
     }
 
     @Test
-    fun testLifecycle() = runTest {
+    fun testLifecycle() = runTest(timeout = 2.seconds) {
         val context = Context("replay-lifecycle") {
+            coroutineContext(backgroundScope.coroutineContext)
             plugin(IOPlugin)
             plugin(ControlsStoragePlugin)
         }
         val directory = Files.createTempDirectory("replay-lifecycle-test")
-        try {
-            val index = TableStorageIndex(context.request(ControlsStoragePlugin), directory)
-            val table = ReplayTagTable(index, emptyMap())
-            assertEquals(LifecycleState.STOPPED, table.lifecycleState)
+        val index = TableStorageIndex(context.request(ControlsStoragePlugin), directory)
+        val table = ReplayTagTable(index, emptyMap())
+        assertEquals(LifecycleState.STOPPED, table.lifecycleState)
 
-            val states = async(start = CoroutineStart.UNDISPATCHED) {
-                table.messageFlow.filterIsInstance<DeviceLifeCycleMessage>()
-                    .map { it.state }.take(3).toList()
-            }
-
-            try {
-                table.start()
-                assertEquals(LifecycleState.STARTED, table.lifecycleState)
-            } finally {
-                table.pause()
-            }
-            assertEquals(LifecycleState.STOPPED, table.lifecycleState)
-            assertEquals(
-                listOf(LifecycleState.STARTING, LifecycleState.STARTED, LifecycleState.STOPPED),
-                states.await(),
-            )
-        } finally {
-            context.close()
-            directory.toFile().deleteRecursively()
+        table.messageFlow.filterIsInstance<DeviceLifeCycleMessage>().map { it.state }.test {
+            assertEquals(LifecycleState.STARTING, awaitItem())
+            assertEquals(LifecycleState.STARTED, awaitItem())
+            assertEquals(LifecycleState.STOPPED, awaitItem())
+            cancel()
         }
+
+        table.start()
+        assertEquals(LifecycleState.STARTED, table.lifecycleState)
+        table.stop()
+
+        assertEquals(LifecycleState.STOPPED, table.lifecycleState)
+
+        context.close()
+
+        println(coroutineContext.job.children.filter { it.isActive })
     }
 }

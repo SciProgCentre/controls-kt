@@ -33,6 +33,7 @@ kscience {
 
     commonTest {
         implementation(spclibs.logback.classic)
+        implementation(libs.turbine)
     }
 }
 

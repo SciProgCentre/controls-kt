@@ -1,8 +1,6 @@
 package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -66,55 +64,50 @@ class TableStorageIndexIntervalTest {
             return Files.move(staging.resolve(fileName), watched.resolve(fileName), ATOMIC_MOVE)
         }
 
-        try {
-            index.start()
-            withContext(Dispatchers.IO) {
-                // Signal that the watcher is registered without relying on timing after start().
-                withTimeout(10.seconds) {
-                    var attempt = 0
-                    while (true) {
-                        val probeTime = targetTime - (++attempt).seconds
-                        publish("probe-$attempt", probeTime)
-                        delay(50.milliseconds)
-                        if (index.selectEnvelopes(probeTime..probeTime).isNotEmpty()) break
-                    }
+        index.start()
+        withContext(Dispatchers.IO) {
+            // Signal that the watcher is registered without relying on timing after start().
+            withTimeout(10.seconds) {
+                var attempt = 0
+                while (true) {
+                    val probeTime = targetTime - (++attempt).seconds
+                    publish("probe-$attempt", probeTime)
+                    delay(50.milliseconds)
+                    if (index.selectEnvelopes(probeTime..probeTime).isNotEmpty()) break
                 }
+            }
 
-                val range = targetTime..targetTime
-                val names = listOf("first", "second", "third", "fourth")
-                val paths = mutableMapOf<String, Path>()
-                names.forEachIndexed { position, name ->
-                    paths[name] = publish(name, targetTime)
-                    withTimeout(5.seconds) {
-                        while (index.selectEnvelopes(range).size != position + 1) {
-                            delay(10.milliseconds)
-                        }
-                    }
-                }
-                assertTrue(paths.values.all(Files::exists))
-
-                Files.delete(paths.getValue("second"))
+            val range = targetTime..targetTime
+            val names = listOf("first", "second", "third", "fourth")
+            val paths = mutableMapOf<String, Path>()
+            names.forEachIndexed { position, name ->
+                paths[name] = publish(name, targetTime)
                 withTimeout(5.seconds) {
-                    while (true) {
-                        reads.set(0)
-                        val remaining = index.selectEnvelopes(range)
-                        if (reads.get() == 3) {
-                            assertEquals(3, remaining.size, "Deletion removed another equal-bounds interval")
-                            assertEquals(
-                                setOf("first", "third", "fourth"),
-                                remaining.map { it.meta["id"].string }.toSet(),
-                            )
-                            break
-                        }
+                    while (index.selectEnvelopes(range).size != position + 1) {
                         delay(10.milliseconds)
                     }
                 }
             }
-        } finally {
-            index.stop()
-            context.coroutineContext[Job]?.cancelAndJoin()
-            context.close()
-            directory.toFile().deleteRecursively()
+            assertTrue(paths.values.all(Files::exists))
+
+            Files.delete(paths.getValue("second"))
+            withTimeout(5.seconds) {
+                while (true) {
+                    reads.set(0)
+                    val remaining = index.selectEnvelopes(range)
+                    if (reads.get() == 3) {
+                        assertEquals(3, remaining.size, "Deletion removed another equal-bounds interval")
+                        assertEquals(
+                            setOf("first", "third", "fourth"),
+                            remaining.map { it.meta["id"].string }.toSet(),
+                        )
+                        break
+                    }
+                    delay(10.milliseconds)
+                }
+            }
         }
+        index.stop()
+        context.close()
     }
 }

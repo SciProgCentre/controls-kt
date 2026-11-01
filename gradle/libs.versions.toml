@@ -113,6 +113,8 @@ testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "t
 
 cache4k = "io.github.reactivecircus.cache4k:cache4k:0.14.0"
 
+turbine = "app.cash.turbine:turbine:1.2.1"
+
 # Buildscript
 
 [plugins]

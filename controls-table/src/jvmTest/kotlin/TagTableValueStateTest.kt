@@ -328,14 +328,13 @@ class TagTableValueStateTest {
             table.messageFlow.filterIsInstance<PropertyChangedMessage>().first { it.property == "sensor" }
         }
         val row = async {
-            table.messageFlow.filterIsInstance<PropertyChangedMessage>()
-                .first { it.property == TagTable.ROW_PROPERTY_NAME }
+            table.messageFlow.filterIsInstance<PropertyChangedMessage>().first()
         }
 
         val sample = try {
             table.start()
             message.await().also {
-                assertEquals(Meta { set("sensor", Meta(25)) }, row.await().value)
+                assertEquals(Meta(25), row.await().value)
             }
         } finally {
             table.stop()

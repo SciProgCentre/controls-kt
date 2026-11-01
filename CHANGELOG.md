@@ -4,6 +4,7 @@
 
 ### Added
 
+- Implement `TableExporter` for merging tag and device-property histories into a time-aligned table.
 - Add File-based implementation for DeviceMessageStorage `FileDeviceMessageStorage` in `controls-storage`.
 - Add tests for malformed file reading in `FileDeviceMessageStorage`.
 - Add `includeOldValues` flag for `readTimeSeries`, `flowBinaryData`, and `storeData` in `controls-table`.
