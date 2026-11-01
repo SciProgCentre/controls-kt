@@ -1,9 +1,11 @@
 package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.launch
+import space.kscience.controls.api.id
 import space.kscience.controls.constructor.ConstructorPlugin
 import space.kscience.controls.constructor.ValueStateFactory
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.manager.install
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.dataforge.context.AbstractPlugin
 import space.kscience.dataforge.context.Context
@@ -26,15 +28,14 @@ public class TagTablePlugin : AbstractPlugin() {
 
     override val tag: PluginTag get() = Companion.tag
 
-    private val _tagTables = mutableMapOf<String?, TagTable>()
-
-    public val tagTables: Map<String?, TagTable> get() = _tagTables
+    public val tagTables: Map<String?, TagTable>
+        field = mutableMapOf<String?, TagTable>()
 
     /**
      * Register [tagTable] without starting it. Register tables before the first factory resolution in [ConstructorPlugin].
      */
     public fun register(tagTable: TagTable, name: String? = null): TagTable {
-        _tagTables[name] = tagTable
+        tagTables[name] = tagTable
         return tagTable
     }
 
@@ -43,9 +44,7 @@ public class TagTablePlugin : AbstractPlugin() {
      */
     public fun install(tagTable: TagTable, name: String? = null): TagTable {
         register(tagTable, name)
-        context.launch {
-            tagTable.start()
-        }
+        deviceManager.install(name ?: tagTable.id, tagTable)
         return tagTable
     }
 

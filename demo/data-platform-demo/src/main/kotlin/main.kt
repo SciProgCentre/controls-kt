@@ -20,7 +20,6 @@ import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.install
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.expressions.ControlsExpressionPlugin
-import space.kscience.controls.manager.install
 import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.TagTablePlugin
 import space.kscience.controls.utilities.ControlsUtilitiesPlugin
@@ -90,13 +89,10 @@ fun main() {
     }
 
 
-    val platform = tagTablePlugin.install(configuration)
-
-    //setup platform device (optional)
-    deviceManager.install("platform", platform)
+    val tagTable = tagTablePlugin.install(configuration, "table")
 
     // monitor changes
-    platform.monitorDeviceChanges()
+    tagTable.monitorDeviceChanges()
 
 
     //read device config
