@@ -1,4 +1,4 @@
-package space.kscience.controls.tagtable.export
+package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -10,6 +10,9 @@ import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.DeviceMessageStorage
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.tagtable.*
+import space.kscience.controls.tagtable.export.DevicePropertyExportColumn
+import space.kscience.controls.tagtable.export.TableExporter
+import space.kscience.controls.tagtable.export.TagExportColumn
 import space.kscience.controls.tagtable.storage.TableStorageIndex
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
@@ -28,7 +31,6 @@ class TableExporterTest {
     fun exportMergesValuesAndAppliesMinimumRowDistance() = runTest {
         val context = storageContext("table-export-test")
         val directory = Files.createTempDirectory("table-export-test")
-        val tagTableName = Name.of("plant")
         val deviceName = Name.of("pump")
         val baseTime = Instant.fromEpochSeconds(1_000)
         val storage = context.request(ControlsStoragePlugin)
@@ -54,20 +56,21 @@ class TableExporterTest {
                 PropertyChangedMessage(baseTime + 4.seconds, "pressure", Meta(30), deviceName),
             )
         )
-        val exporter = TableExporter(mapOf(tagTableName to index), messageStorage)
+        val exporter = TableExporter(index, messageStorage)
 
         val exported = exporter.export(
             timeRange = baseTime..(baseTime + 5.seconds),
             minimalRowDistance = 2.seconds,
             columns = listOf(
-                TagExportColumn(tagTableName, "sensor", true),
+                TagExportColumn("sensor"),
+                TagExportColumn("sensor.@quality"),
                 DevicePropertyExportColumn(deviceName, "pressure"),
             ),
         )
 
         val rows = exported.rowSequence().toList()
         assertEquals(
-            listOf("time", "plant.sensor", "plant.sensor.@quality", "pump.pressure"),
+            listOf("time", "sensor", "sensor.@quality", "pump/pressure"),
             exported.headers.map { it.name },
         )
         assertEquals(
@@ -78,12 +81,12 @@ class TableExporterTest {
             ),
             rows.map { it.getOrNull("time")?.string ?: error("Missing exported time") },
         )
-        assertEquals(listOf(Meta(1), Meta(2), Meta(3)), rows.map { it.getOrNull("plant.sensor") })
+        assertEquals(listOf(Meta(1), Meta(2), Meta(3)), rows.map { it.getOrNull("sensor") })
         assertEquals(
             listOf(TagState.GOOD_QUALITY, TagState.BAD_QUALITY, TagState.GOOD_QUALITY),
-            rows.map { it.getOrNull("plant.sensor.@quality")?.get(TagState.quality) },
+            rows.map { it.getOrNull("sensor.@quality")?.get(TagState.quality) },
         )
-        assertEquals(listOf(Meta(10), Meta(20), Meta(30)), rows.map { it.getOrNull("pump.pressure") })
+        assertEquals(listOf(Meta(10), Meta(20), Meta(30)), rows.map { it.getOrNull("pump/pressure") })
 
         context.close()
     }
