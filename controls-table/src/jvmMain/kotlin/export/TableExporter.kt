@@ -16,7 +16,9 @@ import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Instant
 
-
+/**
+ * A descriptor of a column in an export table.
+ */
 public sealed interface ExportColumn {
     /**
      * The name of column in export table
@@ -42,7 +44,14 @@ public data class TagExportColumn(
     override val exportColumnName: String = "$tag${if (extractionPath.isEmpty()) "" else "/$extractionPath"}",
 ) : ExportColumn
 
-
+/**
+ * Handles the export of tabular data from multiple sources within a given time range. The exported data is
+ * compiled into a table format, combining values from tag tables and device message properties.
+ *
+ * @constructor Creates a new instance of TableExporter with the given tag table index and message storage.
+ * @param tagTableIndex The index of tag tables used for looking up data rows by time.
+ * @param messageStorage The storage for device messages, used for retrieving device property changes.
+ */
 public class TableExporter(
     private val tagTableIndex: TableStorageIndex,
     private val messageStorage: DeviceMessageStorage

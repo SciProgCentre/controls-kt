@@ -1,16 +1,18 @@
 package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.WithLifeCycle
 import space.kscience.controls.instant
-import space.kscience.controls.storage.ControlsStoragePlugin
-import space.kscience.controls.storage.FileEnvelopeOperations
-import space.kscience.controls.storage.NativeFileEnvelopeOperations
-import space.kscience.controls.storage.ZipRowsEnvelopeConverter
+import space.kscience.controls.storage.*
+import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTable.Companion.timeColumnHeader
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.logger
@@ -25,9 +27,7 @@ import space.kscience.tables.TableHeader
 import space.kscience.tables.get
 import java.nio.file.ClosedWatchServiceException
 import java.nio.file.Path
-import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
-import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
-import java.nio.file.StandardWatchEventKinds.OVERFLOW
+import java.nio.file.StandardWatchEventKinds.*
 import java.nio.file.WatchEvent
 import java.nio.file.WatchService
 import kotlin.time.Duration
@@ -163,7 +163,7 @@ public class TableStorageIndex(
      * Select row envelopes in [range]
      */
     public suspend fun selectEnvelopes(range: ClosedRange<Instant>): List<Envelope> {
-        if(lifecycleState == LifecycleState.STOPPED) start()
+        if (lifecycleState == LifecycleState.STOPPED) start()
 
         return search(range).sortedBy { it.start }.mapNotNull { operations.readEnvelope(it.path) }
     }
@@ -176,7 +176,8 @@ public class TableStorageIndex(
             it.meta[RowEnvelopeMetaSpec.startTime]
         }.map {
             val envelopeType = it.dataType ?: ZipRowsEnvelopeConverter.ENVELOPE_TYPE
-            val converter = storage.rowEnvelopeConverters[envelopeType] ?:error("Can't find rows converter for envelope type $envelopeType")
+            val converter = storage.rowEnvelopeConverters[envelopeType]
+                ?: error("Can't find rows converter for envelope type $envelopeType")
             converter.readRows(it)
         }
 
@@ -465,4 +466,25 @@ public class TableStorageIndex(
         lifecycleState = LifecycleState.STOPPED
     }
 
+}
+
+/**
+ * Get value history for specified tag from this file index
+ */
+public fun TableStorageIndex.tagHistory(tag: String): ValueHistory<Meta> = object : ValueHistory<Meta> {
+    override fun flowHistory(
+        from: Instant,
+        until: Instant
+    ): Flow<ValueWithTime<Meta>> = flow {
+        val rows = selectRows(from..until)
+        if (rows.headers.none { it.name == tag }) error("Tag $tag not found in file index")
+
+        rows.rowSequence().asFlow().collect { row ->
+            val value = row.getOrNull(tag)
+            if (value != null) {
+                val time = row[TagTable.timeColumnHeader].instant ?: error("Row does not have a time column")
+                emit(ValueWithTime(value, time))
+            }
+        }
+    }
 }

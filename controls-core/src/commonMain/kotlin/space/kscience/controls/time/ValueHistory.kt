@@ -31,6 +31,13 @@ public interface ValueHistory<T> {
 }
 
 /**
+ * Flow property values filtered by a time range.
+ */
+public fun <T> ValueHistory<T>.flowHistory(
+    range: ClosedRange<Instant>
+): Flow<ValueWithTime<T>> = flowHistory(range.start, range.endInclusive)
+
+/**
  * An in-memory property values history collector
  */
 public class CollectedValueHistory<T>(

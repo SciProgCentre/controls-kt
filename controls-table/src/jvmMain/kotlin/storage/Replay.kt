@@ -5,7 +5,7 @@ import kotlin.time.Instant
 
 
 /**
- * An interface for replaying data from storage
+ * An interface for controlling replay data from storage
  */
 public interface Replay  {
 
