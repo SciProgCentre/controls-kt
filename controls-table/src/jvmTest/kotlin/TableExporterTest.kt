@@ -9,10 +9,10 @@ import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.DeviceMessageStorage
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
-import space.kscience.controls.tagtable.*
 import space.kscience.controls.tagtable.export.DevicePropertyExportColumn
 import space.kscience.controls.tagtable.export.TableExporter
 import space.kscience.controls.tagtable.export.TagExportColumn
+import space.kscience.controls.tagtable.export.sourceStateExportColumns
 import space.kscience.controls.tagtable.storage.TableStorageIndex
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
@@ -27,6 +27,28 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class TableExporterTest {
+    /* LLM generated code: Verifies source-state columns include OPC time offset only for OPC sources. */
+    @Test
+    fun sourceStateColumnsIncludeOpcTimeOffsetOnlyForOpcSources() {
+        val configuration = TagTableConfiguration(
+            sources = mapOf(
+                "opc" to OpcTagSourceConfig("localhost"),
+                "modbus" to ModbusTcpTagSourceConfig("localhost"),
+            ),
+            timers = emptyMap(),
+            tags = emptyMap(),
+        )
+
+        assertEquals(
+            listOf(
+                "source.opc/state/lifeCycle",
+                "source.opc/state/sourceTimeOffset",
+                "source.modbus/state/lifeCycle",
+            ),
+            configuration.sourceStateExportColumns().map { it.exportColumnName },
+        )
+    }
+
     @Test
     fun exportMergesValuesAndAppliesMinimumRowDistance() = runTest {
         val context = storageContext("table-export-test")
@@ -62,7 +84,7 @@ class TableExporterTest {
             timeRange = baseTime..(baseTime + 5.seconds),
             minimalRowDistance = 2.seconds,
             columns = listOf(
-                TagExportColumn("sensor"),
+                TagExportColumn("sensor", exportColumnName = "sensor-value"),
                 TagExportColumn("sensor.@quality"),
                 DevicePropertyExportColumn(deviceName, "pressure"),
             ),
@@ -70,7 +92,7 @@ class TableExporterTest {
 
         val rows = exported.rowSequence().toList()
         assertEquals(
-            listOf("time", "sensor", "sensor.@quality", "pump/pressure"),
+            listOf("time", "sensor-value", "sensor.@quality", "pump/pressure"),
             exported.headers.map { it.name },
         )
         assertEquals(
@@ -81,7 +103,7 @@ class TableExporterTest {
             ),
             rows.map { it.getOrNull("time")?.string ?: error("Missing exported time") },
         )
-        assertEquals(listOf(Meta(1), Meta(2), Meta(3)), rows.map { it.getOrNull("sensor") })
+        assertEquals(listOf(Meta(1), Meta(2), Meta(3)), rows.map { it.getOrNull("sensor-value") })
         assertEquals(
             listOf(TagState.GOOD_QUALITY, TagState.BAD_QUALITY, TagState.GOOD_QUALITY),
             rows.map { it.getOrNull("sensor.@quality")?.get(TagState.quality) },

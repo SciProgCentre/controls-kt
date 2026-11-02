@@ -20,16 +20,23 @@ import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.install
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.expressions.ControlsExpressionPlugin
+import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.TagTablePlugin
+import space.kscience.controls.tagtable.export.sourceStateExportColumns
+import space.kscience.controls.tagtable.export.TableExporter
 import space.kscience.controls.utilities.ControlsUtilitiesPlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.plus
 import kotlin.io.path.inputStream
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Clock
 
 internal val json = Json { prettyPrint = true }
 
@@ -57,6 +64,19 @@ private fun Device.monitorDeviceChanges(): Job = launch {
                 }
             }
         }
+    }
+}
+
+private fun ConstructorDeviceConfiguration.tagProperties(deviceName: Name): Map<Pair<Name, String>, String> = buildMap {
+    properties.forEach { (propertyName, stateConfiguration) ->
+        if (stateConfiguration.type == TagTable.TAG_TABLE_FACTORY_TYPE) {
+            stateConfiguration.parameters[TagTable.ValueFactorySpec.tag]?.let { tag ->
+                put(deviceName to propertyName, tag)
+            }
+        }
+    }
+    devices.forEach { (childName, configuration) ->
+        putAll(configuration.tagProperties(deviceName + Name.of(childName)))
     }
 }
 
@@ -89,6 +109,7 @@ fun main() {
     }
 
 
+    val exportStartTime = Clock.System.now()
     val tagTable = tagTablePlugin.install(configuration, "table")
 
     // monitor changes
@@ -96,12 +117,16 @@ fun main() {
 
 
     //read device config
-    val deviceConfig: ConstructorDeviceConfiguration = platformDataDirectory.resolve("device-config.json").inputStream().use {
-        json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
-    }
+    val deviceConfig: ConstructorDeviceConfiguration =
+        platformDataDirectory.resolve("device-config.json").inputStream().use {
+            json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
+        }
 
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)
+
+    val exporter = TableExporter(tagTablePlugin.storage, configuration)
+    val tagProperties = deviceConfig.tagProperties(Name.of("devices"))
 
     //launch visualization app
     application {
@@ -110,7 +135,13 @@ fun main() {
             exitApplication()
         }, title = "Data Platform Demo") {
             MaterialTheme {
-                DeviceVisualisation(devices)
+                DeviceVisualisation(
+                    hub = devices,
+                    exporter = exporter,
+                    tagByProperty = tagProperties,
+                    sourceStateColumns = configuration.sourceStateExportColumns(),
+                    exportStartTime = exportStartTime,
+                )
             }
         }
     }

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add configuration-based `TableExporter` construction and CSV export of selected tags, quality, and source state in the data platform demo.
 - Implement `TableExporter` for merging tag and device-property histories into a time-aligned table.
 - Add File-based implementation for DeviceMessageStorage `FileDeviceMessageStorage` in `controls-storage`.
 - Add tests for malformed file reading in `FileDeviceMessageStorage`.

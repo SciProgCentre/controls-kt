@@ -9,6 +9,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.last
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -65,7 +66,7 @@ class ConstructorPluginTest {
             )
             assertEquals(1.0, tree.getCachedProperty("first")?.double)
             assertEquals(2.0, tree.getCachedProperty("second")?.double)
-            assertContains(constructor.valueStateFactories.keys, "constant")
+            assertContains(constructor.valueStateFactories.keys.map { it.last().toString() }, "constant")
         } finally {
             context.close()
         }

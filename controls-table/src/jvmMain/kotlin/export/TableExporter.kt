@@ -1,10 +1,18 @@
 package space.kscience.controls.tagtable.export
 
+import space.kscience.controls.api.LifecycleState
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.instant
+import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.DeviceMessageStorage
+import space.kscience.controls.storage.FileDeviceMessageStorage
+import space.kscience.controls.storage.NativeFileEnvelopeOperations
+import space.kscience.controls.storage.SingleFileEnvelopeOperations
 import space.kscience.controls.storage.read
 import space.kscience.controls.tagtable.TagTable
+import space.kscience.controls.tagtable.OpcTagSourceConfig
+import space.kscience.controls.tagtable.PlcTagTable
+import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.storage.TableStorageIndex
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.toMeta
@@ -12,6 +20,8 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.isEmpty
 import space.kscience.tables.*
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Instant
@@ -45,6 +55,43 @@ public data class TagExportColumn(
 ) : ExportColumn
 
 /**
+ * Build a table exporter using the storage paths in a tag-table configuration.
+ */
+public fun TableExporter(
+    storage: ControlsStoragePlugin,
+    configuration: TagTableConfiguration,
+): TableExporter {
+    val storageConfiguration = configuration.storage ?: error("Tag table storage is not configured")
+    val messageStorageConfiguration = configuration.messageStorage ?: error("Message storage is not configured")
+    val operations = if (storageConfiguration.separateMeta) {
+        NativeFileEnvelopeOperations(storage.io)
+    } else {
+        SingleFileEnvelopeOperations(storage.io)
+    }
+    val tableDirectory = Path(storageConfiguration.path).createDirectories()
+    val messageDirectory = Path(messageStorageConfiguration.path).createDirectories()
+    val index = TableStorageIndex(storage, tableDirectory, operations = operations)
+    val messages = FileDeviceMessageStorage(
+        directory = messageDirectory,
+        maxMessagesPerFile = messageStorageConfiguration.maxMessagesPerFile,
+    )
+    return TableExporter(index, messages)
+}
+
+/**
+ * Describe the persisted state columns for every configured source.
+ */
+public fun TagTableConfiguration.sourceStateExportColumns(): List<ExportColumn> = sources.flatMap { (source, config) ->
+    val device = Name.of(PlcTagTable.SOURCE_DEVICE_KEY, source)
+    buildList {
+        add(DevicePropertyExportColumn(device, "state", Name.of("lifeCycle")))
+        if (config is OpcTagSourceConfig) {
+            add(DevicePropertyExportColumn(device, "state", Name.of("sourceTimeOffset")))
+        }
+    }
+}
+
+/**
  * Handles the export of tabular data from multiple sources within a given time range. The exported data is
  * compiled into a table format, combining values from tag tables and device message properties.
  *
@@ -63,6 +110,10 @@ public class TableExporter(
         columns: List<ExportColumn>
     ): Table<Meta> {
 
+        if (tagTableIndex.lifecycleState != LifecycleState.STARTED) {
+            tagTableIndex.start()
+        }
+
         val events = mutableListOf<Pair<String, ValueWithTime<Meta>>>()
         val outputColumns = columns.map { it.exportColumnName }
 
@@ -70,18 +121,18 @@ public class TableExporter(
 
         tagTableIndex.selectRows(timeRange).rowSequence().forEach { row ->
             val time = row[TagTable.timeColumnHeader].instant ?: return@forEach
-            tagColumns.forEach {column->
+            tagColumns.forEach { column ->
                 row.getOrNull(column.tag)?.let { value ->
-                    events += column.tag to ValueWithTime(value[column.extractionPath] ?: Meta.EMPTY, time)
+                    events += column.exportColumnName to ValueWithTime(value[column.extractionPath] ?: Meta.EMPTY, time)
                 }
             }
         }
 
         val deviceColumns = columns.filterIsInstance<DevicePropertyExportColumn>()
 
-        messageStorage.read<PropertyChangedMessage>(timeRange).collect {message->
-            deviceColumns.forEach {column->
-                if(message.sourceDevice == column.device && message.property == column.property){
+        messageStorage.read<PropertyChangedMessage>(timeRange).collect { message ->
+            deviceColumns.forEach { column ->
+                if (message.sourceDevice == column.device && message.property == column.property) {
                     events += column.exportColumnName to ValueWithTime(
                         value = message.value[column.extractionPath] ?: Meta.EMPTY,
                         time = message.time
