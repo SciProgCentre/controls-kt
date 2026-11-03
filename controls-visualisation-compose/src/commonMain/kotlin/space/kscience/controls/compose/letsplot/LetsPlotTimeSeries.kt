@@ -20,7 +20,7 @@ import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.controls.storage.ValueHistory
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ClockManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
@@ -232,7 +232,7 @@ public fun TimeSeriesPlotState.PlotDeviceProperty(
         // if history not null, use it to pre-fill old values
         history?.let { history ->
             val list = history
-                .flowHistory(clockManager.clock.now().minus(maxAge))
+                .flow(clockManager.clock.now().minus(maxAge))
                 .mapNotNull { (value, time) ->
                     extractValue(value)?.let { ValueWithTime(it, time) }
                 }.toList()

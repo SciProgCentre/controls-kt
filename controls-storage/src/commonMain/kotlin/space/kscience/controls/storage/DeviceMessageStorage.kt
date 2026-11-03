@@ -3,8 +3,10 @@ package space.kscience.controls.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
@@ -13,16 +15,7 @@ import kotlin.time.Instant
 /**
  * A storage for Controls-kt [DeviceMessage]
  */
-public interface DeviceMessageStorage {
-    /**
-     * Write a single message to the storage
-     */
-    public suspend fun write(event: DeviceMessage)
-
-    /**
-     * Write several messages in the same transaction to the database
-     */
-    public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
+public interface DeviceMessageStorage : AutoCloseable {
 
     /**
      * Return all messages in a storage as a flow and optionally filters by [range], [sourceDevice] and [targetDevice].
@@ -44,7 +37,41 @@ public interface DeviceMessageStorage {
         targetDevice: Name? = null,
     ): Flow<DeviceMessage>
 
-    public fun close()
+    public companion object {
+        public fun merge(vararg storage: DeviceMessageStorage): DeviceMessageStorage = object : DeviceMessageStorage {
+            override fun read(
+                range: ClosedRange<Instant>?,
+                sourceDevice: Name?,
+                targetDevice: Name?
+            ): Flow<DeviceMessage> = storage.map { it.read(range, sourceDevice, targetDevice) }.merge()
+
+            override fun read(
+                eventType: String,
+                range: ClosedRange<Instant>?,
+                sourceDevice: Name?,
+                targetDevice: Name?
+            ): Flow<DeviceMessage> = storage.map { it.read(eventType, range, sourceDevice, targetDevice) }.merge()
+
+            override fun close() {
+                storage.forEach { it.close() }
+            }
+        }
+    }
+}
+
+/**
+ * An interface that extends [DeviceMessageStorage] and allows writing messages to the storage.
+ */
+public interface WriteableDeviceMessageStorage : DeviceMessageStorage {
+    /**
+     * Write a single message to the storage
+     */
+    public suspend fun write(event: DeviceMessage)
+
+    /**
+     * Write several messages in the same transaction to the database
+     */
+    public suspend fun writeAll(events: Iterable<DeviceMessage>): Unit = events.forEach { write(it) }
 }
 
 /**
@@ -71,7 +98,7 @@ public fun <T> DeviceMessageStorage.propertyHistory(
     propertyName: String,
     converter: MetaConverter<T>,
 ): ValueHistory<T> = object : ValueHistory<T> {
-    override fun flowHistory(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
+    override fun flow(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
         read<PropertyChangedMessage>(from..until)
             .filter { it.property == propertyName }
             .map { ValueWithTime(converter.read(it.value), it.time) }

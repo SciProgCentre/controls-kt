@@ -3,24 +3,26 @@ package space.kscience.controls.tagtable.storage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.WithLifeCycle
 import space.kscience.controls.instant
 import space.kscience.controls.storage.*
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTable.Companion.timeColumnHeader
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.ContextAware
-import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.context.warn
+import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.dataType
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.names.Name
 import space.kscience.tables.Row
 import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
@@ -90,7 +92,6 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  *
  * @property storage The IOPlugin used for file system interactions such as reading or monitoring files.
  * @property dataDirectory The directory where data files are stored and monitored.
- * @property cacheMetadata A flag indicating whether metadata should be cached for storage efficiency.
  * @property operations An instance of FileEnvelopeOperations to handle reading and writing envelope data.
  * @property scope A CoroutineScope used for managing asynchronous operations.
  * @property removeFilesCycleDuration The duration interval for periodically checking and handling removed files.
@@ -122,7 +123,6 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 public class TableStorageIndex(
     public val storage: ControlsStoragePlugin,
     private val dataDirectory: Path,
-    private val cacheMetadata: Boolean = true,
     private val operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
     private val scope: CoroutineScope = storage.context,
     private val removeFilesCycleDuration: Duration = 10.minutes
@@ -472,7 +472,7 @@ public class TableStorageIndex(
  * Get value history for specified tag from this file index
  */
 public fun TableStorageIndex.tagHistory(tag: String): ValueHistory<Meta> = object : ValueHistory<Meta> {
-    override fun flowHistory(
+    override fun flow(
         from: Instant,
         until: Instant
     ): Flow<ValueWithTime<Meta>> = flow {
@@ -486,5 +486,67 @@ public fun TableStorageIndex.tagHistory(tag: String): ValueHistory<Meta> = objec
                 emit(ValueWithTime(value, time))
             }
         }
+    }
+}
+
+/**
+ * Create a [DeviceMessageStorage] that reads [PropertyChangedMessages] from the table
+ */
+public fun TableStorageIndex.asDeviceMessageStorage(
+    tableDevice: Name = Name.EMPTY
+): DeviceMessageStorage = object : DeviceMessageStorage {
+    override fun read(
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> =
+        read(DeviceMessage.serialNameFor<PropertyChangedMessage>(), range, sourceDevice, targetDevice)
+
+    override fun read(
+        eventType: String,
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> = if (eventType == DeviceMessage.serialNameFor<PropertyChangedMessage>()) {
+        //skip messages if device name is different
+        if (sourceDevice != null && sourceDevice != tableDevice) {
+            return emptyFlow()
+        }
+        //target device must be undefined
+        if (targetDevice != null) {
+            return emptyFlow()
+        }
+
+        flow {
+
+            val rows = selectRows(range = range ?: Instant.DISTANT_PAST..Instant.DISTANT_FUTURE)
+
+            val headers = rows.headers - TagTable.timeColumnHeader
+
+            rows.rowSequence().forEach { row ->
+                val time = row[TagTable.timeColumnHeader].instant ?: run {
+                    logger.error { "Row does not have a time column" }
+                    return@forEach
+                }
+                headers.forEach { header ->
+                    row.getOrNull(header.name)?.let { value ->
+                        emit(
+                            PropertyChangedMessage(
+                                time = time,
+                                property = header.name,
+                                value = value,
+                                sourceDevice = tableDevice,
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        emptyFlow<PropertyChangedMessage>()
+    }
+
+    override fun close() {
+        //do nothing
     }
 }

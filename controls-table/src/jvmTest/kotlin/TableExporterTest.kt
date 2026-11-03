@@ -117,9 +117,6 @@ class TableExporterTest {
 private class InMemoryDeviceMessageStorage(
     private val messages: List<DeviceMessage>,
 ) : DeviceMessageStorage {
-    override suspend fun write(event: DeviceMessage) {
-        error("Writing is not supported in this test storage")
-    }
 
     override fun read(
         range: ClosedRange<Instant>?,

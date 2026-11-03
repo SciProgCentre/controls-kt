@@ -20,23 +20,26 @@ import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.constructor.install
 import space.kscience.controls.demo.visual.DeviceVisualisation
 import space.kscience.controls.expressions.ControlsExpressionPlugin
-import space.kscience.controls.tagtable.TagTable
+import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.storage.*
+import space.kscience.controls.tagtable.OpcTagSourceConfig
+import space.kscience.controls.tagtable.PlcTagTable
 import space.kscience.controls.tagtable.TagTableConfiguration
 import space.kscience.controls.tagtable.TagTablePlugin
-import space.kscience.controls.tagtable.export.sourceStateExportColumns
-import space.kscience.controls.tagtable.export.TableExporter
+import space.kscience.controls.tagtable.storage.TableStorageIndex
+import space.kscience.controls.tagtable.storage.asDeviceMessageStorage
 import space.kscience.controls.utilities.ControlsUtilitiesPlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.plus
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
 import kotlin.io.path.inputStream
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 internal val json = Json { prettyPrint = true }
 
@@ -67,23 +70,47 @@ private fun Device.monitorDeviceChanges(): Job = launch {
     }
 }
 
-private fun ConstructorDeviceConfiguration.tagProperties(deviceName: Name): Map<Pair<Name, String>, String> = buildMap {
-    properties.forEach { (propertyName, stateConfiguration) ->
-        if (stateConfiguration.type == TagTable.TAG_TABLE_FACTORY_TYPE) {
-            stateConfiguration.parameters[TagTable.ValueFactorySpec.tag]?.let { tag ->
-                put(deviceName to propertyName, tag)
-            }
-        }
+/**
+ * Build a table exporter using the storage paths in a tag-table configuration.
+ */
+public fun TagTablePlugin.readMessages(
+    configuration: TagTableConfiguration,
+): DeviceMessageStorage {
+    val storageConfiguration = configuration.storage ?: error("Tag table storage is not configured")
+    val messageStorageConfiguration = configuration.messageStorage ?: error("Message storage is not configured")
+    val operations = if (storageConfiguration.separateMeta) {
+        NativeFileEnvelopeOperations(storage.io)
+    } else {
+        SingleFileEnvelopeOperations(storage.io)
     }
-    devices.forEach { (childName, configuration) ->
-        putAll(configuration.tagProperties(deviceName + Name.of(childName)))
-    }
+    val tableDirectory = Path(storageConfiguration.path).createDirectories()
+    val messageDirectory = Path(messageStorageConfiguration.path).createDirectories()
+    val index = TableStorageIndex(storage, tableDirectory, operations = operations)
+    val messages = FileDeviceMessageStorage(
+        directory = messageDirectory,
+        maxMessagesPerFile = messageStorageConfiguration.maxMessagesPerFile,
+    )
+
+    return DeviceMessageStorage.merge(index.asDeviceMessageStorage(), messages)
 }
 
+/**
+ * Describe the persisted state columns for every configured source.
+ */
+private fun TagTableConfiguration.sourceStateExportColumns(): List<ExportColumn> = sources.flatMap { (source, config) ->
+    val device = Name.of(PlcTagTable.SOURCE_DEVICE_KEY, source)
+    buildList {
+        add(ExportColumn(device, "state", Name.of("lifeCycle")))
+        if (config is OpcTagSourceConfig) {
+            add(ExportColumn(device, "state", Name.of("sourceTimeOffset")))
+        }
+    }
+}
 
 // IMPORTANT: run in blocking mode
 fun main() {
     val context = Context {
+        plugin(DeviceManager)
         plugin(IOPlugin)
         plugin(TagTablePlugin)
         plugin(ControlsExpressionPlugin)
@@ -110,23 +137,21 @@ fun main() {
 
 
     val exportStartTime = Clock.System.now()
-    val tagTable = tagTablePlugin.install(configuration, "table")
+    val tagTable = tagTablePlugin.install(configuration)
 
     // monitor changes
     tagTable.monitorDeviceChanges()
 
 
     //read device config
-    val deviceConfig: ConstructorDeviceConfiguration =
-        platformDataDirectory.resolve("device-config.json").inputStream().use {
+    val deviceConfig: ConstructorDeviceConfiguration = platformDataDirectory
+        .resolve("device-config.json")
+        .inputStream().use {
             json.decodeFromStream(ConstructorDeviceConfiguration.serializer(), it)
         }
 
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)
-
-    val exporter = TableExporter(tagTablePlugin.storage, configuration)
-    val tagProperties = deviceConfig.tagProperties(Name.of("devices"))
 
     //launch visualization app
     application {
@@ -137,8 +162,7 @@ fun main() {
             MaterialTheme {
                 DeviceVisualisation(
                     hub = devices,
-                    exporter = exporter,
-                    tagByProperty = tagProperties,
+                    messageStorage = tagTablePlugin.readMessages(configuration),
                     sourceStateColumns = configuration.sourceStateExportColumns(),
                     exportStartTime = exportStartTime,
                 )

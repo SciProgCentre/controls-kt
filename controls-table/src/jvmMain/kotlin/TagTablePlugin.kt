@@ -33,7 +33,7 @@ public class TagTablePlugin : AbstractPlugin() {
     /**
      * Register [tagTable] without starting it. Register tables before the first factory resolution in [ConstructorPlugin].
      */
-    public fun register(tagTable: TagTable, name: String? = null): TagTable {
+    public fun register(tagTable: TagTable, name: String = DEFAULT_TABLE): TagTable {
         tagTables[name] = tagTable
         return tagTable
     }
@@ -41,13 +41,13 @@ public class TagTablePlugin : AbstractPlugin() {
     /**
      * register and start up [tagTable] with optional [name] (by default uses empty name).
      */
-    public fun install(tagTable: TagTable, name: String? = null): TagTable {
+    public fun install(tagTable: TagTable, name: String = DEFAULT_TABLE): TagTable {
         register(tagTable, name)
         deviceManager.install(name ?: tagTable.id, tagTable)
         return tagTable
     }
 
-    public fun install(configuration: TagTableConfiguration, name: String? = null): TagTable =
+    public fun install(configuration: TagTableConfiguration, name: String = DEFAULT_TABLE): TagTable =
         install(PlcTagTable(context, configuration), name)
 
     public object ValueFactorySpec : MetaSpec() {
@@ -86,7 +86,7 @@ public class TagTablePlugin : AbstractPlugin() {
     public companion object : PluginFactory<TagTablePlugin> {
         override val tag: PluginTag = PluginTag("controls.tags")
 
-        public val DEFAULT_TABLE: String? = null
+        public const val DEFAULT_TABLE: String = "@table"
 
         override fun build(context: Context, meta: Meta): TagTablePlugin = TagTablePlugin()
     }

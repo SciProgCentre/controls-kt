@@ -1,21 +1,17 @@
 package space.kscience.controls.tagtable
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.ValueStateFactory
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.tables.ColumnHeader
-import javax.swing.text.html.HTML
-import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 

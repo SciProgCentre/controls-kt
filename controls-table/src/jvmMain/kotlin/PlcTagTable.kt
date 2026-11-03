@@ -18,6 +18,7 @@ import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.timeZone

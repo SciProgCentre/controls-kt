@@ -15,14 +15,13 @@ import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.compose.letsplot.PlotDeviceProperty
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
+import space.kscience.controls.storage.DeviceMessageStorage
+import space.kscience.controls.storage.ExportColumn
+import space.kscience.controls.storage.export
 import space.kscience.controls.tagtable.TagState
-import space.kscience.controls.tagtable.export.ExportColumn
-import space.kscience.controls.tagtable.export.TableExporter
-import space.kscience.controls.tagtable.export.TagExportColumn
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.toJson
-import space.kscience.dataforge.names.Name
-import space.kscience.tables.*
+import space.kscience.tables.Table
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
@@ -33,13 +32,12 @@ import kotlin.time.Instant
 @Composable
 fun DeviceVisualisation(
     hub: DeviceTree,
-    exporter: TableExporter,
-    tagByProperty: Map<Pair<Name, String>, String>,
+    messageStorage: DeviceMessageStorage,
     sourceStateColumns: List<ExportColumn>,
     exportStartTime: Instant,
     modifier: Modifier = Modifier
 ) {
-    var selectedProperties by remember { mutableStateOf(setOf<Pair<Name, String>>()) }
+    var selectedProperties by remember { mutableStateOf(setOf<ExportColumn>()) }
     var exportStatus by remember { mutableStateOf("") }
     var exporting by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -55,9 +53,9 @@ fun DeviceVisualisation(
                 selectedProperties = selectedProperties,
                 onSelectProperty = { deviceName, propertyName, selected ->
                     selectedProperties = if (selected) {
-                        selectedProperties + (deviceName to propertyName)
+                        selectedProperties + ExportColumn(deviceName, propertyName)
                     } else {
-                        selectedProperties - (deviceName to propertyName)
+                        selectedProperties - ExportColumn(deviceName, propertyName)
                     }
                 },
                 modifier = Modifier.padding(8.dp)
@@ -68,20 +66,19 @@ fun DeviceVisualisation(
         Column(modifier = Modifier.weight(1f).fillMaxHeight().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(
-                    enabled = !exporting && selectedProperties.any { it in tagByProperty },
+                    enabled = !exporting,
                     onClick = {
                         coroutineScope.launch {
                             exporting = true
                             exportStatus = "Exporting selected tags..."
-                            runCatching {
-                                val tagColumns =
-                                    selectedProperties.mapNotNull(tagByProperty::get).distinct().flatMap { tag ->
-                                        listOf(
-                                            TagExportColumn(tag),
-                                            TagExportColumn("$tag${TagState.TAG_QUALITY_SUFFIX}"),
-                                        )
-                                    }
-                                val table = exporter.export(
+                            try{
+                                val tagColumns = selectedProperties.flatMap { column ->
+                                    listOf(
+                                        column,
+                                        column.copy(property = column.property + TagState.TAG_QUALITY_SUFFIX),
+                                    )
+                                }
+                                val table = messageStorage.export(
                                     timeRange = exportStartTime..Clock.System.now(),
                                     columns = tagColumns + sourceStateColumns,
                                 )
@@ -91,10 +88,9 @@ fun DeviceVisualisation(
                                     "export-${Clock.System.now().toString().replace(":", "-")}.csv"
                                 )
                                 exportPath.writeText(csv)
-                                exportPath
-                            }.onSuccess { path ->
-                                exportStatus = "Exported to $path. Recently buffered data may not be stored yet."
-                            }.onFailure { error ->
+         
+                                exportStatus = "Exported to $exportPath. Recently buffered data may not be stored yet."
+                            } catch (error: Exception) {
                                 exportStatus = "Export failed: ${error.message}"
                             }
                             exporting = false
