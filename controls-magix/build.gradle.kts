@@ -31,6 +31,8 @@ kscience {
         implementation("io.ktor:ktor-server-cio")
         implementation("io.ktor:ktor-server-websockets")
         implementation("io.ktor:ktor-client-cio")
+
+        implementation(libs.turbine)
     }
 }
 

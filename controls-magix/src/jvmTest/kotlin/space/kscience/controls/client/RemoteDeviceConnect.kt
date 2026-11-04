@@ -1,5 +1,6 @@
 package space.kscience.controls.client
 
+import app.cash.turbine.test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
@@ -119,16 +120,15 @@ internal class RemoteDeviceConnect {
                 }
             }
 
-            launch {
-                virtualMagixEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
-                    .map { it.second }
-                    .filterIsInstance<DescriptionMessage>()
-                    .onEach { println(it.sourceDevice) }
-                    .take(10)
-                    .collect()
-
-                assertEquals(10, remoteHub.children.size)
-            }
+            virtualMagixEndpoint.subscribe(DeviceManager.magixFormat, originFilter = listOf("device"))
+                .map { it.second }
+                .filterIsInstance<DescriptionMessage>().test{
+                    repeat(10) {
+                        awaitItem()
+                    }
+                    assertEquals(10, remoteHub.children.size)
+                    cancel()
+                }
 
             virtualMagixEndpoint.requestDeviceUpdate("client", "device")
         }
