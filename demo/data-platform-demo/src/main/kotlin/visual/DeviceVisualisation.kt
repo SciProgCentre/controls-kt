@@ -21,6 +21,7 @@ import space.kscience.controls.storage.export
 import space.kscience.controls.tagtable.TagState
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.toJson
+import space.kscience.dataforge.names.Name
 import space.kscience.tables.Table
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
@@ -33,6 +34,7 @@ import kotlin.time.Instant
 fun DeviceVisualisation(
     hub: DeviceTree,
     messageStorage: DeviceMessageStorage,
+    exportColumnMapping: Map<ExportColumn, ExportColumn>,
     sourceStateColumns: List<ExportColumn>,
     exportStartTime: Instant,
     modifier: Modifier = Modifier
@@ -71,11 +73,16 @@ fun DeviceVisualisation(
                         coroutineScope.launch {
                             exporting = true
                             exportStatus = "Exporting selected tags..."
-                            try{
+                            try {
                                 val tagColumns = selectedProperties.flatMap { column ->
+                                    val column = exportColumnMapping[column] ?: return@flatMap emptyList()
                                     listOf(
                                         column,
-                                        column.copy(property = column.property + TagState.TAG_QUALITY_SUFFIX),
+                                        column.copy(
+                                            property = column.property + TagState.TAG_QUALITY_SUFFIX,
+                                            extractionPath = Name.of("quality"),
+                                            exportColumnName = column.exportColumnName + TagState.TAG_QUALITY_SUFFIX,
+                                        ),
                                     )
                                 }
                                 val table = messageStorage.export(
@@ -88,7 +95,7 @@ fun DeviceVisualisation(
                                     "export-${Clock.System.now().toString().replace(":", "-")}.csv"
                                 )
                                 exportPath.writeText(csv)
-         
+
                                 exportStatus = "Exported to $exportPath. Recently buffered data may not be stored yet."
                             } catch (error: Exception) {
                                 exportStatus = "Export failed: ${error.message}"

@@ -51,7 +51,7 @@ public class AsynchronousSerialPort(
         }
     }
 
-    override fun onOpen() {
+    override suspend fun onOpen() {
         comPort.openPort()
         comPort.addDataListener(serialPortListener)
     }

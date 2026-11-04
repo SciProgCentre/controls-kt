@@ -8,6 +8,7 @@ import space.kscience.dataforge.misc.DFExperimental
 import space.kscience.dataforge.names.*
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.UUID
 import kotlin.io.path.*
 
@@ -83,9 +84,17 @@ public class SingleFileEnvelopeOperations(
         envelope: Envelope
     ) {
         directory.createDirectories()
-        val fileName = directory.resolve("$fileName.$FILE_EXTENSION")
+        val file = directory.resolve("$fileName.$FILE_EXTENSION")
+        val tmpFile = directory.resolve("$fileName.tmp")
 
-        ioPlugin.writeEnvelopeFile(fileName, envelope, envelopeFormat)
+        ioPlugin.writeEnvelopeFile(tmpFile, envelope, envelopeFormat)
+        // perform atomic move to avoid reading incomplete file with monitor
+        Files.move(
+            tmpFile,
+            file,
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
     }
 
     override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> = sequence {

@@ -34,7 +34,10 @@ import space.kscience.dataforge.context.SlfLogManager
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.plus
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.inputStream
@@ -73,7 +76,7 @@ private fun Device.monitorDeviceChanges(): Job = launch {
 /**
  * Build a table exporter using the storage paths in a tag-table configuration.
  */
-public fun TagTablePlugin.readMessages(
+public suspend fun TagTablePlugin.readMessages(
     configuration: TagTableConfiguration,
 ): DeviceMessageStorage {
     val storageConfiguration = configuration.storage ?: error("Tag table storage is not configured")
@@ -85,7 +88,12 @@ public fun TagTablePlugin.readMessages(
     }
     val tableDirectory = Path(storageConfiguration.path).createDirectories()
     val messageDirectory = Path(messageStorageConfiguration.path).createDirectories()
+
+    // raw tag storage
     val index = TableStorageIndex(storage, tableDirectory, operations = operations)
+    index.start()
+
+    // auxiliary message store
     val messages = FileDeviceMessageStorage(
         directory = messageDirectory,
         maxMessagesPerFile = messageStorageConfiguration.maxMessagesPerFile,
@@ -108,7 +116,7 @@ private fun TagTableConfiguration.sourceStateExportColumns(): List<ExportColumn>
 }
 
 // IMPORTANT: run in blocking mode
-fun main() {
+suspend fun main() {
     val context = Context {
         plugin(DeviceManager)
         plugin(IOPlugin)
@@ -153,6 +161,21 @@ fun main() {
     //setup devices from config
     val devices = deviceManager.install("devices", deviceConfig)
 
+    val columnTagMapping: Map<ExportColumn, ExportColumn> = buildMap {
+        fun processDevice(deviceCfg: ConstructorDeviceConfiguration, prefix: Name) {
+            deviceCfg.properties.forEach { (propertyName, propertyConfig) ->
+                val tag = propertyConfig.parameters["tag"].string ?: return@forEach
+                put(ExportColumn(prefix, propertyName), ExportColumn(Name.EMPTY, tag, exportColumnName = tag))
+            }
+            deviceCfg.devices.forEach {(deviceName,childDeviceCfg)->
+                processDevice(childDeviceCfg, prefix + deviceName)
+            }
+        }
+        processDevice(deviceConfig, Name.EMPTY)
+    }
+
+    val messageStorage = tagTablePlugin.readMessages(configuration)
+
     //launch visualization app
     application {
         Window(onCloseRequest = {
@@ -162,7 +185,8 @@ fun main() {
             MaterialTheme {
                 DeviceVisualisation(
                     hub = devices,
-                    messageStorage = tagTablePlugin.readMessages(configuration),
+                    messageStorage = messageStorage,
+                    exportColumnMapping = columnTagMapping,
                     sourceStateColumns = configuration.sourceStateExportColumns(),
                     exportStartTime = exportStartTime,
                 )

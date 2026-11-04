@@ -36,7 +36,7 @@ public suspend fun DeviceMessageStorage.export(
     timeRange: ClosedRange<Instant>,
     minimalRowDistance: Duration = Duration.ZERO,
     columns: List<ExportColumn>
-):Table<Meta>{
+): Table<Meta> {
 
     val events = mutableListOf<Pair<String, ValueWithTime<Meta>>>()
     val outputColumns = columns.map { it.exportColumnName }
@@ -59,28 +59,19 @@ public suspend fun DeviceMessageStorage.export(
     val outputRows = mutableListOf<Row<Meta>>()
     val currentValues = mutableMapOf<String, Meta>()
     val sortedEvents = events.sortedBy { it.second.time }
-    var lastRowTime: Instant? = null
     var eventIndex = 0
 
     while (eventIndex < sortedEvents.size) {
         val time = sortedEvents[eventIndex].second.time
-        while (eventIndex < sortedEvents.size && sortedEvents[eventIndex].second.time == time) {
+        while (eventIndex < sortedEvents.size && sortedEvents[eventIndex].second.time <= time + minimalRowDistance) {
             val (column, event) = sortedEvents[eventIndex]
             currentValues[column] = event.value
             eventIndex++
         }
 
-        val previousRowTime = lastRowTime
-        if (currentValues.keys.containsAll(outputColumns) &&
-            (previousRowTime == null || time - previousRowTime >= minimalRowDistance)
-        ) {
-            val rowValues = buildMap {
-                put(timeHeader.name, time.toMeta())
-                outputColumns.forEach { columnName -> put(columnName, currentValues.getValue(columnName)) }
-            }
-            outputRows += MapRow(rowValues)
-            lastRowTime = time
-        }
+        val rowValues = currentValues + (timeHeader.name to time.toMeta())
+        outputRows += MapRow(rowValues)
+        currentValues.clear()
     }
 
     return RowTable(headers, outputRows)

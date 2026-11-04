@@ -85,8 +85,10 @@ public class ConstructorPlugin : AbstractPlugin() {
                 state = buildValueState(
                     parameters = propertyConfiguration.parameters,
                     type = propertyConfiguration.type
-                ),
-            )
+                )
+            ) {
+                metadata = ValueStateConfiguration.metaConverter.convert(propertyConfiguration)
+            }
         }
 
         //apply bindings after all devices are created

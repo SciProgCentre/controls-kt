@@ -19,20 +19,14 @@ import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
-import java.nio.file.FileStore
-import java.nio.file.FileSystem
-import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
-import java.nio.file.PathMatcher
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
 import java.nio.file.Watchable
-import java.nio.file.attribute.UserPrincipalLookupService
-import java.nio.file.spi.FileSystemProvider
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -98,7 +92,14 @@ class TableStorageIndexTest {
                 val fileStartTime = startTime + (i * gapMillis).milliseconds
                 val fileEndTime = fileStartTime + lengthMillis.milliseconds
                 val name = "restart_$i"
-                writer.writeRows(name, fixture.watched, headers, listOf(tagRow(fileStartTime, "value" to i.asMeta())), fileStartTime, fileEndTime)
+                writer.writeRows(
+                    name,
+                    fixture.watched,
+                    headers,
+                    listOf(tagRow(fileStartTime, "value" to i.asMeta())),
+                    fileStartTime,
+                    fileEndTime
+                )
                 fixture.watched.resolve("$name.${FileEnvelopeOperations.FILE_EXTENSION}")
             }
 
@@ -177,6 +178,45 @@ class TableStorageIndexTest {
         }
     }
 
+    // LLM generated code: Cover recursive indexing and live updates in nested directories.
+    @Test
+    fun testIndexTracksFilesInExistingAndNewSubdirectories() = runTest(timeout = 60.seconds) {
+        val fixture = WatchFixture("tagtable-index-subdirectory-test", this)
+        val existingSubdirectory = Files.createDirectory(fixture.watched.resolve("existing"))
+        val initialTime = Instant.fromEpochSeconds(1625097600)
+        fixture.publishTo(existingSubdirectory, "initial", initialTime)
+        val index = TableStorageIndex(
+            fixture.storage,
+            fixture.watched,
+            removeFilesCycleDuration = 10.milliseconds,
+        )
+
+        try {
+            index.start()
+            assertEquals(1, index.selectEnvelopes(initialTime..initialTime).size)
+
+            val existingSubdirectoryTime = initialTime + 1.seconds
+            fixture.publishTo(existingSubdirectory, "existing-subdirectory", existingSubdirectoryTime)
+            index.awaitEnvelopes(existingSubdirectoryTime..existingSubdirectoryTime)
+            assertEquals(1, index.selectEnvelopes(existingSubdirectoryTime..existingSubdirectoryTime).size)
+
+            val newSubdirectory = Files.createDirectory(fixture.watched.resolve("new"))
+            val discoveredTime = initialTime + 2.seconds
+            fixture.publishTo(newSubdirectory, "discovered", discoveredTime)
+            index.awaitEnvelopes(discoveredTime..discoveredTime)
+
+            val createdTime = initialTime + 3.seconds
+            val createdPath = fixture.publishTo(newSubdirectory, "created", createdTime)
+            index.awaitEnvelopes(createdTime..createdTime)
+            assertEquals(1, index.selectEnvelopes(createdTime..createdTime).size)
+
+            Files.delete(createdPath)
+            awaitUntil(timeout = 5.seconds) { index.selectEnvelopes(createdTime..createdTime).isEmpty() }
+        } finally {
+            fixture.close()
+        }
+    }
+
     private class WatchFixture(name: String, scope: TestScope) {
         val context = scope.storageContext(name)
         val storage = context.request(ControlsStoragePlugin)
@@ -221,7 +261,11 @@ class TableStorageIndexTest {
     /**
      * Operations that publish [name] while the initial scan runs, before or after the directory is listed.
      */
-    private fun WatchFixture.publishingDuringScan(name: String, at: Instant, afterListing: Boolean): FileEnvelopeOperations {
+    private fun WatchFixture.publishingDuringScan(
+        name: String,
+        at: Instant,
+        afterListing: Boolean
+    ): FileEnvelopeOperations {
         val native = NativeFileEnvelopeOperations(storage.io)
         val scans = AtomicInteger()
         return object : FileEnvelopeOperations by native {
@@ -293,25 +337,6 @@ class TableStorageIndexTest {
     }
 
     /**
-     * The default file system with its watcher replaced by [watcher].
-     */
-    private class ControlledFileSystem(private val watcher: WatchService) : FileSystem() {
-        private val default = FileSystems.getDefault()
-        override fun newWatchService(): WatchService = watcher
-        override fun provider(): FileSystemProvider = default.provider()
-        override fun close() {}
-        override fun isOpen(): Boolean = true
-        override fun isReadOnly(): Boolean = false
-        override fun getSeparator(): String = default.separator
-        override fun getRootDirectories(): Iterable<Path> = default.rootDirectories
-        override fun getFileStores(): Iterable<FileStore> = default.fileStores
-        override fun supportedFileAttributeViews(): Set<String> = default.supportedFileAttributeViews()
-        override fun getPath(first: String, vararg more: String): Path = default.getPath(first, *more)
-        override fun getPathMatcher(syntaxAndPattern: String): PathMatcher = default.getPathMatcher(syntaxAndPattern)
-        override fun getUserPrincipalLookupService(): UserPrincipalLookupService = default.userPrincipalLookupService
-    }
-
-    /**
      * A key that reports an overflow each time it is taken.
      */
     private class OverflowKey : WatchKey {
@@ -322,42 +347,25 @@ class TableStorageIndexTest {
         override fun watchable(): Watchable = error("Not used by this fixture")
     }
 
-    /**
-     * [directory] as seen by [fileSystem], which registers it with [key].
-     */
-    private class ControlledDirectory(
-        private val directory: Path,
-        private val fileSystem: FileSystem,
-        private val key: WatchKey,
-    ) : Path by directory {
-        override fun getFileSystem(): FileSystem = fileSystem
-        override fun register(watcher: WatchService, vararg events: WatchEvent.Kind<*>): WatchKey = key
-        override fun register(
-            watcher: WatchService,
-            events: Array<out WatchEvent.Kind<*>>,
-            vararg modifiers: WatchEvent.Modifier,
-        ): WatchKey = key
-
-        override fun toString(): String = directory.toString()
-    }
-
     @Test
     fun testWatchOverflowScansTheDirectoryAgain() = runTest(timeout = 60.seconds) {
         val fixture = WatchFixture("tagtable-index-overflow-test", this)
         val watcher = ControlledWatchService()
         val overflow = OverflowKey()
-        val directory = ControlledDirectory(fixture.watched, ControlledFileSystem(watcher), overflow)
         val native = NativeFileEnvelopeOperations(fixture.storage.io)
         val scans = AtomicInteger()
         val rescanned = CompletableDeferred<Unit>()
         val operations = object : FileEnvelopeOperations by native {
             override fun envelopeFilesSequence(root: Path): Sequence<Pair<Name, Path>> {
-                if (root !== directory) return native.envelopeFilesSequence(root)
+                if (root != fixture.watched) return native.envelopeFilesSequence(root)
                 val scan = scans.incrementAndGet()
                 return native.envelopeFilesSequence(fixture.watched) + sequence { if (scan == 2) rescanned.complete(Unit) }
             }
         }
-        val index = TableStorageIndex(fixture.storage, directory, operations = operations)
+        val index = TableStorageIndex(fixture.storage, fixture.watched, operations = operations).apply {
+            newWatchService = { watcher }
+            registerWatch = { _, _ -> }
+        }
         val time = Instant.fromEpochSeconds(1625097600)
         try {
             fixture.publish("indexed", time)
@@ -421,7 +429,10 @@ class TableStorageIndexTest {
             index.start()
             assertEquals(emptyList(), index.selectEnvelopes(query))
             @Suppress("KotlinConstantConditions")
-            assertTrue(upperBoundReads in 1 until envelopes.size, "Checked $upperBoundReads of ${envelopes.size} intervals")
+            assertTrue(
+                upperBoundReads in 1 until envelopes.size,
+                "Checked $upperBoundReads of ${envelopes.size} intervals"
+            )
         } finally {
             fixture.close()
         }

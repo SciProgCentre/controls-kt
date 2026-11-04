@@ -28,29 +28,67 @@ import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
 import space.kscience.tables.get
 import java.nio.file.ClosedWatchServiceException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardWatchEventKinds.*
 import java.nio.file.WatchEvent
 import java.nio.file.WatchService
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
- * Create a watcher for file creation and deletion events in this directory.
+ * Create a watcher for file creation and deletion events in this directory and its subdirectories.
  */
-internal fun Path.watchFiles(): WatchService = fileSystem.newWatchService().also { watchService ->
+internal fun Path.watchFiles(
+    newWatchService: (Path) -> WatchService = { it.fileSystem.newWatchService() },
+    registerWatch: (Path, WatchService) -> Unit = { path, watchService ->
+        path.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    },
+): WatchService = newWatchService(this).also { watchService ->
     try {
-        register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+        watchService.registerTree(this, registerWatch)
     } catch (ex: Throwable) {
         watchService.close()
         throw ex
     }
 }
 
+// LLM generated code: Register existing storage subdirectories with a watcher.
+/** Register [directory] and every existing descendant directory with this watcher. */
+internal fun WatchService.registerTree(
+    directory: Path,
+    registerWatch: (Path, WatchService) -> Unit = { path, watchService ->
+        path.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    },
+) {
+    Files.walkFileTree(directory, object : SimpleFileVisitor<Path>() {
+        override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult = try {
+            registerWatch(dir, this@registerTree)
+            FileVisitResult.CONTINUE
+        } catch (ex: NoSuchFileException) {
+            if (dir == directory) throw ex
+            FileVisitResult.SKIP_SUBTREE
+        }
+
+        override fun visitFileFailed(file: Path, exc: java.io.IOException): FileVisitResult =
+            if (exc is NoSuchFileException && file != directory) {
+                FileVisitResult.SKIP_SUBTREE
+            } else {
+                throw exc
+            }
+    })
+}
+
 /**
- * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
- * for each file creation or deletion event, and without a path for [OVERFLOW], when events were lost.
+ * Launch a directory monitor that calls [onEvent] with the path to each created or deleted entry,
+ * resolved against the directory that reported it, and without a path for [OVERFLOW], when events were lost.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
@@ -69,21 +107,29 @@ internal fun CoroutineScope.launchDirectoryMonitor(
     watchService.use { watchService ->
         while (isActive) {
             val key = try {
-                runInterruptible { watchService.take() }
+                runInterruptible {
+                    watchService.take()
+                }
             } catch (ex: ClosedWatchServiceException) {
                 break
             }
 
             for (event in key.pollEvents()) {
                 ensureActive()
-                val file = event.context() as Path?
+                val file = (event.context() as? Path)?.let { context ->
+                    (key.watchable() as? Path)?.resolve(context) ?: context
+                }
                 onEvent(event.kind(), file)
             }
 
             if (!key.reset()) break
         }
     }
-}.apply { invokeOnCompletion { watchService.close() } }
+}.apply {
+    invokeOnCompletion {
+        watchService.close()
+    }
+}
 
 /**
  * A class that represents an index for a data platform's storage, providing capabilities for
@@ -127,6 +173,12 @@ public class TableStorageIndex(
     private val scope: CoroutineScope = storage.context,
     private val removeFilesCycleDuration: Duration = 10.minutes
 ) : ContextAware, WithLifeCycle {
+
+    internal var newWatchService: (Path) -> WatchService = { it.fileSystem.newWatchService() }
+
+    internal var registerWatch: (Path, WatchService) -> Unit = { path, watchService ->
+        path.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    }
 
     override val context: Context get() = storage.context
 
@@ -400,7 +452,7 @@ public class TableStorageIndex(
 
         // watch before the scan, so that files created during the scan are not missed
         val watchService = try {
-            dataDirectory.watchFiles()
+            dataDirectory.watchFiles(newWatchService, registerWatch)
         } catch (ex: Throwable) {
             lifecycleState = LifecycleState.STOPPED
             throw ex
@@ -425,19 +477,31 @@ public class TableStorageIndex(
 
             val removalMutex: Mutex = Mutex()
 
-            launchDirectoryMonitor(watchService) { kind, file ->
-                // an overflow has no file, so the whole directory is scanned again; indexed files are not added twice
-                val path = file?.let { dataDirectory.resolve(it) } ?: dataDirectory
+            // LLM generated code: Register and scan directories discovered by the storage monitor.
+            suspend fun scanDirectory(path: Path, registerTree: Boolean) {
+                try {
+                    if (registerTree) watchService.registerTree(path, this@TableStorageIndex.registerWatch)
+                    operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
+                        insert(createdPath)
+                    }
+                } catch (ex: Exception) {
+                    if (ex is CancellationException) throw ex
+                    currentCoroutineContext().ensureActive()
+                    logger.warn { "Failed to scan storage directory $path: $ex" }
+                }
+            }
 
+            launchDirectoryMonitor(watchService) { kind, path ->
                 when (kind) {
-                    ENTRY_CREATE, OVERFLOW -> {
-                        operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
-                            insert(createdPath)
-                        }
+                    ENTRY_CREATE -> if (path != null) {
+                        scanDirectory(path, Files.isDirectory(path, NOFOLLOW_LINKS))
                     }
 
+                    // An overflow has no path, so restore all registrations and rescan the root.
+                    OVERFLOW -> scanDirectory(dataDirectory, registerTree = true)
+
                     ENTRY_DELETE -> removalMutex.withLock {
-                        removedFiles.add(path)
+                        path?.let(removedFiles::add)
                     }
                 }
             }
@@ -449,7 +513,12 @@ public class TableStorageIndex(
                         removedFiles.toSet().also { removedFiles.clear() }
                     }
                     if (pathsToRemove.isNotEmpty()) {
-                        removeIf { it.path in pathsToRemove }
+                        removeIf { interval ->
+                            pathsToRemove.any { removedPath ->
+                                (interval.path == removedPath || interval.path.startsWith(removedPath)) &&
+                                        Files.notExists(interval.path)
+                            }
+                        }
                     }
                 }
             }
@@ -490,7 +559,7 @@ public fun TableStorageIndex.tagHistory(tag: String): ValueHistory<Meta> = objec
 }
 
 /**
- * Create a [DeviceMessageStorage] that reads [PropertyChangedMessages] from the table
+ * Create a [DeviceMessageStorage] that reads [PropertyChangedMessage] from the table
  */
 public fun TableStorageIndex.asDeviceMessageStorage(
     tableDevice: Name = Name.EMPTY

@@ -49,7 +49,7 @@ class DirectoryMonitorTest {
                 val (kind, file) = withTimeout(20.seconds) { event.await() }
                 writer.cancelAndJoin()
                 assertEquals(ENTRY_CREATE, kind)
-                assertTrue(file?.toString()?.startsWith("created-") == true, "unexpected event on $file")
+                assertEquals(true, file?.fileName?.toString()?.startsWith("created-"), "unexpected event on $file")
 
                 //let the monitor drain the pending events and block in take() again, which cancellation must interrupt
                 delay(200.milliseconds)
@@ -86,6 +86,7 @@ class DirectoryMonitorTest {
         val key = object : WatchKey {
             override fun isValid(): Boolean = true
             override fun pollEvents(): List<WatchEvent<*>> = listOf(overflowEvent)
+
             // an invalid key stops the monitor after this event
             override fun reset(): Boolean = false
             override fun cancel() {}
