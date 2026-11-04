@@ -60,7 +60,7 @@ class VirtualPort(private val device: VirtualDevice, context: Context) : Abstrac
 
     private var respondJob: Job? = null
 
-    override fun onOpen() {
+    override suspend fun onOpen() {
         respondJob = device.subscribe().onEach {
             receive(it)
         }.catch {

@@ -64,7 +64,7 @@ public abstract class AbstractAsynchronousPort(
 
     private var sendJob: Job? = null
 
-    protected abstract fun onOpen()
+    protected abstract suspend fun onOpen()
 
     final override suspend fun start() {
         if (lifecycleState == LifecycleState.STOPPED) {
@@ -79,7 +79,13 @@ public abstract class AbstractAsynchronousPort(
                     }
                 }
             }
-            onOpen()
+            try {
+                onOpen()
+            } catch (cause: Throwable) {
+                sendJob?.cancel()
+                sendJob = null
+                throw cause
+            }
         } else {
             logger.warn { "$this already started" }
         }
