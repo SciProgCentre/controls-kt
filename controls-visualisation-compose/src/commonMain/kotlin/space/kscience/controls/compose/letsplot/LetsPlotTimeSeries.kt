@@ -20,8 +20,8 @@ import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
@@ -94,11 +94,12 @@ internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     clock: Clock = Global.clock,
+    startingPoints: List<ValueWithTime<T>> = emptyList()
 ): Flow<List<ValueWithTime<T>>> {
     require(maxPoints > 2)
     require(minPoints > 0)
     require(maxPoints > minPoints)
-    val points = mutableListOf<ValueWithTime<T>>()
+    val points = startingPoints.toMutableList()
     return transform { newPoint ->
         points.add(newPoint)
         val now = clock.now()
@@ -230,19 +231,17 @@ public fun TimeSeriesPlotState.PlotDeviceProperty(
         }
 
         // if history not null, use it to pre-fill old values
-        history?.let { history ->
-            val list = history
-                .flow(clockManager.clock.now().minus(maxAge))
-                .mapNotNull { (value, time) ->
-                    extractValue(value)?.let { ValueWithTime(it, time) }
-                }.toList()
-            updateSeries(seriesName, list)
-        }
+        val startingPoints = history
+            ?.flow(clockManager.clock.now().minus(maxAge))
+            ?.mapNotNull { (value, time) ->
+                extractValue(value)?.let { ValueWithTime(it, time) }
+            }?.toList()
+            ?: emptyList()
 
         device.propertyMessageFlow(propertyName)
             .mapNotNull { it.value.extractValue() }
             .repeatOrSample(clockManager, sampling)
-            .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
+            .collectAndTrim(maxAge, maxPoints, minPoints, device.clock, startingPoints)
             .onEach { updateSeries(seriesName, it) }
             .launchIn(this)
     }

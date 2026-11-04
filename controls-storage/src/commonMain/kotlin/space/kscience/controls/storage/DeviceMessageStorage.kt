@@ -97,9 +97,12 @@ public inline fun <reified T : DeviceMessage> DeviceMessageStorage.read(
 public fun <T> DeviceMessageStorage.propertyHistory(
     propertyName: String,
     converter: MetaConverter<T>,
+    deviceName: Name? = null,
 ): ValueHistory<T> = object : ValueHistory<T> {
     override fun flow(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
         read<PropertyChangedMessage>(from..until)
-            .filter { it.property == propertyName }
+            .filter {
+                it.property == propertyName && (deviceName == null || it.sourceDevice == deviceName)
+            }
             .map { ValueWithTime(converter.read(it.value), it.time) }
 }

@@ -18,8 +18,10 @@ import space.kscience.controls.compose.letsplot.TimeSeriesPlot
 import space.kscience.controls.storage.DeviceMessageStorage
 import space.kscience.controls.storage.ExportColumn
 import space.kscience.controls.storage.export
+import space.kscience.controls.storage.propertyHistory
 import space.kscience.controls.tagtable.TagState
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.toJson
 import space.kscience.dataforge.names.Name
 import space.kscience.tables.Table
@@ -27,6 +29,7 @@ import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /* LLM generated code: Adds CSV export for selected tags and their source state. */
@@ -87,6 +90,7 @@ fun DeviceVisualisation(
                                 }
                                 val table = messageStorage.export(
                                     timeRange = exportStartTime..Clock.System.now(),
+                                    minimalRowDistance = 1.seconds,
                                     columns = tagColumns + sourceStateColumns,
                                 )
                                 val csv = table.toCsv()
@@ -123,12 +127,21 @@ fun DeviceVisualisation(
                         xAxisTitle = "Time",
                         yAxisTitle = "Value",
                     ) {
-                        selectedProperties.forEach { (deviceName, propertyName) ->
-                            val device = remember(hub, deviceName, selectedProperties) { hub.resolveDevice(deviceName) }
+                        selectedProperties.forEach { column ->
+                            val device =
+                                remember(hub, column.device, selectedProperties) { hub.resolveDevice(column.device) }
+                            val history = exportColumnMapping[column]?.let { historyColumn ->
+                                messageStorage.propertyHistory(
+                                    historyColumn.property,
+                                    MetaConverter.meta,
+                                    deviceName = historyColumn.device
+                                )
+                            }
                             PlotDeviceProperty(
                                 device = device,
-                                propertyName = propertyName,
-                                seriesName = "$deviceName/$propertyName",
+                                propertyName = column.property,
+                                seriesName = column.exportColumnName,
+                                history = history
                             )
                         }
                     }
