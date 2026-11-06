@@ -39,6 +39,9 @@
 
 ### Fixed
 
+- Fix write exception on logical properties and add unit tests for DeviceBuilder property accessibility (readable, writeable, and logical).
+- Watch storage subdirectories recursively, including newly created directories, and remove deleted subtree entries from the index.
+- Close Ktor TCP and UDP sockets and selector managers when ports stop or fail to open.
 - Add error handling for property subscription and async writing (quasi-synchronous access is handled by the caller)
 - Include quality columns in PLC and replay time-series headers when requested.
 - Give native envelope metadata its final name only after it is written, so a running index does not read partial files.

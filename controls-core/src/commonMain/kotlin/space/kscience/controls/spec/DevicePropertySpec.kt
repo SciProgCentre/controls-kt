@@ -1,7 +1,9 @@
 package space.kscience.controls.spec
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
@@ -123,7 +125,6 @@ public suspend fun <T> getOrRead(propertySpec: DevicePropertySpec<T>): T = devic
  * Write typed property state and invalidate logical state
  */
 public suspend fun <T> Device.write(propertySpec: DevicePropertySpec<T>, value: T) {
-    check(propertySpec.isMutable) { "Property ${propertySpec.name} is not mutable" }
     writeProperty(propertySpec.name, propertySpec.converter.convert(value))
 }
 
@@ -139,6 +140,9 @@ public fun <T> Device.writeAsync(propertySpec: DevicePropertySpec<T>, value: T):
         write(propertySpec, value)
     } catch (e: Exception){
         logger.error(e) { "Error writing property ${propertySpec.name}" }
+        if (e is CancellationException) {
+            ensureActive()
+        }
     }
 }
 

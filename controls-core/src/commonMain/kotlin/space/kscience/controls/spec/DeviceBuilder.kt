@@ -1,6 +1,5 @@
 package space.kscience.controls.spec
 
-import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.api.PropertyDescriptor
@@ -19,7 +18,6 @@ public class DevicePropertySpecWithDefault<T>(
 ) : DevicePropertySpec<T>
 
 private class LogicalPropertyAccessor<T>(
-    private val device: CachingDevice,
     override val spec: DevicePropertySpecWithDefault<T>,
 ) : PropertyReader<T>, PropertyWriter<T> {
     context(device: DeviceBase)
@@ -97,9 +95,11 @@ public class DeviceBuilder : DeviceFactory {
      * Create a device specification from the registered readers, writers, and actions.
      */
     public fun buildDeviceSpec(): DeviceSpec = DeviceSpec(
-        properties = (buildReaders.map { it.spec } + buildWriters.map { it.spec } + logicalProperties)
-            .distinct()
-            .associateBy { it.name },
+        properties = buildList {
+            buildReaders.forEach { add(it.spec) }
+            buildWriters.forEach { add(it.spec) }
+            addAll(logicalProperties)
+        }.distinct().associateBy { it.name },
         actions = buildActions.associate { it.spec.name to it.spec },
     )
 
@@ -113,11 +113,11 @@ public class DeviceBuilder : DeviceFactory {
         //protective copy for all properties
 
         override val readers: Map<String, PropertyReader<*>> = logicalProperties.associate { spec ->
-            spec.name to LogicalPropertyAccessor(device = this, spec = spec)
+            spec.name to LogicalPropertyAccessor(spec = spec)
         } + buildReaders.associateBy { it.spec.name }
 
         override val writers: Map<String, PropertyWriter<*>> = logicalProperties.associate { spec ->
-            spec.name to LogicalPropertyAccessor(device = this, spec = spec)
+            spec.name to LogicalPropertyAccessor(spec = spec)
         } + buildWriters.associateBy { it.spec.name }
 
         override val actions: Map<String, ActionExecutor<*, *>> = buildActions.associateBy { it.spec.name }
@@ -194,7 +194,7 @@ public fun Device(
 /**
  * Create a spec-verified device with given [builder]
  */
-public fun <S: DeviceSpec> SpecificDevice(
+public fun <S : DeviceSpec> SpecificDevice(
     spec: S,
     context: Context,
     meta: Meta = Meta.EMPTY,
