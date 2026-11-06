@@ -23,6 +23,7 @@ import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.compose.asComposeState
 import space.kscience.controls.constructor.propertyAsState
 import space.kscience.controls.nullable
+import space.kscience.controls.storage.ExportColumn
 import space.kscience.controls.utilities.Alarm
 import space.kscience.controls.utilities.AlarmState
 import space.kscience.dataforge.meta.MetaConverter
@@ -36,7 +37,7 @@ import space.kscience.dataforge.names.plus
 @Composable
 fun DeviceTree(
     node: DeviceTree,
-    selectedProperties: Set<Pair<Name, String>>,
+    selectedProperties: Set<ExportColumn>,
     onSelectProperty: (deviceName: Name, propertyName: String, selected: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -60,7 +61,7 @@ private fun LazyListScope.renderDeviceNode(
     name: Name,
     node: DeviceTree,
     expandedNodes: MutableMap<Name, Boolean>,
-    selectedProperties: Set<Pair<Name, String>>,
+    selectedProperties: Set<ExportColumn>,
     onSelectProperty: (deviceName: Name, propertyName: String, selected: Boolean) -> Unit,
     level: Int
 ) {
@@ -101,7 +102,7 @@ private fun LazyListScope.renderDeviceNode(
                     PropertyNode(
                         device = device,
                         propertyName = descriptor.name,
-                        isSelected = selectedProperties.contains(name to descriptor.name),
+                        isSelected = selectedProperties.contains(ExportColumn(name, descriptor.name)),
                         onSelect = { onSelectProperty(name, descriptor.name, it) },
                         level = level + 1
                     )

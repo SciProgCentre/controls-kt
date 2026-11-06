@@ -280,7 +280,7 @@ class FileDeviceMessageStorageTest {
         storage.writeAll(listOf(p1, p2, p3))
 
         val voltageHistory = storage.propertyHistory("voltage", MetaConverter.double)
-            .flowHistory(t1, t3)
+            .flow(t1, t3)
             .toList()
             .sortedBy { it.time }
 

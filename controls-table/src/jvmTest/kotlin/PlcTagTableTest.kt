@@ -2,7 +2,6 @@ package space.kscience.controls.tagtable
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.eclipse.milo.opcua.sdk.server.AddressSpace
@@ -27,14 +26,13 @@ import java.net.ServerSocket
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 
 class PlcTagTableTest {
     private class ReadNamespace(
         server: OpcUaServer,
-    ) : ManagedNamespace(server, "urn:controls:test:table-reads"), AutoCloseable {
+    ) : ManagedNamespace(server, "urn:controls:test:table-reads") {
 
         var value = DataValue(Variant(7.0), StatusCode.BAD)
 
@@ -56,9 +54,6 @@ class PlcTagTableTest {
         override fun onDataItemsDeleted(items: List<DataItem>) = Unit
         override fun onMonitoringModeChanged(items: List<MonitoredItem>) = Unit
 
-        override fun close() {
-            // do nothing
-        }
     }
 
     @Test
@@ -77,56 +72,59 @@ class PlcTagTableTest {
             plugin(ClockManager)
         }
 
-        server.startup().await()
-        val namespace = ReadNamespace(server)
+        var serverStarted = false
+        var table: PlcTagTable? = null
+        try {
+            server.startup().await()
+            serverStarted = true
+            val namespace = ReadNamespace(server)
 
-        server.addressSpaceManager.register(namespace)
-        val column = TagTableColumn.opc(
-            source = "server",
-            timer = "scan",
-            nodeId = NodeId(namespace.namespaceIndex, "value").toParseableString(),
-            removeAuxiliaryValues = false // keep opc data
-        )
-        val table = PlcTagTable(
-            context, TagTableConfiguration(
-                sources = mapOf("server" to OpcTagSourceConfig("opc.tcp://127.0.0.1:$port")),
-                timers = mapOf("scan" to FixedRateTimer(20.milliseconds)),
-                tags = mapOf("sensor" to column)
+            server.addressSpaceManager.register(namespace)
+            val column = TagTableColumn.opc(
+                source = "server",
+                timer = "scan",
+                nodeId = NodeId(namespace.namespaceIndex, "value").toParseableString(),
+                removeAuxiliaryValues = false, // keep opc data
             )
-        )
-        table.start()
-
-        delay(1.seconds)
-
-        for ((index, status) in listOf(StatusCode.BAD, StatusCode.UNCERTAIN).withIndex()) {
-            namespace.value = DataValue(
-                /* value = */ Variant(index.toDouble()),
-                /* status = */ status,
-                /* sourceTime = */ DateTime(Instant.parse("2026-09-21T10:00:00Z").toJavaInstant()),
-                /* serverTime = */ DateTime(Instant.parse("2026-09-21T10:00:1${index}Z").toJavaInstant()),
+            val activeTable = PlcTagTable(
+                context,
+                TagTableConfiguration(
+                    sources = mapOf("server" to OpcTagSourceConfig("opc.tcp://127.0.0.1:$port")),
+                    timers = mapOf("scan" to FixedRateTimer(20.milliseconds)),
+                    tags = mapOf("sensor" to column),
+                ),
             )
+            table = activeTable
+            activeTable.start()
 
-            delay(200.milliseconds)
-            val tagValueWithTime = table.readTagWithTime("sensor")
-            if (status.isGood) {
-                assertEquals(TagState.GOOD_QUALITY, table.readTagQuality("sensor").quality)
-            } else {
-                assertEquals(TagState.BAD_QUALITY, table.readTagQuality("sensor").quality)
+            awaitUntil { activeTable.readTagWithTime("sensor").value["@opc.status"] != null }
+
+            for ((index, status) in listOf(StatusCode.BAD, StatusCode.UNCERTAIN).withIndex()) {
+                namespace.value = DataValue(
+                    /* value = */ Variant(index.toDouble()),
+                    /* status = */ status,
+                    /* sourceTime = */ DateTime(Instant.parse("2026-09-21T10:00:00Z").toJavaInstant()),
+                    /* serverTime = */ DateTime(Instant.parse("2026-09-21T10:00:1${index}Z").toJavaInstant()),
+                )
+
+                awaitUntil { activeTable.readTagWithTime("sensor").value.double == index.toDouble() }
+                val tagValueWithTime = activeTable.readTagWithTime("sensor")
+                assertEquals(
+                    if (status.isGood) TagState.GOOD_QUALITY else TagState.BAD_QUALITY,
+                    activeTable.readTagQuality("sensor").quality,
+                )
+                assertEquals(index.toDouble(), tagValueWithTime.value.double)
+                assertEquals(status.value, tagValueWithTime.value["@opc.status"].long)
+                assertEquals(
+                    "2026-09-21T10:00:00Z",
+                    tagValueWithTime.value["@opc.sourceTime"].string,
+                )
+                assertEquals(tagValueWithTime.time.toString(), tagValueWithTime.value["@opc.serverTime"].string)
             }
-            assertEquals(index.toDouble(), tagValueWithTime.value.double)
-            assertEquals(status.value, tagValueWithTime.value["@opc.status"].long)
-            assertEquals(
-                "2026-09-21T10:00:00Z",
-                tagValueWithTime.value["@opc.sourceTime"].string
-            )
-            assertEquals(tagValueWithTime.time.toString(), tagValueWithTime.value["@opc.serverTime"].string)
-
+        } finally {
+            table?.stop()
+            if (serverStarted) server.shutdown().await()
+            context.close()
         }
-
-        namespace.close()
-        table.stop()
-        server.shutdown().await()
-        context.close()
-
     }
 }

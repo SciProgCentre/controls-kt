@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add configuration-based `tableExporter` construction and CSV export of selected tags, quality, and source state in the data platform demo.
+- Implement `tableExporter` for merging tag and device-property histories into a time-aligned table.
 - Add File-based implementation for DeviceMessageStorage `FileDeviceMessageStorage` in `controls-storage`.
 - Add tests for malformed file reading in `FileDeviceMessageStorage`.
 - Add `includeOldValues` flag for `readTimeSeries`, `flowBinaryData`, and `storeData` in `controls-table`.
@@ -40,6 +42,8 @@
 ### Fixed
 
 - Fix write exception on logical properties and add unit tests for DeviceBuilder property accessibility (readable, writeable, and logical).
+- Watch storage subdirectories recursively, including newly created directories, and remove deleted subtree entries from the index.
+- Close Ktor TCP and UDP sockets and selector managers when ports stop or fail to open.
 - Watch storage subdirectories recursively, including newly created directories, and remove deleted subtree entries from the index.
 - Close Ktor TCP and UDP sockets and selector managers when ports stop or fail to open.
 - Add error handling for property subscription and async writing (quasi-synchronous access is handled by the caller)

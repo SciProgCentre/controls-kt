@@ -1,19 +1,17 @@
 package space.kscience.controls.tagtable
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.ValueStateFactory
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.ContextAware
+import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.tables.ColumnHeader
-import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -102,23 +100,17 @@ public interface TagTable : Device {
      */
     override val messageFlow: SharedFlow<DeviceMessage>
 
-    public object ValueFactorySpec : MetaSpec() {
-        public val tag: MetaRef<String> by string()
-    }
+    public companion object : DeviceFactory {
 
-    /**
-     * Get a value state factory providing value states from this [TagTable] tags
-     */
-    public fun asValueStateFactory(): ValueStateFactory = object : ValueStateFactory {
-        override fun build(context: Context, meta: Meta): ValueState<Meta> {
-            val tag = meta[ValueFactorySpec.tag] ?: error("No tag specified")
-            return subscribe(tag)
+        override fun buildDevice(
+            context: Context,
+            meta: Meta
+        ): TagTable {
+            val configuration = MetaConverter.serializable<TagTableConfiguration>().read(meta)
+
+            return context.request(TagTablePlugin).install(configuration)
         }
 
-        override val descriptor: MetaDescriptor get() = ValueFactorySpec.descriptor
-    }
-
-    public companion object {
 
         public val timeColumnHeader: ColumnHeader<Meta> = ColumnHeader<Meta>("@time") {
             title = "Time"

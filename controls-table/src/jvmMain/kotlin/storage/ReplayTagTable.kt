@@ -6,6 +6,7 @@ import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
+import space.kscience.controls.storage.DeviceMessageStorage
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.tagtable.TagState
@@ -18,6 +19,8 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
+import space.kscience.dataforge.context.error
+import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
@@ -38,20 +41,24 @@ import kotlin.time.Instant
  * Replay table values from storage represented by [storageIndex]
  *
  * Only tags in [tags] are shown. If given tags are not present in currently replayed storage, they are returned empty.
+ *
+ * @param storageIndex the source storage index for tag rows replay
+ * @param tags to be used in this replay
  */
 public class ReplayTagTable(
     private val storageIndex: TableStorageIndex,
     override val tags: Map<String, MetaDescriptor>,
     private val scope: CoroutineScope = storageIndex.context,
     override val clock: Clock = storageIndex.context.clock
-) : TagTable, Replay {
+) : TagTable, ReplayMessageSource {
 
     override val context: Context get() = storageIndex.context
 
     override val messageFlow: SharedFlow<DeviceMessage>
         field = MutableSharedFlow<DeviceMessage>()
 
-    override val coroutineContext: CoroutineContext get() = context.coroutineContext
+    override val coroutineContext: CoroutineContext =
+        context.coroutineContext + SupervisorJob(scope.coroutineContext[Job])
 
     private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
     private val tagStates = ConcurrentHashMap<String, TagState>()
@@ -127,7 +134,7 @@ public class ReplayTagTable(
     override suspend fun play(
         from: Instant,
         to: Instant,
-        startTime: Instant?,
+        startTimeOverride: Instant,
         timeScale: Double
     ): Job {
         require(timeScale > 0.0) { "timeScale must be greater than 0.0" }
@@ -157,22 +164,32 @@ public class ReplayTagTable(
         }
 
         val rows = storageIndex.selectRows(from..to)
-        var time: Instant = startTime ?: clock.now()
 
-        return scope.launch {
+
+        return launch {
+            var currentRowTime: Instant = startTimeOverride
             rows.rowSequence().zipWithNext().forEachIndexed { index, (prev, next) ->
-                val prevTime = prev[TagTable.timeColumnHeader].instant ?: error("Missing time column")
-                val nextTime = next[TagTable.timeColumnHeader].instant ?: error("Missing time column")
+                //ignore missing time (should not happen)
+                val prevTime = prev[TagTable.timeColumnHeader].instant ?: run {
+                    logger.error { "Missing time for row $prev" }
+                    return@forEachIndexed
+                }
+                val nextTime = next[TagTable.timeColumnHeader].instant ?: run {
+                    logger.error { "Missing time for row $next" }
+                    return@forEachIndexed
+                }
                 //send first element
                 if (index == 0) {
-                    processRow(prev, time)
+                    processRow(prev, currentRowTime)
                 }
                 val duration = (nextTime - prevTime) / timeScale
+
+                //switch to device dispatcher to process virtual time
                 withContext(context.deviceDispatcher) {
                     delay(duration)
                 }
-                time += duration
-                processRow(next, time)
+                currentRowTime += duration
+                processRow(next, currentRowTime)
             }
         }.also {
             playJob = it
@@ -206,18 +223,18 @@ public class ReplayTagTable(
             name = "play",
             description = "Start playback",
             inputMetaDescriptor = MetaDescriptor {
-                value("from", ValueType.STRING){
+                value("from", ValueType.STRING) {
 
                 }
-                value("to", ValueType.STRING){
+                value("to", ValueType.STRING) {
 
                 }
 
-                value("startTime", ValueType.STRING){
+                value("startTime", ValueType.STRING) {
                     default(null)
                 }
 
-                value("timeScale", ValueType.NUMBER){
+                value("timeScale", ValueType.NUMBER) {
                     default(1.0)
                 }
             }
@@ -242,12 +259,12 @@ public class ReplayTagTable(
         "play" -> {
             val from = argument?.get("from")?.instant ?: Instant.DISTANT_PAST
             val to = argument?.get("to")?.instant ?: Instant.DISTANT_FUTURE
-            val startTime = argument?.get("startTime")?.instant
+            val startTime = argument?.get("startTime")?.instant ?: from
             val timeScale = argument?.get("timeScale")?.double ?: 1.0
             play(
                 from = from,
                 to = to,
-                startTime = startTime,
+                startTimeOverride = startTime,
                 timeScale = timeScale
             )
             null
@@ -289,7 +306,6 @@ public fun TagTable.Companion.replay(
     storage: ControlsStoragePlugin,
     dataDirectory: Path,
     tags: Map<String, MetaDescriptor>,
-    cacheMetadata: Boolean = true,
     operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
     scope: CoroutineScope = storage.context,
     removeFilesCycleDuration: Duration = 10.minutes,
@@ -297,7 +313,6 @@ public fun TagTable.Companion.replay(
     storageIndex = TableStorageIndex(
         storage = storage,
         dataDirectory = dataDirectory,
-        cacheMetadata = cacheMetadata,
         operations = operations,
         scope = scope,
         removeFilesCycleDuration = removeFilesCycleDuration

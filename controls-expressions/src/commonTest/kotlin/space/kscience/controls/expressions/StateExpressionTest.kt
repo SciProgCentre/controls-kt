@@ -12,6 +12,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.last
 import kotlin.math.E
 import kotlin.math.PI
 import kotlin.test.*
@@ -25,7 +26,7 @@ class StateExpressionTest {
             coroutineContext(backgroundScope.coroutineContext)
         }
         try {
-            val stateExpressionContext = StateExpressionContext(context,  backgroundScope)
+            val stateExpressionContext = StateExpressionContext(context, backgroundScope)
 
             val a = ValueStateExpression.Constant("pi", Meta.EMPTY)
             val state = stateExpressionContext.computeState(a)
@@ -46,7 +47,7 @@ class StateExpressionTest {
         val zState by expression(
             ValueStateExpression.Binary(
                 operation = "+",
-                left = ValueStateExpression.deviceProperty(deviceName ="test", propertyName = "x"),
+                left = ValueStateExpression.deviceProperty(deviceName = "test", propertyName = "x"),
                 right = ValueStateExpression.deviceProperty(deviceName = "test", propertyName = "y")
             )
         )
@@ -105,12 +106,12 @@ class StateExpressionTest {
             ValueStateExpression.Function(
                 operation = "mean",
                 arguments = mapOf(
-                    "a" to ValueStateExpression.deviceProperty(deviceName ="arithmetic", propertyName = "one"),
+                    "a" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "one"),
                     "b" to ValueStateExpression.deviceProperty(
                         deviceName = "arithmetic",
                         propertyName = "nullValue"
                     ),
-                    "c" to ValueStateExpression.deviceProperty(deviceName ="arithmetic", propertyName = "three")
+                    "c" to ValueStateExpression.deviceProperty(deviceName = "arithmetic", propertyName = "three")
                 )
             )
         )
@@ -215,7 +216,13 @@ class StateExpressionTest {
                 ExpressionValueStateFactory,
                 constructor.resolveValueStateFactory("controls-expression.expression")
             )
-            assertEquals(setOf("expression", "deviceProperty", "math"), constructor.valueStateFactories.keys)
+            assertTrue {
+                constructor.valueStateFactories.keys.map {
+                    it.last().toString()
+                }.containsAll(
+                    setOf("expression", "deviceProperty", "math")
+                )
+            }
             assertNull(constructor.resolveValueStateFactory("missing"))
         } finally {
             context.close()

@@ -3,6 +3,7 @@ package space.kscience.controls.constructor
 import kotlinx.serialization.Serializable
 import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 
@@ -16,6 +17,8 @@ public data class ValueStateConfiguration(
     public val metadata: Meta = Meta.EMPTY
 ){
     public companion object{
+
+        public val metaConverter: MetaConverter<ValueStateConfiguration> = MetaConverter.serializable<ValueStateConfiguration>()
 
         /**
          * Create a ValueStateConfiguration for a device property

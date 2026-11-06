@@ -1,4 +1,4 @@
-package space.kscience.controls.storage
+package space.kscience.controls.time
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
@@ -7,7 +7,6 @@ import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.names.Name
 import kotlin.time.Clock
@@ -24,11 +23,18 @@ public interface ValueHistory<T> {
      * If [until] is in the future, the resulting flow is potentially unlimited.
      * Theoretically, it could be also unlimited if the event source keeps producing new event with timestamp in a given range.
      */
-    public fun flowHistory(
+    public fun flow(
         from: Instant = Instant.DISTANT_PAST,
         until: Instant = Clock.System.now(),
     ): Flow<ValueWithTime<T>>
 }
+
+/**
+ * Flow property values filtered by a time range.
+ */
+public fun <T> ValueHistory<T>.flow(
+    range: ClosedRange<Instant>
+): Flow<ValueWithTime<T>> = flow(range.start, range.endInclusive)
 
 /**
  * An in-memory property values history collector
@@ -48,7 +54,7 @@ public class CollectedValueHistory<T>(
         .map { ValueWithTime(converter.read(it.value), it.time) }
         .shareIn(scope, started = SharingStarted.Eagerly, replay = maxSize)
 
-    override fun flowHistory(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
+    override fun flow(from: Instant, until: Instant): Flow<ValueWithTime<T>> =
         store.filter { it.time in from..until }
 }
 

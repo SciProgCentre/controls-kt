@@ -1,6 +1,7 @@
 package space.kscience.controls.api
 
 import kotlinx.serialization.Serializable
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.MetaDescriptorBuilder
@@ -22,6 +23,7 @@ public class PropertyDescriptor(
     public var metaDescriptor: MetaDescriptor = MetaDescriptor(),
     public var readable: Boolean = true,
     public var mutable: Boolean = false,
+    public var metadata: Meta? = null
 ) : DeviceElementDescriptor {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -73,7 +75,8 @@ public class ActionDescriptor(
     public val name: String,
     public var description: String? = null,
     public var inputMetaDescriptor: MetaDescriptor = MetaDescriptor(),
-    public var outputMetaDescriptor: MetaDescriptor = MetaDescriptor()
+    public var outputMetaDescriptor: MetaDescriptor = MetaDescriptor(),
+    public var metadata: Meta? = null
 ) : DeviceElementDescriptor {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

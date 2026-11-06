@@ -21,6 +21,7 @@ import space.kscience.controls.constructor.values
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.controls.time.ClockManager
+import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
@@ -39,7 +40,14 @@ private val defaultMaxPoints get() = 800
 private val defaultMinPoints get() = 400
 private val defaultSampling get() = 1.seconds
 
-@OptIn(FlowPreview::class)
+/**
+ * Repeats or samples the incoming values from the flow based on the provided clock and interval.
+ * If no new values are received within a certain duration, it generates a sampled value.
+ *
+ * @param clockManager Manages clock-related functionality, providing the clock and dispatcher for time-based operations.
+ * @param interval The duration of the interval at which the flow is sampled or values are repeated.
+ * @return A flow of `ValueWithTime` objects containing the incoming values and their associated timestamps.
+ */
 private fun <T> Flow<T>.repeatOrSample(
     clockManager: ClockManager,
     interval: Duration
@@ -58,7 +66,7 @@ private fun <T> Flow<T>.repeatOrSample(
         while (isActive) {
             currentValue?.let { current ->
                 val now = clock.now()
-                if (now - current.time > interval*3) {
+                if (now - current.time > interval * 3) {
                     send(ValueWithTime(current.value, now))
                 } else if (now - current.time < interval) {
                     send(current)
@@ -70,17 +78,28 @@ private fun <T> Flow<T>.repeatOrSample(
 
 }
 
-
+/**
+ * Collects and processes a flow of `ValueWithTime` objects, trimming outdated values and limiting
+ * the number of points while ensuring a minimum required count.
+ *
+ * @param maxAge The maximum age duration for which data points remain valid. Points older than this duration are removed. Defaults to `defaultMaxAge`.
+ * @param maxPoints The maximum number of points allowed in the collected list. Points exceeding this limit are removed while maintaining the latest points. Defaults to `defaultMax
+ * Points`.
+ * @param minPoints The minimum number of points that must remain in the list after trimming. Defaults to `defaultMinPoints`.
+ * @param clock The clock instance used to derive the current time for processing. Defaults to `Global.clock`.
+ * @return A flow of lists containing the trimmed and valid `ValueWithTime` points.
+ */
 internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     clock: Clock = Global.clock,
+    startingPoints: List<ValueWithTime<T>> = emptyList()
 ): Flow<List<ValueWithTime<T>>> {
     require(maxPoints > 2)
     require(minPoints > 0)
     require(maxPoints > minPoints)
-    val points = mutableListOf<ValueWithTime<T>>()
+    val points = startingPoints.toMutableList()
     return transform { newPoint ->
         points.add(newPoint)
         val now = clock.now()
@@ -107,21 +126,33 @@ internal fun <T> Flow<ValueWithTime<T>>.collectAndTrim(
     }
 }
 
+/**
+ * Manages and maintains the state of time series data for visualization in a plot.
+ *
+ * This state class allows you to store, update, and remove time series data by associating
+ * a series name (String) with a list of time-stamped values. Each value within a time series
+ * is represented as a `ValueWithTime<Double>` object.
+ *
+ * The state is utilized by classes and functions that implement time series plotting,
+ * ensuring synchronization between stored data and its visual representation.
+ *
+ * @property data A read-only map where keys are series names and values are lists of
+ * time-stamped values representing the time series data.
+ */
 @Stable
 public class TimeSeriesPlotState {
-    private val _data = mutableStateMapOf<String, List<ValueWithTime<Double>>>()
-    public val data: Map<String, List<ValueWithTime<Double>>> get() = _data
+    public val data: Map<String, List<ValueWithTime<Double>>>
+        field = mutableStateMapOf<String, List<ValueWithTime<Double>>>()
 
     public fun updateSeries(name: String, points: List<ValueWithTime<Double>>) {
-        _data[name] = points
+        data[name] = points
     }
 
     public fun removeSeries(name: String) {
-        _data.remove(name)
+        data.remove(name)
     }
 }
 
-public class TimeSeriesPlotBuilder(public val state: TimeSeriesPlotState)
 
 @Composable
 public fun TimeSeriesPlot(
@@ -129,14 +160,13 @@ public fun TimeSeriesPlot(
     xAxisTitle: String? = "Time",
     yAxisTitle: String? = "Value",
     drawInterval: Duration = defaultSampling,
-    content: @Composable TimeSeriesPlotBuilder.() -> Unit
+    content: @Composable TimeSeriesPlotState.() -> Unit
 ) {
     val state = remember { TimeSeriesPlotState() }
-    val builder = remember { TimeSeriesPlotBuilder(state) }
     var plotData by remember { mutableStateOf<Map<String, List<*>>>(emptyMap()) }
 
     // launch all time series updates in this scope as effects
-    content(builder)
+    content(state)
 
     LaunchedEffect(Unit) {
         while (isActive) {
@@ -169,7 +199,8 @@ public fun TimeSeriesPlot(
         x = "time"
         y = "value"
         color = "series"
-    } + scaleXTime(name = xAxisTitle) + org.jetbrains.letsPlot.themes.theme().legendPositionBottom().legendDirectionVertical()
+    } + scaleXTime(name = xAxisTitle) + org.jetbrains.letsPlot.themes.theme().legendPositionBottom()
+        .legendDirectionVertical()
 
     if (yAxisTitle != null) {
         figure += labs(y = yAxisTitle)
@@ -181,40 +212,50 @@ public fun TimeSeriesPlot(
 }
 
 @Composable
-public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
+public fun TimeSeriesPlotState.PlotDeviceProperty(
     device: Device,
     propertyName: String,
     seriesName: String = propertyName,
-    extractValue: Meta.() -> Double = { double ?: Double.NaN },
+    extractValue: Meta.() -> Double? = { double },
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
+    history: ValueHistory<Meta>? = null
 ) {
     LaunchedEffect(device, propertyName, maxAge, maxPoints, minPoints, sampling) {
         val clockManager = device.context.plugins.get<ClockManager>() ?: device.context.request(ClockManager)
 
         coroutineContext[Job]?.invokeOnCompletion {
-            state.removeSeries(seriesName)
+            removeSeries(seriesName)
         }
 
+        // if history not null, use it to pre-fill old values
+        val startingPoints = history
+            ?.flow(clockManager.clock.now().minus(maxAge))
+            ?.mapNotNull { (value, time) ->
+                extractValue(value)?.let { ValueWithTime(it, time) }
+            }?.toList()
+            ?: emptyList()
+
         device.propertyMessageFlow(propertyName)
-            .map { it.value.extractValue() }
+            .mapNotNull { it.value.extractValue() }
             .repeatOrSample(clockManager, sampling)
-            .collectAndTrim(maxAge, maxPoints, minPoints, device.clock)
-            .onEach { state.updateSeries(seriesName, it) }
+            .collectAndTrim(maxAge, maxPoints, minPoints, device.clock, startingPoints)
+            .onEach { updateSeries(seriesName, it) }
             .launchIn(this)
     }
 }
 
 @Composable
-public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
+public fun TimeSeriesPlotState.PlotDeviceProperty(
     device: Device,
     property: DevicePropertySpec<out Number>,
     maxAge: Duration = defaultMaxAge,
     maxPoints: Int = defaultMaxPoints,
     minPoints: Int = defaultMinPoints,
     sampling: Duration = defaultSampling,
+    history: ValueHistory<Meta>? = null
 ): Unit = PlotDeviceProperty(
     device = device,
     propertyName = property.name,
@@ -223,10 +264,11 @@ public fun TimeSeriesPlotBuilder.PlotDeviceProperty(
     maxPoints = maxPoints,
     minPoints = minPoints,
     sampling = sampling,
+    history = history
 )
 
 @Composable
-public fun TimeSeriesPlotBuilder.PlotNumberState(
+public fun TimeSeriesPlotState.PlotNumberState(
     context: Context,
     valueState: ValueState<Number>,
     seriesName: String = valueState.toString(),
@@ -240,7 +282,7 @@ public fun TimeSeriesPlotBuilder.PlotNumberState(
         val clock = context.clock
 
         coroutineContext[Job]?.invokeOnCompletion {
-            state.removeSeries(seriesName)
+            removeSeries(seriesName)
         }
 
 
@@ -248,13 +290,13 @@ public fun TimeSeriesPlotBuilder.PlotNumberState(
             .map { it.toDouble() }
             .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, clock)
-            .onEach { state.updateSeries(seriesName, it) }
+            .onEach { updateSeries(seriesName, it) }
             .launchIn(this)
     }
 }
 
 @Composable
-public fun TimeSeriesPlotBuilder.PlotNumericState(
+public fun TimeSeriesPlotState.PlotNumericState(
     context: Context,
     state: ValueState<Amount<*>>,
     name: String = state.toString(),
@@ -274,7 +316,6 @@ private fun List<Instant>.averageTime(): Instant {
     return min + duration / 2
 }
 
-@OptIn(FlowPreview::class)
 private fun <T> Flow<T>.chunkedByPeriod(duration: Duration): Flow<List<T>> {
     val collector: ArrayDeque<T> = ArrayDeque<T>()
     return channelFlow {
@@ -292,7 +333,7 @@ private fun <T> Flow<T>.chunkedByPeriod(duration: Duration): Flow<List<T>> {
 }
 
 @Composable
-public fun TimeSeriesPlotBuilder.PlotAveragedDeviceProperty(
+public fun TimeSeriesPlotState.PlotAveragedDeviceProperty(
     device: Device,
     propertyName: String,
     startValue: Double = 0.0,
@@ -308,7 +349,7 @@ public fun TimeSeriesPlotBuilder.PlotAveragedDeviceProperty(
         var lastValue = startValue
 
         coroutineContext[Job]?.invokeOnCompletion {
-            state.removeSeries(seriesName)
+            removeSeries(seriesName)
         }
 
         device.propertyMessageFlow(propertyName)
@@ -324,7 +365,7 @@ public fun TimeSeriesPlotBuilder.PlotAveragedDeviceProperty(
                     }
                 }
             }.collectAndTrim(maxAge, maxPoints, minPoints, clock)
-            .onEach { state.updateSeries(seriesName, it) }
+            .onEach { updateSeries(seriesName, it) }
             .launchIn(this)
     }
 }

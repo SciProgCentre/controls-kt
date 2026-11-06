@@ -1,54 +1,94 @@
 package space.kscience.controls.tagtable.storage
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.LifecycleState
+import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.WithLifeCycle
 import space.kscience.controls.instant
-import space.kscience.controls.storage.ControlsStoragePlugin
-import space.kscience.controls.storage.FileEnvelopeOperations
-import space.kscience.controls.storage.NativeFileEnvelopeOperations
-import space.kscience.controls.storage.ZipRowsEnvelopeConverter
+import space.kscience.controls.storage.*
+import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTable.Companion.timeColumnHeader
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.ContextAware
-import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.context.warn
+import space.kscience.controls.time.ValueHistory
+import space.kscience.controls.time.ValueWithTime
+import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.io.dataType
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.names.Name
 import space.kscience.tables.Row
 import space.kscience.tables.Rows
 import space.kscience.tables.TableHeader
 import space.kscience.tables.get
 import java.nio.file.ClosedWatchServiceException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
-import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
-import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
-import java.nio.file.StandardWatchEventKinds.OVERFLOW
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardWatchEventKinds.*
 import java.nio.file.WatchEvent
 import java.nio.file.WatchService
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
- * Create a watcher for file creation and deletion events in this directory.
+ * Create a watcher for file creation and deletion events in this directory and its subdirectories.
  */
-internal fun Path.watchFiles(): WatchService = fileSystem.newWatchService().also { watchService ->
+internal fun Path.watchFiles(
+    newWatchService: (Path) -> WatchService = { it.fileSystem.newWatchService() },
+    registerWatch: (Path, WatchService) -> Unit = { path, watchService ->
+        path.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    },
+): WatchService = newWatchService(this).also { watchService ->
     try {
-        register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+        watchService.registerTree(this, registerWatch)
     } catch (ex: Throwable) {
         watchService.close()
         throw ex
     }
 }
 
+// LLM generated code: Register existing storage subdirectories with a watcher.
+/** Register [directory] and every existing descendant directory with this watcher. */
+internal fun WatchService.registerTree(
+    directory: Path,
+    registerWatch: (Path, WatchService) -> Unit = { path, watchService ->
+        path.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    },
+) {
+    Files.walkFileTree(directory, object : SimpleFileVisitor<Path>() {
+        override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult = try {
+            registerWatch(dir, this@registerTree)
+            FileVisitResult.CONTINUE
+        } catch (ex: NoSuchFileException) {
+            if (dir == directory) throw ex
+            FileVisitResult.SKIP_SUBTREE
+        }
+
+        override fun visitFileFailed(file: Path, exc: java.io.IOException): FileVisitResult =
+            if (exc is NoSuchFileException && file != directory) {
+                FileVisitResult.SKIP_SUBTREE
+            } else {
+                throw exc
+            }
+    })
+}
+
 /**
- * Launch a directory monitor that calls [onEvent] with a path relative to [directory]
- * for each file creation or deletion event, and without a path for [OVERFLOW], when events were lost.
+ * Launch a directory monitor that calls [onEvent] with the path to each created or deleted entry,
+ * resolved against the directory that reported it, and without a path for [OVERFLOW], when events were lost.
  * Cancellation interrupts a pending wait, so the watcher is closed instead of being left open.
  */
 internal fun CoroutineScope.launchDirectoryMonitor(
@@ -67,21 +107,29 @@ internal fun CoroutineScope.launchDirectoryMonitor(
     watchService.use { watchService ->
         while (isActive) {
             val key = try {
-                runInterruptible { watchService.take() }
+                runInterruptible {
+                    watchService.take()
+                }
             } catch (ex: ClosedWatchServiceException) {
                 break
             }
 
             for (event in key.pollEvents()) {
                 ensureActive()
-                val file = event.context() as Path?
+                val file = (event.context() as? Path)?.let { context ->
+                    (key.watchable() as? Path)?.resolve(context) ?: context
+                }
                 onEvent(event.kind(), file)
             }
 
             if (!key.reset()) break
         }
     }
-}.apply { invokeOnCompletion { watchService.close() } }
+}.apply {
+    invokeOnCompletion {
+        watchService.close()
+    }
+}
 
 /**
  * A class that represents an index for a data platform's storage, providing capabilities for
@@ -90,7 +138,6 @@ internal fun CoroutineScope.launchDirectoryMonitor(
  *
  * @property storage The IOPlugin used for file system interactions such as reading or monitoring files.
  * @property dataDirectory The directory where data files are stored and monitored.
- * @property cacheMetadata A flag indicating whether metadata should be cached for storage efficiency.
  * @property operations An instance of FileEnvelopeOperations to handle reading and writing envelope data.
  * @property scope A CoroutineScope used for managing asynchronous operations.
  * @property removeFilesCycleDuration The duration interval for periodically checking and handling removed files.
@@ -122,11 +169,16 @@ internal fun CoroutineScope.launchDirectoryMonitor(
 public class TableStorageIndex(
     public val storage: ControlsStoragePlugin,
     private val dataDirectory: Path,
-    private val cacheMetadata: Boolean = true,
     private val operations: FileEnvelopeOperations = NativeFileEnvelopeOperations(storage.io),
     private val scope: CoroutineScope = storage.context,
     private val removeFilesCycleDuration: Duration = 10.minutes
 ) : ContextAware, WithLifeCycle {
+
+    internal var newWatchService: (Path) -> WatchService = { it.fileSystem.newWatchService() }
+
+    internal var registerWatch: (Path, WatchService) -> Unit = { path, watchService ->
+        path.register(watchService, ENTRY_CREATE, ENTRY_DELETE)
+    }
 
     override val context: Context get() = storage.context
 
@@ -163,7 +215,7 @@ public class TableStorageIndex(
      * Select row envelopes in [range]
      */
     public suspend fun selectEnvelopes(range: ClosedRange<Instant>): List<Envelope> {
-        if(lifecycleState == LifecycleState.STOPPED) start()
+        if (lifecycleState == LifecycleState.STOPPED) start()
 
         return search(range).sortedBy { it.start }.mapNotNull { operations.readEnvelope(it.path) }
     }
@@ -176,7 +228,8 @@ public class TableStorageIndex(
             it.meta[RowEnvelopeMetaSpec.startTime]
         }.map {
             val envelopeType = it.dataType ?: ZipRowsEnvelopeConverter.ENVELOPE_TYPE
-            val converter = storage.rowEnvelopeConverters[envelopeType] ?:error("Can't find rows converter for envelope type $envelopeType")
+            val converter = storage.rowEnvelopeConverters[envelopeType]
+                ?: error("Can't find rows converter for envelope type $envelopeType")
             converter.readRows(it)
         }
 
@@ -399,7 +452,7 @@ public class TableStorageIndex(
 
         // watch before the scan, so that files created during the scan are not missed
         val watchService = try {
-            dataDirectory.watchFiles()
+            dataDirectory.watchFiles(newWatchService, registerWatch)
         } catch (ex: Throwable) {
             lifecycleState = LifecycleState.STOPPED
             throw ex
@@ -424,19 +477,31 @@ public class TableStorageIndex(
 
             val removalMutex: Mutex = Mutex()
 
-            launchDirectoryMonitor(watchService) { kind, file ->
-                // an overflow has no file, so the whole directory is scanned again; indexed files are not added twice
-                val path = file?.let { dataDirectory.resolve(it) } ?: dataDirectory
+            // LLM generated code: Register and scan directories discovered by the storage monitor.
+            suspend fun scanDirectory(path: Path, registerTree: Boolean) {
+                try {
+                    if (registerTree) watchService.registerTree(path, this@TableStorageIndex.registerWatch)
+                    operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
+                        insert(createdPath)
+                    }
+                } catch (ex: Exception) {
+                    if (ex is CancellationException) throw ex
+                    currentCoroutineContext().ensureActive()
+                    logger.warn { "Failed to scan storage directory $path: $ex" }
+                }
+            }
 
+            launchDirectoryMonitor(watchService) { kind, path ->
                 when (kind) {
-                    ENTRY_CREATE, OVERFLOW -> {
-                        operations.envelopeFilesSequence(path).forEach { (_, createdPath) ->
-                            insert(createdPath)
-                        }
+                    ENTRY_CREATE -> if (path != null) {
+                        scanDirectory(path, Files.isDirectory(path, NOFOLLOW_LINKS))
                     }
 
+                    // An overflow has no path, so restore all registrations and rescan the root.
+                    OVERFLOW -> scanDirectory(dataDirectory, registerTree = true)
+
                     ENTRY_DELETE -> removalMutex.withLock {
-                        removedFiles.add(path)
+                        path?.let(removedFiles::add)
                     }
                 }
             }
@@ -448,7 +513,12 @@ public class TableStorageIndex(
                         removedFiles.toSet().also { removedFiles.clear() }
                     }
                     if (pathsToRemove.isNotEmpty()) {
-                        removeIf { it.path in pathsToRemove }
+                        removeIf { interval ->
+                            pathsToRemove.any { removedPath ->
+                                (interval.path == removedPath || interval.path.startsWith(removedPath)) &&
+                                        Files.notExists(interval.path)
+                            }
+                        }
                     }
                 }
             }
@@ -465,4 +535,87 @@ public class TableStorageIndex(
         lifecycleState = LifecycleState.STOPPED
     }
 
+}
+
+/**
+ * Get value history for specified tag from this file index
+ */
+public fun TableStorageIndex.tagHistory(tag: String): ValueHistory<Meta> = object : ValueHistory<Meta> {
+    override fun flow(
+        from: Instant,
+        until: Instant
+    ): Flow<ValueWithTime<Meta>> = flow {
+        val rows = selectRows(from..until)
+        if (rows.headers.none { it.name == tag }) error("Tag $tag not found in file index")
+
+        rows.rowSequence().asFlow().collect { row ->
+            val value = row.getOrNull(tag)
+            if (value != null) {
+                val time = row[TagTable.timeColumnHeader].instant ?: error("Row does not have a time column")
+                emit(ValueWithTime(value, time))
+            }
+        }
+    }
+}
+
+/**
+ * Create a [DeviceMessageStorage] that reads [PropertyChangedMessage] from the table
+ */
+public fun TableStorageIndex.asDeviceMessageStorage(
+    tableDevice: Name = Name.EMPTY
+): DeviceMessageStorage = object : DeviceMessageStorage {
+    override fun read(
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> =
+        read(DeviceMessage.serialNameFor<PropertyChangedMessage>(), range, sourceDevice, targetDevice)
+
+    override fun read(
+        eventType: String,
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> = if (eventType == DeviceMessage.serialNameFor<PropertyChangedMessage>()) {
+        //skip messages if device name is different
+        if (sourceDevice != null && sourceDevice != tableDevice) {
+            return emptyFlow()
+        }
+        //target device must be undefined
+        if (targetDevice != null) {
+            return emptyFlow()
+        }
+
+        flow {
+
+            val rows = selectRows(range = range ?: Instant.DISTANT_PAST..Instant.DISTANT_FUTURE)
+
+            val headers = rows.headers - TagTable.timeColumnHeader
+
+            rows.rowSequence().forEach { row ->
+                val time = row[TagTable.timeColumnHeader].instant ?: run {
+                    logger.error { "Row does not have a time column" }
+                    return@forEach
+                }
+                headers.forEach { header ->
+                    row.getOrNull(header.name)?.let { value ->
+                        emit(
+                            PropertyChangedMessage(
+                                time = time,
+                                property = header.name,
+                                value = value,
+                                sourceDevice = tableDevice,
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        emptyFlow<PropertyChangedMessage>()
+    }
+
+    override fun close() {
+        //do nothing
+    }
 }

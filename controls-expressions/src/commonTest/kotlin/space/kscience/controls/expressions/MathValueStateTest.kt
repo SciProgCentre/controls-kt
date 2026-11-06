@@ -12,6 +12,7 @@ import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.last
 import kotlin.math.E
 import kotlin.math.PI
 import kotlin.test.*
@@ -51,7 +52,7 @@ class MathValueStateTest {
                 MathValueStateFactory,
                 constructor.resolveValueStateFactory("controls-expression.math")
             )
-            assertEquals(setOf("deviceProperty", "expression", "math"), constructor.valueStateFactories.keys)
+            assertContentEquals(listOf("deviceProperty", "expression", "math"), constructor.valueStateFactories.keys.map { it.last().toString() })
             assertNull(constructor.resolveValueStateFactory("missing"))
         } finally {
             context.close()

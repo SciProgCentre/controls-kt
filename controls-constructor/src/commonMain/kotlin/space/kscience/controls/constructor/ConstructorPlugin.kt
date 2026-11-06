@@ -23,20 +23,16 @@ public class ConstructorPlugin : AbstractPlugin() {
 
     public val deviceManager: DeviceManager by require(DeviceManager)
 
-    private val valueStateFactoriesByName: Map<Name, ValueStateFactory> by lazy {
+    public val valueStateFactories: Map<Name, ValueStateFactory> by lazy {
         context.gather(ValueStateFactory.PROVIDER_TAGET, ValueStateFactory::class)
-    }
-
-    public val valueStateFactories: Map<String, ValueStateFactory> by lazy {
-        valueStateFactoriesByName.mapKeys { it.key.last().toString() }
     }
 
     /**
      * Resolve value state factory by full name. Short name is accepted only if it is unique.
      */
     public fun resolveValueStateFactory(type: String): ValueStateFactory? {
-        valueStateFactoriesByName[type.parseAsName()]?.let { return it }
-        val candidates = valueStateFactoriesByName.filterKeys { it.last().toString() == type }
+        valueStateFactories[type.parseAsName()]?.let { return it }
+        val candidates = valueStateFactories.filterKeys { it.last().toString() == type }
         return when (candidates.size) {
             0 -> null
             1 -> candidates.values.single()
@@ -48,7 +44,7 @@ public class ConstructorPlugin : AbstractPlugin() {
         parameters: Meta,
         type: String = parameters["type"]?.string ?: error("Type not specified")
     ): ValueState<Meta> = resolveValueStateFactory(type)?.build(context, parameters)
-        ?: error("No value state factory for type $type. Available factories: ${valueStateFactoriesByName.keys.sortedBy { it.toString() }}")
+        ?: error("No value state factory for type $type. Available factories: ${valueStateFactories.keys.sortedBy { it.toString() }}")
 
     public fun buildValueState(
         valueStateConfiguration: ValueStateConfiguration
@@ -89,8 +85,10 @@ public class ConstructorPlugin : AbstractPlugin() {
                 state = buildValueState(
                     parameters = propertyConfiguration.parameters,
                     type = propertyConfiguration.type
-                ),
-            )
+                )
+            ) {
+                metadata = ValueStateConfiguration.metaConverter.convert(propertyConfiguration)
+            }
         }
 
         //apply bindings after all devices are created

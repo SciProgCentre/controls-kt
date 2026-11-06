@@ -46,7 +46,7 @@ public class FileDeviceMessageStorage(
     private val maxMessagesPerFile: Int = 10000,
     private val historyDepth: Duration? = null,
     private val clock: Clock = Clock.System
-) : DeviceMessageStorage {
+) : WriteableDeviceMessageStorage {
 
     // writing
 

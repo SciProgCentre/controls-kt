@@ -60,7 +60,7 @@ public fun <T> Flow<T>.timeWindowed(duration: Duration): Flow<List<T>> = channel
  * @return Job which responsible for our storage
  */
 public fun DeviceManager.storeMessages(
-    factory: Factory<DeviceMessageStorage>,
+    factory: Factory<WriteableDeviceMessageStorage>,
     batchWindow: Duration? = null,
     filterCondition: suspend (DeviceMessage) -> Boolean = { true },
 ): Job {

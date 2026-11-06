@@ -122,8 +122,8 @@ index.start()
 
 ### Real-Time Directory Monitoring and Synchronization
 - **Initial Indexing**: During `start()`, all existing envelope files in `dataDirectory` (recursively) are scanned and inserted into the interval tree.
-- **Dynamic File Creation**: Uses Java `WatchService` via `launchDirectoryMonitor` to listen for `ENTRY_CREATE` events in real time and incrementally insert new envelopes into the tree.
-- **Safe Deletion Handling**: Tracks `ENTRY_DELETE` events and periodically cleans up deleted files from the AVL tree at intervals specified by `removeFilesCycleDuration` (default: 10 minutes).
+- **Dynamic File Creation**: Uses Java `WatchService` via `launchDirectoryMonitor` to watch the directory tree, including newly created subdirectories, and incrementally insert new envelopes.
+- **Safe Deletion Handling**: Tracks `ENTRY_DELETE` events and periodically removes deleted files or directory contents from the AVL tree at intervals specified by `removeFilesCycleDuration` (default: 10 minutes).
 
 ### Querying Data
 

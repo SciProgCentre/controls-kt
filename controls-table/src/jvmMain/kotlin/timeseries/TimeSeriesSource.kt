@@ -6,8 +6,8 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
-import space.kscience.controls.storage.ValueHistory
-import space.kscience.controls.storage.collectPropertyHistory
+import space.kscience.controls.time.ValueHistory
+import space.kscience.controls.time.collectPropertyHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
 

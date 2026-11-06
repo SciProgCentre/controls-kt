@@ -11,6 +11,7 @@ import java.nio.channels.ByteChannel
 import java.nio.channels.DatagramChannel
 import java.nio.channels.SocketChannel
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Copy the contents of this buffer to an array
@@ -45,7 +46,7 @@ public class ChannelPort(
     override val lifecycleState: LifecycleState
         get() = if(listenerJob?.isActive == true) LifecycleState.STARTED else LifecycleState.STOPPED
 
-    override fun onOpen() {
+    override suspend fun onOpen() {
         listenerJob = scope.launch(Dispatchers.IO) {
             val channel = futureChannel.await()
             val buffer = ByteBuffer.allocate(1024)
@@ -61,7 +62,7 @@ public class ChannelPort(
                         logger.info { "Channel $channel closed" }
                     } else {
                         logger.error(ex) { "Channel read error, retrying in 1 second" }
-                        delay(1000)
+                        delay(1.seconds)
                     }
                 }
             }

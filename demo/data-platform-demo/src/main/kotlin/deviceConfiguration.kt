@@ -12,6 +12,7 @@ import space.kscience.controls.opcua.server.read
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableColumn
 import space.kscience.controls.tagtable.TagTableConfiguration
+import space.kscience.controls.tagtable.TagTablePlugin
 import space.kscience.controls.utilities.Alarm
 import space.kscience.controls.utilities.AlarmSetting
 import space.kscience.dataforge.meta.Meta
@@ -37,7 +38,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                         tag.cutFirst().toString() to ValueStateConfiguration(
                             type = TagTable.TAG_TABLE_FACTORY_TYPE,
                             parameters = Meta {
-                                set(TagTable.ValueFactorySpec.tag, tag.toString())
+                                set(TagTablePlugin.ValueFactorySpec.tag, tag.toString())
                             }
                         )
                     }

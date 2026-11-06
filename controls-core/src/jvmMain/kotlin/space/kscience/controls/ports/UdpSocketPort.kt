@@ -20,7 +20,7 @@ public class UdpSocketPort(
 
     private var listenerJob: Job? = null
 
-    override fun onOpen() {
+    override suspend fun onOpen() {
         listenerJob = context.launch(Dispatchers.IO) {
             while (isActive) {
                 val buf = ByteArray(socket.receiveBufferSize)

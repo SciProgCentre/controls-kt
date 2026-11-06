@@ -5,9 +5,13 @@ import io.ktor.network.sockets.SocketOptions
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
+import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.read
 import io.ktor.utils.io.writeByteArray
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import space.kscience.controls.api.LifecycleState
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -23,24 +27,24 @@ public class KtorTcpPort internal constructor(
     public val host: String,
     public val port: Int,
     coroutineContext: CoroutineContext = context.coroutineContext,
-    socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
+    private val socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
 ) : AbstractAsynchronousPort(context, meta, coroutineContext) {
 
     override fun toString(): String = "port[tcp:$host:$port]"
 
-    private val futureSocket = scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
-        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect(host, port, socketOptions)
-    }
-
-    private val writeChannel = scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
-        futureSocket.await().openWriteChannel(true)
-    }
-
+    private var writeChannel: ByteWriteChannel? = null
     private var listenerJob: Job? = null
 
-    override fun onOpen() {
+    override suspend fun onOpen() {
+        val selectorManager = ActorSelectorManager(Dispatchers.IO)
+
+        val socket = aSocket(selectorManager)
+            .tcp().connect(host, port, socketOptions)
+
+        writeChannel = socket.openWriteChannel(true)
+
         listenerJob = scope.launch {
-            val input = futureSocket.await().openReadChannel()
+            val input = socket.openReadChannel()
             while (!input.isClosedForRead && isActive) {
                 input.read { arraySource, begin, endExclusive ->
                     val array = arraySource.copyOfRange(begin, endExclusive)
@@ -48,11 +52,18 @@ public class KtorTcpPort internal constructor(
                     array.size
                 }
             }
+        }.apply {
+            invokeOnCompletion {
+                socket.close()
+                selectorManager.close()
+                writeChannel = null
+            }
         }
+
     }
 
     override suspend fun write(data: ByteArray) {
-        writeChannel.await().writeByteArray(data)
+        writeChannel?.writeByteArray(data) ?: error("Port is not open")
     }
 
     override val lifecycleState: LifecycleState
@@ -60,7 +71,7 @@ public class KtorTcpPort internal constructor(
 
     override suspend fun stop() {
         listenerJob?.cancel()
-        futureSocket.cancel()
+        listenerJob = null
         super.stop()
     }
 

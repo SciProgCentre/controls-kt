@@ -17,9 +17,9 @@ import space.kscience.dataforge.meta.float
 import space.kscience.dataforge.meta.short
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import java.net.ServerSocket
 
-class ModbusPropertyReaderTest {
-
+class ModbusTagReaderSerializationTest {
     @Test
     fun decodesHoldingFloatReader() {
         val decoded = Json.decodeFromString(ModbusTagReader.serializer(), """{"type":"holding-float"}""")
@@ -31,12 +31,19 @@ class ModbusPropertyReaderTest {
         val decoded = Json.decodeFromString(ModbusTagReader.serializer(), """{"type":"coil"}""")
         assertEquals("ModbusCoilReader", decoded::class.simpleName)
     }
+}
 
-    private val port = 50211
+class ModbusPropertyReaderTest {
+    private val port = ServerSocket(0).use { it.localPort }
     private val unitId = 1
-    private var slave = ModbusSlaveFactory.createTCPSlave(port, 5)
+    private lateinit var slave: com.ghgande.j2mod.modbus.slave.ModbusSlave
     private val master = ModbusTCPMaster("localhost", port)
     private lateinit var processImage: SimpleProcessImage
+
+    private fun floatWords(value: Float = 1.5f): Pair<Int, Int> {
+        val bits = java.lang.Float.floatToIntBits(value)
+        return ((bits ushr 16) and 0xFFFF) to (bits and 0xFFFF)
+    }
 
     @BeforeEach
     fun setUp() {
@@ -57,9 +64,7 @@ class ModbusPropertyReaderTest {
 
     @Test
     fun readsHoldingFloatInBigEndianWordOrder() {
-        val bits = java.lang.Float.floatToIntBits(1.5f)
-        val high = (bits ushr 16) and 0xFFFF
-        val low = bits and 0xFFFF
+        val (high, low) = floatWords()
         processImage.addRegister(0, SimpleRegister(high))
         processImage.addRegister(1, SimpleRegister(low))
 
@@ -69,9 +74,7 @@ class ModbusPropertyReaderTest {
 
     @Test
     fun readsHoldingFloatDoesNotDecodeFromSwappedWordOrder() {
-        val bits = java.lang.Float.floatToIntBits(1.5f)
-        val high = (bits ushr 16) and 0xFFFF
-        val low = bits and 0xFFFF
+        val (high, low) = floatWords()
         // registers written low, high - the reverse of the expected big-endian word order
         processImage.addRegister(0, SimpleRegister(low))
         processImage.addRegister(1, SimpleRegister(high))
@@ -82,9 +85,7 @@ class ModbusPropertyReaderTest {
 
     @Test
     fun readsFloatFromInputRegistersInBigEndianWordOrder() {
-        val bits = java.lang.Float.floatToIntBits(1.5f)
-        val high = (bits ushr 16) and 0xFFFF
-        val low = bits and 0xFFFF
+        val (high, low) = floatWords()
         processImage.addInputRegister(0, SimpleInputRegister(high))
         processImage.addInputRegister(1, SimpleInputRegister(low))
 
@@ -94,9 +95,7 @@ class ModbusPropertyReaderTest {
 
     @Test
     fun readsFloatFromInputRegistersDoesNotDecodeFromSwappedWordOrder() {
-        val bits = java.lang.Float.floatToIntBits(1.5f)
-        val high = (bits ushr 16) and 0xFFFF
-        val low = bits and 0xFFFF
+        val (high, low) = floatWords()
         processImage.addInputRegister(0, SimpleInputRegister(low))
         processImage.addInputRegister(1, SimpleInputRegister(high))
 

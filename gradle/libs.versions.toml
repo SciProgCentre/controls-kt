@@ -38,6 +38,7 @@ testcontainers = "1.21.0"
 dataforge-io = { module = "space.kscience:dataforge-io", version.ref = "dataforge" }
 dataforge-meta = { module = "space.kscience:dataforge-meta", version.ref = "dataforge" }
 tables-kt = { module = "space.kscience:tables-kt", version.ref = "dataforge" }
+tables-csv = { module = "space.kscience:tables-kt-csv", version.ref = "dataforge" }
 
 parsus = { module = "me.alllex.parsus:parsus", version.ref = "parsus" }
 
@@ -112,6 +113,8 @@ testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.re
 testcontainers-hivemq = { module = "org.testcontainers:hivemq", version.ref = "testcontainers" }
 
 cache4k = "io.github.reactivecircus.cache4k:cache4k:0.14.0"
+
+turbine = "app.cash.turbine:turbine:1.2.1"
 
 # Buildscript
 

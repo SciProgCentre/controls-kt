@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.storage.DeviceMessageStorage
+import space.kscience.controls.storage.WriteableDeviceMessageStorage
 import space.kscience.dataforge.names.Name
 import kotlin.time.Instant
 
@@ -28,7 +29,7 @@ import kotlin.time.Instant
 public class ExposedDeviceMessageStorage(
     public val database: Database,
     private val pageSize: Int = 1000,
-) : DeviceMessageStorage {
+) : WriteableDeviceMessageStorage {
 
     private val stringFormat: StringFormat = Json
 

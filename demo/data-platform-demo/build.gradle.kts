@@ -14,6 +14,7 @@ dependencies {
     implementation(projects.controlsTable)
     implementation(projects.controlsUtilities)
     implementation(projects.controlsVisualisationCompose)
+    implementation(libs.tables.csv)
 
 //    implementation(libs.plotlykt.server)
 

@@ -1,6 +1,7 @@
 package space.kscience.controls.ports
 
 import io.ktor.network.selector.ActorSelectorManager
+import io.ktor.network.sockets.ConnectedDatagramSocket
 import io.ktor.network.sockets.Datagram
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.SocketOptions
@@ -31,36 +32,40 @@ public class KtorUdpPort internal constructor(
     public val localPort: Int? = null,
     public val localHost: String = "localhost",
     coroutineContext: CoroutineContext = context.coroutineContext,
-    socketOptions: SocketOptions.UDPSocketOptions.() -> Unit = {},
+    private val socketOptions: SocketOptions.UDPSocketOptions.() -> Unit = {},
 ) : AbstractAsynchronousPort(context, meta, coroutineContext) {
 
     override fun toString(): String = "port[udp:$remoteHost:$remotePort]"
 
-    private val futureSocket = scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
-        aSocket(ActorSelectorManager(Dispatchers.IO)).udp().connect(
+    private var listenerJob: Job? = null
+
+    private var socket: ConnectedDatagramSocket? = null
+
+    override suspend fun onOpen() {
+        val selectorManager = ActorSelectorManager(Dispatchers.IO)
+
+        val socket = aSocket(selectorManager).udp().connect(
             remoteAddress = InetSocketAddress(remoteHost, remotePort),
             localAddress = localPort?.let { InetSocketAddress(localHost, localPort) },
             configure = socketOptions
         )
-    }
+        this.socket = socket
 
-//    private val writeChannel= scope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
-//        futureSocket.await().outgoing
-//    }
 
-    private var listenerJob: Job? = null
-
-    override fun onOpen() {
         listenerJob = scope.launch {
-            val input = futureSocket.await().incoming
-            for (datagram in input) {
+            for (datagram in socket.incoming) {
                 receive(datagram.packet.readByteArray())
+            }
+        }.apply {
+            invokeOnCompletion {
+                socket.close()
+                selectorManager.close()
             }
         }
     }
 
     override suspend fun write(data: ByteArray) {
-        val socket = futureSocket.await()
+        val socket = socket ?: error("Port is not open")
         socket.send(Datagram(data.asSource(), socket.remoteAddress))
     }
 
@@ -69,7 +74,8 @@ public class KtorUdpPort internal constructor(
 
     override suspend fun stop() {
         listenerJob?.cancel()
-        futureSocket.cancel()
+        socket = null
+        listenerJob = null
         super.stop()
     }
 
