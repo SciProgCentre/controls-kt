@@ -4,10 +4,13 @@ import app.cash.turbine.test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Timeout
 import space.kscience.controls.api.DescriptionMessage
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.DeviceTree
@@ -101,13 +104,14 @@ internal class RemoteDeviceConnect {
     }
 
     @Test
-    fun deviceHub() = runTest(timeout = 5.seconds) {
+    @Timeout(5)
+    fun deviceHub() = runBlocking {
         val context = Context {
             plugin(DeviceManager)
         }
         val deviceManager = context.request(DeviceManager)
 
-        val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager, backgroundScope)
+        val virtualMagixEndpoint = VirtualMagixEndpoint(deviceManager, context)
 
         val remoteHub = virtualMagixEndpoint.remoteDeviceTree(context, "client", "device")
 
@@ -126,6 +130,7 @@ internal class RemoteDeviceConnect {
                     repeat(10) {
                         awaitItem()
                     }
+                    delay(1.seconds)
                     assertEquals(10, remoteHub.children.size)
                     cancel()
                 }
