@@ -167,7 +167,7 @@ suspend fun main() {
                 val tag = propertyConfig.parameters["tag"].string ?: return@forEach
                 put(ExportColumn(prefix, propertyName), ExportColumn(Name.EMPTY, tag, exportColumnName = tag))
             }
-            deviceCfg.devices.forEach {(deviceName,childDeviceCfg)->
+            deviceCfg.devices.forEach { (deviceName, childDeviceCfg) ->
                 processDevice(childDeviceCfg, prefix + deviceName)
             }
         }

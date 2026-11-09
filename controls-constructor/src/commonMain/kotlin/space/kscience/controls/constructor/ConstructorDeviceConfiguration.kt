@@ -6,6 +6,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
+import space.kscience.dataforge.names.parseAsName
 
 /**
  * Serializable scheme for Device ValueState construction
@@ -14,25 +15,34 @@ import space.kscience.dataforge.names.Name
 public data class ValueStateConfiguration(
     public val type: String,
     public val parameters: Meta,
-    public val metadata: Meta = Meta.EMPTY
-){
-    public companion object{
+    public val metadata: Meta? = null
+) {
+    public companion object {
 
-        public val metaConverter: MetaConverter<ValueStateConfiguration> = MetaConverter.serializable<ValueStateConfiguration>()
+        public val metaConverter: MetaConverter<ValueStateConfiguration> =
+            MetaConverter.serializable<ValueStateConfiguration>()
 
         /**
          * Create a ValueStateConfiguration for a device property
          */
         public fun deviceProperty(
-            deviceName: String,
+            deviceName: Name,
             propertyName: String,
+            metadata: Meta? = null
         ): ValueStateConfiguration = ValueStateConfiguration(
             type = DeviceValueStateFactory.TYPE,
             parameters = Meta {
-                set(DeviceValueStateFactory.deviceName, deviceName)
+                set(DeviceValueStateFactory.deviceName, deviceName.toString())
                 set(DeviceValueStateFactory.propertyName, propertyName)
-            }
+            },
+            metadata = metadata
         )
+
+        public fun deviceProperty(
+            deviceName: String,
+            propertyName: String,
+            metadata: Meta? = null
+        ): ValueStateConfiguration = deviceProperty(deviceName.parseAsName(), propertyName, metadata)
     }
 }
 
@@ -60,7 +70,7 @@ public data class ConstructorBinding(
  */
 @Serializable
 public class ConstructorDeviceConfiguration(
-    public val properties: Map<String, ValueStateConfiguration>,
+    public val properties: Map<String, ValueStateConfiguration> = emptyMap(),
     public val devices: Map<String, ConstructorDeviceConfiguration> = emptyMap(),
     public val components: Map<String, TemplateDeviceConfiguration> = emptyMap(),
     public val bindings: Set<ConstructorBinding> = emptySet(),

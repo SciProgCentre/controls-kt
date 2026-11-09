@@ -84,10 +84,10 @@ public class ConstructorPlugin : AbstractPlugin() {
                 converter = MetaConverter.meta,
                 state = buildValueState(
                     parameters = propertyConfiguration.parameters,
-                    type = propertyConfiguration.type
-                )
+                    type = propertyConfiguration.type,
+                ),
             ) {
-                metadata = ValueStateConfiguration.metaConverter.convert(propertyConfiguration)
+                metadata = propertyConfiguration.metadata ?: ValueStateConfiguration.metaConverter.convert(propertyConfiguration)
             }
         }
 

@@ -49,8 +49,13 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
  */
 public fun ValueStateConfiguration.Companion.math(
     expression: String,
-    arguments: Map<String, ValueStateConfiguration> = emptyMap()
-): ValueStateConfiguration = ValueStateConfiguration(MathValueStateFactory.TYPE, Meta {
-    set(MathValueStateFactory.expression, expression)
-    set(MathValueStateFactory.arguments, arguments)
-})
+    arguments: Map<String, ValueStateConfiguration> = emptyMap(),
+    metadata: Meta? = null
+): ValueStateConfiguration = ValueStateConfiguration(
+    type = MathValueStateFactory.TYPE,
+    parameters = Meta {
+        set(MathValueStateFactory.expression, expression)
+        set(MathValueStateFactory.arguments, arguments)
+    },
+    metadata = metadata
+)

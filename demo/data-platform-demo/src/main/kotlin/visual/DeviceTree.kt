@@ -26,7 +26,10 @@ import space.kscience.controls.nullable
 import space.kscience.controls.storage.ExportColumn
 import space.kscience.controls.utilities.Alarm
 import space.kscience.controls.utilities.AlarmState
+import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.lastOrNull
 import space.kscience.dataforge.names.plus
@@ -104,7 +107,8 @@ private fun LazyListScope.renderDeviceNode(
                         propertyName = descriptor.name,
                         isSelected = selectedProperties.contains(ExportColumn(name, descriptor.name)),
                         onSelect = { onSelectProperty(name, descriptor.name, it) },
-                        level = level + 1
+                        level = level + 1,
+                        descriptor.metadata ?: Meta.EMPTY
                     )
                 }
             }
@@ -133,7 +137,8 @@ fun PropertyNode(
     propertyName: String,
     isSelected: Boolean,
     onSelect: (Boolean) -> Unit,
-    level: Int
+    level: Int,
+    metadata: Meta
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -166,6 +171,20 @@ fun PropertyNode(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error
             )
+        } else if (metadata["type"].string == "alarm.state") {
+            val value = device.propertyAsState(
+                propertyName = propertyName,
+                metaConverter = MetaConverter.meta,
+                initialValue =Meta.EMPTY
+            ).asComposeState()
+
+            value.value["message"].string?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         } else {
             if (isSelected) {
                 val value = device.propertyAsState(propertyName, MetaConverter.double.nullable(), null).asComposeState()

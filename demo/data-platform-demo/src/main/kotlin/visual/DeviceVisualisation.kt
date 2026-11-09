@@ -9,8 +9,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
+import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
+import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.resolveDevice
 import space.kscience.controls.compose.letsplot.PlotDeviceProperty
@@ -33,6 +37,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /* LLM generated code: Adds CSV export for selected tags and their source state. */
+@OptIn(ExperimentalSplitPaneApi::class)
 @Composable
 fun DeviceVisualisation(
     hub: DeviceTree,
@@ -47,102 +52,114 @@ fun DeviceVisualisation(
     var exporting by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    Row(modifier = modifier.fillMaxSize()) {
-        // Left Panel: Navigation Tree
-        Surface(
-            modifier = Modifier.width(300.dp).fillMaxHeight(),
-            tonalElevation = 1.dp
-        ) {
-            DeviceTree(
-                node = hub,
-                selectedProperties = selectedProperties,
-                onSelectProperty = { deviceName, propertyName, selected ->
-                    selectedProperties = if (selected) {
-                        selectedProperties + ExportColumn(deviceName, propertyName)
-                    } else {
-                        selectedProperties - ExportColumn(deviceName, propertyName)
-                    }
-                },
-                modifier = Modifier.padding(8.dp)
-            )
+    HorizontalSplitPane(modifier = modifier.fillMaxSize()) {
+        first(300.dp) {
+            // Left Panel: Navigation Tree
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                tonalElevation = 1.dp
+            ) {
+                DeviceTree(
+                    node = hub,
+                    selectedProperties = selectedProperties,
+                    onSelectProperty = { deviceName, propertyName, selected ->
+                        selectedProperties = if (selected) {
+                            selectedProperties + ExportColumn(deviceName, propertyName)
+                        } else {
+                            selectedProperties - ExportColumn(deviceName, propertyName)
+                        }
+                    },
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
         }
+        second {
 
-        // Central Area: Plot
-        Column(modifier = Modifier.weight(1f).fillMaxHeight().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    enabled = !exporting,
-                    onClick = {
-                        coroutineScope.launch {
-                            exporting = true
-                            exportStatus = "Exporting selected tags..."
-                            try {
-                                val tagColumns = selectedProperties.flatMap { column ->
-                                    val column = exportColumnMapping[column] ?: return@flatMap emptyList()
-                                    listOf(
-                                        column,
-                                        column.copy(
-                                            property = column.property + TagState.TAG_QUALITY_SUFFIX,
-                                            extractionPath = Name.of("quality"),
-                                            exportColumnName = column.exportColumnName + TagState.TAG_QUALITY_SUFFIX,
-                                        ),
+            // Central Area: Plot
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        enabled = !exporting,
+                        onClick = {
+                            coroutineScope.launch {
+                                exporting = true
+                                exportStatus = "Exporting selected tags..."
+                                try {
+                                    val tagColumns = selectedProperties.flatMap { column ->
+                                        val column = exportColumnMapping[column] ?: return@flatMap emptyList()
+                                        listOf(
+                                            column,
+                                            column.copy(
+                                                property = column.property + TagState.TAG_QUALITY_SUFFIX,
+                                                extractionPath = Name.of("quality"),
+                                                exportColumnName = column.exportColumnName + TagState.TAG_QUALITY_SUFFIX,
+                                            ),
+                                        )
+                                    }
+                                    val table = messageStorage.export(
+                                        timeRange = exportStartTime..Clock.System.now(),
+                                        minimalRowDistance = 1.seconds,
+                                        columns = tagColumns + sourceStateColumns,
+                                    )
+                                    val csv = table.toCsv()
+                                    val exportDirectory = Path("data").createDirectories()
+                                    val exportPath = exportDirectory.resolve(
+                                        "export-${Clock.System.now().toString().replace(":", "-")}.csv"
+                                    )
+                                    exportPath.writeText(csv)
+
+                                    exportStatus =
+                                        "Exported to $exportPath. Recently buffered data may not be stored yet."
+                                } catch (error: Exception) {
+                                    if (error is CancellationException) {
+                                        ensureActive()
+                                    }
+                                    exportStatus = "Export failed: ${error.message}"
+                                }
+                                exporting = false
+                            }
+                        }
+                    ) {
+                        Text(if (exporting) "Exporting..." else "Export")
+                    }
+                    if (exportStatus.isNotEmpty()) {
+                        Text(exportStatus, modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
+
+                Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp)) {
+                    if (selectedProperties.isEmpty()) {
+                        Text(
+                            text = "Select properties from the tree to visualize",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        TimeSeriesPlot(
+                            modifier = Modifier.fillMaxSize(),
+                            xAxisTitle = "Time",
+                            yAxisTitle = "Value",
+                        ) {
+                            selectedProperties.forEach { column ->
+                                val device =
+                                    remember(
+                                        hub,
+                                        column.device,
+                                        selectedProperties
+                                    ) { hub.resolveDevice(column.device) }
+                                val history = exportColumnMapping[column]?.let { historyColumn ->
+                                    messageStorage.propertyHistory(
+                                        historyColumn.property,
+                                        MetaConverter.meta,
+                                        deviceName = historyColumn.device
                                     )
                                 }
-                                val table = messageStorage.export(
-                                    timeRange = exportStartTime..Clock.System.now(),
-                                    minimalRowDistance = 1.seconds,
-                                    columns = tagColumns + sourceStateColumns,
-                                )
-                                val csv = table.toCsv()
-                                val exportDirectory = Path("data").createDirectories()
-                                val exportPath = exportDirectory.resolve(
-                                    "export-${Clock.System.now().toString().replace(":", "-")}.csv"
-                                )
-                                exportPath.writeText(csv)
-
-                                exportStatus = "Exported to $exportPath. Recently buffered data may not be stored yet."
-                            } catch (error: Exception) {
-                                exportStatus = "Export failed: ${error.message}"
-                            }
-                            exporting = false
-                        }
-                    }
-                ) {
-                    Text(if (exporting) "Exporting..." else "Export")
-                }
-                if (exportStatus.isNotEmpty()) {
-                    Text(exportStatus, modifier = Modifier.padding(start = 12.dp))
-                }
-            }
-
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp)) {
-                if (selectedProperties.isEmpty()) {
-                    Text(
-                        text = "Select properties from the tree to visualize",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                } else {
-                    TimeSeriesPlot(
-                        modifier = Modifier.fillMaxSize(),
-                        xAxisTitle = "Time",
-                        yAxisTitle = "Value",
-                    ) {
-                        selectedProperties.forEach { column ->
-                            val device =
-                                remember(hub, column.device, selectedProperties) { hub.resolveDevice(column.device) }
-                            val history = exportColumnMapping[column]?.let { historyColumn ->
-                                messageStorage.propertyHistory(
-                                    historyColumn.property,
-                                    MetaConverter.meta,
-                                    deviceName = historyColumn.device
+                                PlotDeviceProperty(
+                                    device = device,
+                                    propertyName = column.property,
+                                    seriesName = column.exportColumnName,
+                                    history = history
                                 )
                             }
-                            PlotDeviceProperty(
-                                device = device,
-                                propertyName = column.property,
-                                seriesName = column.exportColumnName,
-                                history = history
-                            )
                         }
                     }
                 }

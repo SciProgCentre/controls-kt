@@ -407,7 +407,7 @@ private fun PropertyInspector(
                                 newName = editName,
                                 type = t,
                                 parameters = prop.parameters,
-                                metadata = prop.metadata
+                                metadata = prop.metadata ?: Meta.EMPTY
                             )
                         }
                     )
@@ -433,7 +433,7 @@ private fun PropertyInspector(
                         newName = editName,
                         type = selectedType,
                         parameters = updatedMeta,
-                        metadata = prop.metadata
+                        metadata = prop.metadata ?: Meta.EMPTY
                     )
                 },
                 label = { Text("Tag Name (from TagTable)") },
@@ -454,7 +454,7 @@ private fun PropertyInspector(
                     newName = editName,
                     type = selectedType,
                     parameters = updated,
-                    metadata = prop.metadata
+                    metadata = prop.metadata ?: Meta.EMPTY
                 )
             }
         )
@@ -468,7 +468,7 @@ private fun PropertyInspector(
                         newName = editName.trim(),
                         type = selectedType,
                         parameters = prop.parameters,
-                        metadata = prop.metadata
+                        metadata = prop.metadata ?: Meta.EMPTY
                     )
                 },
                 modifier = Modifier.fillMaxWidth()

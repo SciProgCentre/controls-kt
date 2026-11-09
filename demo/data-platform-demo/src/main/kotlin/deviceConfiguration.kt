@@ -27,10 +27,14 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
         AlarmSetting(-10.0, 10.0, "OUT10")
     )
 
+    val alarmsConfigs = mutableMapOf<String, ValueStateConfiguration>()
+
     val blocks = configuration.tags.mapKeys { it.key.parseAsName() }.entries
         .groupBy { (tag, property) ->
             tag.first()
         }.entries.associate { (source, properties) ->
+            val aggregateName = "aggregate-${source.toStringUnescaped()}"
+
             val devices: Map<String, ConstructorDeviceConfiguration> = buildMap {
                 properties.chunked(10).forEachIndexed { index, chunk: List<Map.Entry<Name, TagTableColumn>> ->
 
@@ -60,8 +64,10 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                         mapOf("arg" to tagProperties.values.first())
                     )
 
+                    val partName = "part[$index]"
+
                     put(
-                        "part[$index]",
+                        partName,
                         ConstructorDeviceConfiguration(
                             properties = tagProperties + ("sum" to expressionValueStateConfiguration) + ("integral" to mathValueStateConfiguration),
                             components = mapOf(
@@ -81,51 +87,27 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                             )
                         )
                     )
+                    val fullName = Name.of(aggregateName, partName)
+                    alarmsConfigs[fullName.toStringUnescaped()] = ValueStateConfiguration.deviceProperty(
+                        deviceName = Name.of("devices", aggregateName, partName, "alarm").toString(),
+                        propertyName = "state",
+                        metadata = Meta { "type" put "alarm.state" }
+                    )
                 }
             }
-            "aggregate-${source.toStringUnescaped()}" to ConstructorDeviceConfiguration(
-                properties = emptyMap(),
+            aggregateName to ConstructorDeviceConfiguration(
                 devices = devices
             )
         }
 
+    val alarms = ConstructorDeviceConfiguration(
+        properties = alarmsConfigs,
+    )
+
     return ConstructorDeviceConfiguration(
-        properties = emptyMap(),
-        devices = blocks
+        devices = blocks + ("alarms" to alarms)
     )
 }
-
-//internal fun createAlarmConfig(deviceConfig: ConstructorDeviceConfiguration): ConstructorDeviceConfiguration {
-//
-//    val alarmSetting = listOf(
-//        AlarmSetting(-5.0, 5.0, "OUT5"),
-//        AlarmSetting(-10.0, 10.0, "OUT10")
-//    )
-//
-//    fun visit(deviceName: Name, source: ConstructorDeviceConfiguration): ConstructorDeviceConfiguration {
-//        val templates = if (source.properties.keys.contains("sum")){
-//            mapOf(
-//                "alarm" to TemplateDeviceConfiguration(
-//                    type = "controls.utilities.alarm",
-//                    parameters = Alarm.buildDeviceMeta(
-//                        settings = alarmSetting
-//                    )
-//                )
-//            )
-//        } else{
-//             emptyMap()
-//        }
-//
-//        return ConstructorDeviceConfiguration(
-//            properties = emptyMap(),
-//            devices = source.devices.mapValues { visit(deviceName + it.key, it.value) },
-//            templates = templates
-//        )
-//    }
-//
-//    return visit(Name.of("devices"), deviceConfig)
-//
-//}
 
 private suspend fun DeviceTree.snapshotValues(): Map<Name, Meta> = buildMap {
     device?.let { device ->
@@ -138,19 +120,3 @@ private suspend fun DeviceTree.snapshotValues(): Map<Name, Meta> = buildMap {
         putAll(tree.snapshotValues().mapKeys { Name.of(childName) + it.key })
     }
 }
-
-//fun TagTablePlugin.installFromConfiguration(
-//    deviceName: String,
-//    configuration: TagTableConfiguration,
-//): DeviceConstructor {
-//
-//    val deviceConfiguration = createDeviceConfiguration(configuration)
-//    Path("data/device-config.json").writeText(
-//        json.encodeToString(
-//            DeviceConfiguration.serializer(),
-//            deviceConfiguration
-//        )
-//    )
-//
-//    return deviceManager.install(deviceName, deviceConfiguration)
-//}
