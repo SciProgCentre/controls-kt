@@ -52,6 +52,7 @@ The `controls-constructor` module offers a powerful set of tools for building co
 - [Reactive State DSL](./docs/valueState.md): A type-safe way to define and observe device states.
 - [State Wiring](./docs/constructor.md): Tools for binding and combining states to create complex data flows.
 - [Hierarchical Composition](./docs/constructor.md): Build devices by grouping sub-devices and exposing states as properties.
+- [Device Configuration JSON](./docs/deviceConfiguration.md): Declarative JSON schema for serializing and reconstructing device hierarchies.
 - [Simulation Engine](./docs/models.md): Built-in support for continuous and discrete-event simulations with virtual time.
 - [Flow Modeling](./docs/flowModels.md): Specialized components for modeling continuous and discrete flows.
 - [Simulated Devices](./docs/simulatedDevices.md): Pre-defined devices like drives and encoders.

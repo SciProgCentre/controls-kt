@@ -65,6 +65,7 @@ public class Alarm(
             DEFAULT_INPUT_NAME, "value" -> {
                 value.bind(state.map { it.double })
             }
+
             else -> {
                 error("Can't resolve input name $inputName in $this")
             }
@@ -119,9 +120,8 @@ public class Alarm(
 
         public val settings: MetaRef<List<AlarmSetting>> by item(settingsConverter)
 
-        public val metadata: MetaRef<Meta> by metaItem(METADATA_KEY.parseAsName())
-
         override val descriptor: MetaDescriptor = super<MetaSpec>.descriptor
+
         /**
          * Create an unbound alarm from settings and optional metadata.
          */
@@ -131,16 +131,14 @@ public class Alarm(
         ): Alarm {
             val settings = meta[settings]
 
-            val metadata = meta[metadata] ?: Meta.EMPTY
-
-            return Alarm(context, settings ?: emptyList(), metadata)
+            return Alarm(context, settings ?: emptyList(), meta)
         }
 
-        public fun buildDeviceMeta(settings: List<AlarmSetting>, metadata: Meta? = null): Meta = Meta {
+        public fun buildDeviceMeta(settings: List<AlarmSetting>, metadata: MutableMeta.() -> Unit = {}): Meta = Meta {
+            metadata()
             if (settings.isNotEmpty()) {
                 "settings" put settingsConverter.convert(settings)
             }
-            metadata?.let { METADATA_KEY put it }
         }
     }
 }

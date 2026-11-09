@@ -139,8 +139,7 @@ private fun RootOverviewInspector(model: DeviceConfiguratorModel) {
                         devices = root.devices,
                         components = root.components,
                         bindings = root.bindings,
-                        parameters = updated,
-                        metadata = root.metadata
+                        parameters = updated
                     )
                 }
             }
@@ -210,8 +209,7 @@ private fun DeviceNodeInspector(
                                 devices = updatedDevices,
                                 components = parent.components,
                                 bindings = parent.bindings,
-                                parameters = parent.parameters,
-                                metadata = parent.metadata
+                                parameters = parent.parameters
                             )
                         }
                         val newPath = parentPath + editName.trim().parseAsName()
@@ -264,8 +262,7 @@ private fun DeviceNodeInspector(
                         devices = target.devices,
                         components = target.components,
                         bindings = target.bindings,
-                        parameters = updated,
-                        metadata = target.metadata
+                        parameters = updated
                     )
                 }
             }
@@ -406,8 +403,7 @@ private fun PropertyInspector(
                                 oldName = propertyName,
                                 newName = editName,
                                 type = t,
-                                parameters = prop.parameters,
-                                metadata = prop.metadata ?: Meta.EMPTY
+                                parameters = prop.parameters
                             )
                         }
                     )
@@ -432,8 +428,7 @@ private fun PropertyInspector(
                         oldName = propertyName,
                         newName = editName,
                         type = selectedType,
-                        parameters = updatedMeta,
-                        metadata = prop.metadata ?: Meta.EMPTY
+                        parameters = updatedMeta
                     )
                 },
                 label = { Text("Tag Name (from TagTable)") },
@@ -453,8 +448,7 @@ private fun PropertyInspector(
                     oldName = propertyName,
                     newName = editName,
                     type = selectedType,
-                    parameters = updated,
-                    metadata = prop.metadata ?: Meta.EMPTY
+                    parameters = updated
                 )
             }
         )
@@ -467,8 +461,7 @@ private fun PropertyInspector(
                         oldName = propertyName,
                         newName = editName.trim(),
                         type = selectedType,
-                        parameters = prop.parameters,
-                        metadata = prop.metadata ?: Meta.EMPTY
+                        parameters = prop.parameters
                     )
                 },
                 modifier = Modifier.fillMaxWidth()

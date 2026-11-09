@@ -67,8 +67,7 @@ data class CanvasNode(
     val outputPorts: List<String> = emptyList(),
     val isTemplate: Boolean = false,
     val factoryType: String? = null,
-    val parameters: Meta = Meta.EMPTY,
-    val metadata: Meta = Meta.EMPTY
+    val parameters: Meta = Meta.EMPTY
 )
 
 /**
@@ -83,7 +82,6 @@ data class CanvasWire(
     val targetDeviceName: Name,
     val targetInput: String,
     val defaultValue: Meta = Meta.EMPTY,
-    val metadata: Meta = Meta.EMPTY,
     val isValid: Boolean = true,
     val errorMessage: String? = null
 )
@@ -257,9 +255,15 @@ class DeviceConfiguratorModel(
         return current
     }
 
-    fun updateSubConfiguration(path: Name, transform: (ConstructorDeviceConfiguration) -> ConstructorDeviceConfiguration) {
+    fun updateSubConfiguration(
+        path: Name,
+        transform: (ConstructorDeviceConfiguration) -> ConstructorDeviceConfiguration
+    ) {
         pushHistory()
-        fun updateRec(remainingPath: Name, currentConfig: ConstructorDeviceConfiguration): ConstructorDeviceConfiguration {
+        fun updateRec(
+            remainingPath: Name,
+            currentConfig: ConstructorDeviceConfiguration
+        ): ConstructorDeviceConfiguration {
             if (remainingPath == Name.EMPTY) {
                 return transform(currentConfig)
             }
@@ -271,8 +275,7 @@ class DeviceConfiguratorModel(
                 devices = currentConfig.devices + (firstToken to updatedChild),
                 components = currentConfig.components,
                 bindings = currentConfig.bindings,
-                parameters = currentConfig.parameters,
-                metadata = currentConfig.metadata
+                parameters = currentConfig.parameters
             )
         }
 
@@ -289,8 +292,7 @@ class DeviceConfiguratorModel(
                 devices = updatedDevices,
                 components = parent.components,
                 bindings = parent.bindings,
-                parameters = parent.parameters,
-                metadata = parent.metadata
+                parameters = parent.parameters
             )
         }
         val newPath = parentPath + trimmed.parseAsName()
@@ -307,15 +309,14 @@ class DeviceConfiguratorModel(
             val updatedDevices = parent.devices - deviceName
             val updatedBindings = parent.bindings.filterNot {
                 it.sourceDevice == path || it.targetDevice == path ||
-                it.sourceDevice == Name.of(deviceName) || it.targetDevice == Name.of(deviceName)
+                        it.sourceDevice == Name.of(deviceName) || it.targetDevice == Name.of(deviceName)
             }.toSet()
             ConstructorDeviceConfiguration(
                 properties = parent.properties,
                 devices = updatedDevices,
                 components = parent.components,
                 bindings = updatedBindings,
-                parameters = parent.parameters,
-                metadata = parent.metadata
+                parameters = parent.parameters
             )
         }
         nodePositions.remove(path.toString())
@@ -335,8 +336,7 @@ class DeviceConfiguratorModel(
                 devices = parent.devices,
                 components = updatedComponents,
                 bindings = parent.bindings,
-                parameters = parent.parameters,
-                metadata = parent.metadata
+                parameters = parent.parameters
             )
         }
         selection = ConfiguratorSelection.TemplateNode(parentPath, trimmed)
@@ -356,8 +356,7 @@ class DeviceConfiguratorModel(
                 devices = parent.devices,
                 components = updatedComponents,
                 bindings = updatedBindings,
-                parameters = parent.parameters,
-                metadata = parent.metadata
+                parameters = parent.parameters
             )
         }
         val templateId = if (parentPath == Name.EMPTY) "tmpl:$name" else "$parentPath:tmpl:$name"
@@ -383,8 +382,7 @@ class DeviceConfiguratorModel(
                 devices = target.devices,
                 components = target.components,
                 bindings = target.bindings,
-                parameters = target.parameters,
-                metadata = target.metadata
+                parameters = target.parameters
             )
         }
         selection = ConfiguratorSelection.Property(devicePath, trimmed)
@@ -401,8 +399,7 @@ class DeviceConfiguratorModel(
                 devices = target.devices,
                 components = target.components,
                 bindings = updatedBindings,
-                parameters = target.parameters,
-                metadata = target.metadata
+                parameters = target.parameters
             )
         }
         selection = ConfiguratorSelection.DeviceNode(devicePath)
@@ -423,8 +420,7 @@ class DeviceConfiguratorModel(
             mutableProps.remove(oldName)
             mutableProps[trimmed] = ValueStateConfiguration(
                 type = type,
-                parameters = parameters,
-                metadata = metadata
+                parameters = parameters
             )
             val updatedBindings = if (oldName != trimmed) {
                 target.bindings.map { binding ->
@@ -434,8 +430,7 @@ class DeviceConfiguratorModel(
                             sourceProperty = trimmed,
                             targetDevice = binding.targetDevice,
                             targetInput = binding.targetInput,
-                            defaultValue = binding.defaultValue,
-                            metadata = binding.metadata
+                            defaultValue = binding.defaultValue
                         )
                     } else {
                         binding
@@ -449,8 +444,7 @@ class DeviceConfiguratorModel(
                 devices = target.devices,
                 components = target.components,
                 bindings = updatedBindings,
-                parameters = target.parameters,
-                metadata = target.metadata
+                parameters = target.parameters
             )
         }
         selection = ConfiguratorSelection.Property(devicePath, trimmed)
@@ -461,16 +455,14 @@ class DeviceConfiguratorModel(
             val existing = parent.components[name] ?: return@updateSubConfiguration parent
             val updatedComponents = parent.components + (name to TemplateDeviceConfiguration(
                 type = existing.type,
-                parameters = parameters,
-                metadata = existing.metadata
+                parameters = parameters
             ))
             ConstructorDeviceConfiguration(
                 properties = parent.properties,
                 devices = parent.devices,
                 components = updatedComponents,
                 bindings = parent.bindings,
-                parameters = parent.parameters,
-                metadata = parent.metadata
+                parameters = parent.parameters
             )
         }
     }
@@ -479,17 +471,16 @@ class DeviceConfiguratorModel(
         updateSubConfiguration(containerPath) { container ->
             val filtered = container.bindings.filterNot {
                 it.sourceDevice == binding.sourceDevice &&
-                it.sourceProperty == binding.sourceProperty &&
-                it.targetDevice == binding.targetDevice &&
-                it.targetInput == binding.targetInput
+                        it.sourceProperty == binding.sourceProperty &&
+                        it.targetDevice == binding.targetDevice &&
+                        it.targetInput == binding.targetInput
             }.toSet()
             ConstructorDeviceConfiguration(
                 properties = container.properties,
                 devices = container.devices,
                 components = container.components,
                 bindings = filtered + binding,
-                parameters = container.parameters,
-                metadata = container.metadata
+                parameters = container.parameters
             )
         }
         selection = ConfiguratorSelection.Wire(
@@ -504,17 +495,16 @@ class DeviceConfiguratorModel(
         updateSubConfiguration(containerPath) { container ->
             val updatedBindings = container.bindings.filterNot {
                 it.sourceDevice == binding.sourceDevice &&
-                it.sourceProperty == binding.sourceProperty &&
-                it.targetDevice == binding.targetDevice &&
-                it.targetInput == binding.targetInput
+                        it.sourceProperty == binding.sourceProperty &&
+                        it.targetDevice == binding.targetDevice &&
+                        it.targetInput == binding.targetInput
             }.toSet()
             ConstructorDeviceConfiguration(
                 properties = container.properties,
                 devices = container.devices,
                 components = container.components,
                 bindings = updatedBindings,
-                parameters = container.parameters,
-                metadata = container.metadata
+                parameters = container.parameters
             )
         }
         selection = ConfiguratorSelection.None
@@ -538,8 +528,7 @@ class DeviceConfiguratorModel(
                     inputPorts = emptyList(),
                     outputPorts = config.properties.keys.toList(),
                     isTemplate = false,
-                    parameters = config.parameters,
-                    metadata = config.metadata
+                    parameters = config.parameters
                 )
             )
 
@@ -557,8 +546,7 @@ class DeviceConfiguratorModel(
                         outputPorts = listOf("state"),
                         isTemplate = true,
                         factoryType = tmplConfig.type,
-                        parameters = tmplConfig.parameters,
-                        metadata = tmplConfig.metadata
+                        parameters = tmplConfig.parameters
                     )
                 )
             }
@@ -577,11 +565,14 @@ class DeviceConfiguratorModel(
 
         fun visitBindings(containerPath: Name, config: ConstructorDeviceConfiguration) {
             config.bindings.forEach { binding ->
-                val sourcePath = if (binding.sourceDevice == Name.EMPTY) containerPath else containerPath + binding.sourceDevice
-                val targetPath = if (binding.targetDevice == Name.EMPTY) containerPath else containerPath + binding.targetDevice
+                val sourcePath =
+                    if (binding.sourceDevice == Name.EMPTY) containerPath else containerPath + binding.sourceDevice
+                val targetPath =
+                    if (binding.targetDevice == Name.EMPTY) containerPath else containerPath + binding.targetDevice
 
                 val sourceNodeId = if (sourcePath == Name.EMPTY) "root" else sourcePath.toString()
-                val targetNodeId = if (containerPath == Name.EMPTY) "tmpl:${binding.targetDevice}" else "$containerPath:tmpl:${binding.targetDevice}"
+                val targetNodeId =
+                    if (containerPath == Name.EMPTY) "tmpl:${binding.targetDevice}" else "$containerPath:tmpl:${binding.targetDevice}"
 
                 val targetDeviceName = binding.targetDevice.toString()
                 val targetExists = config.components.containsKey(targetDeviceName) ||
@@ -608,7 +599,6 @@ class DeviceConfiguratorModel(
                         targetDeviceName = targetPath,
                         targetInput = binding.targetInput,
                         defaultValue = binding.defaultValue,
-                        metadata = binding.metadata,
                         isValid = isValid,
                         errorMessage = errorMsg
                     )
@@ -765,13 +755,19 @@ class DeviceConfiguratorModel(
             }
 
             config.bindings.forEach { binding ->
-                val sourceConfig = if (binding.sourceDevice == Name.EMPTY) config else config.devices[binding.sourceDevice.toString()]
+                val sourceConfig =
+                    if (binding.sourceDevice == Name.EMPTY) config else config.devices[binding.sourceDevice.toString()]
                 if (sourceConfig == null || !sourceConfig.properties.containsKey(binding.sourceProperty)) {
                     diagnostics.add(
                         ConfiguratorDiagnostic(
                             severity = DiagnosticSeverity.ERROR,
                             message = "Binding source '${binding.sourceDevice}.${binding.sourceProperty}' not found in $pathStr",
-                            target = ConfiguratorSelection.Wire(binding.sourceDevice, binding.sourceProperty, binding.targetDevice, binding.targetInput)
+                            target = ConfiguratorSelection.Wire(
+                                binding.sourceDevice,
+                                binding.sourceProperty,
+                                binding.targetDevice,
+                                binding.targetInput
+                            )
                         )
                     )
                 }
@@ -783,7 +779,12 @@ class DeviceConfiguratorModel(
                         ConfiguratorDiagnostic(
                             severity = DiagnosticSeverity.ERROR,
                             message = "Binding target '${binding.targetDevice}' not found in $pathStr",
-                            target = ConfiguratorSelection.Wire(binding.sourceDevice, binding.sourceProperty, binding.targetDevice, binding.targetInput)
+                            target = ConfiguratorSelection.Wire(
+                                binding.sourceDevice,
+                                binding.sourceProperty,
+                                binding.targetDevice,
+                                binding.targetInput
+                            )
                         )
                     )
                 }

@@ -284,13 +284,13 @@ public object ExpressionValueStateFactory : ValueStateFactory, MetaSpec() {
 
 public fun ValueStateConfiguration.Companion.expression(
     expression: ValueStateExpression,
-    metadata: Meta? = null
+    metadata: MutableMeta.() -> Unit = {}
 ): ValueStateConfiguration = ValueStateConfiguration(
     ExpressionValueStateFactory.TYPE,
     parameters = Meta {
+        metadata()
         set(ExpressionValueStateFactory.expression, expression)
-    },
-    metadata = metadata
+    }
 )
 
 public fun DeviceConstructor.expression(

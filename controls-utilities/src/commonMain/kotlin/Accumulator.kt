@@ -6,7 +6,6 @@ import space.kscience.controls.constructor.*
 import space.kscience.controls.constructor.BoundStateHolder.Companion.DEFAULT_INPUT_NAME
 import space.kscience.controls.duration
 import space.kscience.controls.expressions.accumulate
-import space.kscience.controls.expressions.integrate
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
@@ -23,8 +22,9 @@ import kotlin.time.Duration
 public class Accumulator(
     context: Context,
     public val window: Duration,
-    coroutineScope: CoroutineScope = context
-) : DeviceConstructor(context), BoundStateHolder {
+    coroutineScope: CoroutineScope = context,
+    metadata: Meta = Meta.EMPTY
+) : DeviceConstructor(context, metadata), BoundStateHolder {
 
     public val value: ValueState<Double?>
         field: LateBindValueState<Double?> = LateBindValueState<Double?>(null)
@@ -70,7 +70,7 @@ public class Accumulator(
         ): Accumulator {
             val window: Duration = meta[window] ?: error("`window` parameter not defined")
 
-            return Accumulator(context, window)
+            return Accumulator(context, window, metadata = meta)
         }
     }
 }

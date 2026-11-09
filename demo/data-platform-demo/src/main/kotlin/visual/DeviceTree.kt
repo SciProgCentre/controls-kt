@@ -138,8 +138,11 @@ fun PropertyNode(
     isSelected: Boolean,
     onSelect: (Boolean) -> Unit,
     level: Int,
-    metadata: Meta
+    propertyMetadata: Meta
 ) {
+    val deviceWidget = device.meta["widget"].string
+    val propertyWidget = propertyMetadata["widget"].string
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -147,11 +150,13 @@ fun PropertyNode(
             .padding(start = (level * 16).dp)
             .padding(vertical = 2.dp)
     ) {
-        Checkbox(
-            checked = isSelected,
-            onCheckedChange = onSelect,
-            enabled = device !is Alarm
-        )
+        if(propertyWidget == null) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = onSelect,
+                enabled = device !is Alarm
+            )
+        }
         Text(
             text = propertyName,
             style = MaterialTheme.typography.bodyMedium
@@ -159,7 +164,7 @@ fun PropertyNode(
 
         Spacer(modifier = Modifier.weight(1.0f))
 
-        if (device is Alarm && propertyName == "state") {
+        if (deviceWidget == "alarm" && propertyName == "state") {
             val value = device.propertyAsState(
                 propertyName = propertyName,
                 metaConverter = MetaConverter.serializable<AlarmState>(),
@@ -171,7 +176,7 @@ fun PropertyNode(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error
             )
-        } else if (metadata["type"].string == "alarm.state") {
+        } else if (propertyWidget == "alarm.state") {
             val value = device.propertyAsState(
                 propertyName = propertyName,
                 metaConverter = MetaConverter.meta,

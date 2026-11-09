@@ -75,7 +75,9 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                                     type = "controls.utilities.alarm",
                                     parameters = Alarm.buildDeviceMeta(
                                         settings = alarmSetting
-                                    )
+                                    ){
+                                        "widget" put "alarm"
+                                    },
                                 )
                             ),
                             bindings = setOf(
@@ -91,7 +93,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                     alarmsConfigs[fullName.toStringUnescaped()] = ValueStateConfiguration.deviceProperty(
                         deviceName = Name.of("devices", aggregateName, partName, "alarm").toString(),
                         propertyName = "state",
-                        metadata = Meta { "type" put "alarm.state" }
+                        metadata = { "widget" put "alarm.state" }
                     )
                 }
             }

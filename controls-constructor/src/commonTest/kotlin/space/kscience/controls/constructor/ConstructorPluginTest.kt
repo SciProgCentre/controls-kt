@@ -1,6 +1,7 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import space.kscience.dataforge.context.AbstractPlugin
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.PluginTag
@@ -14,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.seconds
 
 class ConstructorPluginTest {
@@ -70,5 +72,77 @@ class ConstructorPluginTest {
         } finally {
             context.close()
         }
+    }
+
+    @Test
+    fun testJsonSerializationRoundTrip() {
+        val json = Json {
+            prettyPrint = true
+            ignoreUnknownKeys = true
+        }
+
+        val jsonText = """
+        {
+          "properties": {
+            "temperature": {
+              "type": "tagTable",
+              "parameters": {
+                "tag": "opc.sensor.temp"
+              }
+            }
+          },
+          "components": {
+            "tempAlarm": {
+              "type": "controls.utilities.alarm",
+              "parameters": {
+                "settings": [
+                  {
+                    "lowerThreshold": 10.0,
+                    "upperThreshold": 80.0,
+                    "status": "WARN"
+                  }
+                ]
+              }
+            }
+          },
+          "bindings": [
+            {
+              "sourceDevice": "",
+              "sourceProperty": "temperature",
+              "targetDevice": "tempAlarm",
+              "targetInput": "default"
+            }
+          ],
+          "devices": {
+            "subPump": {
+              "properties": {
+                "speed": {
+                  "type": "tagTable",
+                  "parameters": {
+                    "tag": "modbus.pump.speed"
+                  }
+                }
+              }
+            }
+          }
+        }
+        """.trimIndent()
+
+        val parsed = json.decodeFromString(ConstructorDeviceConfiguration.serializer(), jsonText)
+        assertNotNull(parsed.properties["temperature"])
+        assertEquals("tagTable", parsed.properties["temperature"]?.type)
+        assertNotNull(parsed.components["tempAlarm"])
+        assertEquals("controls.utilities.alarm", parsed.components["tempAlarm"]?.type)
+        assertEquals(1, parsed.bindings.size)
+        assertEquals(Name.EMPTY, parsed.bindings.first().sourceDevice)
+        assertEquals("temperature", parsed.bindings.first().sourceProperty)
+        assertEquals(Name.of("tempAlarm"), parsed.bindings.first().targetDevice)
+        assertNotNull(parsed.devices["subPump"])
+
+        val encoded = json.encodeToString(ConstructorDeviceConfiguration.serializer(), parsed)
+        val reparsed = json.decodeFromString(ConstructorDeviceConfiguration.serializer(), encoded)
+        assertEquals(parsed.properties.keys, reparsed.properties.keys)
+        assertEquals(parsed.components.keys, reparsed.components.keys)
+        assertEquals(parsed.devices.keys, reparsed.devices.keys)
     }
 }

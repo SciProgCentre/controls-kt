@@ -1,6 +1,9 @@
 package space.kscience.controls.expressions
 
-import space.kscience.controls.constructor.*
+import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.ValueStateConfiguration
+import space.kscience.controls.constructor.ValueStateFactory
+import space.kscience.controls.constructor.map
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.*
 import space.kscience.kmath.expressions.Symbol
@@ -50,12 +53,12 @@ public object MathValueStateFactory : ValueStateFactory, MetaSpec() {
 public fun ValueStateConfiguration.Companion.math(
     expression: String,
     arguments: Map<String, ValueStateConfiguration> = emptyMap(),
-    metadata: Meta? = null
+    metadata: MutableMeta.() -> Unit = {}
 ): ValueStateConfiguration = ValueStateConfiguration(
     type = MathValueStateFactory.TYPE,
     parameters = Meta {
+        metadata()
         set(MathValueStateFactory.expression, expression)
         set(MathValueStateFactory.arguments, arguments)
-    },
-    metadata = metadata
+    }
 )
