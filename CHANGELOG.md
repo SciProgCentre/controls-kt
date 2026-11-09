@@ -4,6 +4,9 @@
 
 ### Added
 
+- Implement the Wet Gas Cleaning Plant (МОГ) digital twin simulation model and standalone Compose Desktop demonstrator entry point in `demo/constructor/src/jvmMain/kotlin/WetGasCleaningPlant.kt`.
+- Add technical specification for the Wet Gas Cleaning Plant (МОГ) demonstrator in `demo/constructor/docs/wet-gas-cleaning-specification.md` including 8 key adjustable demonstration parameters.
+
 - Add configuration-based `tableExporter` construction and CSV export of selected tags, quality, and source state in the data platform demo.
 - Implement `tableExporter` for merging tag and device-property histories into a time-aligned table.
 - Add File-based implementation for DeviceMessageStorage `FileDeviceMessageStorage` in `controls-storage`.

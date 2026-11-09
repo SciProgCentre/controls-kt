@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 plugins {
     id("space.kscience.gradle.mpp")
     alias(spclibs.plugins.compose.compiler)
-    alias(spclibs.plugins.compose.jb)
+    alias(libs.plugins.compose.jb)
 }
 
 kscience {
@@ -16,7 +16,6 @@ kscience {
         implementation(projects.controlsConstructor)
         implementation(projects.controlsModels.controlsModelsMechanical)
         implementation(projects.controlsModels.controlsModelsFlow)
-//        implementation("io.github.koalaplot:koalaplot-core:0.6.0")
     }
     jvmMain {
 //        implementation("io.ktor:ktor-server-cio")
