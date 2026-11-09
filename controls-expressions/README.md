@@ -40,7 +40,7 @@ println(calculator.result.value)
 
 ## Artifact:
 
-The Maven coordinates of this project are `space.kscience:controls-expressions:0.5.0-dev-5`.
+The Maven coordinates of this project are `space.kscience:controls-expressions:0.5.0-dev-6`.
 
 **Gradle Kotlin DSL:**
 ```kotlin
@@ -50,7 +50,7 @@ repositories {
 }
 
 dependencies {
-    implementation("space.kscience:controls-expressions:0.5.0-dev-5")
+    implementation("space.kscience:controls-expressions:0.5.0-dev-6")
 }
 ```
 

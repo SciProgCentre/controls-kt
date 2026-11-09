@@ -8,7 +8,7 @@ plugins {
 
 allprojects {
     group = "space.kscience"
-    version = "0.5.0-dev-5"
+    version = "0.5.0-dev-6"
     repositories {
         mavenLocal()
         google()

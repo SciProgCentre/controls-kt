@@ -162,22 +162,23 @@ public object ConstructorDeviceFactory : DeviceTreeFactory {
 public fun DeviceTree.resolvePropertyState(
     context: Context,
     deviceName: Name,
-    propertyName: String
+    propertyName: String,
+    defaultValue: Meta = Meta.EMPTY
 ): ValueState<Meta> {
     val existingDevice = resolveDeviceOrNull(deviceName)
 
     if (existingDevice != null) {
-        return existingDevice.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY)
+        return existingDevice.propertyAsState(propertyName, MetaConverter.meta, defaultValue)
     } else {
         context.logger.warn { "Requested property $propertyName of device $deviceName is not found. Using late-binding state instead." }
-        val lateBindValueState = LateBindValueState(Meta.EMPTY)
+        val lateBindValueState = LateBindValueState(defaultValue)
         context.launch {
             deviceMessageFlow().filterIsInstance<DeviceLifeCycleMessage>().first {
                 it.sourceDevice == deviceName && it.state == LifecycleState.STARTED
             }
             val device = resolveDeviceOrNull(deviceName)
             if (device != null) {
-                lateBindValueState.bind(device.propertyAsState(propertyName, MetaConverter.meta, Meta.EMPTY))
+                lateBindValueState.bind(device.propertyAsState(propertyName, MetaConverter.meta, defaultValue))
             } else {
                 context.logger.error { "Device $deviceName is not found after its start signal" }
             }
@@ -186,8 +187,22 @@ public fun DeviceTree.resolvePropertyState(
     }
 }
 
-public fun DeviceConstructor.resolvePropertyState(deviceName: Name, propertyName: String): ValueState<Meta> =
-    resolvePropertyState(context, deviceName, propertyName)
+//TODO consider more lightweight alternative for late-binding
 
-public fun Context.resolvePropertyState(deviceName: Name, propertyName: String): ValueState<Meta> =
-    request(DeviceManager).resolvePropertyState(this, deviceName, propertyName)
+/**
+ * Resolves a property state for [DeviceConstructor] subtree by its name and property name.
+ */
+public fun DeviceConstructor.resolvePropertyState(
+    deviceName: Name,
+    propertyName: String,
+    defaultValue: Meta = Meta.EMPTY
+): ValueState<Meta> = resolvePropertyState(context, deviceName, propertyName, defaultValue)
+
+/**
+ * Resolves a property state of context [DeviceManager] by its name and property name.
+ */
+public fun Context.resolvePropertyState(
+    deviceName: Name,
+    propertyName: String,
+    defaultValue: Meta = Meta.EMPTY
+): ValueState<Meta> = request(DeviceManager).resolvePropertyState(this, deviceName, propertyName, defaultValue)

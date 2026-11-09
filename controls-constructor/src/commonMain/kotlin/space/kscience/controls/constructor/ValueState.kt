@@ -156,14 +156,16 @@ public fun <T, R> ValueState.Companion.transform(
 ): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies: Collection<ValueState<*>> = listOf(state)
 
-    private val valueFlow = MutableStateFlow<R>(initialValue)
+    private val valueFlow = MutableStateFlow(initialValue)
 
-    val transformJob = scope.launch {
-        valueFlow.emit(transform(state.value))
-        state.subscribe().collect {
-            valueFlow.emit(transform(it))
-        }
-    }
+   init {
+       scope.launch {
+           valueFlow.emit(transform(state.value))
+           state.subscribe().collect {
+               valueFlow.emit(transform(it))
+           }
+       }
+   }
 
     override val value: R get() = valueFlow.value
 
@@ -199,12 +201,14 @@ public fun <T, R : Any> ValueState.Companion.transformNotNull(
 ): ValueStateWithDependencies<R> = object : ValueStateWithDependencies<R> {
     override val dependencies: Collection<ValueState<*>> = listOf(state)
 
-    private val valueFlow = MutableStateFlow<R>(initialValue)
+    private val valueFlow = MutableStateFlow(initialValue)
 
-    val transformJob = scope.launch {
-        transform(state.value)?.let { valueFlow.emit(it) }
-        state.subscribe().collect { newValue ->
-            transform(newValue)?.let { valueFlow.emit(it) }
+    init{
+        scope.launch {
+            transform(state.value)?.let { valueFlow.emit(it) }
+            state.subscribe().collect { newValue ->
+                transform(newValue)?.let { valueFlow.emit(it) }
+            }
         }
     }
 

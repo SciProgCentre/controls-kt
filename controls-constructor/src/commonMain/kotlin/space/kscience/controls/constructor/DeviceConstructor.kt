@@ -370,6 +370,22 @@ public fun <T> DeviceConstructor.registerVirtualProperty(
 }
 
 /**
+ * Register a new property based on a reference to another device property.
+ *
+ * The property will be available even if the referenced property is not yet registered.
+ */
+public fun DeviceConstructor.registerReferenceProperty(
+    name: String,
+    deviceName: Name,
+    propertyName: String,
+    descriptorBuilder: PropertyDescriptor.() -> Unit = {},
+): ValueState<Meta> {
+    val property = resolvePropertyState(deviceName, propertyName)
+    registerProperty(name, MetaConverter.meta, property, descriptorBuilder)
+    return property
+}
+
+/**
  * Register a child device using a delegate provider
  */
 public fun <D : Device> DeviceConstructor.device(
@@ -479,6 +495,7 @@ public fun <T> DeviceConstructor.virtualProperty(
     descriptorBuilder = descriptorBuilder,
     nameOverride = nameOverride,
 )
+
 
 /**
  * Registers a property for this device group. The property is specified using the given

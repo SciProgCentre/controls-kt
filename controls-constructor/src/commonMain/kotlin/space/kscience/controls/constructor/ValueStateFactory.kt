@@ -4,8 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.DeviceMessageSource
 import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.api.resolveDevice
-import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.Factory
@@ -38,11 +36,7 @@ public interface ValueStateFactory : Factory<ValueState<Meta>>, Described {
  * - **propertyName**: Represents the name of the property associated with the device.
  * - **defaultValue**: Specifies the default value to use when the property's current value is unavailable.
  *
- * ### Behavior
- * The factory attempts to:
- * 1. Resolve the target device using the provided device name.
- * 2. Resolve the property's state using the provided property name.
- * 3. Create a [ValueState] that observes and reacts to updates in the specified device property.
+ * Factory uses [Context.resolvePropertyState] to bind property state so it is accessible even before
  *
  * @constructor This factory uses metadata and context plugins to establish property state bindings.
  */
@@ -62,9 +56,8 @@ public object DeviceValueStateFactory : ValueStateFactory, MetaSpec() {
     ): ValueState<Meta> {
         val deviceName = meta[deviceName]?.parseAsName() ?: error("Device name is not specified")
         val propertyName = meta[propertyName] ?: error("Property name is not specified")
-        val deviceManager = context.plugins[DeviceManager] ?: error("Device manager is not found in context")
         val defaultValue = meta[defaultValue] ?: Meta.EMPTY
-        return deviceManager.resolveDevice(deviceName).propertyAsState(propertyName, MetaConverter.meta, defaultValue)
+        return context.resolvePropertyState(deviceName, propertyName, defaultValue)
     }
 
 }
@@ -92,8 +85,7 @@ public fun DeviceMessageSource.asValueStateFactory(
         }.stateIn(scope, SharingStarted.Eagerly, defaultValueWithTime)
 
         return object : ValueState<Meta> {
-            override val valueWithTime: ValueWithTime<Meta>
-                get() = valueFlow.value
+            override val valueWithTime: ValueWithTime<Meta> get() = valueFlow.value
 
             override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = valueFlow
 
