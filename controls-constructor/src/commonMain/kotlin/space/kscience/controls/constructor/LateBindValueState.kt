@@ -23,6 +23,7 @@ public class LateBindValueState<T>(
     private var binding = CompletableDeferred<ValueState<T>>()
 
     public fun bind(state: ValueState<T>) {
+        check(state != this) { "The state could not be bound to itself" }
         check(!binding.isCompleted) { "The state is already bound" }
         binding.complete(state)
     }
