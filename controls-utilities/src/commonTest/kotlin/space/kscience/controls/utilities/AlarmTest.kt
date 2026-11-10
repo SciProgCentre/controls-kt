@@ -253,10 +253,9 @@ class AlarmTest {
             val settings = listOf(
                 AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "TOO_HOT")
             )
-            val metadata = Meta { "description" put "Temperature alarm" }
-            val parameters = Alarm.buildDeviceMeta(settings, metadata)
+            val parameters = Alarm.buildDeviceMeta(settings) { "description" put "Temperature alarm" }
             assertEquals(settings, parameters[Alarm.settings])
-            assertTrue(Meta.equals(metadata, parameters[Alarm.metadata]))
+            assertEquals("Temperature alarm", parameters["description"].string)
             val alarm = Alarm.buildDevice(context, parameters)
 
             assertEquals(settings, alarm.alarmSettings.value)
