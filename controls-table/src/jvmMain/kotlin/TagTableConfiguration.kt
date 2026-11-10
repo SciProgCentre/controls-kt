@@ -47,6 +47,16 @@ public data class OpcTagSourceConfig(
 @Serializable
 public sealed interface ModbusTagSourceConfig : TagSourceConfig
 
+/**
+ * Configuration for a Modbus TCP tag source.
+ *
+ * Defines the endpoint and connection behavior used to communicate with a Modbus TCP server.
+ * The configuration is serializable and is identified by the `"modbus-tcp"` serial name when
+ * used as a [ModbusTagSourceConfig].
+ *
+ * Connection settings include the remote address, TCP port, request timeout, reconnect behavior,
+ * and delay between reconnection attempts.
+ */
 @Serializable
 @SerialName("modbus-tcp")
 public data class ModbusTcpTagSourceConfig(
@@ -57,6 +67,14 @@ public data class ModbusTcpTagSourceConfig(
     override val reconnectionDelay: Duration = 5.seconds
 ) : ModbusTagSourceConfig
 
+/**
+ * Configuration for a Modbus RTU tag source accessed through a serial port.
+ *
+ * Defines the serial communication settings, Modbus timing parameters, and
+ * reconnection behavior required to create a tag source that communicates with
+ * Modbus RTU devices. The configuration is serializable and is identified by
+ * the `"modbus-rtu"` serial name when used as a [ModbusTagSourceConfig].
+ */
 @Serializable
 @SerialName("modbus-rtu")
 public data class ModbusRtuTagSourceConfig(
@@ -190,6 +208,19 @@ public fun TagTableColumn.Companion.modbus(
     meta = meta
 )
 
+/**
+ * Creates a tag table column for reading a property from a controls device.
+ *
+ * The created column uses the controls tag source and stores the target device name and
+ * property name in the column configuration.
+ *
+ * @param timer The name of the timer used to read the device property.
+ * @param deviceName The name of the controls device that provides the property.
+ * @param propertyName The name of the property to read from the device.
+ * @param compression The compression configuration for stored property values, or null to use the global platform compression configuration.
+ * @param meta Additional metadata associated with the column.
+ * @return A tag table column configured for the specified controls device property.
+ */
 public fun TagTableColumn.Companion.controls(
     timer: String,
     deviceName: Name,
@@ -259,17 +290,6 @@ public data class MessageStorageConfiguration(
     val maxMessagesPerFile: Int = 10000,
 )
 
-///**
-// * Configuration of additional tag table settings.
-// *
-// * @property sourceTimeOffsetGranularity Granularity of the source time offset. If null, then the source time offset is not recorded.
-// */
-//@Serializable
-//public data class TagTableSettings(
-//    public val sourceTimeOffsetGranularity: Duration? = 1.minutes,
-//)
-
-
 /**
  * Represents the configuration for a data platform, defining its sources, timers,
  * properties, and optional storage settings.
@@ -292,6 +312,5 @@ public class TagTableConfiguration(
     public val tags: Map<String, TagTableColumn>,
     public val storage: TagTableStorageConfiguration? = null,
     public val messageStorage: MessageStorageConfiguration? = null,
-//    public val settings: TagTableSettings? = null
 )
 

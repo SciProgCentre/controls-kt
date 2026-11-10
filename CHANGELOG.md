@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add documentation for `TagTableConfiguration` JSON serialization structure in `controls-table/docs/tagTableConfiguration.md`.
 - Add documentation for `ConstructorDeviceConfiguration` JSON serialization structure in `controls-constructor/docs/deviceConfiguration.md`.
 - Implement the Wet Gas Cleaning Plant digital twin simulation model and standalone Compose Desktop demonstrator entry point in `demo/constructor/src/jvmMain/kotlin/WetGasCleaningPlant.kt`.
 - Add configuration-based `tableExporter` construction and CSV export of selected tags, quality, and source state in the data platform demo.

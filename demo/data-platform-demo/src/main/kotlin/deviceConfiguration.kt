@@ -91,7 +91,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                     )
                     val fullName = Name.of(aggregateName, partName)
                     alarmsConfigs[fullName.toStringUnescaped()] = ValueStateConfiguration.deviceProperty(
-                        deviceName = Name.of("devices", aggregateName, partName, "alarm").toString(),
+                        deviceName = Name.of( aggregateName, partName, "alarm").toString(),
                         propertyName = "state",
                         metadata = { "widget" put "alarm.state" }
                     )

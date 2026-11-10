@@ -4,6 +4,9 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.*
+import space.kscience.controls.constructor.DeviceValueStateFactory.defaultValue
+import space.kscience.controls.constructor.DeviceValueStateFactory.deviceName
+import space.kscience.controls.constructor.DeviceValueStateFactory.propertyName
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.dataforge.context.*
@@ -15,6 +18,7 @@ import space.kscience.dataforge.meta.string
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
 import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.names.plus
 
 /**
  * A plugin that allows constructing value states from meta.
@@ -64,12 +68,25 @@ public class ConstructorPlugin : AbstractPlugin() {
 
     /**
      * Create a Device (or device hub) from a serializable scheme using given value state factories
+     *
+     * @param fullDeviceName the full name of the device to be constructed. Used to resolve absolute paths to other devices.
+     * @param rootDeviceTree the root device tree to resolve property states. If not specified, the current device tree is used.
      */
     public fun construct(
         deviceConfiguration: ConstructorDeviceConfiguration,
+        fullDeviceName: Name = Name.EMPTY,
+        rootDeviceTree: DeviceTree? = null,
     ): DeviceConstructor = DeviceConstructor(context, deviceConfiguration.parameters).apply {
+        val rootDeviceTree = rootDeviceTree ?: this
         deviceConfiguration.devices.forEach { (name, scheme) ->
-            install(name, construct(scheme))
+            install(
+                deviceName = name,
+                device = construct(
+                    deviceConfiguration = scheme,
+                    fullDeviceName = fullDeviceName + name,
+                    rootDeviceTree = rootDeviceTree
+                )
+            )
         }
 
         deviceConfiguration.components.forEach { (name, template) ->
@@ -79,15 +96,31 @@ public class ConstructorPlugin : AbstractPlugin() {
         }
 
         deviceConfiguration.properties.forEach { (name, propertyConfiguration) ->
-            registerProperty(
-                name = name,
-                converter = MetaConverter.meta,
-                state = buildValueState(
-                    parameters = propertyConfiguration.parameters,
-                    type = propertyConfiguration.type,
-                ),
-            ) {
-                metadata = propertyConfiguration.parameters
+            // use special construction for device property states to resolve them relative to this construction root and not the context
+            if (propertyConfiguration.type == DeviceValueStateFactory.TYPE) {
+                val deviceName = propertyConfiguration.parameters[deviceName]?.parseAsName()
+                    ?: error("Device name is not specified")
+                val propertyName = propertyConfiguration.parameters[propertyName]
+                    ?: error("Property name is not specified")
+                val defaultValue = propertyConfiguration.parameters[defaultValue] ?: Meta.EMPTY
+                registerProperty(
+                    name = name,
+                    converter = MetaConverter.meta,
+                    state = rootDeviceTree.resolvePropertyState(context, deviceName, propertyName, defaultValue),
+                ) {
+                    metadata = propertyConfiguration.parameters
+                }
+            } else {
+                registerProperty(
+                    name = name,
+                    converter = MetaConverter.meta,
+                    state = buildValueState(
+                        parameters = propertyConfiguration.parameters,
+                        type = propertyConfiguration.type,
+                    ),
+                ) {
+                    metadata = propertyConfiguration.parameters
+                }
             }
         }
 
@@ -136,7 +169,7 @@ public fun DeviceConstructor.install(
 ): DeviceConstructor = install(name, context.request(ConstructorPlugin).construct(deviceConfiguration))
 
 /**
- * A [DeviceTreeFactory] implemetation for a constructor device that uses [ConstructorDeviceConfiguration]
+ * A [DeviceTreeFactory] implementation for a constructor device that uses [ConstructorDeviceConfiguration]
  */
 public object ConstructorDeviceFactory : DeviceTreeFactory {
 
