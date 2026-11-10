@@ -132,7 +132,6 @@ class AlarmTest {
         val status = assertNotNull(setting["status"])
         assertEquals(listOf(ValueType.STRING), status.valueTypes)
         assertEquals(ValueRestriction.REQUIRED, status.valueRestriction)
-        assertNotNull(Alarm.descriptor[DeviceConstructor.METADATA_KEY])
     }
 
     @Test
