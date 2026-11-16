@@ -185,9 +185,9 @@ suspend fun main() {
         compressHistory = true,
     )
 
-    devices.launchStorageJob(
-        storageMap = mapOf("file" to deviceMessageStorage),
-        coroutineScope = context
+    context.launchStorageJob(
+        deviceTree = devices,
+        storageMap = mapOf("file" to deviceMessageStorage)
     )
 
 
