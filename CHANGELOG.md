@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add documentation on `FileDeviceMessageStorage` in `controls-storage/docs/fileDeviceMessageStorage.md`.
+- Add `compressHistory` option to `FileDeviceMessageStorage` to convert rotated JSONL files to ZIP-compressed envelope (`.df`) files in the background.
 - Add documentation for `TagTableConfiguration` JSON serialization structure in `controls-table/docs/tagTableConfiguration.md`.
 - Add documentation for `ConstructorDeviceConfiguration` JSON serialization structure in `controls-constructor/docs/deviceConfiguration.md`.
 - Implement the Wet Gas Cleaning Plant digital twin simulation model and standalone Compose Desktop demonstrator entry point in `demo/constructor/src/jvmMain/kotlin/WetGasCleaningPlant.kt`.

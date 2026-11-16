@@ -2,6 +2,11 @@
 
 An API for stand-alone Controls-kt device or a hub.
 
+## Documentation
+
+- [File Device Message Storage](./docs/fileDeviceMessageStorage.md): Local filesystem-based storage for `DeviceMessage` events with JSONL partitioning, automatic rotation, background ZIP/DEFLATE compression, and reactive querying.
+
+
 ## Usage
 
 ## Artifact:

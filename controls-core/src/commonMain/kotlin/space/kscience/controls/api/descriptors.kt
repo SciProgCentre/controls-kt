@@ -23,7 +23,7 @@ public class PropertyDescriptor(
     public var metaDescriptor: MetaDescriptor = MetaDescriptor(),
     public var readable: Boolean = true,
     public var mutable: Boolean = false,
-    public var metadata: Meta? = null
+    public var metadata: Meta = Meta.EMPTY
 ) : DeviceElementDescriptor {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -76,7 +76,7 @@ public class ActionDescriptor(
     public var description: String? = null,
     public var inputMetaDescriptor: MetaDescriptor = MetaDescriptor(),
     public var outputMetaDescriptor: MetaDescriptor = MetaDescriptor(),
-    public var metadata: Meta? = null
+    public var metadata: Meta = Meta.EMPTY
 ) : DeviceElementDescriptor {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

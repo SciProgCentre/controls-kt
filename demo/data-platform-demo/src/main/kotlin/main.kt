@@ -43,6 +43,7 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.inputStream
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import kotlin.to
 
 internal val json = Json { prettyPrint = true }
 
@@ -74,7 +75,7 @@ private fun Device.monitorDeviceChanges(): Job = launch {
 }
 
 /**
- * Build a table exporter using the storage paths in a tag-table configuration.
+ * Build a combined messages storage for tag and auxiliary messages using the storage paths in a tag-table configuration.
  */
 public suspend fun TagTablePlugin.readMessages(
     configuration: TagTableConfiguration,
@@ -130,9 +131,11 @@ suspend fun main() {
 
     val deviceManager = tagTablePlugin.deviceManager
 
+    val dataDirectory = Path("data").apply { createDirectories() }
 
     //setup data sources and data config
     val platformDataDirectory = deviceManager.setupPlatformTestStand(
+        dataDirectory = dataDirectory,
         numberOfOpcDevices = 6,
         numberOfModbusDevices = 4,
         propertiesPerDevice = 30
@@ -150,6 +153,8 @@ suspend fun main() {
     // monitor changes
     tagTable.monitorDeviceChanges()
 
+    // message storage for tag table and its auxiliary messages
+    val tableMessageStorage = tagTablePlugin.readMessages(configuration)
 
     //read device config
     val deviceConfig: ConstructorDeviceConfiguration = platformDataDirectory
@@ -174,7 +179,17 @@ suspend fun main() {
         processDevice(deviceConfig, Name.EMPTY)
     }
 
-    val messageStorage = tagTablePlugin.readMessages(configuration)
+    val deviceMessageStorage = FileDeviceMessageStorage(
+        directory = dataDirectory.resolve("deviceMessages").apply { createDirectories() },
+        maxMessagesPerFile = 200,
+        compressHistory = true,
+    )
+
+    devices.launchStorageJob(
+        storageMap = mapOf("file" to deviceMessageStorage),
+        coroutineScope = context
+    )
+
 
     //launch visualization app
     application {
@@ -185,7 +200,7 @@ suspend fun main() {
             MaterialTheme {
                 DeviceVisualisation(
                     hub = devices,
-                    messageStorage = messageStorage,
+                    messageStorage = tableMessageStorage,
                     exportColumnMapping = columnTagMapping,
                     sourceStateColumns = configuration.sourceStateExportColumns(),
                     exportStartTime = exportStartTime,

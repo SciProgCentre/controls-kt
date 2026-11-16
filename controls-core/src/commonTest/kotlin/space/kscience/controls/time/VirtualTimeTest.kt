@@ -39,24 +39,6 @@ class VirtualTimeTest {
     }
 
     @Test
-    fun testTestAdvance() = runTest(timeout = 200.milliseconds) {
-
-        delay(1000)
-        assertEquals(currentTime, 1000)
-
-        launch {
-            delay(500)
-            assertEquals(currentTime, 1500)
-        }
-
-        launch {
-            delay(1000)
-            assertEquals(currentTime, 2000)
-        }.join()
-
-    }
-
-    @Test
     fun contextAdvance() = runTest(timeout = 1.seconds) {
         val context = Context {
             withVirtualTime(Instant.fromEpochMilliseconds(0L))

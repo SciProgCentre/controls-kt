@@ -35,6 +35,9 @@ The module includes interval-indexed storage and playback for time-series tag ta
 The module provides automated validation, provenance tracking, and health evaluation for tag values:
 * **[Tag State and Quality](./docs/tag-state-quality.md)**: Quality evaluation algorithms (OPC status verification, maximum age staleness checks, maximum delta limits), diagnostic states (`GOOD`, `BAD`, `READ_FAILED`, `NOT_CONNECTED`), and companion quality streams (`.@quality`).
 
+### 6. Declarative Configuration
+* **[TagTable Configuration JSON Specification](./docs/tagTableConfiguration.md)**: Declarative JSON format for manual or automated configuration of tag sources, timers, column mappings, and storage.
+
 ## Architectural Diagram
 
 A visual representation of the architecture is available in draw.io format:

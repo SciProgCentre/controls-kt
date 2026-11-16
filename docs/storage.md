@@ -165,7 +165,21 @@ val storageJob = deviceManager.storeMessages(
 
 ### Storage Backends
 
-#### 1. (Obsolete) Embedded JetBrains Xodus (`controls-xodus`)
+#### 1. Local Filesystem JSONL & Envelopes (`FileDeviceMessageStorage`)
+
+- **Engine**: Zero-dependency filesystem storage saving messages to line-delimited JSON (`.jsonl`) files with automatic rotation and optional background compression into DataForge envelope (`.df`) files.
+- **Benefits**: Lightweight, standalone, human-readable file formats, retention filtering via `historyDepth`, and fault-tolerant parsing.
+- **Usage**:
+  ```kotlin
+  val storage = FileDeviceMessageStorage(
+      directory = Path.of("data/messages"),
+      maxMessagesPerFile = 5000,
+      compressHistory = true
+  )
+  ```
+  *See [FileDeviceMessageStorage Documentation](../controls-storage/docs/fileDeviceMessageStorage.md) for full details.*
+
+#### 2. (Obsolete) Embedded JetBrains Xodus (`controls-xodus`)
 
 - **Engine**: Zero-configuration, transactional key-value / entity store running in-process.
 - **Benefits**: No external database server required; fast indexed searches on message properties and JSON payloads.
@@ -176,7 +190,7 @@ val storageJob = deviceManager.storeMessages(
   })
   ```
 
-#### 2. SQL Database via JetBrains Exposed (`controls-exposed`)
+#### 3. SQL Database via JetBrains Exposed (`controls-exposed`)
 
 - **Engine**: Relational database storage via the Exposed ORM (supporting PostgreSQL, MySQL, MariaDB, SQLite, H2,
   Oracle, SQL Server).

@@ -205,7 +205,7 @@ a compiler for Structured Text (ST), and a runtime for executing IL programs.
 ### [controls-storage/controls-xodus](controls-storage/controls-xodus)
 > An implementation of controls-storage on top of JetBrains Xodus.
 >
-> **Maturity**: PROTOTYPE
+> **Maturity**: DEPRECATED
 
 ### [demo/constructor](demo/constructor)
 >
@@ -274,7 +274,7 @@ a compiler for Structured Text (ST), and a runtime for executing IL programs.
 
 ### [magix/magix-storage/magix-storage-xodus](magix/magix-storage/magix-storage-xodus)
 >
-> **Maturity**: PROTOTYPE
+> **Maturity**: DEPRECATED
 
 
 ### `demo` module

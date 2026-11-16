@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.seconds
  * Returns the path to the data directory where configuration files are stored.
  */
 internal fun DeviceManager.setupPlatformTestStand(
+    dataDirectory: Path,
     numberOfOpcDevices: Int,
     numberOfModbusDevices: Int,
     propertiesPerDevice: Int,
@@ -79,15 +80,12 @@ internal fun DeviceManager.setupPlatformTestStand(
         }
     }
 
-    val dataDirectory = Path("data")
-    dataDirectory.createDirectories()
-
     val configuration = TagTableConfiguration(
         sources = sources,
         timers = timers,
         tags = platformProperties.mapKeys { it.key.toString() },
         storage = TagTableStorageConfiguration(
-            path = dataDirectory.toString(),
+            path = dataDirectory.resolve("tags").apply { createDirectories() }.toString(),
             readInterval = 1.seconds,
             maxDuration = 30.seconds,
             compression = RowsCompression(skipUnchangedRows = true, skipUnchangedValues = true, numericDelta = 0.05),
@@ -96,7 +94,7 @@ internal fun DeviceManager.setupPlatformTestStand(
 //            rowsConverterType = PlainRowsEnvelopeConverter.meta.envelopeType
         ),
         messageStorage = MessageStorageConfiguration(
-            path = dataDirectory.resolve("tableMessages").toString()
+            path = dataDirectory.resolve("tableMessages").apply { createDirectories() }.toString()
         )
     )
 

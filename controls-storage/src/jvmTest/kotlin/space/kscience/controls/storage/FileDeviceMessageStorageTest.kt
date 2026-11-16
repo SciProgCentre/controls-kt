@@ -357,4 +357,76 @@ class FileDeviceMessageStorageTest {
         assertTrue(logMessages[1] is DeviceErrorMessage)
         assertTrue(logMessages[2] is DeviceLogMessage)
     }
+
+    /*
+     * LLM generated code: Tests for compressHistory option converting rotated files to .df envelopes in background.
+     */
+    @Test
+    fun testCompressHistoryOnRotation() = runBlocking {
+        val startTime = Instant.parse("2026-10-21T10:00:00Z")
+        val clock = TestClock(startTime)
+        val storage = FileDeviceMessageStorage(
+            directory = tempDir,
+            maxMessagesPerFile = 2,
+            clock = clock,
+            compressHistory = true,
+        )
+
+        val log1 = DeviceLogMessage(
+            time = startTime,
+            message = "Message 1",
+            sourceDevice = "device.sensor".parseAsName(),
+        )
+        val log2 = DeviceLogMessage(
+            time = startTime + 1.seconds,
+            message = "Message 2",
+            sourceDevice = "device.sensor".parseAsName(),
+        )
+        val log3 = DeviceLogMessage(
+            time = startTime + 2.seconds,
+            message = "Message 3",
+            sourceDevice = "device.sensor".parseAsName(),
+        )
+
+        storage.write(log1)
+        storage.write(log2) // triggers rotation and background compression of first file
+
+        // Advance clock for the next message file
+        clock.current = startTime + 10.seconds
+        storage.write(log3)
+
+        // Wait for background compression to complete
+        var dfFiles = tempDir.listDirectoryEntries("*.df")
+        val deadline = System.currentTimeMillis() + 5000
+        while (dfFiles.isEmpty() && System.currentTimeMillis() < deadline) {
+            kotlinx.coroutines.delay(50)
+            dfFiles = tempDir.listDirectoryEntries("*.df")
+        }
+
+        assertEquals(1, dfFiles.size, "Expected 1 compressed .df envelope file")
+        val jsonlFiles = tempDir.listDirectoryEntries("*.jsonl")
+        assertEquals(1, jsonlFiles.size, "Expected 1 active .jsonl file")
+
+        // Read all messages
+        val messages = storage.read().toList().sortedBy { it.time }
+        assertEquals(3, messages.size)
+        assertEquals("Message 1", (messages[0] as DeviceLogMessage).message)
+        assertEquals("Message 2", (messages[1] as DeviceLogMessage).message)
+        assertEquals("Message 3", (messages[2] as DeviceLogMessage).message)
+
+        // Reopen storage and verify indexing of .df files
+        val reopenedStorage = FileDeviceMessageStorage(
+            directory = tempDir,
+            compressHistory = true,
+            clock = clock,
+        )
+        val reopenedMessages = reopenedStorage.read().toList().sortedBy { it.time }
+        assertEquals(3, reopenedMessages.size)
+        assertEquals("Message 1", (reopenedMessages[0] as DeviceLogMessage).message)
+        assertEquals("Message 2", (reopenedMessages[1] as DeviceLogMessage).message)
+        assertEquals("Message 3", (reopenedMessages[2] as DeviceLogMessage).message)
+
+        storage.close()
+        reopenedStorage.close()
+    }
 }

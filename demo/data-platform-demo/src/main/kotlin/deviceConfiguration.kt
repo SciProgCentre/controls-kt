@@ -9,6 +9,7 @@ import space.kscience.controls.expressions.ValueStateExpression
 import space.kscience.controls.expressions.expression
 import space.kscience.controls.expressions.math
 import space.kscience.controls.opcua.server.read
+import space.kscience.controls.storage.MessageStorageScheme
 import space.kscience.controls.tagtable.TagTable
 import space.kscience.controls.tagtable.TagTableColumn
 import space.kscience.controls.tagtable.TagTableConfiguration
@@ -18,6 +19,7 @@ import space.kscience.controls.utilities.AlarmSetting
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.*
+import kotlin.time.Duration.Companion.seconds
 
 
 internal fun createDeviceConfiguration(configuration: TagTableConfiguration): ConstructorDeviceConfiguration {
@@ -54,6 +56,12 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                                 valueStateType = pc.type,
                                 parameters = pc.parameters,
                             )
+                        },
+                        parameters = Meta {
+                            MessageStorageScheme.MESSAGE_STORAGE_KEY put MessageStorageScheme {
+                                storage = "file"
+                                sampleInterval = 10.seconds
+                            }
                         }
                     )
 
@@ -62,21 +70,30 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                     val mathValueStateConfiguration = ValueStateConfiguration.math(
                         "diff(integrateMinute(arg))",
                         mapOf("arg" to tagProperties.values.first())
-                    )
+                    ) {
+                        MessageStorageScheme.MESSAGE_STORAGE_KEY put MessageStorageScheme {
+                            storage = "file"
+                            sampleInterval = 10.seconds
+                        }
+                    }
 
                     val partName = "part[$index]"
 
                     put(
                         partName,
                         ConstructorDeviceConfiguration(
-                            properties = tagProperties + ("sum" to expressionValueStateConfiguration) + ("integral" to mathValueStateConfiguration),
+                            properties = tagProperties + ("sum" to expressionValueStateConfiguration) + ("math" to mathValueStateConfiguration),
                             components = mapOf(
                                 "alarm" to TemplateDeviceConfiguration(
                                     type = "controls.utilities.alarm",
                                     parameters = Alarm.buildDeviceMeta(
                                         settings = alarmSetting
-                                    ){
+                                    ) {
                                         "widget" put "alarm"
+                                        MessageStorageScheme.MESSAGE_STORAGE_KEY put MessageStorageScheme {
+                                            storage = "file"
+                                            sampleInterval = 10.seconds
+                                        }
                                     },
                                 )
                             ),
@@ -86,12 +103,12 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                                     sourceProperty = "sum",
                                     targetDevice = Name.of("alarm")
                                 )
-                            )
+                            ),
                         )
                     )
                     val fullName = Name.of(aggregateName, partName)
                     alarmsConfigs[fullName.toStringUnescaped()] = ValueStateConfiguration.deviceProperty(
-                        deviceName = Name.of( aggregateName, partName, "alarm").toString(),
+                        deviceName = Name.of(aggregateName, partName, "alarm").toString(),
                         propertyName = "state",
                         metadata = { "widget" put "alarm.state" }
                     )
