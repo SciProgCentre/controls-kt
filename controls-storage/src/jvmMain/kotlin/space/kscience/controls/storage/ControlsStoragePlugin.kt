@@ -88,21 +88,17 @@ private fun Flow<PropertyChangedMessage>.filterPropertyChanges(interval: Duratio
  * are logged.
  *
  * @param storageMap map of storage names to writable device message storages used by storage configurations.
- * @param this@launchStorageJob coroutine scope in which the storage job and its flow collection coroutines are launched.
- * @param storageConfig optional fallback or overriding metadata used together with device and property metadata to
- * resolve message storage configuration.
  * @return the launched coroutine [Job] responsible for configuring and running storage subscriptions for this
  * device tree.
  */
 public fun CoroutineScope.launchStorageJob(
     deviceTree: DeviceTree,
     storageMap: Map<String, WriteableDeviceMessageStorage>,
-    storageConfig: Meta? = null
 ): Job = launch {
 
     fun Device.storeDeviceProperties(deviceName: Name) {
 
-        val deviceStorageMeta = Laminate(meta, storageConfig)[MessageStorageScheme.MESSAGE_STORAGE_KEY]
+        val deviceStorageMeta = meta[MessageStorageScheme.MESSAGE_STORAGE_KEY]
 
         if (deviceStorageMeta != null && !deviceStorageMeta.isEmpty()) {
             val storageConfiguration = MessageStorageScheme.read(deviceStorageMeta)
@@ -126,8 +122,7 @@ public fun CoroutineScope.launchStorageJob(
         propertyDescriptors.filter { it.readable }.forEach { descriptor ->
             val storageMeta = Laminate(
                 descriptor.metadata,
-                meta,
-                storageConfig
+                meta
             )[MessageStorageScheme.MESSAGE_STORAGE_KEY]
 
             if (storageMeta != null && !storageMeta.isEmpty()) {
@@ -152,8 +147,8 @@ public fun CoroutineScope.launchStorageJob(
     }
 
     fun DeviceTree.storeDeviceProperties(deviceName: Name) {
-        deviceTree.device?.storeDeviceProperties(deviceName)
-        deviceTree.children.forEach { (childName, childTree) ->
+        device?.storeDeviceProperties(deviceName)
+        children.forEach { (childName, childTree) ->
             childTree.storeDeviceProperties(deviceName + childName)
         }
     }

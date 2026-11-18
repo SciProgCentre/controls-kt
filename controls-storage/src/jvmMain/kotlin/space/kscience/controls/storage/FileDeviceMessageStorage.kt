@@ -65,6 +65,8 @@ public class FileDeviceMessageStorage(
 
     // writing
 
+    private val writerMutex = Mutex()
+
     private val fileUpdateMutex = Mutex()
 
     private val currentFiles = mutableMapOf<String, Path>()
@@ -141,29 +143,34 @@ public class FileDeviceMessageStorage(
         }
     }
 
-    override suspend fun write(event: DeviceMessage) {
+    override suspend fun write(event: DeviceMessage): Unit {
+        val messageType = DeviceMessage.serialNameFor(event)
         //TODO add buffering
 
-        val messageType = DeviceMessage.serialNameFor(event)
         val file = getOrCreateCurrentFileForEvent(messageType)
         logger.trace("Writing event {} to file {}", event, file)
-        file.append {
-            writeString(Json.encodeToString(event))
-            writeString("\n")
+        writerMutex.withLock {
+            file.append {
+                writeString(Json.encodeToString(event))
+                writeString("\n")
+            }
+
+            messageCounters[messageType] = messageCounters.getOrDefault(messageType, 0) + 1
         }
-        val count = messageCounters.getOrDefault(messageType, 0) + 1
-        messageCounters[messageType] = count
-        if (count >= maxMessagesPerFile) {
-            logger.info("Rotating file for message type {}", messageType)
-            val rotatedFile = fileUpdateMutex.withLock {
+
+        val rotatedFile = fileUpdateMutex.withLock {
+            val messageCounter = messageCounters[messageType] ?: return@withLock null
+            if (messageCounter >= maxMessagesPerFile) {
+                logger.info("Rotating file for message type {}", messageType)
                 //remove file from cache to rotate it on next write
                 messageCounters[messageType] = 0
                 currentFiles.remove(messageType)
-            }
-            if (compressHistory && rotatedFile != null) {
-                scope.launch {
-                    compressFile(rotatedFile)
-                }
+            } else null
+        }
+
+        if (compressHistory && rotatedFile != null) {
+            scope.launch {
+                compressFile(rotatedFile)
             }
         }
     }
@@ -406,11 +413,11 @@ public class FileDeviceMessageStorage(
     public companion object : MetaSpec(), Factory<DeviceMessageStorage> {
         private val logger = LoggerFactory.getLogger(FileDeviceMessageStorage::class.java)
 
-        public val directory: MetaRef<String> by string{
+        public val directory: MetaRef<String> by string {
             description = "Absolute or relative path to the directory where the messages are stored"
         }
 
-        private val maxMessagesPerFile: MetaRef<Int> by int{
+        private val maxMessagesPerFile: MetaRef<Int> by int {
             default(1000)
         }
         private val historyDepth: MetaRef<Duration?> by item(MetaConverter.duration.nullable())
@@ -422,7 +429,7 @@ public class FileDeviceMessageStorage(
         override fun build(
             context: Context,
             meta: Meta
-        ): DeviceMessageStorage  = FileDeviceMessageStorage(
+        ): DeviceMessageStorage = FileDeviceMessageStorage(
             directory = Path(meta[directory] ?: error("Directory is not defined")),
             maxMessagesPerFile = meta[maxMessagesPerFile] ?: 1000,
             historyDepth = meta[historyDepth],

@@ -38,24 +38,42 @@ public interface DeviceMessageStorage : AutoCloseable {
     ): Flow<DeviceMessage>
 
     public companion object {
-        public fun merge(vararg storage: DeviceMessageStorage): DeviceMessageStorage = object : DeviceMessageStorage {
-            override fun read(
-                range: ClosedRange<Instant>?,
-                sourceDevice: Name?,
-                targetDevice: Name?
-            ): Flow<DeviceMessage> = storage.map { it.read(range, sourceDevice, targetDevice) }.merge()
 
-            override fun read(
-                eventType: String,
-                range: ClosedRange<Instant>?,
-                sourceDevice: Name?,
-                targetDevice: Name?
-            ): Flow<DeviceMessage> = storage.map { it.read(eventType, range, sourceDevice, targetDevice) }.merge()
+        private fun DeviceMessageStorage.flatten() =
+            if (this is MergedDeviceMessageStorage) this.components else listOf(this)
 
-            override fun close() {
-                storage.forEach { it.close() }
-            }
-        }
+        /**
+         * Merges the specified device message storages into a single storage.
+         *
+         * If any of the provided storages are already merged storages, their components are flattened into
+         * the resulting storage.
+         *
+         * @param storage device message storages to merge.
+         * @return a device message storage that reads from all provided storages.
+         */
+        public fun merge(
+            vararg storage: DeviceMessageStorage
+        ): DeviceMessageStorage = MergedDeviceMessageStorage(storage.flatMap { it.flatten() })
+    }
+}
+
+internal class MergedDeviceMessageStorage(val components: List<DeviceMessageStorage>) : DeviceMessageStorage {
+
+    override fun read(
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> = components.map { it.read(range, sourceDevice, targetDevice) }.merge()
+
+    override fun read(
+        eventType: String,
+        range: ClosedRange<Instant>?,
+        sourceDevice: Name?,
+        targetDevice: Name?
+    ): Flow<DeviceMessage> = components.map { it.read(eventType, range, sourceDevice, targetDevice) }.merge()
+
+    override fun close() {
+        components.forEach { it.close() }
     }
 }
 
