@@ -10,7 +10,7 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.names.Name
-import space.kscience.dataforge.names.parseAsName
+import space.kscience.dataforge.names.lastOrNull
 import space.kscience.dataforge.names.plus
 import kotlin.time.Duration
 
@@ -27,12 +27,27 @@ public class ControlsStoragePlugin : AbstractPlugin() {
         context.gather<Factory<DeviceMessageStorage>>(MESSAGE_STORAGE_FACTORY_TARGET)
     }
 
+    private fun findMessageStorageByType(type: String): Factory<DeviceMessageStorage>? {
+        //return full qualified name match immediately
+        messageStorageFactories[name]?.let { return it }
+
+        val matches = messageStorageFactories.entries.filter {
+            it.key.lastOrNull()?.toString() == type
+        }
+
+        return when (matches.size) {
+            0 -> null
+            1 -> matches.first().value
+            else -> error("Multiple storage factories found for $type: ${matches.map { it.key }}")
+        }
+    }
+
     /**
      * Build a message storage from a meta description
      */
     public fun buildMessageStorage(storageMeta: Meta): DeviceMessageStorage {
-        val storageType = storageMeta["type"].string?.parseAsName() ?: error("No storage type in $storageMeta")
-        val factory = messageStorageFactories[storageType] ?: error("No storage factory for $storageType")
+        val storageType = storageMeta["type"].string ?: error("No storage type in $storageMeta")
+        val factory = findMessageStorageByType(storageType) ?: error("No storage factory for $storageType")
         return factory.build(context, storageMeta)
     }
 

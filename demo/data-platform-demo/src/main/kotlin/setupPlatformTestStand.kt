@@ -2,13 +2,14 @@ package space.kscience.controls.demo
 
 import space.kscience.controls.constructor.ConstructorDeviceConfiguration
 import space.kscience.controls.manager.DeviceManager
-import space.kscience.controls.storage.PlainRowsEnvelopeConverter
+import space.kscience.controls.storage.FileDeviceMessageStorage
 import space.kscience.controls.tagtable.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import space.kscience.dataforge.names.plus
 import java.nio.file.Path
-import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.seconds
@@ -109,6 +110,21 @@ internal fun DeviceManager.setupPlatformTestStand(
             ConstructorDeviceConfiguration.serializer(),
             deviceConfiguration
         )
+    )
+
+    val storageConfiguration = Meta {
+        "storage" put {
+            "file" put {
+                "type" put "file"
+                set(FileDeviceMessageStorage.directory, "deviceMessages")
+                set(FileDeviceMessageStorage.maxMessagesPerFile, 200)
+                set(FileDeviceMessageStorage.compressHistory, true)
+            }
+        }
+    }
+
+    dataDirectory.resolve("storage-config.json").writeText(
+        json.encodeToString(Meta.serializer(), storageConfiguration)
     )
 
 //    val alarmConfig = createAlarmConfig(deviceConfiguration)

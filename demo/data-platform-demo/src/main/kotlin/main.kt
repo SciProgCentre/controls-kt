@@ -43,7 +43,6 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.inputStream
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
-import kotlin.to
 
 internal val json = Json { prettyPrint = true }
 
@@ -122,6 +121,7 @@ suspend fun main() {
         plugin(DeviceManager)
         plugin(IOPlugin)
         plugin(TagTablePlugin)
+        plugin(ControlsStoragePlugin)
         plugin(ControlsExpressionPlugin)
         plugin(ControlsUtilitiesPlugin)
         plugin(SlfLogManager)
@@ -179,15 +179,24 @@ suspend fun main() {
         processDevice(deviceConfig, Name.EMPTY)
     }
 
-    val deviceMessageStorage = FileDeviceMessageStorage(
-        directory = dataDirectory.resolve("deviceMessages").apply { createDirectories() },
-        maxMessagesPerFile = 200,
-        compressHistory = true,
-    )
+    val storageConfig = platformDataDirectory.resolve("storage-config.json").inputStream().use {
+        json.decodeFromStream(Meta.serializer(), it)
+    }
+
+    val storagePlugin = context.request(ControlsStoragePlugin)
+
+    //expli
+    val storageMap = storageConfig[MessageStorageScheme.MESSAGE_STORAGE_KEY]?.items
+        ?.map { (key, storageConfig) ->
+            val storage = storagePlugin.buildMessageStorage(storageConfig) as? WriteableDeviceMessageStorage
+                ?: error("Storage produced with $storageConfig is not writeable")
+            key.toString() to storage
+        }?.toMap() ?: error("No storage definition in $storageConfig")
+
 
     context.launchStorageJob(
         deviceTree = devices,
-        storageMap = mapOf("file" to deviceMessageStorage)
+        storageMap = storageMap
     )
 
 
@@ -200,7 +209,7 @@ suspend fun main() {
             MaterialTheme {
                 DeviceVisualisation(
                     hub = devices,
-                    messageStorage = DeviceMessageStorage.merge(deviceMessageStorage, tableMessageStorage),
+                    messageStorage = DeviceMessageStorage.merge(*storageMap.values.toTypedArray(), tableMessageStorage),
                     exportColumnMapping = columnTagMapping,
                     sourceStateColumns = configuration.sourceStateExportColumns(),
                     exportStartTime = exportStartTime,

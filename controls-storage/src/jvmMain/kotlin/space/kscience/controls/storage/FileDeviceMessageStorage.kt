@@ -417,10 +417,11 @@ public class FileDeviceMessageStorage(
             description = "Absolute or relative path to the directory where the messages are stored"
         }
 
-        private val maxMessagesPerFile: MetaRef<Int> by int {
+        public val maxMessagesPerFile: MetaRef<Int> by int {
             default(1000)
         }
-        private val historyDepth: MetaRef<Duration?> by item(MetaConverter.duration.nullable())
+
+        public val historyDepth: MetaRef<Duration?> by item(MetaConverter.duration.nullable())
 
         public val compressHistory: MetaRef<Boolean> by boolean {
             default(false)
