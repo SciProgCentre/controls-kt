@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add documentation on storage organization and strategies in the data platform demo (`demo/data-platform-demo/docs/storage-organization.md`).
 - Add documentation on `FileDeviceMessageStorage` in `controls-storage/docs/fileDeviceMessageStorage.md`.
 - Add `compressHistory` option to `FileDeviceMessageStorage` to convert rotated JSONL files to ZIP-compressed envelope (`.df`) files in the background.
 - Add documentation for `TagTableConfiguration` JSON serialization structure in `controls-table/docs/tagTableConfiguration.md`.

@@ -11,6 +11,7 @@ This demo showcases a data platform that aggregates data from multiple sources (
 
 ## Documentation
 
+- [Storage Organization](storage-organization.md): Overview of storage strategies (time-series binary envelopes, device message logging, and unified storage access) in the Data Platform Demo.
 - [UI Specification for Device Visualization](device-visualisation.md): Specification for the Compose Multiplatform-based visualization UI.
 - [UI Specification for Device Scheme Configurator](device-configurator.md): Specification for the Compose Multiplatform-based visual device scheme configurator.
 
