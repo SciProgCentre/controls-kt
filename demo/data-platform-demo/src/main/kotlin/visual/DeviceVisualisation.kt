@@ -138,6 +138,7 @@ fun DeviceVisualisation(
                             modifier = Modifier.fillMaxSize(),
                             xAxisTitle = "Time",
                             yAxisTitle = "Value",
+                            style = org.jetbrains.letsPlot.themes.theme()
                         ) {
                             selectedProperties.forEach { column ->
                                 val device =

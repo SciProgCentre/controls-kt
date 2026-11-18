@@ -160,6 +160,7 @@ public fun TimeSeriesPlot(
     xAxisTitle: String? = "Time",
     yAxisTitle: String? = "Value",
     drawInterval: Duration = defaultSampling,
+    style: org.jetbrains.letsPlot.themes.theme = org.jetbrains.letsPlot.themes.theme(),
     content: @Composable TimeSeriesPlotState.() -> Unit
 ) {
     val state = remember { TimeSeriesPlotState() }
@@ -199,8 +200,8 @@ public fun TimeSeriesPlot(
         x = "time"
         y = "value"
         color = "series"
-    } + scaleXTime(name = xAxisTitle) + org.jetbrains.letsPlot.themes.theme().legendPositionBottom()
-        .legendDirectionVertical()
+    } + scaleXTime(name = xAxisTitle) + style
+
 
     if (yAxisTitle != null) {
         figure += labs(y = yAxisTitle)
