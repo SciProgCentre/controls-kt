@@ -200,7 +200,7 @@ suspend fun main() {
             MaterialTheme {
                 DeviceVisualisation(
                     hub = devices,
-                    messageStorage = DeviceMessageStorage.merge(tableMessageStorage, deviceMessageStorage),
+                    messageStorage = DeviceMessageStorage.merge(deviceMessageStorage, tableMessageStorage),
                     exportColumnMapping = columnTagMapping,
                     sourceStateColumns = configuration.sourceStateExportColumns(),
                     exportStartTime = exportStartTime,

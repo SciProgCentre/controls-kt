@@ -146,13 +146,13 @@ fun DeviceVisualisation(
                                         column.device,
                                         selectedProperties
                                     ) { hub.resolveDevice(column.device) }
-                                val history = exportColumnMapping[column]?.let { historyColumn ->
-                                    messageStorage.propertyHistory(
-                                        historyColumn.property,
-                                        MetaConverter.meta,
-                                        deviceName = historyColumn.device
-                                    )
-                                }
+                                val historyColumn = exportColumnMapping[column] ?: column
+                                val history = messageStorage.propertyHistory(
+                                    propertyName = historyColumn.property,
+                                    converter = MetaConverter.meta,
+                                    deviceName = historyColumn.device
+                                )
+
                                 PlotDeviceProperty(
                                     device = device,
                                     propertyName = column.property,
