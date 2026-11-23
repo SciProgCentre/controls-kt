@@ -17,6 +17,7 @@ import space.kscience.controls.api.DeviceFactory
 import space.kscience.controls.tagtable.TagTableColumn
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 

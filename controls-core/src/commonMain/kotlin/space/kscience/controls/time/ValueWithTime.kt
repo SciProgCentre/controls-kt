@@ -9,6 +9,7 @@ import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.put
 import kotlin.time.Instant
 
 /**

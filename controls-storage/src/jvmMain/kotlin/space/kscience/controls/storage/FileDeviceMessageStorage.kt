@@ -143,13 +143,13 @@ public class FileDeviceMessageStorage(
         }
     }
 
-    override suspend fun write(event: DeviceMessage): Unit {
+    override suspend fun write(event: DeviceMessage): Unit = withContext(Dispatchers.IO) {
         val messageType = DeviceMessage.serialNameFor(event)
         //TODO add buffering
 
-        val file = getOrCreateCurrentFileForEvent(messageType)
-        logger.trace("Writing event {} to file {}", event, file)
         writerMutex.withLock {
+            val file = getOrCreateCurrentFileForEvent(messageType)
+            logger.trace("Writing event {} to file {}", event, file)
             file.append {
                 writeString(Json.encodeToString(event))
                 writeString("\n")

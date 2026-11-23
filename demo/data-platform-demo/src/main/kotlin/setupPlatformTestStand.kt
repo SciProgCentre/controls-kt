@@ -5,6 +5,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.storage.FileDeviceMessageStorage
 import space.kscience.controls.tagtable.*
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
@@ -23,6 +24,7 @@ internal fun DeviceManager.setupPlatformTestStand(
     numberOfOpcDevices: Int,
     numberOfModbusDevices: Int,
     propertiesPerDevice: Int,
+    maxMessagesPerFile: Int = 2000
 ): Path {
     val opcSourceName = "opc"
     val modbusSourceName = "modbus"
@@ -116,8 +118,8 @@ internal fun DeviceManager.setupPlatformTestStand(
         "storage" put {
             "file" put {
                 "type" put "file"
-                set(FileDeviceMessageStorage.directory, "deviceMessages")
-                set(FileDeviceMessageStorage.maxMessagesPerFile, 200)
+                set(FileDeviceMessageStorage.directory, "data/deviceMessages")
+                set(FileDeviceMessageStorage.maxMessagesPerFile, maxMessagesPerFile)
                 set(FileDeviceMessageStorage.compressHistory, true)
             }
         }

@@ -13,6 +13,7 @@ import space.kscience.controls.tagtable.timeseries.toRow
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.io.Envelope
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.tables.RowTable
 import kotlin.time.Duration

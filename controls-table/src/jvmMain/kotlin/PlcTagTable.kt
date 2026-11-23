@@ -4,7 +4,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
-import org.slf4j.LoggerFactory
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.manager.DeviceManager
@@ -18,16 +17,10 @@ import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ClockManager
-import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.timeZone
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.debug
-import space.kscience.dataforge.context.error
-import space.kscience.dataforge.context.info
-import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.context.request
+import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.io
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
@@ -38,7 +31,6 @@ import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.map
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.math.abs
@@ -46,6 +38,7 @@ import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
+import kotlin.time.measureTime
 
 /**
  * The [PlcTagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
@@ -64,7 +57,7 @@ public class PlcTagTable(
 ) : TagTable, CoroutineScope {
 
     override val coroutineContext: CoroutineContext =
-        context.coroutineContext + SupervisorJob(context.coroutineContext[Job.Key])
+        context.coroutineContext + Dispatchers.Default + SupervisorJob(context.coroutineContext[Job.Key])
 
 
     private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
@@ -229,67 +222,70 @@ public class PlcTagTable(
     /**
      * Read all properties on trigger
      */
-    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit =
-        supervisorScope {
-            properties.groupBy { it.value.source }.forEach { (source, entries) ->
-                //launch reading process for each separate source
-                launch {
-                    val timeout = entries.maxOf { it.value.timeout }
+    private suspend fun readAllProperties(
+        properties: List<Map.Entry<String, TagTableColumn>>
+    ): Unit = supervisorScope {
+        properties.groupBy { it.value.source }.forEach { (source, entries) ->
+            //launch reading process for each separate source
+            launch {
+                val timeout = entries.maxOf { it.value.timeout }
 
-                    var lastTime = Instant.DISTANT_PAST
+                var lastTime = Instant.DISTANT_PAST
 
-                    try {
-                        withTimeout(timeout) {
-                            val source = getSource(source)
+                try {
+                    withTimeout(timeout) {
+                        val source = getSource(source)
 
-                            val result = source.readMultipleTags(entries.map { it.key to it.value.config })
-                            if (result != null) {
-                                result.forEach { (tag, value) ->
-                                    value.getOrNull()?.let { rawValue ->
-                                        val column = configuration.tags[tag]
-                                            ?: error("Configuration for tag $tag not found")
+                        val result = source.readMultipleTags(entries.map { it.key to it.value.config })
+                        if (result != null) {
+                            result.forEach { (tag, value) ->
+                                value.getOrNull()?.let { rawValue ->
+                                    val column = configuration.tags[tag]
+                                        ?: error("Configuration for tag $tag not found")
 
-                                        val newValue = processTag(tag, column, values[tag], rawValue)
-                                        values[tag] = newValue
+                                    val newValue = processTag(tag, column, values[tag], rawValue)
+                                    values[tag] = newValue
 
-                                        lastTime = if (newValue.time > lastTime) newValue.time else lastTime
-                                        messageFlow.emit(
-                                            PropertyChangedMessage(
-                                                time = newValue.time,
-                                                property = tag,
-                                                value = newValue.value,
-                                            )
+                                    lastTime = if (newValue.time > lastTime) newValue.time else lastTime
+                                    messageFlow.emit(
+                                        PropertyChangedMessage(
+                                            time = newValue.time,
+                                            property = tag,
+                                            value = newValue.value,
                                         )
-                                    } ?: run {
-                                        updateTagState(tag, TagState.READ_FAILED_QUALITY)
-                                    }
-                                }
-                            } else {
-                                entries.forEach { (propertyName, _) ->
-                                    updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
+                                    )
+                                } ?: run {
+                                    updateTagState(tag, TagState.READ_FAILED_QUALITY)
                                 }
                             }
-                        }
-                    } catch (ex: Exception) {
-                        entries.forEach { (propertyName, _) ->
-                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
-                                ex.message?.let { set("error", it) }
+                        } else {
+                            entries.forEach { (propertyName, _) ->
+                                updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
                             }
                         }
-                        messageFlow.emit(
-                            DeviceErrorMessage(
-                                time = clock.now(),
-                                errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
-                                errorType = ex::class.simpleName,
-                                errorStackTrace = ex.stackTraceToString()
-                            )
-                        )
-                        logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
                     }
-
+                } catch (ex: Exception) {
+                    if (ex is CancellationException) {
+                        ensureActive()
+                    }
+                    entries.forEach { (propertyName, _) ->
+                        updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
+                            ex.message?.let { set("error", it) }
+                        }
+                    }
+                    messageFlow.emit(
+                        DeviceErrorMessage(
+                            time = clock.now(),
+                            errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
+                            errorType = ex::class.simpleName,
+                            errorStackTrace = ex.stackTraceToString()
+                        )
+                    )
+                    logger.error(ex) { "Failed to read multiple properties from source $source: ${entries.map { it.key }}" }
                 }
             }
         }
+    }
 
 
     override suspend fun start() {
@@ -300,14 +296,20 @@ public class PlcTagTable(
 
         //start read job
         readJob = launch {
-            configuration.tags.entries.groupBy { it.value.timer }
-                .forEach { (timerName, properties: List<Map.Entry<String, TagTableColumn>>) ->
-                    val timer = configuration.timers[timerName]?.createTimerState(clockManager)
-                        ?: error("Timer $timerName not found")
-                    timer.subscribe().onEach {
+            configuration.tags.entries.groupBy {
+                it.value.timer
+            }.forEach { (timerName, properties: List<Map.Entry<String, TagTableColumn>>) ->
+                val timer = configuration.timers[timerName]?.createTimerState(clockManager)
+                    ?: error("Timer $timerName not found")
+
+                timer.subscribe().buffer(0).onEach { time ->
+                    measureTime {
                         readAllProperties(properties)
-                    }.launchIn(this)
-                }
+                    }.let {
+                        logger.info { "Reading properties for timer $timerName at $time took $it" }
+                    }
+                }.launchIn(this)
+            }
         }
 
         //start storage job
@@ -361,7 +363,7 @@ public class PlcTagTable(
                 clock = clock
             )
             messageStorageJob = messageFlow.onEach {
-                if(it.sourceDevice?.startsWith(SOURCE_DEVICE_KEY) == true){
+                if (it.sourceDevice?.startsWith(SOURCE_DEVICE_KEY) == true) {
                     storage.write(it)
                 }
             }.launchIn(this)
@@ -399,11 +401,12 @@ public class PlcTagTable(
 
     override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 
-    override suspend fun readProperty(propertyName: String): Meta = if(propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
-        readTagQuality(propertyName.removeSuffix(TagState.TAG_QUALITY_SUFFIX)).value
-    } else {
-        readTag(propertyName)
-    }
+    override suspend fun readProperty(propertyName: String): Meta =
+        if (propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
+            readTagQuality(propertyName.removeSuffix(TagState.TAG_QUALITY_SUFFIX)).value
+        } else {
+            readTag(propertyName)
+        }
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         error("Write is not supported")
@@ -466,10 +469,10 @@ public class PlcTagTable(
         TagTableValueState(this, tag)
     }
 
-    public companion object{
+    public companion object {
         /**
          * A prefix name for device messages describing sources behavior
          */
         public const val SOURCE_DEVICE_KEY: String = "source"
-        }
+    }
 }

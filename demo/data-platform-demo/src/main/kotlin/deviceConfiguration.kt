@@ -17,6 +17,7 @@ import space.kscience.controls.tagtable.TagTablePlugin
 import space.kscience.controls.utilities.Alarm
 import space.kscience.controls.utilities.AlarmSetting
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.*
 import kotlin.time.Duration.Companion.seconds
