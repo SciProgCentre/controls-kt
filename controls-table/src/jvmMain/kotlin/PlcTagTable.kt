@@ -463,14 +463,10 @@ public class PlcTagTable(
         return TimeSeriesRowsFlow(headers, rowFlow)
     }
 
-    private val stateCache = mutableMapOf<String, ValueState<Meta>>()
-
     /**
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
      */
-    override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
-        propertyAsState(tag, MetaConverter.meta, values[tag]?.value ?: Meta.EMPTY)
-    }
+    override fun subscribe(tag: String): ValueState<Meta> = values[tag] ?: error("Tag $tag not found")
 
     public companion object {
         /**
