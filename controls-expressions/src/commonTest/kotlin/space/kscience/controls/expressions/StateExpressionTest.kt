@@ -10,6 +10,7 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last

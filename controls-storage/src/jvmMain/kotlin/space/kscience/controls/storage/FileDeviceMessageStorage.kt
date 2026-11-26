@@ -14,7 +14,6 @@ import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import space.kscience.controls.api.DeviceErrorMessage
 import space.kscience.controls.api.DeviceMessage
-import space.kscience.controls.duration
 import space.kscience.controls.nullable
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context

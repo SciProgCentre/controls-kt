@@ -18,6 +18,7 @@ import space.kscience.dataforge.context.Factory
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.meta.number
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.string
 import kotlin.coroutines.CoroutineContext
 

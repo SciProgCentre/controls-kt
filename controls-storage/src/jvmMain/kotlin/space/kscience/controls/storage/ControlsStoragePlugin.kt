@@ -135,16 +135,14 @@ public fun CoroutineScope.launchStorageJob(
 
 
         propertyDescriptors.filter { it.readable }.forEach { descriptor ->
-            val storageMeta = Laminate(
-                descriptor.metadata,
-                meta
-            )[MessageStorageScheme.MESSAGE_STORAGE_KEY]
+            val storageMeta = Laminate(descriptor.metadata, meta)[MessageStorageScheme.MESSAGE_STORAGE_KEY]
 
             if (storageMeta != null && !storageMeta.isEmpty()) {
                 val storageConfiguration = MessageStorageScheme.read(storageMeta)
                 val storageName = storageConfiguration.storage
                 val storage = storageMap[storageName] ?: error("Storage with name $storageName is not defined")
 
+                //TODO use a single flow for device instead of per property flow
                 propertyMessageFlow(descriptor.name).filterPropertyChanges(storageConfiguration.sampleInterval)
                     .onEach { message ->
                         try {

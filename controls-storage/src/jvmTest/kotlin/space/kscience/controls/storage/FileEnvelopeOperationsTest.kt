@@ -11,6 +11,7 @@ import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.parseAsName
 import kotlinx.io.Sink
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.put
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
