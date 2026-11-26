@@ -364,7 +364,7 @@ public fun <T> DeviceConstructor.registerVirtualProperty(
     converter: MetaConverter<T>,
     descriptorBuilder: PropertyDescriptor.() -> Unit = {},
 ): MutableValueState<T> {
-    val state = MutableValueState<T>(initialValue)
+    val state = this@registerVirtualProperty.VirtualValueState<T>(initialValue)
     registerMutableProperty(name, converter, state, descriptorBuilder)
     return state
 }
@@ -491,7 +491,7 @@ public fun <T> DeviceConstructor.virtualProperty(
     nameOverride: String? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, MutableValueState<T>>> = property(
     converter = metaConverter,
-    state = MutableValueState(initialState, clock),
+    state = VirtualValueState(initialState, clock),
     descriptorBuilder = descriptorBuilder,
     nameOverride = nameOverride,
 )

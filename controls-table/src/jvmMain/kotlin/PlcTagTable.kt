@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.VirtualValueState
+import space.kscience.controls.constructor.propertyAsState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.server.Opc
 import space.kscience.controls.storage.ControlsStoragePlugin
@@ -59,12 +61,24 @@ public class PlcTagTable(
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + Dispatchers.Default + SupervisorJob(context.coroutineContext[Job.Key])
 
+    override val tags: Map<String, MetaDescriptor> = configuration.tags.mapValues { MetaDescriptor() }
 
-    private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
+    override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
+        tags.forEach { (name, descriptor) ->
+            add(PropertyDescriptor(name, metaDescriptor = descriptor))
+            add(PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor))
+        }
+    }
+
+    override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
+
+    private val values = tags.mapValues {
+        VirtualValueState(Meta.EMPTY, clock)
+    }
 
     override val messageFlow: SharedFlow<DeviceMessage>
         field = MutableSharedFlow<DeviceMessage>(
-            extraBufferCapacity = configuration.tags.size * 10,
+            extraBufferCapacity = configuration.tags.size,
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
 
@@ -193,8 +207,8 @@ public class PlcTagTable(
     override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
     override fun readTagWithTime(tag: String): ValueWithTime<Meta> {
-        if (tag !in configuration.tags.keys) error("Tag $tag not found")
-        return values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
+        val state = values[tag] ?: error("Tag $tag not found")
+        return state.valueWithTime
     }
 
     override suspend fun readTagQuality(tag: String): TagState {
@@ -242,9 +256,10 @@ public class PlcTagTable(
                                 value.getOrNull()?.let { rawValue ->
                                     val column = configuration.tags[tag]
                                         ?: error("Configuration for tag $tag not found")
+                                    val valueState = values[tag] ?: error("Tag $tag not found")
 
-                                    val newValue = processTag(tag, column, values[tag], rawValue)
-                                    values[tag] = newValue
+                                    val newValue = processTag(tag, column, valueState.valueWithTime, rawValue)
+                                    valueState.valueWithTime = newValue
 
                                     lastTime = if (newValue.time > lastTime) newValue.time else lastTime
                                     messageFlow.emit(
@@ -379,10 +394,6 @@ public class PlcTagTable(
         sources.values.forEach { it.stop() }
     }
 
-    override val tags: Map<String, MetaDescriptor> by lazy {
-        configuration.tags.mapValues { MetaDescriptor() }
-    }
-
     private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.tags.map { (name, property) ->
         SimpleColumnHeader(name, typeOf<Meta>(), property.meta)
     }
@@ -392,14 +403,6 @@ public class PlcTagTable(
         addAll(propertyColumnHeaders)
     }
 
-    override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
-        tags.forEach { (name, descriptor) ->
-            PropertyDescriptor(name, metaDescriptor = descriptor)
-            PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor)
-        }
-    }
-
-    override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 
     override suspend fun readProperty(propertyName: String): Meta =
         if (propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
@@ -466,7 +469,7 @@ public class PlcTagTable(
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
      */
     override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
-        TagTableValueState(this, tag)
+        propertyAsState(tag, MetaConverter.meta, values[tag]?.value ?: Meta.EMPTY)
     }
 
     public companion object {

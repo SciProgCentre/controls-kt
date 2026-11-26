@@ -21,7 +21,7 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.units.AmountPerSecond
 import space.kscience.controls.constructor.units.CubicMeters
 import space.kscience.controls.constructor.units.Kilograms
@@ -37,7 +37,7 @@ import kotlin.time.Duration.Companion.seconds
 private class ChainBufferModel(
     context: Context
 ) : ContinuousFlowModel(context) {
-    val production = MutableValueState(AmountPerSecond<Kilograms>(1.0))
+    val production = VirtualValueState(AmountPerSecond<Kilograms>(1.0))
     val producer = producer(Kilograms, production).apply {
         debugState("Producer production", production)
     }
@@ -59,7 +59,7 @@ private class ChainBufferModel(
         debugState("Buffer 2", content)
     }
 
-    val consumation = MutableValueState(AmountPerSecond<CubicMeters>(2.0))
+    val consumation = VirtualValueState(AmountPerSecond<CubicMeters>(2.0))
 
     val consumer = consumer(CubicMeters, consumation).apply {
         connectProducer(buffer2)

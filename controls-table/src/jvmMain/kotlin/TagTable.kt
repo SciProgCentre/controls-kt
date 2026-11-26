@@ -131,47 +131,6 @@ public suspend fun TagTable.readAllValuesWithTagState(): Map<String, Meta> {
 
 
 /**
- * A value state that reads the value of a tag from a [TagTable].
- * A subscription starts with the current sample, so a message that is not newer than it is skipped.
- */
-public class TagTableValueState(private val tagTable: TagTable, private val tag: String) : ValueState<Meta> {
-    override val valueWithTime: ValueWithTime<Meta>
-        get() = tagTable.readTagWithTime(tag)
-
-    override fun subscribeWithTime(): Flow<ValueWithTime<Meta>> = flow {
-        var initialTime: Instant? = null
-        tagTable.messageFlow.onSubscription {
-            val initial = valueWithTime
-            initialTime = initial.time
-            this@flow.emit(initial)
-        }.filterIsInstance<PropertyChangedMessage>().filter { it.property == tag }.collect { message ->
-            val initial = initialTime
-            if (initial == null || message.time > initial) {
-                initialTime = null
-                emit(ValueWithTime(message.value, message.time))
-            }
-        }
-    }
-
-    override fun toString(): String = "ValueState.tagTable(tag=$tag)"
-}
-
-
-///**
-// * Builds a device group using the provided constructor device scheme.
-// *
-// * @param scheme The construction scheme that defines the configuration and structure of the device group.
-// * @return A new instance of DeviceGroup created based on the provided scheme and associated state factories.
-// */
-//public fun TagDataTable.buildDeviceGroup(
-//    scheme: DeviceConfiguration
-//): DeviceConstructor {
-//    val valueStateFactories = ValueState.defaultValueStateFactories + (TagDataTable.PLATFORM_VALUE_FACTORY_TYPE to this)
-//    return context.request(Construc)buildDeviceGroupByScheme(scheme, valueStateFactories)
-//}
-
-
-/**
  * Register a device property that is bound to a [TagTable] source.
  */
 public fun DeviceConstructor.tagTableProperty(

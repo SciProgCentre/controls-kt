@@ -21,7 +21,7 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.models.continuous.*
@@ -34,10 +34,10 @@ import kotlin.time.Duration.Companion.seconds
 private class ChemicalFactory2(
     context: Context
 ) : ContinuousFlowModel(context) {
-    val aProduction = MutableValueState(AmountPerSecond<Kilograms>(4.0))
+    val aProduction = VirtualValueState(AmountPerSecond<Kilograms>(4.0))
     val aProducer = producer(Kilograms, aProduction)
 
-    val bProduction = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+    val bProduction = VirtualValueState(AmountPerSecond<Kilograms>(2.0))
     val bProducer = producer(Kilograms,bProduction)
 
     val joinAB = mix(Kilograms, listOf("a", "b")).apply {
@@ -45,7 +45,7 @@ private class ChemicalFactory2(
         connectProducer("b", bProducer)
     }
 
-    val cProduction = MutableValueState(AmountPerSecond<CubicMeters>(2.5)).apply {
+    val cProduction = VirtualValueState(AmountPerSecond<CubicMeters>(2.5)).apply {
 //        onTimer(0.2.seconds) { _, _ ->
 //            value = Numeric(3.0 + Random.nextDouble(-0.1, 0.1))
 //        }
@@ -81,7 +81,7 @@ private class ChemicalFactory2(
         debugState("Reactor consumation requesst C", individualConsumationCapacity["c"]!!)
     }
 
-    val consumation = MutableValueState(AmountPerSecond<Kilograms>(10.0))
+    val consumation = VirtualValueState(AmountPerSecond<Kilograms>(10.0))
 
     val consumer = consumer(Kilograms, consumation).apply {
         connectProducer(reactor)

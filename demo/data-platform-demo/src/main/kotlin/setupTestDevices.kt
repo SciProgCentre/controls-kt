@@ -8,6 +8,7 @@ import space.kscience.controls.api.PropertyDescriptor
 import space.kscience.controls.api.onLifecycleEvent
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.install
 import space.kscience.controls.manager.DeviceManager
@@ -67,7 +68,7 @@ private fun DeviceManager.setupOpcTestDevices(
 
         val states = buildMap {
             repeat(propertiesPerDevice) { propertyNum ->
-                val state = MutableValueState(0.0)
+                val state = VirtualValueState(0.0)
                 put("opc.${deviceName}.property[$propertyNum]".parseAsName(false), state)
             }
         }
@@ -115,7 +116,7 @@ private fun DeviceManager.setupModbusDevices(
     repeat(numberOfModbusDevices) { deviceNum ->
 
         val states = registryMap.keys.entries.associate { (keyName, _) ->
-            "modbus.device[${deviceNum}].$keyName".parseAsName(false) to MutableValueState(0.0)
+            "modbus.device[${deviceNum}].$keyName".parseAsName(false) to VirtualValueState(0.0)
         }
 
         properties.putAll(states)

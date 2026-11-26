@@ -21,7 +21,7 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.units.*
 import space.kscience.controls.manager.DeviceManager
@@ -36,10 +36,10 @@ class ChemicalFactory(
     context: Context
 ) : ContinuousFlowModel(context) {
 
-    val aProduction = MutableValueState(AmountPerSecond<Kilograms>(1.0))
+    val aProduction = VirtualValueState(AmountPerSecond<Kilograms>(1.0))
     val aProducer = producer(Kilograms, aProduction)
 
-    val bProduction = MutableValueState(AmountPerSecond<Kilograms>(1.5))
+    val bProduction = VirtualValueState(AmountPerSecond<Kilograms>(1.5))
     val bProducer = producer(Kilograms, bProduction)
 
     val mixer = mix(Kilograms, setOf("a", "b")).apply {
@@ -52,7 +52,7 @@ class ChemicalFactory(
         debugState("AB buffer", content)
     }
 
-    val cProduction = MutableValueState(AmountPerSecond<CubicMeters>(10.0))
+    val cProduction = VirtualValueState(AmountPerSecond<CubicMeters>(10.0))
     val cProducer = producer(CubicMeters, cProduction)
 
     val cBuffer = buffer(CubicMeters, NumericAmount(50.0)).apply {

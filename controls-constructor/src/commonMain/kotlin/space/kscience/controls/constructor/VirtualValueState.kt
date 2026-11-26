@@ -13,12 +13,14 @@ import kotlin.time.Instant
  * A [MutableValueState] that does not correspond to a physical state
  *
  */
-private class VirtualValueState<T>(
+public class VirtualValueState<T>(
     initialValue: T,
-    val clock: Clock = Clock.System,
+    private val clock: Clock = Clock.System,
 ) : MutableValueState<T> {
 
-    private val flow = MutableStateFlow(ValueWithTime(initialValue, clock.now()))
+    private val flow = MutableStateFlow(
+        ValueWithTime(initialValue, clock.now())
+    )
 
     override fun subscribeWithTime(): Flow<ValueWithTime<T>> = flow
 
@@ -38,27 +40,19 @@ private class VirtualValueState<T>(
         flow.emit(ValueWithTime(value, clock.now()))
     }
 
-    override fun toString(): String = "ValueState.virtual($value)"
+    override fun toString(): String = "ValueState(value = $value, time = ${valueWithTime.time})"
 }
 
 
-/**
- * A [MutableValueState] that does not correspond to a physical state
- *
- */
-public fun <T> MutableValueState(
-    initialValue: T,
-    clock: Clock = Clock.System,
-): MutableValueState<T> = VirtualValueState(initialValue, clock)
 
 /**
- * A [MutableValueState] that does not correspond to a physical state
+ * A [VirtualValueState] that does not correspond to a physical state
  *
  * Inherits the context clock
  */
-public fun <T> ContextAware.MutableValueState(
+public fun <T> ContextAware.VirtualValueState(
     initialValue: T,
-): MutableValueState<T> = VirtualValueState(initialValue, context.clock)
+): VirtualValueState<T> = VirtualValueState(initialValue, context.clock)
 
 
 /**

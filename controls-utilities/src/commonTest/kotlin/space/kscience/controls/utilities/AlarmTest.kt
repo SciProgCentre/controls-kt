@@ -2,8 +2,7 @@ package space.kscience.controls.utilities
 
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.constructor.DeviceConstructor
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
 import space.kscience.controls.nullable
@@ -122,11 +121,11 @@ class AlarmTest {
         val setting = assertNotNull(Alarm.descriptor["settings"]?.get("setting"))
         assertTrue(setting.multiple)
         assertEquals(
-            listOf(ValueType.NUMBER),
+            listOf(ValueType.NUMBER, ValueType.NULL),
             assertNotNull(setting["lowerThreshold"]).valueTypes
         )
         assertEquals(
-            listOf(ValueType.NUMBER),
+            listOf(ValueType.NUMBER, ValueType.NULL),
             assertNotNull(setting["upperThreshold"]).valueTypes
         )
         val status = assertNotNull(setting["status"])
@@ -163,7 +162,7 @@ class AlarmTest {
     @Test
     fun testAlarmThresholdEvaluations() = runTest(timeout = 5.seconds) {
         withTestContext("alarmThresholds") { context ->
-            val source = MutableValueState<Double?>(null)
+            val source = VirtualValueState<Double?>(null)
             val alarm = Alarm(
                 context,
                 listOf(
@@ -210,7 +209,7 @@ class AlarmTest {
     @Test
     fun testAlarmDynamicSettingsChange() = runTest(timeout = 5.seconds) {
         withTestContext("alarmDynamicSettings") { context ->
-            val source = MutableValueState<Double?>(30.0)
+            val source = VirtualValueState<Double?>(30.0)
             val alarm = Alarm(context)
             alarm.bind(source.asMeta())
             assertEquals(AlarmState(Alarm.STATUS_OK, 30.0), alarm.state.value)
@@ -231,7 +230,7 @@ class AlarmTest {
     fun testAlarmRegisteredPropertyState() = runTest(timeout = 5.seconds) {
         withTestContext("alarmRegisteredProperty") { context ->
             val alarm = Alarm(context)
-            alarm.bind(MutableValueState<Double?>(50.0).asMeta())
+            alarm.bind(VirtualValueState<Double?>(50.0).asMeta())
 
             val initialMeta = alarm.readProperty("state")
             assertEquals(Alarm.STATUS_OK, initialMeta["message"].string)
@@ -261,7 +260,7 @@ class AlarmTest {
             assertEquals("Temperature alarm", alarm.meta["description"].string)
             assertEquals(AlarmState(Alarm.STATUS_UNDEFINED, null), alarm.state.value)
 
-            val source = MutableValueState<Double?>(20.0)
+            val source = VirtualValueState<Double?>(20.0)
             alarm.bind(source.asMeta())
             assertEquals(AlarmState(Alarm.STATUS_OK, 20.0), alarm.state.value)
 
@@ -285,7 +284,7 @@ class AlarmTest {
             val settings = listOf(
                 AlarmSetting(lowerThreshold = null, upperThreshold = 30.0, status = "HOT")
             )
-            val source = MutableValueState<Double?>(25.0)
+            val source = VirtualValueState<Double?>(25.0)
             val defaultInput = Alarm(context, settings)
             val namedInput = Alarm(context, settings)
             defaultInput.bind(source.asMeta())

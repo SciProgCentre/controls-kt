@@ -4,14 +4,13 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.propertyAsState
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
-import space.kscience.controls.storage.DeviceMessageStorage
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.tagtable.TagState
 import space.kscience.controls.tagtable.TagTable
-import space.kscience.controls.tagtable.TagTableValueState
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
@@ -21,12 +20,9 @@ import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.meta.Meta
-import space.kscience.dataforge.meta.ValueType
+import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.value
-import space.kscience.dataforge.meta.double
-import space.kscience.dataforge.meta.get
 import space.kscience.tables.*
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -212,8 +208,8 @@ public class ReplayTagTable(
 
     override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
         tags.forEach { (name, descriptor) ->
-            PropertyDescriptor(name, metaDescriptor = descriptor)
-            PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor)
+            add(PropertyDescriptor(name, metaDescriptor = descriptor))
+            add(PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor))
         }
     }
 
@@ -282,7 +278,7 @@ public class ReplayTagTable(
     private val stateCache = mutableMapOf<String, ValueState<Meta>>()
 
     override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
-        TagTableValueState(this, tag)
+        propertyAsState(tag, MetaConverter.meta, values[tag]?.value ?: Meta.EMPTY)
     }
 
     override suspend fun start() {

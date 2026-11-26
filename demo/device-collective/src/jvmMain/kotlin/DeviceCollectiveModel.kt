@@ -10,6 +10,7 @@ import space.kscience.controls.client.launchMagixService
 import space.kscience.controls.client.write
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.onTimer
 import space.kscience.controls.manager.DeviceManager
@@ -61,8 +62,8 @@ internal fun CollectiveDeviceState(
 ) = CollectiveDeviceState(
     id,
     CollectiveDeviceConfiguration(id).apply(configuration),
-    MutableValueState(position),
-    MutableValueState(GmcVelocity.zero)
+    VirtualValueState(position),
+    VirtualValueState(GmcVelocity.zero)
 )
 
 internal class DeviceCollectiveModel(
@@ -128,8 +129,8 @@ internal class DeviceCollectiveModel(
         val state = CollectiveDeviceState(
             id = id,
             configuration = CollectiveDeviceConfiguration(id),
-            position = MutableValueState(position),
-            velocity = MutableValueState(GmcVelocity.zero)
+            position = VirtualValueState(position),
+            velocity = VirtualValueState(GmcVelocity.zero)
         )
 
         val result = CollectiveDevice(

@@ -3,7 +3,7 @@ package space.kscience.controls.models
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.runSimulation
 import space.kscience.controls.constructor.units.AmountPerSecond
 import space.kscience.controls.constructor.units.Kilograms
@@ -27,7 +27,7 @@ class CollectAmountAsyncTest {
     fun collectsConstantFlow() = runTest {
 
         model.runSimulation {
-            val flow = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+            val flow = VirtualValueState(AmountPerSecond<Kilograms>(2.0))
 
             val deferred = with(Kilograms) {
                 flow.collectAmountAsync(5.seconds)
@@ -46,7 +46,7 @@ class CollectAmountAsyncTest {
     fun collectsWhenFlowChanges() = runTest {
 
         model.runSimulation {
-            val flow = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+            val flow = VirtualValueState(AmountPerSecond<Kilograms>(2.0))
 
             val deferred = with(Kilograms) {
                 flow.collectAmountAsync(5.seconds)

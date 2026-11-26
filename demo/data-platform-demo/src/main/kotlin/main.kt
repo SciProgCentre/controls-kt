@@ -43,6 +43,7 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.inputStream
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTime
 
 internal val json = Json { prettyPrint = true }
 
@@ -62,10 +63,12 @@ private fun Device.monitorDeviceChanges(): Job = launch {
 
     launch {
         while (isActive) {
-            delay(1.seconds)
+            measureTime {
+                delay(1.seconds)
+            }.let { println("Delay took ${it}") }
             mutex.withLock {
                 if (values.isNotEmpty()) {
-                    println("Changed in a last second: ${values.size}")
+                    println("[${Clock.System.now()}] Changed in a last second: ${values.size}")
                     values.clear()
                 }
             }
@@ -138,7 +141,7 @@ suspend fun main() {
         dataDirectory = dataDirectory,
         numberOfOpcDevices = 6,
         numberOfModbusDevices = 4,
-        propertiesPerDevice = 30
+        propertiesPerDevice = 300
     )
 
     //read platform config

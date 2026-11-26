@@ -59,11 +59,11 @@ class ThermoSensorAnalyzer(
         sensor.propertyAsState(ThermoSensorSpec.temperature, Double.NaN)
     )
 
-    private val statusState = MutableValueState(ThermoSensorStatus.NotConnected)
+    private val statusState = this@ThermoSensorAnalyzer.VirtualValueState(ThermoSensorStatus.NotConnected)
 
     val status = registerProperty(Companion.status, statusState)
 
-    private val averagedTemperatureState = MutableValueState(Double.NaN)
+    private val averagedTemperatureState = this@ThermoSensorAnalyzer.VirtualValueState(Double.NaN)
 
     val averageTemperature = registerProperty(Companion.averageTemperature, averagedTemperatureState)
 

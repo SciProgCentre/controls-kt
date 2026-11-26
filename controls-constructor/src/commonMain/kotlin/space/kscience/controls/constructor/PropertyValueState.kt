@@ -9,6 +9,7 @@ import space.kscience.controls.api.Device
 import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.getOrReadProperty
 import space.kscience.controls.api.id
+import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.controls.time.ValueWithTime
@@ -26,9 +27,7 @@ private open class PropertyValueState<T>(
 ) : ValueState<T> {
 
     val valueFlowWithTime: StateFlow<ValueWithTime<T>> =
-        device.messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
-            it.property == propertyName
-        }.mapNotNull {
+        device.propertyMessageFlow(propertyName).mapNotNull {
             val value = converter.read(it.value) ?: return@mapNotNull null
             ValueWithTime(value, it.time)
         }.stateIn(device.context, SharingStarted.Eagerly, ValueWithTime(initialValue, device.clock.now()))
