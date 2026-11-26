@@ -4,7 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.constructor.propertyAsState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.storage.FileEnvelopeOperations
@@ -20,9 +20,12 @@ import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.meta.*
+import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.value
+import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.get
 import space.kscience.tables.*
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -44,7 +47,7 @@ import kotlin.time.Instant
 public class ReplayTagTable(
     private val storageIndex: TableStorageIndex,
     override val tags: Map<String, MetaDescriptor>,
-    private val scope: CoroutineScope = storageIndex.context,
+    scope: CoroutineScope = storageIndex.context,
     override val clock: Clock = storageIndex.context.clock
 ) : TagTable, ReplayMessageSource {
 
@@ -56,12 +59,15 @@ public class ReplayTagTable(
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + SupervisorJob(scope.coroutineContext[Job])
 
-    private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
+    private val values = tags.mapValues {
+        VirtualValueState(Meta.EMPTY, clock)
+    }
+
     private val tagStates = ConcurrentHashMap<String, TagState>()
 
 
     override fun readTagWithTime(tag: String): ValueWithTime<Meta> =
-        values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
+        (values[tag] ?: error("Tag $tag not found")).valueWithTime
 
     /**
      * Read a value of a single column in the table
@@ -142,7 +148,7 @@ public class ReplayTagTable(
             tags.keys.forEach { tag ->
                 val value = row.getOrNull(tag)
                 if (value != null) {
-                    values[tag] = ValueWithTime(value, time)
+                    values[tag]?.valueWithTime = ValueWithTime(value, time)
                     messageFlow.emit(
                         PropertyChangedMessage(
                             time = time,
@@ -275,11 +281,7 @@ public class ReplayTagTable(
     }
 
 
-    private val stateCache = mutableMapOf<String, ValueState<Meta>>()
-
-    override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
-        propertyAsState(tag, MetaConverter.meta, values[tag]?.value ?: Meta.EMPTY)
-    }
+    override fun subscribe(tag: String): ValueState<Meta> = values[tag] ?: error("Tag $tag not found")
 
     override suspend fun start() {
         setLifecycleState(LifecycleState.STARTING)
