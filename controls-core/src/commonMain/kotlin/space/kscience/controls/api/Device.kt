@@ -147,13 +147,6 @@ public fun Device.onPropertyChange(
 ): Job = messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)
 
 /**
- * A [Flow] of property change messages for specific property.
- */
-public fun Device.propertyMessageFlow(propertyName: String): Flow<PropertyChangedMessage> = messageFlow
-    .filterIsInstance<PropertyChangedMessage>()
-    .filter { it.property == propertyName }
-
-/**
  * React on device lifecycle events
  */
 public fun Device.onLifecycleEvent(

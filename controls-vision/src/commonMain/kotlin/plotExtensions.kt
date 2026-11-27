@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.Device
-import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
@@ -96,7 +95,7 @@ public fun Plot.plotDeviceProperty(
     configuration: Scatter.() -> Unit = {},
 ): Job = scatter(configuration).run {
     val data = TimeData()
-    device.propertyMessageFlow(propertyName).sample(sampling).transform {
+    device.subscribeToProperty(propertyName).sample(sampling).transform {
         data.append(it.time, it.value.extractValue())
         data.trim(maxAge, maxPoints, minPoints)
         emit(data)
@@ -217,7 +216,7 @@ public fun Plot.plotAveragedDeviceProperty(
 ): Job = scatter(configuration).run {
     val data = TimeData()
     var lastValue = startValue
-    device.propertyMessageFlow(propertyName).chunkedByPeriod(averagingInterval).transform { eventList ->
+    device.subscribeToProperty(propertyName).chunkedByPeriod(averagingInterval).transform { eventList ->
         if (eventList.isEmpty()) {
             data.append(Clock.System.now(), lastValue.asValue())
         } else {

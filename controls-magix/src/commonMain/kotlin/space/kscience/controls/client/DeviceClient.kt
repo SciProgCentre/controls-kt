@@ -87,7 +87,7 @@ public class DeviceClient internal constructor(
     override fun getCachedProperty(propertyName: String): Meta? = propertyCache[propertyName]
 
     override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>>  = messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
-        it.property == propertyName
+        it.property == propertyName && it.sourceDevice == deviceName
     }.map {
         ValueWithTime(it.value, it.time)
     }

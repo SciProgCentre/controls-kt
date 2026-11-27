@@ -1,7 +1,10 @@
 package space.kscience.controls.modbus
 
 import com.ghgande.j2mod.modbus.procimg.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
@@ -124,9 +127,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
             image.addInputRegister(key.address + index, register)
         }
 
-        device.messageFlow
-            .filterIsInstance<PropertyChangedMessage>()
-            .filter { it.property == property }
+        device.subscribeToProperty(property)
             .onEach { change ->
                 val newValue = reader.read(change.value)
                 val binary = Binary {
@@ -176,9 +177,7 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
             device.writeProperty(property, converter.convert(value))
         }
 
-        device.messageFlow
-            .filterIsInstance<PropertyChangedMessage>()
-            .filter { it.property == property }
+        device.subscribeToProperty(property)
             .onEach { change ->
                 val newValue = converter.read(change.value)
                 val binary = Binary {
@@ -204,6 +203,9 @@ public class DeviceProcessImageBuilder<D : Device> internal constructor(
             try {
                 device.write(propertySpec, key.format.readFrom(packet))
             } catch (e: Exception) {
+                if (e is CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                }
                 device.logger.error(e) { "Error writing property ${propertySpec.name}" }
             }
         }

@@ -32,6 +32,8 @@
 - Add write extensions for modbus
 
 ### Changed
+
+- Separate property value flow for properties in devices
 - Simplified caching logic in caching device. No longer uses internal API.
 - ValueStateExpression uses contextual bindings. Direct device property binding is removed. Instead, we use state via ConstructorPlugin.
 - StateExpressions renamed to ValueStateExpressions.
