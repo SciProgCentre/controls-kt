@@ -79,9 +79,11 @@ private fun Device.monitorDeviceChanges(): Job = launch {
 /**
  * Build a combined messages storage for tag and auxiliary messages using the storage paths in a tag-table configuration.
  */
-public suspend fun TagTablePlugin.readMessages(
+suspend fun Context.readMessages(
     configuration: TagTableConfiguration,
 ): DeviceMessageStorage {
+    val storage = request(ControlsStoragePlugin)
+
     val storageConfiguration = configuration.storage ?: error("Tag table storage is not configured")
     val messageStorageConfiguration = configuration.messageStorage ?: error("Message storage is not configured")
     val operations = if (storageConfiguration.separateMeta) {
@@ -120,11 +122,10 @@ private fun TagTableConfiguration.sourceStateExportColumns(): List<ExportColumn>
 
 // IMPORTANT: run in blocking mode
 suspend fun main() {
-    val context = Context {
+    val context = Context("platform") {
         plugin(DeviceManager)
         plugin(IOPlugin)
         plugin(TagTablePlugin)
-        plugin(ControlsStoragePlugin)
         plugin(ControlsExpressionPlugin)
         plugin(ControlsUtilitiesPlugin)
         plugin(SlfLogManager)
@@ -156,9 +157,6 @@ suspend fun main() {
     // monitor changes
     tagTable.monitorDeviceChanges()
 
-    // message storage for tag table and its auxiliary messages
-    val tableMessageStorage = tagTablePlugin.readMessages(configuration)
-
     //read device config
     val deviceConfig: ConstructorDeviceConfiguration = platformDataDirectory
         .resolve("device-config.json")
@@ -186,21 +184,17 @@ suspend fun main() {
         json.decodeFromStream(Meta.serializer(), it)
     }
 
-    val storagePlugin = context.request(ControlsStoragePlugin)
+    //create a child context for storage with pre-defined storagemapping
+    val storageContext = context.buildContext("storage") {
+        plugin(ControlsStoragePlugin, storageConfig)
+    }
 
-    //expli
-    val storageMap = storageConfig[MessageStorageScheme.MESSAGE_STORAGE_KEY]?.items
-        ?.map { (key, storageConfig) ->
-            val storage = storagePlugin.buildMessageStorage(storageConfig) as? WriteableDeviceMessageStorage
-                ?: error("Storage produced with $storageConfig is not writeable")
-            key.toString() to storage
-        }?.toMap() ?: error("No storage definition in $storageConfig")
+    // message storage for tag table and its auxiliary messages
+    val tableMessageStorage = storageContext.readMessages(configuration)
 
+    val storagePlugin = storageContext.request(ControlsStoragePlugin)
 
-    context.launchStorageJob(
-        deviceTree = devices,
-        storageMap = storageMap
-    )
+    storagePlugin.launchStorageJob(devices)
 
 
     //launch visualization app
@@ -212,7 +206,10 @@ suspend fun main() {
             MaterialTheme {
                 DeviceVisualisation(
                     hub = devices,
-                    messageStorage = DeviceMessageStorage.merge(*storageMap.values.toTypedArray(), tableMessageStorage),
+                    messageStorage = DeviceMessageStorage.merge(
+                        *storagePlugin.storageMapping.values.toTypedArray(),
+                        tableMessageStorage
+                    ),
                     exportColumnMapping = columnTagMapping,
                     sourceStateColumns = configuration.sourceStateExportColumns(),
                     exportStartTime = exportStartTime,

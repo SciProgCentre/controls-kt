@@ -14,7 +14,7 @@ import space.kscience.dataforge.names.lastOrNull
 import space.kscience.dataforge.names.plus
 import kotlin.time.Duration
 
-public class ControlsStoragePlugin : AbstractPlugin() {
+public class ControlsStoragePlugin(meta: Meta) : AbstractPlugin(meta) {
     public val io: IOPlugin by require(IOPlugin)
 
     override val tag: PluginTag get() = Companion.tag
@@ -51,6 +51,16 @@ public class ControlsStoragePlugin : AbstractPlugin() {
         return factory.build(context, storageMeta)
     }
 
+    /**
+     * Resolve all [DeviceMessageStorage] pre-configured in this context
+     */
+    public val storageMapping: Map<String, DeviceMessageStorage> by lazy {
+        meta[MessageStorageScheme.MESSAGE_STORAGE_KEY]?.items?.map { (key, storageConfig) ->
+            val storage = buildMessageStorage(storageConfig)
+            key.toString() to storage
+        }?.toMap() ?: emptyMap()
+    }
+
     override fun content(target: String): Map<Name, Any> = when (target) {
         RowsEnvelopeConverter.ROWS_ENVELOPE_CONVERTER_TARGET -> mapOf(
             Name.of("zip") to ZipRowsEnvelopeConverter.meta,
@@ -60,6 +70,8 @@ public class ControlsStoragePlugin : AbstractPlugin() {
         MESSAGE_STORAGE_FACTORY_TARGET -> mapOf(
             Name.of("file") to FileDeviceMessageStorage
         )
+
+        DeviceMessageStorage.TYPE -> storageMapping.mapKeys { Name.of(it.key) }
 
         else -> super.content(target)
     }
@@ -71,7 +83,7 @@ public class ControlsStoragePlugin : AbstractPlugin() {
         override fun build(
             context: Context,
             meta: Meta
-        ): ControlsStoragePlugin = ControlsStoragePlugin()
+        ): ControlsStoragePlugin = ControlsStoragePlugin(meta)
 
         public const val MESSAGE_STORAGE_FACTORY_TARGET: String = "controls.storage.messageStorageFactory"
     }
@@ -99,17 +111,13 @@ private fun Flow<ValueWithTime<Meta>>.filterPropertyChanges(interval: Duration?)
  * to the configured sample interval. Message sources are rewritten to include the hierarchical device name before
  * being written.
  *
- * If a referenced storage name is not present in [storageMap], the launched job fails with an error. Write failures
- * are logged.
- *
- * @param storageMap map of storage names to writable device message storages used by storage configurations.
  * @return the launched coroutine [Job] responsible for configuring and running storage subscriptions for this
  * device tree.
  */
-public fun CoroutineScope.launchStorageJob(
+public fun ControlsStoragePlugin.launchStorageJob(
     deviceTree: DeviceTree,
-    storageMap: Map<String, WriteableDeviceMessageStorage>,
-): Job = launch {
+    scope: CoroutineScope = context
+): Job = scope.launch {
 
     fun Device.storeDeviceProperties(deviceName: Name) {
 
@@ -119,7 +127,7 @@ public fun CoroutineScope.launchStorageJob(
             val storageConfiguration = MessageStorageScheme.read(deviceStorageMeta)
             val storageName = storageConfiguration.storage
 
-            val storage = storageMap[storageName] ?: error("Storage with name $storageName is not defined")
+            val storage = storageMapping[storageName] as? WriteableDeviceMessageStorage ?: error("Writeable storage with name $storageName is not defined")
 
             messageFlow.filter { it !is PropertyChangedMessage }.onEach { message ->
                 try {
@@ -140,7 +148,7 @@ public fun CoroutineScope.launchStorageJob(
             if (storageMeta != null && !storageMeta.isEmpty()) {
                 val storageConfiguration = MessageStorageScheme.read(storageMeta)
                 val storageName = storageConfiguration.storage
-                val storage = storageMap[storageName] ?: error("Storage with name $storageName is not defined")
+                val storage = storageMapping[storageName] as? WriteableDeviceMessageStorage ?: error("Writeable storage with name $storageName is not defined")
 
                 subscribeToProperty(descriptor.name).filterPropertyChanges(storageConfiguration.sampleInterval)
                     .onEach { (value, time) ->
@@ -172,34 +180,4 @@ public fun CoroutineScope.launchStorageJob(
     }
 
     deviceTree.storeDeviceProperties(Name.EMPTY)
-}
-
-/**
- * Launches a storage job for the given device tree using writable message storages declared in metadata.
- *
- * The function resolves [ControlsStoragePlugin] from this context, reads storage definitions from
- * [storageMeta] under [MessageStorageScheme.MESSAGE_STORAGE_KEY], builds each configured message storage,
- * verifies that every produced storage is writable, and delegates to the storage job launcher using the
- * resulting storage map.
- *
- * The function fails if the metadata does not contain storage definitions, or if any configured storage
- * cannot be built as a [WriteableDeviceMessageStorage].
- *
- * @param deviceTree device tree whose device messages should be collected and written to configured storages.
- * @param storageMeta metadata containing named message storage definitions.
- * @return the launched coroutine [Job] that manages message storage subscriptions for the device tree.
- */
-public fun Context.launchStorageJob(
-    deviceTree: DeviceTree,
-    storageMeta: Meta
-): Job {
-    val storagePlugin = request(ControlsStoragePlugin)
-    val storageMap = storageMeta[MessageStorageScheme.MESSAGE_STORAGE_KEY]?.items
-        ?.map { (key, storageConfig) ->
-            val storage = storagePlugin.buildMessageStorage(storageConfig) as? WriteableDeviceMessageStorage
-                ?: error("Storage produced with $storageConfig is not writeable")
-            key.toString() to storage
-        }?.toMap() ?: error("No storage definition in $storageMeta")
-
-    return launchStorageJob(deviceTree, storageMap)
 }

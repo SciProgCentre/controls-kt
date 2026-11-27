@@ -4,8 +4,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import space.kscience.controls.manager.install
 import space.kscience.controls.spec.name
+import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.tagtable.*
 import space.kscience.controls.tagtable.storage.ReplayTagTable
 import space.kscience.controls.tagtable.storage.TableStorageIndex
@@ -29,15 +29,14 @@ suspend fun main(): Unit = coroutineScope {
 
     val context = Context {
         plugin(IOPlugin)
+        plugin(ControlsStoragePlugin)
         plugin(TagTablePlugin)
         plugin(SlfLogManager)
     }
 
     val tagTablePlugin = context.request(TagTablePlugin)
 
-    val deviceManager = tagTablePlugin.deviceManager
-
-    val generatorDevice = deviceManager.install("generator", RandomGeneratorDevice)
+    val storagePlugin = context.request(ControlsStoragePlugin)
 
     val start = Clock.System.now()
 
@@ -79,7 +78,7 @@ suspend fun main(): Unit = coroutineScope {
 
     tagTable.stop()
 
-    val storageIndex = TableStorageIndex(tagTablePlugin.storage, dataDirectory)
+    val storageIndex = TableStorageIndex(storagePlugin, dataDirectory)
 
     measureTime {
         val rows = storageIndex.selectRows(start..Instant.DISTANT_FUTURE).rowSequence().count()

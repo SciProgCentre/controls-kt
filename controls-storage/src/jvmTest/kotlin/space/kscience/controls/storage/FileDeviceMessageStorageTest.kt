@@ -3,6 +3,7 @@
  */
 package space.kscience.controls.storage
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -400,7 +401,7 @@ class FileDeviceMessageStorageTest {
         var dfFiles = tempDir.listDirectoryEntries("*.df")
         val deadline = System.currentTimeMillis() + 5000
         while (dfFiles.isEmpty() && System.currentTimeMillis() < deadline) {
-            kotlinx.coroutines.delay(50.milliseconds)
+            delay(100.milliseconds)
             dfFiles = tempDir.listDirectoryEntries("*.df")
         }
 

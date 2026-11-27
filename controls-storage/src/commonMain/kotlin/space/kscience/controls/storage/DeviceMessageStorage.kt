@@ -6,15 +6,18 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import space.kscience.controls.api.DeviceMessage
 import space.kscience.controls.api.PropertyChangedMessage
+import space.kscience.controls.storage.DeviceMessageStorage.Companion.TYPE
 import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.MetaConverter
+import space.kscience.dataforge.misc.DfType
 import space.kscience.dataforge.names.Name
 import kotlin.time.Instant
 
 /**
  * A storage for Controls-kt [DeviceMessage]
  */
+@DfType(TYPE)
 public interface DeviceMessageStorage : AutoCloseable {
 
     /**
@@ -38,6 +41,8 @@ public interface DeviceMessageStorage : AutoCloseable {
     ): Flow<DeviceMessage>
 
     public companion object {
+
+        public const val TYPE: String = "controls.storage.deviceMessageStorage"
 
         private fun DeviceMessageStorage.flatten() =
             if (this is MergedDeviceMessageStorage) this.components else listOf(this)

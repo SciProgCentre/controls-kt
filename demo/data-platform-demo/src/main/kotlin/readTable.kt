@@ -1,6 +1,7 @@
 package space.kscience.controls.demo
 
 import kotlinx.coroutines.coroutineScope
+import space.kscience.controls.storage.ControlsStoragePlugin
 import space.kscience.controls.tagtable.TagTablePlugin
 import space.kscience.controls.tagtable.storage.TableStorageIndex
 import space.kscience.dataforge.context.Context
@@ -15,17 +16,14 @@ suspend fun main(): Unit = coroutineScope {
 
     val context = Context {
         plugin(IOPlugin)
+        plugin(ControlsStoragePlugin)
         plugin(TagTablePlugin)
         plugin(SlfLogManager)
     }
 
-    val tagTablePlugin = context.request(TagTablePlugin)
-
-    val deviceManager = tagTablePlugin.deviceManager
-
     val dataDirectory = Path("data")
 
-    val storageIndex = TableStorageIndex(tagTablePlugin.storage, dataDirectory)
+    val storageIndex = TableStorageIndex(context.request(ControlsStoragePlugin), dataDirectory)
 
     storageIndex.start()
 
