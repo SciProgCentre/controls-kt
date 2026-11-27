@@ -50,7 +50,7 @@ public value class TagState(public val value: Meta) {
  * - `DeviceMessageSource`: Allows access to device messages via a shared flow.
  * - `ValueStateFactory`: Enables the creation and management of observable value states.
  */
-public interface TagTable : Device {
+public interface TagTable : CachingDevice {
     /**
      * Read a value of a single column in the table
      */

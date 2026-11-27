@@ -59,12 +59,12 @@ public class ReplayTagTable(
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + SupervisorJob(scope.coroutineContext[Job])
 
-    private val values = tags.mapValues {
-        VirtualValueState(Meta.EMPTY, clock)
+    private val values: Map<String, VirtualValueState<Meta>> = buildMap {
+        tags.forEach { (tag, descriptor) ->
+            put(tag, VirtualValueState(Meta.EMPTY, clock))
+            put(tag + TagState.TAG_QUALITY_SUFFIX, VirtualValueState(Meta.EMPTY, clock))
+        }
     }
-
-    private val tagStates = ConcurrentHashMap<String, TagState>()
-
 
     override fun readTagWithTime(tag: String): ValueWithTime<Meta> =
         (values[tag] ?: error("Tag $tag not found")).valueWithTime
@@ -74,12 +74,22 @@ public class ReplayTagTable(
      */
     override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
-    override suspend fun readTagQuality(tag: String): TagState = tagStates[tag] ?: TagState.EMPTY
+    override suspend fun readTagQuality(tag: String): TagState = TagState((values[tag + TagState.TAG_QUALITY_SUFFIX] ?: error("Tag $tag not found")).value)
+
+
+    override fun getCachedProperty(propertyName: String): Meta? = values[propertyName]?.value
+
+    override suspend fun invalidate(propertyName: String) {
+        // does nothing
+    }
+
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
+        values[propertyName]?.subscribeWithTime() ?: error("Property $propertyName not found")
 
     /**
      * Read current values of all tags
      */
-    override fun readAllValues(): Map<String, Meta> = values.mapValues { it.value.value }
+    override fun readAllValues(): Map<String, Meta> = values.filter { !it.key.endsWith(TagState.TAG_QUALITY_SUFFIX) }.mapValues { it.value.value }
 
     /**
      * Starts generating a flow of rows for the current data platform with a specified interval.
@@ -157,9 +167,10 @@ public class ReplayTagTable(
                         )
                     )
                 }
-                val tagState = row.getOrNull(tag + TagState.TAG_QUALITY_SUFFIX)
+                val tagStateName =tag + TagState.TAG_QUALITY_SUFFIX
+                val tagState = row.getOrNull(tagStateName)
                 if (tagState != null) {
-                    tagStates[tag] = TagState(tagState)
+                    values[tagStateName]?.valueWithTime = ValueWithTime(tagState, time)
                 }
 
             }

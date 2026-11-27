@@ -7,7 +7,6 @@ import kotlinx.datetime.TimeZone
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.VirtualValueState
-import space.kscience.controls.constructor.propertyAsState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.server.Opc
 import space.kscience.controls.storage.ControlsStoragePlugin
@@ -32,7 +31,6 @@ import space.kscience.dataforge.names.startsWith
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.math.abs
@@ -72,8 +70,14 @@ public class PlcTagTable(
 
     override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
 
-    private val values = tags.mapValues {
-        VirtualValueState(Meta.EMPTY, clock)
+    /**
+     * Contains both tag values and tag states
+     */
+    private val values: Map<String, VirtualValueState<Meta>> = buildMap {
+        tags.forEach { (tag, descriptor) ->
+            put(tag, VirtualValueState(Meta.EMPTY, clock))
+            put(tag + TagState.TAG_QUALITY_SUFFIX, VirtualValueState(Meta.EMPTY, clock))
+        }
     }
 
     override val messageFlow: SharedFlow<DeviceMessage>
@@ -82,10 +86,9 @@ public class PlcTagTable(
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
 
-    private val tagStates = ConcurrentHashMap<String, TagState>()
-
     private suspend fun updateTagState(tag: String, tagState: TagState) {
-        tagStates[tag] = tagState
+        val valueState = values[tag + TagState.TAG_QUALITY_SUFFIX] ?: error("Tag $tag not found")
+        valueState.value = tagState.value
     }
 
     private suspend fun updateTagState(
@@ -113,7 +116,6 @@ public class PlcTagTable(
         rawValue: ValueWithTime<Meta>
     ): ValueWithTime<Meta> {
         val tagQualityValue = MutableMeta()
-
 
         tagQualityValue[TagState.quality] = TagState.GOOD_QUALITY
 
@@ -211,9 +213,18 @@ public class PlcTagTable(
         return state.valueWithTime
     }
 
+    override fun getCachedProperty(propertyName: String): Meta? = values[propertyName]?.value
+
+    override suspend fun invalidate(propertyName: String) {
+        // does nothing
+    }
+
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
+        values[propertyName]?.subscribeWithTime() ?: error("Property $propertyName not found")
+
     override suspend fun readTagQuality(tag: String): TagState {
-        if (tag !in configuration.tags.keys) error("Tag $tag not found")
-        return tagStates[tag] ?: TagState.EMPTY
+        val valueState = values[tag + TagState.TAG_QUALITY_SUFFIX] ?: error("Tag $tag not found")
+        return TagState(valueState.value)
     }
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
@@ -425,7 +436,7 @@ public class PlcTagTable(
     /**
      * Read current values of all properties
      */
-    override fun readAllValues(): Map<String, Meta> = values.mapValues { it.value.value }
+    override fun readAllValues(): Map<String, Meta> =  values.filter { !it.key.endsWith(TagState.TAG_QUALITY_SUFFIX) }.mapValues { it.value.value }
 
 
     public override fun readTimeSeries(

@@ -8,6 +8,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.InternalDeviceAPI
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.deviceDispatcher
 import space.kscience.dataforge.context.*
@@ -53,7 +54,7 @@ public open class DeviceConstructor(
     ) {
         val valueAsMeta get() = converter.convert(state.value)
 
-        fun asMetaValueState() = state.map(converter::convert)
+        fun asMetaValueState(): ValueStateWithDependencies<Meta> = state.map(converter::convert)
 
         fun setMeta(meta: Meta) {
             check(state is MutableValueState) { "Can't write to read-only property" }
@@ -116,13 +117,13 @@ public open class DeviceConstructor(
         return child
     }
 
-    private val properties: MutableMap<Name, Property<*>> = hashMapOf()
+    private val properties: MutableMap<String, Property<*>> = hashMapOf()
 
     /**
      * Get property with given [propertyName] as a [ValueState]. If the property is not found, throws an error.
      */
     public fun <T> propertyAsState(propertyName: String, converter: MetaConverter<T>): ValueState<T> {
-        val prop = properties[propertyName.parseAsName()] ?: error("Property with name $propertyName not found")
+        val prop = properties[propertyName] ?: error("Property with name $propertyName not found")
         return if (prop.converter == converter) {
             @Suppress("UNCHECKED_CAST")
             prop.state as ValueState<T>
@@ -140,7 +141,7 @@ public open class DeviceConstructor(
         descriptor: PropertyDescriptor,
         state: S,
     ): S {
-        val name = descriptor.name.parseAsName()
+        val name = descriptor.name
         require(properties[name] == null) { "Can't add property with name $name. It already exists." }
         properties[name] = Property(state, converter, descriptor)
         state.subscribeWithTime().onEach { (value, time) ->
@@ -184,21 +185,22 @@ public open class DeviceConstructor(
         get() = actions.values.map { it.descriptor }
 
     override suspend fun readProperty(propertyName: String): Meta =
-        properties[propertyName.parseAsName()]?.valueAsMeta
+        properties[propertyName]?.valueAsMeta
             ?: error("Property with name $propertyName not found")
 
-    override fun getCachedProperty(propertyName: String): Meta? = properties[propertyName.parseAsName()]?.valueAsMeta
-
-    @InternalDeviceAPI
-    override fun setCachedProperty(propertyName: String, value: Meta?) {
-        //does nothing for this implementation
-    }
+    override fun getCachedProperty(propertyName: String): Meta? = properties[propertyName]?.valueAsMeta
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
-        val property = properties[propertyName.parseAsName()] ?: error("Property with name $propertyName not found")
+        val property = properties[propertyName] ?: error("Property with name $propertyName not found")
         property.setMeta(value)
     }
 
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
+        properties[propertyName]?.asMetaValueState()?.subscribeWithTime() ?: error("Property with name $propertyName not found")
+
+    override suspend fun invalidate(propertyName: String) {
+        //do nothing
+    }
 
     override suspend fun execute(actionName: String, argument: Meta?): Meta? {
         val action: Action<*, *> = actions[actionName] ?: error("Action with name $actionName not found")
