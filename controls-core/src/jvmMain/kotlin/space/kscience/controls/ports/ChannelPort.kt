@@ -29,10 +29,10 @@ public fun ByteBuffer.copyToArray(limit: Int = limit()): ByteArray {
  */
 public class ChannelPort(
     context: Context,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
     coroutineContext: CoroutineContext = context.coroutineContext,
     channelBuilder: suspend () -> ByteChannel,
-) : AbstractAsynchronousPort(context, meta, coroutineContext) {
+) : AbstractAsynchronousPort(context, attributes, coroutineContext) {
 
     /**
      * A handler to await port connection

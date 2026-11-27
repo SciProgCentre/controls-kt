@@ -56,7 +56,7 @@ public fun ValueStateConfiguration.Companion.math(
     metadata: MutableMeta.() -> Unit = {}
 ): ValueStateConfiguration = ValueStateConfiguration(
     type = MathValueStateFactory.TYPE,
-    parameters = Meta {
+    attributes = Meta {
         metadata()
         set(MathValueStateFactory.expression, expression)
         set(MathValueStateFactory.arguments, arguments)

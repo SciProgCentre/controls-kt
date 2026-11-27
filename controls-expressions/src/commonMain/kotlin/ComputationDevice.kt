@@ -22,8 +22,8 @@ public class ComputationDevice(
     context: Context,
     public val argNames: Set<String>,
     public val expression: Expression<ValueState<Double?>>,
-    meta: Meta = Meta.EMPTY
-) : DeviceConstructor(context, meta), BoundStateHolder {
+    attributes: Meta = Meta.EMPTY
+) : DeviceConstructor(context, attributes), BoundStateHolder {
 
     private val args: Map<String, LateBindValueState<Double?>> = argNames.associateWith { LateBindValueState(null) }
 
@@ -98,15 +98,15 @@ public class ComputationDevice(
 
         override fun buildDevice(
             context: Context,
-            meta: Meta
+            attributes: Meta
         ): ComputationDevice {
-            val argNames = meta[argNames] ?: error("Argument names not defined")
+            val argNames = attributes[argNames] ?: error("Argument names not defined")
 
-            meta[formula]?.let { formula ->
+            attributes[formula]?.let { formula ->
                 return ofMath(context, formula.parseMath(), argNames)
             }
 
-            meta[expression]?.let { expression ->
+            attributes[expression]?.let { expression ->
                 return ofExpression(context, expression, argNames)
             }
 

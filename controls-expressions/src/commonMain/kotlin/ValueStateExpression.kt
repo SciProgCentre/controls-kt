@@ -287,7 +287,7 @@ public fun ValueStateConfiguration.Companion.expression(
     metadata: MutableMeta.() -> Unit = {}
 ): ValueStateConfiguration = ValueStateConfiguration(
     ExpressionValueStateFactory.TYPE,
-    parameters = Meta {
+    attributes = Meta {
         metadata()
         set(ExpressionValueStateFactory.expression, expression)
     }

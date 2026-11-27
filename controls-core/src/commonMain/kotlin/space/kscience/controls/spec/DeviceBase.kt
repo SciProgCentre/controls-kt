@@ -31,7 +31,7 @@ import kotlin.time.Instant
  */
 public abstract class DeviceBase(
     final override val context: Context,
-    final override val meta: Meta = Meta.EMPTY,
+    final override val attributes: Meta = Meta.EMPTY,
 ) : CachingDevice {
 
     /**
@@ -54,7 +54,7 @@ public abstract class DeviceBase(
 
 
     private val _messageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow<DeviceMessage>(
-        replay = meta["message.buffer"].int ?: 100,
+        replay = attributes["message.buffer"].int ?: 100,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
@@ -197,7 +197,7 @@ public abstract class DeviceBase(
         //send initial description message whe device is created
         val initialDescriptionMessage = DescriptionMessage(
             time = context.clock.now(),
-            description = meta,
+            description = attributes,
             properties = propertyDescriptors,
             actions = actionDescriptors,
             sourceDevice = Name.EMPTY,

@@ -7,7 +7,6 @@ import space.kscience.controls.api.LifecycleState.*
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.manager.install
 import space.kscience.controls.spec.DevicePropertySpec
-import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.deviceDispatcher
@@ -31,7 +30,7 @@ import kotlin.time.Duration
  */
 public open class DeviceConstructor(
     final override val context: Context,
-    override val meta: Meta = Meta.EMPTY,
+    override val attributes: Meta = Meta.EMPTY,
 ) : Device, DeviceTree, CachingDevice, MutableConstructor {
 
     override val device: Device? get() = this
@@ -56,7 +55,7 @@ public open class DeviceConstructor(
 
         fun asMetaValueState(): ValueStateWithDependencies<Meta> = state.map(converter::convert)
 
-        fun setMeta(meta: Meta) {
+        fun setRawValue(meta: Meta) {
             check(state is MutableValueState) { "Can't write to read-only property" }
 
             state.value = converter.read(meta)
@@ -192,7 +191,7 @@ public open class DeviceConstructor(
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         val property = properties[propertyName] ?: error("Property with name $propertyName not found")
-        property.setMeta(value)
+        property.setRawValue(value)
     }
 
     override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
@@ -262,10 +261,10 @@ public fun <D : Device> DeviceConstructor.install(deviceName: String, device: D)
 
 public fun DeviceManager.install(
     name: String = "@group",
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
     block: DeviceConstructor.() -> Unit,
 ): DeviceConstructor {
-    val group = DeviceConstructor(context, meta).apply(block)
+    val group = DeviceConstructor(context, attributes).apply(block)
     install(name, group)
 
     return group
@@ -273,9 +272,9 @@ public fun DeviceManager.install(
 
 public fun Context.install(
     name: String = "@group",
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
     block: DeviceConstructor.() -> Unit,
-): DeviceConstructor = request(DeviceManager).install(name, meta, block)
+): DeviceConstructor = request(DeviceManager).install(name, attributes, block)
 
 public fun <D : Device> DeviceConstructor.install(device: D): D = install(device.id, device)
 
@@ -292,7 +291,7 @@ public fun <D : Device> DeviceConstructor.install(
     deviceMeta: Meta? = null,
     metaLocation: Name = Name.of(name),
 ): D {
-    val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
+    val newDevice = factory.build(context, Laminate(deviceMeta, attributes[metaLocation]))
     install(name, newDevice)
     return newDevice
 }
@@ -306,7 +305,7 @@ public fun <DT : DeviceTree> DeviceConstructor.installTree(
     deviceMeta: Meta? = null,
     metaLocation: Name = Name.of(name),
 ): DT {
-    val newDevice = factory.build(context, Laminate(deviceMeta, meta[metaLocation]))
+    val newDevice = factory.build(context, Laminate(deviceMeta, attributes[metaLocation]))
     installTree(name, newDevice)
     return newDevice
 }
@@ -315,7 +314,7 @@ public fun <DT : DeviceTree> DeviceConstructor.installTree(
  * Create or edit a group with a given [name].
  */
 public fun DeviceConstructor.install(name: String, block: DeviceConstructor.() -> Unit): DeviceConstructor =
-    install(name, DeviceConstructor(context, meta).apply(block))
+    install(name, DeviceConstructor(context, attributes).apply(block))
 
 /**
  * Register read-only property based on [state]
@@ -392,13 +391,13 @@ public fun DeviceConstructor.registerReferenceProperty(
  */
 public fun <D : Device> DeviceConstructor.device(
     factory: Factory<D>,
-    meta: Meta? = null,
+    attributes: Meta? = null,
     nameOverride: String? = null,
     metaLocation: Name? = null,
 ): PropertyDelegateProvider<DeviceConstructor, ReadOnlyProperty<DeviceConstructor, D>> =
     PropertyDelegateProvider { _: DeviceConstructor, property: KProperty<*> ->
         val name = nameOverride ?: property.name
-        val device = install(name, factory, meta, metaLocation ?: Name.of(name))
+        val device = install(name, factory, attributes, metaLocation ?: Name.of(name))
         ReadOnlyProperty { _: DeviceConstructor, _ ->
             device
         }

@@ -183,7 +183,7 @@ class ComputationDeviceTest {
                 components = mapOf(
                     "calculator" to TemplateDeviceConfiguration(
                         type = ComputationDevice.TYPE,
-                        parameters = Meta {
+                        attributes = Meta {
                             set(ComputationDevice.argNames, listOf("a", "b"))
                             set(ComputationDevice.formula, "a * a + b * b")
                         }
@@ -233,7 +233,7 @@ class ComputationDeviceTest {
                 components = mapOf(
                     "divider" to TemplateDeviceConfiguration(
                         type = "controls-expression.${ComputationDevice.TYPE}",
-                        parameters = Meta {
+                        attributes = Meta {
                             set(ComputationDevice.argNames, listOf("num", "den"))
                             set(
                                 ComputationDevice.expression,

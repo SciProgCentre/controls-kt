@@ -24,12 +24,12 @@ import kotlin.coroutines.CoroutineContext
 
 public class KtorTcpPort internal constructor(
     context: Context,
-    meta: Meta,
+    attributes: Meta,
     public val host: String,
     public val port: Int,
     coroutineContext: CoroutineContext = context.coroutineContext,
     private val socketOptions: SocketOptions.TCPClientSocketOptions.() -> Unit = {},
-) : AbstractAsynchronousPort(context, meta, coroutineContext) {
+) : AbstractAsynchronousPort(context, attributes, coroutineContext) {
 
     override fun toString(): String = "port[tcp:$host:$port]"
 

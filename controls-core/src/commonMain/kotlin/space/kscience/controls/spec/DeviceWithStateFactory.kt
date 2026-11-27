@@ -229,13 +229,13 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
      */
     public fun buildDevice(
         context: Context,
-        meta: Meta,
+        attributes: Meta,
         destroyState: suspend context(DeviceBase) (S) -> Unit = {},
         createState: suspend context(DeviceBase) () -> S
-    ): Device = Device(context, meta) {
+    ): Device = Device(context, attributes) {
         val state = CompletableDeferred<S>()
 
-        reader(DevicePropertySpec.deviceMeta) { meta }
+        reader(DevicePropertySpec.deviceMeta) { attributes }
 
         readers.forEach { (property, reader) ->
             @Suppress("UNCHECKED_CAST")
@@ -279,10 +279,10 @@ public open class DeviceWithStateBuilder<S : Any> : DeviceSpec {
 @OptIn(InternalDeviceAPI::class)
 public fun <S: Any, T: DeviceWithStateBuilder<S>> T.buildSpecific(
     context: Context,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
     destroyState: suspend context(DeviceBase) (S) -> Unit = {},
     createState: suspend context(DeviceBase) () -> S
-): SpecificDevice<T> = SpecificDevice(buildDevice(context, meta, destroyState, createState))
+): SpecificDevice<T> = SpecificDevice(buildDevice(context, attributes, destroyState, createState))
 
 /**
  * A device specification that provides a builder for a device instance that adheres to this specification
@@ -308,9 +308,9 @@ public abstract class DeviceWithStateFactory<S : Any> : DeviceWithStateBuilder<S
      *
      * The instance incapsulates the state [S], which is created and destroyed on device start and stop.
      */
-    override fun buildDevice(context: Context, meta: Meta): Device = buildDevice(
+    override fun buildDevice(context: Context, attributes: Meta): Device = buildDevice(
         context = context,
-        meta = meta,
+        attributes = attributes,
         destroyState = { destroyState(it) },
         createState = { createState() }
     )
@@ -500,7 +500,7 @@ public fun <S : Any> DeviceWithStateBuilder<S>.mutableMetaProperty(
 public abstract class MetaDeviceFactory : DeviceWithStateFactory<MutableMeta>() {
     context(device: DeviceBase)
     override suspend fun createState(): MutableMeta = MutableMeta {
-        "@device" put device.meta
+        "@device" put device.attributes
     }
 }
 

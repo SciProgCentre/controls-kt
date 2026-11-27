@@ -44,7 +44,7 @@ public class MiloConfiguration : Scheme() {
 public abstract class OpcUaDeviceFactory : DeviceWithStateFactory<OpcUaClient>() {
     context(device: DeviceBase)
     override suspend fun createState(): OpcUaClient {
-        val config = MiloConfiguration.read(device.meta)
+        val config = MiloConfiguration.read(device.attributes)
         return device.context.createOpcUaClient(
             config.endpointUrl,
             securityPolicy = config.securityPolicy,

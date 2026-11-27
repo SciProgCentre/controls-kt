@@ -15,7 +15,7 @@ import space.kscience.dataforge.names.parseAsName
 @Serializable
 public data class ValueStateConfiguration(
     public val type: String,
-    public val parameters: Meta,
+    public val attributes: Meta,
 ) {
     public companion object {
 
@@ -25,16 +25,16 @@ public data class ValueStateConfiguration(
         /**
          * Create a ValueStateConfiguration for a device property
          *
-         * @param metadata custom metadata builder
+         * @param attributes custom attributes builder
          */
         public fun deviceProperty(
             deviceName: Name,
             propertyName: String,
-            metadata: MutableMeta.() -> Unit = {}
+            attributes: MutableMeta.() -> Unit = {}
         ): ValueStateConfiguration = ValueStateConfiguration(
             type = DeviceValueStateFactory.TYPE,
-            parameters = Meta {
-                metadata()
+            attributes = Meta {
+                attributes()
                 set(DeviceValueStateFactory.deviceName, deviceName.toString())
                 set(DeviceValueStateFactory.propertyName, propertyName)
             }
@@ -43,8 +43,8 @@ public data class ValueStateConfiguration(
         public fun deviceProperty(
             deviceName: String,
             propertyName: String,
-            metadata: MutableMeta.() -> Unit = {}
-        ): ValueStateConfiguration = deviceProperty(deviceName.parseAsName(), propertyName, metadata)
+            attributes: MutableMeta.() -> Unit = {}
+        ): ValueStateConfiguration = deviceProperty(deviceName.parseAsName(), propertyName, attributes)
     }
 }
 
@@ -52,7 +52,7 @@ public data class ValueStateConfiguration(
 @Serializable
 public data class TemplateDeviceConfiguration(
     public val type: String,
-    public val parameters: Meta,
+    public val attributes: Meta,
 )
 
 @Serializable
@@ -74,6 +74,6 @@ public class ConstructorDeviceConfiguration(
     public val devices: Map<String, ConstructorDeviceConfiguration> = emptyMap(),
     public val components: Map<String, TemplateDeviceConfiguration> = emptyMap(),
     public val bindings: Set<ConstructorBinding> = emptySet(),
-    public val parameters: Meta = Meta.EMPTY,
+    public val attributes: Meta = Meta.EMPTY,
 )
 //TODO add actions and setup/shutdown hooks

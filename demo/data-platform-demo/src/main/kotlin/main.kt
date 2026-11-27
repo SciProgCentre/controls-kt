@@ -172,7 +172,7 @@ suspend fun main() {
     val columnTagMapping: Map<ExportColumn, ExportColumn> = buildMap {
         fun processDevice(deviceCfg: ConstructorDeviceConfiguration, prefix: Name) {
             deviceCfg.properties.forEach { (propertyName, propertyConfig) ->
-                val tag = propertyConfig.parameters["tag"].string ?: return@forEach
+                val tag = propertyConfig.attributes["tag"].string ?: return@forEach
                 put(ExportColumn(prefix, propertyName), ExportColumn(Name.EMPTY, tag, exportColumnName = tag))
             }
             deviceCfg.devices.forEach { (deviceName, childDeviceCfg) ->

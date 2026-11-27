@@ -107,7 +107,7 @@ public class DeviceBuilder : DeviceFactory {
     /**
      * Build a fully configured [DeviceBase] instance from the registered readers, writers, and actions.
      */
-    override fun buildDevice(context: Context, meta: Meta): DeviceBase = object : DeviceBase(context, meta) {
+    override fun buildDevice(context: Context, attributes: Meta): DeviceBase = object : DeviceBase(context, attributes) {
 
         //protective copy for all properties
 
@@ -131,7 +131,7 @@ public class DeviceBuilder : DeviceFactory {
             super.onStop()
         }
 
-        override fun toString(): String = "DeviceBuilder.DeviceBase(context=$context, meta=$meta)"
+        override fun toString(): String = "DeviceBuilder.DeviceBase(context=$context, meta=$attributes)"
     }
 
 
@@ -186,9 +186,9 @@ public fun DeviceBuilder(spec: DeviceSpec? = null, builder: DeviceBuilder.() -> 
  */
 public fun Device(
     context: Context,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
     builder: DeviceBuilder.() -> Unit
-): Device = DeviceBuilder().apply(builder).buildDevice(context, meta)
+): Device = DeviceBuilder().apply(builder).buildDevice(context, attributes)
 
 /**
  * Create a spec-verified device with given [builder]
@@ -196,9 +196,9 @@ public fun Device(
 public fun <S : DeviceSpec> SpecificDevice(
     spec: S,
     context: Context,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
     builder: DeviceBuilder.() -> Unit
-): SpecificDevice<S> = DeviceBuilder().apply(builder).buildDevice(context, meta).verifiedWith(spec)
+): SpecificDevice<S> = DeviceBuilder().apply(builder).buildDevice(context, attributes).verifiedWith(spec)
 
 public fun <T> DeviceBuilder.reader(spec: DevicePropertySpec<T>, read: suspend context(DeviceBase) () -> T) {
     check(spec.isReadable) { "Property ${spec.name} is not readable" }

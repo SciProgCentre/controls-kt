@@ -27,14 +27,14 @@ private fun ByteArray.asSource(): Source = Buffer().apply { UnsafeBufferOperatio
 
 public class KtorUdpPort internal constructor(
     context: Context,
-    meta: Meta,
+    attributes: Meta,
     public val remoteHost: String,
     public val remotePort: Int,
     public val localPort: Int? = null,
     public val localHost: String = "localhost",
     coroutineContext: CoroutineContext = context.coroutineContext,
     private val socketOptions: SocketOptions.UDPSocketOptions.() -> Unit = {},
-) : AbstractAsynchronousPort(context, meta, coroutineContext) {
+) : AbstractAsynchronousPort(context, attributes, coroutineContext) {
 
     override fun toString(): String = "port[udp:$remoteHost:$remotePort]"
 
@@ -101,7 +101,7 @@ public class KtorUdpPort internal constructor(
             }
             return KtorUdpPort(
                 context = context,
-                meta = meta,
+                attributes = meta,
                 remoteHost = remoteHost,
                 remotePort = remotePort,
                 localPort = localPort,

@@ -406,7 +406,7 @@ public class PlcTagTable(
     }
 
     private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.tags.map { (name, property) ->
-        SimpleColumnHeader(name, typeOf<Meta>(), property.meta)
+        SimpleColumnHeader(name, typeOf<Meta>(), property.attributes)
     }
 
     private val tableHeaders: TableHeader<Meta> = buildList {

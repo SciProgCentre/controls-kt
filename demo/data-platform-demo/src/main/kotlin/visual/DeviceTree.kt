@@ -140,7 +140,7 @@ fun PropertyNode(
     level: Int,
     propertyMetadata: Meta
 ) {
-    val deviceWidget = device.meta["widget"].string
+    val deviceWidget = device.attributes["widget"].string
     val propertyWidget = propertyMetadata["widget"].string
 
     Row(

@@ -131,25 +131,25 @@ public fun <DT : DeviceTree> Context.installTree(name: String, tree: DT): DT =
 public fun <D : Device> Context.install(device: D): D = request(DeviceManager).install(device.id, device)
 
 /**
- * Register and start a device built by [factory] with current [Context] and [meta].
+ * Register and start a device built by [factory] with current [Context] and [attributes].
  */
 public fun <D : Device> DeviceManager.install(
     name: String,
     factory: Factory<D>,
-    meta: Meta = Meta.EMPTY
-): D = install(name, factory(meta, context))
+    attributes: Meta = Meta.EMPTY
+): D = install(name, factory(attributes, context))
 
 public fun DeviceManager.install(
     name: String,
     factory: DeviceFactory,
-    meta: Meta = Meta.EMPTY
-): Device = install(name, factory.buildDevice(context, meta))
+    attributes: Meta = Meta.EMPTY
+): Device = install(name, factory.buildDevice(context, attributes))
 
 public fun <DT : DeviceTree> DeviceManager.installTree(
     name: String,
     factory: Factory<DT>,
-    meta: Meta = Meta.EMPTY
-): DT = installTree(name, factory(meta, context))
+    attributes: Meta = Meta.EMPTY
+): DT = installTree(name, factory(attributes, context))
 
 /**
  * A delegate that initializes device on the first use
@@ -164,8 +164,8 @@ public inline fun <D : DeviceTree> DeviceManager.installing(
         val current = children[name]?.device
         if (current == null) {
             installTree(name, factory, meta)
-        } else if (current.meta != meta) {
-            error("Meta mismatch. Current device meta: ${current.meta}, but factory meta is $meta")
+        } else if (current.attributes != meta) {
+            error("Meta mismatch. Current device attributes: ${current.attributes}, but factory meta is $meta")
         } else {
             @Suppress("UNCHECKED_CAST")
             current as D

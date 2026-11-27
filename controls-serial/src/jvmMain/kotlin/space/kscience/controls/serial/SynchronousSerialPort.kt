@@ -23,7 +23,7 @@ import space.kscience.dataforge.meta.string
  */
 public class SynchronousSerialPort(
     override val context: Context,
-    public val meta: Meta,
+    public val attributes: Meta,
     private val comPort: SerialPort,
 ) : SynchronousPort {
 

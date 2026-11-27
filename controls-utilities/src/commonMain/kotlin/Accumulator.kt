@@ -65,11 +65,11 @@ public class Accumulator(
          */
         override fun buildDevice(
             context: Context,
-            meta: Meta
+            attributes: Meta
         ): Accumulator {
-            val window: Duration = meta[window] ?: error("`window` parameter not defined")
+            val window: Duration = attributes[window] ?: error("`window` parameter not defined")
 
-            return Accumulator(context, window, metadata = meta)
+            return Accumulator(context, window, metadata = attributes)
         }
     }
 }

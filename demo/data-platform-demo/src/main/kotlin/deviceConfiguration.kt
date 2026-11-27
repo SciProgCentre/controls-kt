@@ -44,7 +44,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                     val tagProperties = chunk.associate { (tag, _) ->
                         tag.cutFirst().toString() to ValueStateConfiguration(
                             type = TagTable.TAG_TABLE_FACTORY_TYPE,
-                            parameters = Meta {
+                            attributes = Meta {
                                 set(TagTablePlugin.ValueFactorySpec.tag, tag.toString())
                             }
                         )
@@ -55,7 +55,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                         arguments = tagProperties.mapValues { (_, pc) ->
                             ValueStateExpression.State(
                                 valueStateType = pc.type,
-                                parameters = pc.parameters,
+                                parameters = pc.attributes,
                             )
                         },
                         parameters = Meta {
@@ -87,7 +87,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                             components = mapOf(
                                 "alarm" to TemplateDeviceConfiguration(
                                     type = "controls.utilities.alarm",
-                                    parameters = Alarm.buildDeviceMeta(
+                                    attributes = Alarm.buildDeviceMeta(
                                         settings = alarmSetting
                                     ) {
                                         "widget" put "alarm"
@@ -111,7 +111,7 @@ internal fun createDeviceConfiguration(configuration: TagTableConfiguration): Co
                     alarmsConfigs[fullName.toStringUnescaped()] = ValueStateConfiguration.deviceProperty(
                         deviceName = Name.of(aggregateName, partName, "alarm").toString(),
                         propertyName = "state",
-                        metadata = { "widget" put "alarm.state" }
+                        attributes = { "widget" put "alarm.state" }
                     )
                 }
             }

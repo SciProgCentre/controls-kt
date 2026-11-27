@@ -21,10 +21,10 @@ import kotlin.coroutines.CoroutineContext
  */
 public class AsynchronousSerialPort(
     context: Context,
-    meta: Meta,
+    attributes: Meta,
     private val comPort: SerialPort,
     coroutineContext: CoroutineContext = context.coroutineContext,
-) : AbstractAsynchronousPort(context, meta, coroutineContext) {
+) : AbstractAsynchronousPort(context, attributes, coroutineContext) {
 
     override fun toString(): String = "port[${comPort.descriptivePortName}]"
 

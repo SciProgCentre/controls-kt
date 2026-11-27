@@ -35,8 +35,8 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
     override val consumerRequest: LateBindValueState<AmountPerSecond<U>> = LateBindValueState(AmountPerSecond.zero()),
     initialLevel: T = consumerAlgebra.zero,
     externalTimer: TimerState? = null,
-    meta: Meta = Meta.EMPTY
-) : DeviceConstructor(context, meta),
+    attributes: Meta = Meta.EMPTY
+) : DeviceConstructor(context, attributes),
     ContinuousProducer<U, T>,
     ContinuousConsumer<U, T> {
 

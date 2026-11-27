@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.DeviceConstructor
 import space.kscience.controls.constructor.ValueState
-import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
@@ -13,7 +12,6 @@ import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.tables.ColumnHeader
 import kotlin.time.Duration
-import kotlin.time.Instant
 
 @JvmInline
 public value class TagState(public val value: Meta) {
@@ -104,9 +102,9 @@ public interface TagTable : CachingDevice {
 
         override fun buildDevice(
             context: Context,
-            meta: Meta
+            attributes: Meta
         ): TagTable {
-            val configuration = MetaConverter.serializable<TagTableConfiguration>().read(meta)
+            val configuration = MetaConverter.serializable<TagTableConfiguration>().read(attributes)
 
             return context.request(TagTablePlugin).install(configuration)
         }

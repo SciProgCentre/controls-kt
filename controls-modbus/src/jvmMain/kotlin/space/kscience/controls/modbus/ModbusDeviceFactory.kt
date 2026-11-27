@@ -48,9 +48,9 @@ public class ModbusRTUConfiguration : Scheme() {
 public abstract class ModbusDeviceFactory : DeviceWithStateFactory<AbstractModbusMaster>() {
 
     context(device: DeviceBase)
-    override suspend fun createState(): AbstractModbusMaster = when (device.meta["type"].string) {
+    override suspend fun createState(): AbstractModbusMaster = when (device.attributes["type"].string) {
         TYPE_TCP -> {
-            val configuration = ModbusTCPConfiguration.read(device.meta)
+            val configuration = ModbusTCPConfiguration.read(device.attributes)
             ModbusTCPMaster(
                 /* addr = */ configuration.address,
                 /* port = */ configuration.port,
@@ -60,7 +60,7 @@ public abstract class ModbusDeviceFactory : DeviceWithStateFactory<AbstractModbu
         }
 
         TYPE_RTU -> {
-            val configuration = ModbusRTUConfiguration.read(device.meta)
+            val configuration = ModbusRTUConfiguration.read(device.attributes)
             ModbusSerialMaster(
                 SerialParameters().apply {
                     baudRate = configuration.baudRate
@@ -74,7 +74,7 @@ public abstract class ModbusDeviceFactory : DeviceWithStateFactory<AbstractModbu
             )
         }
 
-        else -> error("Unknown modbus type ${device.meta["type"]}")
+        else -> error("Unknown modbus type ${device.attributes["type"]}")
     }.also {
         it.connect()
     }

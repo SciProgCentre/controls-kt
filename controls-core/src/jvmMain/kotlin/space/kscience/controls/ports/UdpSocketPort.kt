@@ -13,10 +13,10 @@ import kotlin.coroutines.CoroutineContext
  */
 public class UdpSocketPort(
     override val context: Context,
-    meta: Meta,
+    attributes: Meta,
     private val socket: DatagramSocket,
     coroutineContext: CoroutineContext = context.coroutineContext,
-) : AbstractAsynchronousPort(context, meta, coroutineContext) {
+) : AbstractAsynchronousPort(context, attributes, coroutineContext) {
 
     private var listenerJob: Job? = null
 

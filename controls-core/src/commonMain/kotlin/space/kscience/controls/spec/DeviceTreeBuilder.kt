@@ -80,5 +80,5 @@ public class DeviceTreeBuilder : DeviceTreeFactory, DeviceTreeSpec {
 /**
  * Creates a DeviceHub using the provided context and optional meta, with the specified builder configuration.
  */
-public fun DeviceTree(context: Context, meta: Meta = Meta.EMPTY, builder: DeviceTreeBuilder.() -> Unit): DeviceTree =
-    DeviceTreeBuilder().apply(builder).build(context, meta)
+public fun DeviceTree(context: Context, attributes: Meta = Meta.EMPTY, builder: DeviceTreeBuilder.() -> Unit): DeviceTree =
+    DeviceTreeBuilder().apply(builder).build(context, attributes)

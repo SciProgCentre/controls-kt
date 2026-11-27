@@ -26,7 +26,7 @@ import space.kscience.dataforge.names.parseAsName
 @Composable
 fun MetaDescriptorEditor(
     descriptor: MetaDescriptor?,
-    meta: Meta,
+    attributes: Meta,
     onMetaChange: (Meta) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -59,18 +59,18 @@ fun MetaDescriptorEditor(
 
         if (rawMode) {
             RawMetaEditor(
-                meta = meta,
+                meta = attributes,
                 onMetaChange = onMetaChange
             )
         } else if (descriptor != null && descriptor.nodes.isNotEmpty()) {
             DescriptorFormEditor(
                 descriptor = descriptor,
-                meta = meta,
+                attributes = attributes,
                 onMetaChange = onMetaChange
             )
         } else {
             RawMetaEditor(
-                meta = meta,
+                meta = attributes,
                 onMetaChange = onMetaChange
             )
         }
@@ -83,7 +83,7 @@ fun MetaDescriptorEditor(
 @Composable
 private fun DescriptorFormEditor(
     descriptor: MetaDescriptor,
-    meta: Meta,
+    attributes: Meta,
     onMetaChange: (Meta) -> Unit
 ) {
     Column(
@@ -91,8 +91,8 @@ private fun DescriptorFormEditor(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         descriptor.nodes.forEach { (key, childDescriptor) ->
-            val childMeta = meta[key] ?: Meta.EMPTY
-            val currentValue = meta[key]?.value
+            val childMeta = attributes[key] ?: Meta.EMPTY
+            val currentValue = attributes[key]?.value
 
             val childValueType = childDescriptor.valueTypes?.firstOrNull()
             val description = childDescriptor.description
@@ -137,7 +137,7 @@ private fun DescriptorFormEditor(
                                 checked = boolVal,
                                 onCheckedChange = { checked ->
                                     val newMeta = Meta {
-                                        meta.items.forEach { (k, v) ->
+                                        attributes.items.forEach { (k, v) ->
                                             if (k.toString() != key) set(k.asName(), v)
                                         }
                                         set(key.parseAsName(), checked.asValue())
@@ -151,10 +151,10 @@ private fun DescriptorFormEditor(
                         // Nested child descriptor editor
                         DescriptorFormEditor(
                             descriptor = childDescriptor,
-                            meta = childMeta,
+                            attributes = childMeta,
                             onMetaChange = { updatedChild ->
                                 val newMeta = Meta {
-                                    meta.items.forEach { (k, v) ->
+                                    attributes.items.forEach { (k, v) ->
                                         if (k.toString() != key) set(k.asName(), v)
                                     }
                                     set(key.parseAsName(), updatedChild)
@@ -177,7 +177,7 @@ private fun DescriptorFormEditor(
                                     else -> newText.asValue()
                                 }
                                 val newMeta = Meta {
-                                    meta.items.forEach { (k, v) ->
+                                    attributes.items.forEach { (k, v) ->
                                         if (k.toString() != key) set(k.asName(), v)
                                     }
                                     set(key.parseAsName(), value)

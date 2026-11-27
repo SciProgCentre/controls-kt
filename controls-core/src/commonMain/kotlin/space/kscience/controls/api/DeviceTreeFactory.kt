@@ -19,7 +19,7 @@ public interface DeviceFactory : DeviceTreeFactory {
 
     override val descriptor: MetaDescriptor? get() = null
 
-    public fun buildDevice(context: Context, meta: Meta): Device
+    public fun buildDevice(context: Context, attributes: Meta): Device
 
     override fun build(context: Context, meta: Meta): DeviceTree {
         val device = buildDevice(context, meta)
@@ -34,12 +34,12 @@ public interface DeviceFactory : DeviceTreeFactory {
  */
 public fun DeviceFactory(
     descriptor: MetaDescriptor? = null,
-    block: (context: Context, meta: Meta) -> Device
+    block: (context: Context, attributes: Meta) -> Device
 ): DeviceFactory = object : DeviceFactory {
     override fun buildDevice(
         context: Context,
-        meta: Meta
-    ): Device = block(context, meta)
+        attributes: Meta
+    ): Device = block(context, attributes)
 
 
     override val descriptor: MetaDescriptor? = descriptor

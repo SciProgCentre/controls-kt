@@ -52,7 +52,7 @@ public class ConstructorPlugin : AbstractPlugin() {
 
     public fun buildValueState(
         valueStateConfiguration: ValueStateConfiguration
-    ): ValueState<Meta> = buildValueState(valueStateConfiguration.parameters, valueStateConfiguration.type)
+    ): ValueState<Meta> = buildValueState(valueStateConfiguration.attributes, valueStateConfiguration.type)
 
     override fun content(target: String): Map<Name, Any> = when (target) {
         ValueStateFactory.PROVIDER_TAGET -> mapOf(
@@ -76,7 +76,7 @@ public class ConstructorPlugin : AbstractPlugin() {
         deviceConfiguration: ConstructorDeviceConfiguration,
         fullDeviceName: Name = Name.EMPTY,
         rootDeviceTree: DeviceTree? = null,
-    ): DeviceConstructor = DeviceConstructor(context, deviceConfiguration.parameters).apply {
+    ): DeviceConstructor = DeviceConstructor(context, deviceConfiguration.attributes).apply {
         val rootDeviceTree = rootDeviceTree ?: this
         deviceConfiguration.devices.forEach { (name, scheme) ->
             install(
@@ -92,34 +92,34 @@ public class ConstructorPlugin : AbstractPlugin() {
         deviceConfiguration.components.forEach { (name, template) ->
             val factory = deviceManager.resolveDeviceFactory(template.type)
                 ?: error("Device template type ${template.type} is not registered")
-            installTree(name, factory, template.parameters)
+            installTree(name, factory, template.attributes)
         }
 
         deviceConfiguration.properties.forEach { (name, propertyConfiguration) ->
             // use special construction for device property states to resolve them relative to this construction root and not the context
             if (propertyConfiguration.type == DeviceValueStateFactory.TYPE) {
-                val deviceName = propertyConfiguration.parameters[deviceName]?.parseAsName()
+                val deviceName = propertyConfiguration.attributes[deviceName]?.parseAsName()
                     ?: error("Device name is not specified")
-                val propertyName = propertyConfiguration.parameters[propertyName]
+                val propertyName = propertyConfiguration.attributes[propertyName]
                     ?: error("Property name is not specified")
-                val defaultValue = propertyConfiguration.parameters[defaultValue] ?: Meta.EMPTY
+                val defaultValue = propertyConfiguration.attributes[defaultValue] ?: Meta.EMPTY
                 registerProperty(
                     name = name,
                     converter = MetaConverter.meta,
                     state = rootDeviceTree.resolvePropertyState(context, deviceName, propertyName, defaultValue),
                 ) {
-                    metadata = propertyConfiguration.parameters
+                    metadata = propertyConfiguration.attributes
                 }
             } else {
                 registerProperty(
                     name = name,
                     converter = MetaConverter.meta,
                     state = buildValueState(
-                        parameters = propertyConfiguration.parameters,
+                        parameters = propertyConfiguration.attributes,
                         type = propertyConfiguration.type,
                     ),
                 ) {
-                    metadata = propertyConfiguration.parameters
+                    metadata = propertyConfiguration.attributes
                 }
             }
         }

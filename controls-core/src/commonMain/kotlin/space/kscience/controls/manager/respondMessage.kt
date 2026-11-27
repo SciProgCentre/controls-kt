@@ -43,7 +43,7 @@ public suspend fun Device.respondMessage(targetDeviceName: Name, request: Device
         is GetDescriptionMessage -> {
             DescriptionMessage(
                 time = clock.now(),
-                description = meta,
+                description = attributes,
                 properties = propertyDescriptors,
                 actions = actionDescriptors,
                 sourceDevice = targetDeviceName,

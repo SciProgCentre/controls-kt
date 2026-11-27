@@ -17,7 +17,6 @@ import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -111,7 +110,7 @@ public data class Plc4xTagSourceConfig(
  * @param removeAuxiliaryValues Whether to remove auxiliary values like `@opc` parameters from the tag value.
  * @param maxAge The maximum age of the property value to consider it GOOD. Null means no maximum age.
  * @param maxDelta The maximum delta of the property value relative to previous one to consider it GOOD. Null means no maximum delta.
- * @param meta Metadata of the property
+ * @param attributes Metadata of the property
  */
 @Serializable
 public data class TagTableColumn(
@@ -123,7 +122,7 @@ public data class TagTableColumn(
     public val removeAuxiliaryValues: Boolean = true,
     public val maxAge: Duration? = null,
     public val maxDelta: Double? = null,
-    public val meta: Meta = Meta.EMPTY,
+    public val attributes: Meta = Meta.EMPTY,
 ) {
     public companion object
 }
@@ -139,7 +138,7 @@ public fun TagTableColumn.Companion.opc(
     removeAuxiliaryValues: Boolean = true,
     maxAge: Duration? = null,
     maxDelta: Double? = null,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
 ): TagTableColumn = TagTableColumn(
     source = source,
     timer = timer,
@@ -150,7 +149,7 @@ public fun TagTableColumn.Companion.opc(
     removeAuxiliaryValues = removeAuxiliaryValues,
     maxAge = maxAge,
     maxDelta = maxDelta,
-    meta = meta
+    attributes = attributes
 )
 
 /**
@@ -165,7 +164,7 @@ public fun TagTableColumn.Companion.plc4x(
     compression: ColumnCompression? = null,
     maxAge: Duration? = null,
     maxDelta: Double? = null,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
 ): TagTableColumn = TagTableColumn(
     source = source,
     timer = timer,
@@ -179,7 +178,7 @@ public fun TagTableColumn.Companion.plc4x(
     compression = compression,
     maxAge = maxAge,
     maxDelta = maxDelta,
-    meta = meta
+    attributes = attributes
 )
 
 /**
@@ -194,7 +193,7 @@ public fun TagTableColumn.Companion.modbus(
     compression: ColumnCompression? = null,
     maxAge: Duration? = null,
     maxDelta: Double? = null,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
 ): TagTableColumn = TagTableColumn(
     source = source,
     timer = timer,
@@ -206,7 +205,7 @@ public fun TagTableColumn.Companion.modbus(
     compression = compression,
     maxAge = maxAge,
     maxDelta = maxDelta,
-    meta = meta
+    attributes = attributes
 )
 
 /**
@@ -219,7 +218,7 @@ public fun TagTableColumn.Companion.modbus(
  * @param deviceName The name of the controls device that provides the property.
  * @param propertyName The name of the property to read from the device.
  * @param compression The compression configuration for stored property values, or null to use the global platform compression configuration.
- * @param meta Additional metadata associated with the column.
+ * @param attributes Additional metadata associated with the column.
  * @return A tag table column configured for the specified controls device property.
  */
 public fun TagTableColumn.Companion.controls(
@@ -227,7 +226,7 @@ public fun TagTableColumn.Companion.controls(
     deviceName: Name,
     propertyName: String,
     compression: ColumnCompression? = null,
-    meta: Meta = Meta.EMPTY,
+    attributes: Meta = Meta.EMPTY,
 ): TagTableColumn {
 
     return TagTableColumn(
@@ -238,7 +237,7 @@ public fun TagTableColumn.Companion.controls(
             set(ControlsTagSource.ColumnSpec.propertyName, propertyName)
         },
         compression = compression,
-        meta = meta
+        attributes = attributes
     )
 }
 

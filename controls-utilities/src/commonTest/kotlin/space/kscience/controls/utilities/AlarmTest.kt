@@ -257,7 +257,7 @@ class AlarmTest {
             val alarm = Alarm.buildDevice(context, parameters)
 
             assertEquals(settings, alarm.alarmSettings.value)
-            assertEquals("Temperature alarm", alarm.meta["description"].string)
+            assertEquals("Temperature alarm", alarm.attributes["description"].string)
             assertEquals(AlarmState(Alarm.STATUS_UNDEFINED, null), alarm.state.value)
 
             val source = VirtualValueState<Double?>(20.0)

@@ -113,7 +113,7 @@ public fun CoroutineScope.launchStorageJob(
 
     fun Device.storeDeviceProperties(deviceName: Name) {
 
-        val deviceStorageMeta = meta[MessageStorageScheme.MESSAGE_STORAGE_KEY]
+        val deviceStorageMeta = attributes[MessageStorageScheme.MESSAGE_STORAGE_KEY]
 
         if (deviceStorageMeta != null && !deviceStorageMeta.isEmpty()) {
             val storageConfiguration = MessageStorageScheme.read(deviceStorageMeta)
@@ -135,7 +135,7 @@ public fun CoroutineScope.launchStorageJob(
 
 
         propertyDescriptors.filter { it.readable }.forEach { descriptor ->
-            val storageMeta = Laminate(descriptor.metadata, meta)[MessageStorageScheme.MESSAGE_STORAGE_KEY]
+            val storageMeta = Laminate(descriptor.metadata, attributes)[MessageStorageScheme.MESSAGE_STORAGE_KEY]
 
             if (storageMeta != null && !storageMeta.isEmpty()) {
                 val storageConfiguration = MessageStorageScheme.read(storageMeta)

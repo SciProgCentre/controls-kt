@@ -22,23 +22,23 @@ public class Ports : AbstractPlugin() {
     /**
      * Create a new [AsynchronousPort] according to specification
      */
-    public fun buildAsynchronousPort(meta: Meta): AsynchronousPort {
-        val type by meta.string { error("Port type is not defined") }
+    public fun buildAsynchronousPort(attributes: Meta): AsynchronousPort {
+        val type by attributes.string { error("Port type is not defined") }
         val factory = asynchronousPortFactories.entries
             .firstOrNull { it.key.toString() == type }?.value
             ?: error("Port factory for type $type not found")
-        return factory.build(context, meta)
+        return factory.build(context, attributes)
     }
 
     /**
      * Create a [SynchronousPort] according to specification or wrap an asynchronous implementation
      */
-    public fun buildSynchronousPort(meta: Meta): SynchronousPort {
-        val type by meta.string { error("Port type is not defined") }
+    public fun buildSynchronousPort(attributes: Meta): SynchronousPort {
+        val type by attributes.string { error("Port type is not defined") }
         val factory = synchronousPortFactories.entries
             .firstOrNull { it.key.toString() == type }?.value
-            ?: return buildAsynchronousPort(meta).asSynchronousPort()
-        return factory.build(context, meta)
+            ?: return buildAsynchronousPort(attributes).asSynchronousPort()
+        return factory.build(context, attributes)
     }
 
     public companion object : PluginFactory<Ports> {

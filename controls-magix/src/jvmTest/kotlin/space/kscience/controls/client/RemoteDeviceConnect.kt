@@ -75,10 +75,10 @@ internal class RemoteDeviceConnect {
 
         context(device: DeviceBase)
         override suspend fun createState(): Random {
-            device.doRecurring((device.meta["delay"].int ?: 10).milliseconds) {
+            device.doRecurring((device.attributes["delay"].int ?: 10).milliseconds) {
                 device.read(value)
             }
-            return Random(device.meta["seed"].int ?: 0)
+            return Random(device.attributes["seed"].int ?: 0)
         }
 
         val value by doubleProperty { nextDouble() }

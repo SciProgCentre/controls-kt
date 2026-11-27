@@ -5,7 +5,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
-import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
@@ -26,9 +25,9 @@ import kotlin.time.Clock
 public interface Device : ContextAware, WithLifeCycle, CoroutineScope, DeviceMessageSource {
 
     /**
-     * Initial configuration meta for the device
+     * Initial configuration attributes for the device
      */
-    public val meta: Meta get() = Meta.EMPTY
+    public val attributes: Meta get() = Meta.EMPTY
 
 
     /**
@@ -99,7 +98,7 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope, DeviceMes
 /**
  * Inner id of a device. Not necessary corresponds to the name in the parent container
  */
-public val Device.id: String get() = meta["id"].string ?: "device[${hashCode().toString(16)}]"
+public val Device.id: String get() = attributes["id"].string ?: "device[${hashCode().toString(16)}]"
 
 /**
  * Device that caches properties values

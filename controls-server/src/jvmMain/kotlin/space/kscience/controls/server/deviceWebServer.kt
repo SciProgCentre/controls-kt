@@ -67,7 +67,7 @@ private fun JsonObjectBuilder.deviceTree(tree: DeviceTree, namePrefix: Name, exp
     tree.device?.let { device ->
         put("name", namePrefix.toString())
         if (expand) {
-            put("meta", device.meta.toJson())
+            put("meta", device.attributes.toJson())
             put("properties", buildJsonArray {
                 device.propertyDescriptors.forEach { descriptor ->
                     add(Json.encodeToJsonElement(descriptor))

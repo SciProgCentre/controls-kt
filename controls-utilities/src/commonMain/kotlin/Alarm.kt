@@ -11,7 +11,6 @@ import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.node
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.getIndexedList
-import space.kscience.dataforge.names.parseAsName
 
 /**
  * Settings for alarm thresholds.
@@ -46,8 +45,8 @@ public data class AlarmState(
 public class Alarm(
     context: Context,
     settings: List<AlarmSetting> = emptyList(),
-    meta: Meta = Meta.EMPTY
-) : DeviceConstructor(context, meta), BoundStateHolder {
+    attributes: Meta = Meta.EMPTY
+) : DeviceConstructor(context, attributes), BoundStateHolder {
 
     /**
      * The list of alarm settings. Order of threshold matters. If two thresholds are violated simultaneously, the last wins.
@@ -127,11 +126,11 @@ public class Alarm(
          */
         override fun buildDevice(
             context: Context,
-            meta: Meta
+            attributes: Meta
         ): Alarm {
-            val settings = meta[settings]
+            val settings = attributes[settings]
 
-            return Alarm(context, settings ?: emptyList(), meta)
+            return Alarm(context, settings ?: emptyList(), attributes)
         }
 
         public fun buildDeviceMeta(settings: List<AlarmSetting>, metadata: MutableMeta.() -> Unit = {}): Meta = Meta {

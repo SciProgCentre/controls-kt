@@ -22,7 +22,7 @@ class DeviceGroupTest {
     class TestDevice(context: Context) : DeviceConstructor(context) {
 
         companion object : DeviceFactory {
-            override fun buildDevice(context: Context, meta: Meta): Device = TestDevice(context)
+            override fun buildDevice(context: Context, attributes: Meta): Device = TestDevice(context)
         }
     }
 

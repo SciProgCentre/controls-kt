@@ -132,7 +132,7 @@ private fun RootOverviewInspector(model: DeviceConfiguratorModel) {
         Text("Root Parameters", style = MaterialTheme.typography.titleSmall)
         MetaDescriptorEditor(
             descriptor = null,
-            meta = config.parameters,
+            attributes = config.attributes,
             onMetaChange = { updated ->
                 model.updateSubConfiguration(Name.EMPTY) { root ->
                     ConstructorDeviceConfiguration(
@@ -140,7 +140,7 @@ private fun RootOverviewInspector(model: DeviceConfiguratorModel) {
                         devices = root.devices,
                         components = root.components,
                         bindings = root.bindings,
-                        parameters = updated
+                        attributes = updated
                     )
                 }
             }
@@ -210,7 +210,7 @@ private fun DeviceNodeInspector(
                                 devices = updatedDevices,
                                 components = parent.components,
                                 bindings = parent.bindings,
-                                parameters = parent.parameters
+                                attributes = parent.attributes
                             )
                         }
                         val newPath = parentPath + editName.trim().parseAsName()
@@ -255,7 +255,7 @@ private fun DeviceNodeInspector(
         Text("Device Parameters", style = MaterialTheme.typography.titleSmall)
         MetaDescriptorEditor(
             descriptor = null,
-            meta = config.parameters,
+            attributes = config.attributes,
             onMetaChange = { updated ->
                 model.updateSubConfiguration(devicePath) { target ->
                     ConstructorDeviceConfiguration(
@@ -263,7 +263,7 @@ private fun DeviceNodeInspector(
                         devices = target.devices,
                         components = target.components,
                         bindings = target.bindings,
-                        parameters = updated
+                        attributes = updated
                     )
                 }
             }
@@ -320,7 +320,7 @@ private fun TemplateNodeInspector(
         Text("Parameters Form", style = MaterialTheme.typography.titleSmall)
         MetaDescriptorEditor(
             descriptor = descriptor,
-            meta = template.parameters,
+            attributes = template.attributes,
             onMetaChange = { updated ->
                 model.updateTemplateParameters(parentPath, name, updated)
             }
@@ -404,7 +404,7 @@ private fun PropertyInspector(
                                 oldName = propertyName,
                                 newName = editName,
                                 type = t,
-                                parameters = prop.parameters
+                                parameters = prop.attributes
                             )
                         }
                     )
@@ -414,7 +414,7 @@ private fun PropertyInspector(
 
         // Specific editor for TagTable property
         if (selectedType == "tagTable") {
-            val currentTag = prop.parameters["tag"]?.string ?: ""
+            val currentTag = prop.attributes["tag"]?.string ?: ""
             var tagInput by remember(currentTag) { mutableStateOf(currentTag) }
 
             OutlinedTextField(
@@ -442,7 +442,7 @@ private fun PropertyInspector(
         Text("Parameters", style = MaterialTheme.typography.titleSmall)
         MetaDescriptorEditor(
             descriptor = null,
-            meta = prop.parameters,
+            attributes = prop.attributes,
             onMetaChange = { updated ->
                 model.updateProperty(
                     devicePath = devicePath,
@@ -462,7 +462,7 @@ private fun PropertyInspector(
                         oldName = propertyName,
                         newName = editName.trim(),
                         type = selectedType,
-                        parameters = prop.parameters
+                        parameters = prop.attributes
                     )
                 },
                 modifier = Modifier.fillMaxWidth()

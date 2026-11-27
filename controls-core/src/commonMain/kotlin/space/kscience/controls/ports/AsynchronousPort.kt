@@ -32,7 +32,7 @@ public fun AsynchronousPort.receiveAsSource(scope: CoroutineScope): Source = sub
  */
 public abstract class AbstractAsynchronousPort(
     override val context: Context,
-    public val meta: Meta,
+    public val attributes: Meta,
     coroutineContext: CoroutineContext = context.coroutineContext,
 ) : AsynchronousPort {
 
@@ -46,8 +46,8 @@ public abstract class AbstractAsynchronousPort(
         )
     }
 
-    private val outgoing = Channel<ByteArray>(meta["outgoing.capacity"].int ?: 100)
-    private val incoming = Channel<ByteArray>(meta["incoming.capacity"].int ?: 100)
+    private val outgoing = Channel<ByteArray>(attributes["outgoing.capacity"].int ?: 100)
+    private val incoming = Channel<ByteArray>(attributes["incoming.capacity"].int ?: 100)
 
     /**
      * Internal method to synchronously send data
@@ -113,7 +113,7 @@ public abstract class AbstractAsynchronousPort(
         sendJob?.cancel()
     }
 
-    override fun toString(): String = meta["name"].string ?: "ChannelPort[${hashCode().toString(16)}]"
+    override fun toString(): String = attributes["name"].string ?: "ChannelPort[${hashCode().toString(16)}]"
 }
 
 /**

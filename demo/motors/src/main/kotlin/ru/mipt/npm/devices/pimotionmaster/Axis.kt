@@ -175,9 +175,9 @@ object Axis : AbstractDeviceSpec() {
 
     fun build(
         context: Context,
-        meta: Meta,
+        attributes: Meta,
         port: PiMotionMasterConnector,
         axisId: String,
-    ): Device = builder(port, axisId).buildDevice(context, meta)
+    ): Device = builder(port, axisId).buildDevice(context, attributes)
 
 }

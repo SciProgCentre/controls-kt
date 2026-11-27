@@ -16,8 +16,8 @@ public class LinearDrive(
     position: ValueState<NumericAmount<Meters>>,
     pidParameters: PidParameters,
     context: Context = drive.context,
-    meta: Meta = Meta.EMPTY,
-) : DeviceConstructor(context, meta) {
+    attributes: Meta = Meta.EMPTY,
+) : DeviceConstructor(context, attributes) {
 
     public val position: ValueState<NumericAmount<Meters>> by property(MetaConverter.numeric(Meters), position)
 

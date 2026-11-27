@@ -316,7 +316,7 @@ class StateExpressionTest {
         }
 
         companion object : DeviceFactory {
-            override fun buildDevice(context: Context, meta: Meta): Device = TwoInputs(context)
+            override fun buildDevice(context: Context, attributes: Meta): Device = TwoInputs(context)
         }
     }
 

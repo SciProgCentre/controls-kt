@@ -89,16 +89,16 @@ public sealed interface ClockMode {
  * repeatedly with a fixed delay between executions. The delay is compatible with the
  * managed time provided by the clock in `simulationDispatcher`.
  */
-public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
+public class ClockManager(attributes: Meta) : AbstractPlugin(attributes) {
     override val tag: PluginTag get() = Companion.tag
 
 
     public val clockMode: ClockMode by lazy {
-        when (meta["clock.mode"].string) {
+        when (attributes["clock.mode"].string) {
             null, "system" -> ClockMode.System
             "virtual" -> ClockMode.Virtual(VirtualTimeDispatcher(context))
-            "compressed" -> ClockMode.Compressed(meta["clock.compression"].double ?: 1.0)
-            else -> error("Can't resolve clock for $meta")
+            "compressed" -> ClockMode.Compressed(attributes["clock.compression"].double ?: 1.0)
+            else -> error("Can't resolve clock for $attributes")
         }
     }
 
@@ -107,12 +107,12 @@ public class ClockManager(meta: Meta) : AbstractPlugin(meta) {
             ClockMode.System -> Clock.System
             is ClockMode.Custom -> mode.clock
             is ClockMode.Compressed -> CompressedClock(Clock.System, mode.compression)
-            is ClockMode.Virtual -> mode.scheduler.asClock(meta["clock.start"]?.instant ?: Clock.System.now())
+            is ClockMode.Virtual -> mode.scheduler.asClock(attributes["clock.start"]?.instant ?: Clock.System.now())
         }
     }
 
     public val timeZone: TimeZone by lazy {
-        meta["clock.timeZone"].string?.let { TimeZone.of(it) } ?: TimeZone.currentSystemDefault()
+        attributes["clock.timeZone"].string?.let { TimeZone.of(it) } ?: TimeZone.currentSystemDefault()
     }
 
     /**

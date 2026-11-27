@@ -20,7 +20,7 @@ public abstract class Plc4XDeviceFactory : DeviceWithStateFactory<PlcConnection>
 
     context(device: DeviceBase)
     override suspend fun createState(): PlcConnection {
-        val config = Plc4XConfig.read(device.meta)
+        val config = Plc4XConfig.read(device.attributes)
         return PlcDriverManager.getDefault().connectionManager.getConnection(config.endpointUrl)
     }
 
