@@ -17,8 +17,7 @@ A device configuration JSON document represents a single `ConstructorDeviceConfi
   "devices": {},
   "components": {},
   "bindings": [],
-  "parameters": {},
-  "metadata": {}
+  "attributes": {}
 }
 ```
 
@@ -30,8 +29,7 @@ A device configuration JSON document represents a single `ConstructorDeviceConfi
 | `devices`    | `object` | `{}`    | Map of sub-device names to nested `ConstructorDeviceConfiguration` objects.                                      |
 | `components` | `object` | `{}`    | Map of component names to `TemplateDeviceConfiguration` virtual/template devices.                                |
 | `bindings`   | `array`  | `[]`    | List of `ConstructorBinding` objects defining reactive data connections between properties and component inputs. |
-| `parameters` | `object` | `{}`    | Configuration parameters passed to the `DeviceConstructor` instance.                                             |
-| `metadata`   | `object` | `{}`    | Arbitrary user or application metadata.                                                                          |
+| `attributes` | `object` | `{}`    | Configuration attributes and metadata passed to the `ConstructorDeviceConfiguration` instance.                   |
 
 ---
 
@@ -44,10 +42,8 @@ is produced.
 "properties": {
   "temperature": {
     "type": "tagTable",
-    "parameters": {
-      "tag": "sensors.temp1"
-    },
-    "metadata": {
+    "attributes": {
+      "tag": "sensors.temp1",
       "unit": "celsius"
     }
   }
@@ -59,8 +55,7 @@ is produced.
 | Field        | Type     | Default      | Description                                                                                                                                                                                |
 |--------------|----------|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `type`       | `string` | **required** | Factory type identifier used to construct the `ValueState` (e.g., `"deviceProperty"`, `"math"`, `"expression"`, `"tagTable"`). Short names and fully-qualified plugin names are supported. |
-| `parameters` | `object` | `{}`         | Factory-specific parameters (`Meta`).                                                                                                                                                      |
-| `metadata`   | `object` | `null`       | Optional metadata associated with the property (descriptors, UI hints, units).                                                                                                             |
+| `attributes` | `object` | `{}`         | Factory-specific attributes and metadata (`Meta`).                                                                                                                                         |
 
 ### Standard Value State Factories
 
@@ -71,7 +66,7 @@ Binds to an existing property of another device.
 ```json
 {
   "type": "deviceProperty",
-  "parameters": {
+  "attributes": {
     "deviceName": "sensors.tempSensor",
     "propertyName": "temperature",
     "defaultValue": 0.0
@@ -90,18 +85,18 @@ Evaluates a mathematical expression formula string reactively using KMath expres
 ```json
 {
   "type": "math",
-  "parameters": {
+  "attributes": {
     "expression": "2.0 * x + y",
     "arguments": {
       "x": {
         "type": "tagTable",
-        "parameters": {
+        "attributes": {
           "tag": "sensor.x"
         }
       },
       "y": {
         "type": "math",
-        "parameters": {
+        "attributes": {
           "expression": "10.0"
         }
       }
@@ -146,7 +141,7 @@ Evaluates a structured Abstract Syntax Tree (`ValueStateExpression`) represented
 ```json
 {
   "type": "expression",
-  "parameters": {
+  "attributes": {
     "expression": {
       "type": "binary",
       "operation": "+",
@@ -171,7 +166,7 @@ Evaluates a structured Abstract Syntax Tree (`ValueStateExpression`) represented
 }
 ```
 
-##### Parameters
+##### Attributes
 
 * `expression` (`object`, required): Serialized root `ValueStateExpression` AST node.
 * `bindings` (`object`, optional): Map of symbol names to nested `ValueStateConfiguration` objects resolved by `"symbol"` nodes.
@@ -316,7 +311,7 @@ Connects the property to an external physical tag source (OPC-UA, Modbus, PLC4X)
 ```json
 {
   "type": "tagTable",
-  "parameters": {
+  "attributes": {
     "tag": "opc.boiler.pressure",
     "table": "@table"
   }
@@ -337,7 +332,7 @@ The `components` object defines template/virtual devices instantiated from regis
 "components": {
   "alarm1": {
     "type": "controls.utilities.alarm",
-    "parameters": {
+    "attributes": {
       "settings": [
         {
           "lowerThreshold": -5.0,
@@ -350,8 +345,7 @@ The `components` object defines template/virtual devices instantiated from regis
           "status": "OUT10"
         }
       ]
-    },
-    "metadata": {}
+    }
   }
 }
 ```
@@ -361,8 +355,7 @@ The `components` object defines template/virtual devices instantiated from regis
 | Field        | Type     | Default      | Description                                                                                                                         |
 |--------------|----------|--------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `type`       | `string` | **required** | Registered factory name of the component (e.g., `"controls.utilities.alarm"`, `"controls.utilities.accumulator"`, `"computation"`). |
-| `parameters` | `object` | `{}`         | Initialization parameters passed to the factory.                                                                                    |
-| `metadata`   | `object` | `{}`         | Optional component metadata.                                                                                                        |
+| `attributes` | `object` | `{}`         | Initialization attributes passed to the factory.                                                                                    |
 
 ### Common Template Device Types
 
@@ -425,7 +418,7 @@ The `devices` map allows arbitrary hierarchical nesting of device configurations
     "properties": {
       "flow": {
         "type": "tagTable",
-        "parameters": {
+        "attributes": {
           "tag": "plc.flow1"
         }
       }
@@ -452,24 +445,24 @@ virtual alarm components, and bindings:
   "properties": {
     "temperature": {
       "type": "tagTable",
-      "parameters": {
+      "attributes": {
         "tag": "opc.sensor.temp"
       }
     },
     "pressure": {
       "type": "tagTable",
-      "parameters": {
+      "attributes": {
         "tag": "opc.sensor.pressure"
       }
     },
     "compensatedTemperature": {
       "type": "math",
-      "parameters": {
+      "attributes": {
         "expression": "temperature * 1.05 + 0.2",
         "arguments": {
           "temperature": {
             "type": "tagTable",
-            "parameters": {
+            "attributes": {
               "tag": "opc.sensor.temp"
             }
           }
@@ -480,7 +473,7 @@ virtual alarm components, and bindings:
   "components": {
     "tempAlarm": {
       "type": "controls.utilities.alarm",
-      "parameters": {
+      "attributes": {
         "settings": [
           {
             "lowerThreshold": 10.0,
@@ -509,7 +502,7 @@ virtual alarm components, and bindings:
       "properties": {
         "speed": {
           "type": "tagTable",
-          "parameters": {
+          "attributes": {
             "tag": "modbus.pump.speed"
           }
         }

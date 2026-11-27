@@ -86,7 +86,7 @@ class ConstructorPluginTest {
           "properties": {
             "temperature": {
               "type": "tagTable",
-              "parameters": {
+              "attributes": {
                 "tag": "opc.sensor.temp"
               }
             }
@@ -94,7 +94,7 @@ class ConstructorPluginTest {
           "components": {
             "tempAlarm": {
               "type": "controls.utilities.alarm",
-              "parameters": {
+              "attributes": {
                 "settings": [
                   {
                     "lowerThreshold": 10.0,
@@ -118,7 +118,7 @@ class ConstructorPluginTest {
               "properties": {
                 "speed": {
                   "type": "tagTable",
-                  "parameters": {
+                  "attributes": {
                     "tag": "modbus.pump.speed"
                   }
                 }

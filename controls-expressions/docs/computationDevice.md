@@ -60,7 +60,7 @@ val configuration = ConstructorDeviceConfiguration(
     components = mapOf(
         "powerCalculator" to TemplateDeviceConfiguration(
             type = ComputationDevice.TYPE,
-            parameters = Meta {
+            attributes = Meta {
                 set(ComputationDevice.argNames, listOf("u", "i"))
                 set(ComputationDevice.formula, "u * i")
             }

@@ -39,13 +39,13 @@ The factory requires `window`: numeric seconds or a string accepted by `Duration
 such as `"5s"` or `"PT5S"`.
 
 ```kotlin
-val parameters = Meta { "window" put "5s" }
-val accumulator = Accumulator.buildDevice(context, parameters)
+val attributes = Meta { "window" put "5s" }
+val accumulator = Accumulator.buildDevice(context, attributes)
 accumulator.bind(sensor.map(MetaConverter.double.nullable()::convert))
 ```
 
 For configuration-based construction, install `ControlsUtilitiesPlugin`, add
-`TemplateDeviceConfiguration(type = "controls.utilities.accumulator", parameters = parameters)`
+`TemplateDeviceConfiguration(type = "controls.utilities.accumulator", attributes = attributes)`
 to `ConstructorDeviceConfiguration.components`, and connect a source property through:
 
 ```kotlin

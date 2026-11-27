@@ -24,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -399,7 +400,7 @@ class FileDeviceMessageStorageTest {
         var dfFiles = tempDir.listDirectoryEntries("*.df")
         val deadline = System.currentTimeMillis() + 5000
         while (dfFiles.isEmpty() && System.currentTimeMillis() < deadline) {
-            kotlinx.coroutines.delay(50)
+            kotlinx.coroutines.delay(50.milliseconds)
             dfFiles = tempDir.listDirectoryEntries("*.df")
         }
 

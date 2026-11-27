@@ -136,7 +136,7 @@ See [Device Factory and DeviceWithStateBuilder](DeviceFactory.md) for more detai
 
 To access property values, one needs to use both the device instance and property descriptor from the spec like follows:
 ```kotlin
-val device = DemoDevice.build(context, meta)
+val device = DemoDevice.build(context, attributes)
 
 val res = device.read(DemoDevice.sin)
 ```

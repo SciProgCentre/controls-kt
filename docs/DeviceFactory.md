@@ -85,5 +85,5 @@ override fun destroyState(state: MyDeviceState) {
 Once you have a factory, you can create a device instance using the `build` method:
 
 ```kotlin
-val device = MyDevice.build(context, meta)
+val device = MyDevice.build(context, attributes)
 ```

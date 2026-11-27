@@ -64,8 +64,8 @@ The UI interface is structured into four main operational areas:
 
 ### 2.4. Right Inspector Panel
 * **Context-Aware Property Editor**:
-  * **Device Block Selected**: Edit device `name`, sub-device hierarchies, and arbitrary metadata entries in `parameters` / `metadata`.
-  * **Property Selected**: Edit property `name`, select `ValueStateFactory` type, configure parameters (e.g., mathematical expression string or tag reference).
+  * **Device Block Selected**: Edit device `name`, sub-device hierarchies, and arbitrary metadata entries in `attributes`.
+  * **Property Selected**: Edit property `name`, select `ValueStateFactory` type, configure attributes (e.g., mathematical expression string or tag reference).
   * **Template Device Selected**: Dynamically generated input form based on the factory's `MetaDescriptor` (validating schema types, numeric ranges, default values, and unit specifications).
   * **Binding Wire Selected**: Configure `sourceDevice`, `sourceProperty`, `targetDevice`, `targetInput` (defaulting to `DEFAULT_INPUT_NAME`), and `defaultValue`.
 
@@ -95,7 +95,7 @@ graph TD
   ```json
   "temperature": {
     "type": "tagTable",
-    "parameters": {
+    "attributes": {
       "tag": "opc.sensor1.temp"
     }
   }
@@ -109,7 +109,7 @@ graph TD
   "components": {
     "alarm1": {
       "type": "controls.utilities.alarm",
-      "parameters": {
+      "attributes": {
         "settings": [
           { "min": -5.0, "max": 5.0, "code": "OUT5" }
         ]

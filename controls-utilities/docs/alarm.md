@@ -41,10 +41,10 @@ The factory reads `settings` and optional `metadata`, not `childDeviceName` or `
 An absent `settings` node means an empty list. Use the helper to preserve its indexed format:
 
 ```kotlin
-val parameters = Alarm.buildDeviceMeta(
+val attributes = Alarm.buildDeviceMeta(
     listOf(AlarmSetting(upperThreshold = 40.0, status = "HIGH"))
 )
-val alarm = Alarm.buildDevice(context, parameters)
+val alarm = Alarm.buildDevice(context, attributes)
 alarm.bind(temperature.map(MetaConverter.double.nullable()::convert), "value")
 ```
 
@@ -53,7 +53,7 @@ or explicit-null `lowerThreshold`/`upperThreshold`. At least one threshold must 
 The descriptor describes the editor/catalog shape; the converter and `AlarmSetting` validate each rule.
 
 For configuration-based construction, install `ControlsUtilitiesPlugin`, put
-`TemplateDeviceConfiguration(type = "controls.utilities.alarm", parameters = parameters)`
+`TemplateDeviceConfiguration(type = "controls.utilities.alarm", attributes = attributes)`
 in `ConstructorDeviceConfiguration.components`, and connect its input through `bindings`:
 
 ```kotlin

@@ -45,9 +45,9 @@ public class ConstructorPlugin : AbstractPlugin() {
     }
 
     public fun buildValueState(
-        parameters: Meta,
-        type: String = parameters["type"]?.string ?: error("Type not specified")
-    ): ValueState<Meta> = resolveValueStateFactory(type)?.build(context, parameters)
+        attributes: Meta,
+        type: String = attributes["type"]?.string ?: error("Type not specified")
+    ): ValueState<Meta> = resolveValueStateFactory(type)?.build(context, attributes)
         ?: error("No value state factory for type $type. Available factories: ${valueStateFactories.keys.sortedBy { it.toString() }}")
 
     public fun buildValueState(
@@ -115,7 +115,7 @@ public class ConstructorPlugin : AbstractPlugin() {
                     name = name,
                     converter = MetaConverter.meta,
                     state = buildValueState(
-                        parameters = propertyConfiguration.attributes,
+                        attributes = propertyConfiguration.attributes,
                         type = propertyConfiguration.type,
                     ),
                 ) {
