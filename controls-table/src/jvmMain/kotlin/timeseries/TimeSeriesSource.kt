@@ -3,12 +3,11 @@ package space.kscience.controls.tagtable.timeseries
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import space.kscience.controls.api.Device
-import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.name
 import space.kscience.controls.time.ValueHistory
-import space.kscience.controls.time.collectPropertyHistory
 import space.kscience.controls.time.ValueWithTime
+import space.kscience.controls.time.collectPropertyHistory
 import space.kscience.dataforge.meta.MetaConverter
 
 /**
@@ -37,7 +36,7 @@ public class PropertyTimeSeriesSource<T>(
     public val converter: MetaConverter<T>,
     override val history: ValueHistory<T> = device.collectPropertyHistory(device, propertyName, converter)
 ) : TimeSeriesSource<T> {
-    override suspend fun subscribe(): Flow<ValueWithTime<T>> = device.propertyMessageFlow(propertyName).map {
+    override suspend fun subscribe(): Flow<ValueWithTime<T>> = device.subscribeToProperty(propertyName).map {
         ValueWithTime(converter.read(it.value), it.time)
     }
 }
@@ -45,7 +44,7 @@ public class PropertyTimeSeriesSource<T>(
 /**
  * Create a time series source from a device property spec
  */
-public fun <T, D: Device> PropertyTimeSeriesSource(
+public fun <T, D : Device> PropertyTimeSeriesSource(
     device: D,
     propertySpec: DevicePropertySpec<T>
 ): PropertyTimeSeriesSource<T> = PropertyTimeSeriesSource(device, propertySpec.name, propertySpec.converter)

@@ -1,7 +1,9 @@
 package space.kscience.controls.client
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import space.kscience.controls.api.PropertyChangedMessage
@@ -35,14 +37,12 @@ public fun <T> DeviceClient.writeAsync(propertySpec: DevicePropertySpec<T>, valu
     try {
         write(propertySpec, value)
     } catch (e: Exception) {
+        if (e is CancellationException) {
+            ensureActive()
+        }
         logger.error(e) { "Error writing property ${propertySpec.name}" }
     }
 }
-
-public fun <T> DeviceClient.propertyFlow(spec: DevicePropertySpec<T>): Flow<T> = messageFlow
-    .filterIsInstance<PropertyChangedMessage>()
-    .filter { it.property == spec.name }
-    .mapNotNull { spec.converter.readOrNull(it.value) }
 
 public fun <T> DeviceClient.onPropertyChange(
     spec: DevicePropertySpec<T>,

@@ -149,9 +149,7 @@ public fun <T> Device.writeAsync(propertySpec: DevicePropertySpec<T>, value: T):
 /**
  * A type safe flow of property changes for given property
  */
-public fun <T> Device.propertyFlow(spec: DevicePropertySpec<T>): Flow<T> = messageFlow
-    .filterIsInstance<PropertyChangedMessage>()
-    .filter { it.property == spec.name }
+public fun <T> Device.propertyFlow(spec: DevicePropertySpec<T>): Flow<T> = subscribeToProperty(spec.name)
     .mapNotNull { spec.converter.read(it.value) }
 
 /**
@@ -160,14 +158,12 @@ public fun <T> Device.propertyFlow(spec: DevicePropertySpec<T>): Flow<T> = messa
 public fun <T> Device.onPropertyChange(
     spec: DevicePropertySpec<T>,
     scope: CoroutineScope = this,
-    callback: suspend PropertyChangedMessage.(T) -> Unit,
-): Job = messageFlow
-    .filterIsInstance<PropertyChangedMessage>()
-    .filter { it.property == spec.name }
-    .onEach { change ->
-        val newValue = spec.converter.readOrNull(change.value)
+    callback: suspend (ValueWithTime<T>) -> Unit,
+): Job = subscribeToProperty(spec.name)
+    .onEach { (value, time) ->
+        val newValue = spec.converter.readOrNull(value)
         if (newValue != null) {
-            change.callback(newValue)
+            callback(ValueWithTime(newValue, time))
         }
     }.launchIn(scope)
 
@@ -182,10 +178,13 @@ public fun <T> Device.useProperty(
     try {
         callback(read(spec))
     } catch (e: Exception) {
+        if (e is CancellationException) {
+            ensureActive()
+        }
         context.logger.error(e) { "Failed to read initial value of property ${spec.name}" }
     }
     onPropertyChange(spec, scope) {
-        callback(it)
+        callback(it.value)
     }
 }
 
@@ -210,10 +209,13 @@ public fun <T> Device.usePropertyWithTime(
     try {
         callback(ValueWithTime(read(spec), clock.now()))
     } catch (e: Exception) {
+        if (e is CancellationException) {
+            ensureActive()
+        }
         context.logger.error(e) { "Failed to read initial value of property ${spec.name}" }
     }
     onPropertyChange(spec, scope) {
-        callback(ValueWithTime(it, clock.now()))
+        callback(it)
     }
 }
 

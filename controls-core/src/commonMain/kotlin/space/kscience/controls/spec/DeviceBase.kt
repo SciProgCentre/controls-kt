@@ -2,13 +2,17 @@ package space.kscience.controls.spec
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.kscience.controls.api.*
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.deviceDispatcher
+import space.kscience.controls.time.filterValueNotNull
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.debug
 import space.kscience.dataforge.context.error
@@ -19,6 +23,7 @@ import space.kscience.dataforge.meta.int
 import space.kscience.dataforge.names.Name
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 
 /**
@@ -48,10 +53,12 @@ public abstract class DeviceBase(
         get() = actions.values.map { it.descriptor }
 
 
-    private val sharedMessageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow<DeviceMessage>(
-        replay = meta["message.buffer"].int ?: 1000,
+    private val _messageFlow: MutableSharedFlow<DeviceMessage> = MutableSharedFlow<DeviceMessage>(
+        replay = meta["message.buffer"].int ?: 100,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    public override val messageFlow: SharedFlow<DeviceMessage> get() = _messageFlow
 
     override val coroutineContext: CoroutineContext = context.newCoroutineContext(
         SupervisorJob(context.coroutineContext[Job]) +
@@ -59,7 +66,7 @@ public abstract class DeviceBase(
                 context.deviceDispatcher +
                 CoroutineExceptionHandler { _, throwable ->
                     launch {
-                        sharedMessageFlow.emit(
+                        _messageFlow.emit(
                             DeviceErrorMessage(
                                 time = clock.now(),
                                 errorMessage = throwable.message,
@@ -72,13 +79,20 @@ public abstract class DeviceBase(
                 }
     )
 
+    private fun createStateFlow(): MutableStateFlow<ValueWithTime<Meta?>> =
+        MutableStateFlow<ValueWithTime<Meta?>>(ValueWithTime(null, Instant.DISTANT_PAST))
+
 
     /**
      * Logical state store
      */
-    private val logicalState: HashMap<String, Meta?> = HashMap()
+    private val logicalState: MutableMap<String, MutableStateFlow<ValueWithTime<Meta?>>> by lazy {
+        propertyDescriptors.associateTo(HashMap()) { it.name to createStateFlow() }
+    }
 
-    public override val messageFlow: SharedFlow<DeviceMessage> get() = sharedMessageFlow
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
+        logicalState[propertyName]?.filterValueNotNull() ?: error("Property $propertyName not found")
+
 
     private val stateLock = Mutex()
 
@@ -88,10 +102,10 @@ public abstract class DeviceBase(
     public suspend fun propertyChanged(propertyName: String, value: Meta?) {
         if (value != logicalState[propertyName]) {
             stateLock.withLock {
-                logicalState[propertyName] = value
+                logicalState.getOrPut(propertyName) { createStateFlow() }.value = ValueWithTime(value, clock.now())
             }
             if (value != null) {
-                sharedMessageFlow.emit(PropertyChangedMessage(clock.now(), propertyName, value))
+                _messageFlow.emit(PropertyChangedMessage(clock.now(), propertyName, value))
             }
         }
     }
@@ -124,16 +138,7 @@ public abstract class DeviceBase(
         return meta
     }
 
-    override fun getCachedProperty(propertyName: String): Meta? = logicalState[propertyName]
-
-    @InternalDeviceAPI
-    override fun setCachedProperty(propertyName: String, value: Meta?) {
-        if (value == null) {
-            logicalState.remove(propertyName)
-        } else {
-            logicalState[propertyName] = value
-        }
-    }
+    override fun getCachedProperty(propertyName: String): Meta? = logicalState[propertyName]?.value?.value
 
     override suspend fun invalidate(propertyName: String) {
         stateLock.withLock {
@@ -183,7 +188,7 @@ public abstract class DeviceBase(
 
     private suspend fun setLifecycleState(lifecycleState: LifecycleState) {
         this.lifecycleState = lifecycleState
-        sharedMessageFlow.emit(
+        _messageFlow.emit(
             DeviceLifeCycleMessage(clock.now(), lifecycleState)
         )
     }
@@ -198,7 +203,7 @@ public abstract class DeviceBase(
             sourceDevice = Name.EMPTY,
             targetDevice = null
         )
-        sharedMessageFlow.emit(initialDescriptionMessage)
+        _messageFlow.emit(initialDescriptionMessage)
     }
 
     final override suspend fun start() {

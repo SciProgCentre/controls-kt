@@ -301,13 +301,17 @@ public fun Application.deviceTreeModule(
                         )
                     }
 
-                    device.propertyMessageFlow(property).collect {
+                    device.subscribeToProperty(property).collect { (value, time) ->
+                        val message = PropertyChangedMessage(
+                            time = time,
+                            property = property,
+                            value = value,
+                            sourceDevice = Name.parse(target)
+                        )
+
                         outgoing.send(
                             Frame.Text(
-                                MagixEndpoint.magixJson.encodeToString(
-                                    DeviceMessage.serializer(),
-                                    it.copy(sourceDevice = Name.parse(target))
-                                )
+                                MagixEndpoint.magixJson.encodeToString(DeviceMessage.serializer(), message)
                             )
                         )
                     }

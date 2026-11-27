@@ -127,7 +127,7 @@ public fun <T, D : ValueState<T>> MutableConstructor.registerState(state: D, nam
  * Create a register a [MutableValueState]
  */
 public fun <T> MutableConstructor.stateOf(initialValue: T, name: Name? = null): MutableValueState<T> = registerState(
-    state = MutableValueState(initialValue),
+    state = this@stateOf.VirtualValueState(initialValue),
     name = name
 )
 
@@ -199,7 +199,7 @@ public fun <T, R> MutableConstructor.flowState(
     name: Name? = null,
     transformation: suspend FlowCollector<R>.(T) -> Unit,
 ): ValueStateWithDependencies<R> {
-    val state = MutableValueState(initialValue, context.clock)
+    val state = VirtualValueState(initialValue, context.clock)
     origin.subscribe().transform(transformation).onEach { state.value = it }.launchIn(this)
     return registerState(state.withDependencies(setOf(origin)), name)
 }

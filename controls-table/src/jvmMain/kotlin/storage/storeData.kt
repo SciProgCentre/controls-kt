@@ -1,8 +1,10 @@
 package space.kscience.controls.tagtable.storage
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
@@ -112,8 +114,10 @@ public fun TagTable.storeData(
     maxPause = maxPause,
     compression = compression,
 ).onEach { envelope ->
-    val time = envelope.meta["@envelope.time"]?.instant ?: clock.now()
-    val relativePath = strategy.resolveDirectory(envelope, time)
-    val fileName = "data_${clock.now().toString().replace(":", "-")}"
-    operations.writeEnvelope(fileName, directory.resolve(relativePath), envelope)
+    withContext(Dispatchers.IO) {
+        val time = envelope.meta["@envelope.time"]?.instant ?: clock.now()
+        val relativePath = strategy.resolveDirectory(envelope, time)
+        val fileName = "data_${clock.now().toString().replace(":", "-")}"
+        operations.writeEnvelope(fileName, directory.resolve(relativePath), envelope)
+    }
 }.launchIn(this)

@@ -10,6 +10,7 @@ import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaRepr
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.tables.MapRow
 import space.kscience.tables.Row

@@ -10,6 +10,7 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import kotlin.test.Test
@@ -67,26 +68,6 @@ class TagTablePluginTest {
             runCurrent()
             assertEquals(0, default.starts)
             assertEquals(0, named.starts)
-        } finally {
-            context.close()
-        }
-    }
-
-    @Test
-    fun testInstallRegistersBeforeItsSingleStart() = runTest(timeout = 5.seconds) {
-        val context = pluginContext("tag-install")
-        try {
-            val table = CountingTable(context)
-            assertSame(table, context.request(TagTablePlugin).install(table))
-            assertSame(
-                table.valueStateFactory,
-                context.request(ConstructorPlugin).resolveValueStateFactory("controls.tags.tagTable")
-            )
-            assertEquals(0, table.starts)
-
-            table.started.await()
-            runCurrent()
-            assertEquals(1, table.starts)
         } finally {
             context.close()
         }

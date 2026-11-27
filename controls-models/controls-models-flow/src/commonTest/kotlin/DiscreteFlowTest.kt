@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.runTest
 import space.kscience.controls.api.ExperimentalControlsApi
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.runSimulation
 import space.kscience.controls.constructor.units.Kilograms
 import space.kscience.controls.constructor.units.NumericAmount
@@ -33,8 +33,8 @@ class DiscreteFlowTest {
     @Test
     fun pipe() = runTest {
 
-        val production = MutableValueState(NumericAmount<Kilograms>(4.0))
-        val consumation = MutableValueState(NumericAmount<Kilograms>(1.0))
+        val production = VirtualValueState(NumericAmount<Kilograms>(4.0))
+        val consumation = VirtualValueState(NumericAmount<Kilograms>(1.0))
 
         object : DiscreteFlowModel(context) {
 
@@ -81,11 +81,11 @@ class DiscreteFlowTest {
     @Ignore
     fun join() = runTest {
 
-        val a = MutableValueState(NumericAmount<Kilograms>(1.0))
-        val b = MutableValueState(NumericAmount<Kilograms>(2.0))
-        val c = MutableValueState(NumericAmount<Kilograms>(3.0))
-        val ab = MutableValueState(NumericAmount<Kilograms>(Double.POSITIVE_INFINITY))
-        val abc = MutableValueState(NumericAmount<Kilograms>(8.0))
+        val a = VirtualValueState(NumericAmount<Kilograms>(1.0))
+        val b = VirtualValueState(NumericAmount<Kilograms>(2.0))
+        val c = VirtualValueState(NumericAmount<Kilograms>(3.0))
+        val ab = VirtualValueState(NumericAmount<Kilograms>(Double.POSITIVE_INFINITY))
+        val abc = VirtualValueState(NumericAmount<Kilograms>(8.0))
 
         val model = object : DiscreteFlowModel(context) {
             val joinABC = registerConsumer(abc) {

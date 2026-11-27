@@ -27,8 +27,7 @@ private class LogicalPropertyAccessor<T>(
 
     context(device: DeviceBase)
     override suspend fun write(value: T) {
-        @OptIn(InternalDeviceAPI::class)
-        device.setCachedProperty(spec.name, spec.converter.convert(value))
+        device.propertyChanged(spec.name, spec.converter.convert(value))
     }
 }
 

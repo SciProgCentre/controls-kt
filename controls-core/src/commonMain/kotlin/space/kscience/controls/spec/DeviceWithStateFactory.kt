@@ -9,6 +9,7 @@ import space.kscience.dataforge.meta.MutableMeta
 import space.kscience.dataforge.meta.ValueType
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
 import space.kscience.dataforge.meta.descriptors.node
+import space.kscience.dataforge.meta.put
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KMutableProperty1

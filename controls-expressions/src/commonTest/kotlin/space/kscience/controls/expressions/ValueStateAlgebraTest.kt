@@ -6,7 +6,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.kmath.expressions.Symbol
@@ -53,8 +53,8 @@ class ValueStateAlgebraTest {
 
     @Test
     fun testValueChangeWhenInitialValueChanges() {
-        val a = MutableValueState(2.0)
-        val b = MutableValueState(3.0)
+        val a = VirtualValueState(2.0)
+        val b = VirtualValueState(3.0)
         val bindings = mapOf(
             Symbol("a") to a,
             Symbol("b") to b
@@ -82,8 +82,8 @@ class ValueStateAlgebraTest {
 
     @Test
     fun testSubscriptionSendsNewValueWhenSourceChanges() = runTest {
-        val x = MutableValueState(2.0)
-        val y = MutableValueState(5.0)
+        val x = VirtualValueState(2.0)
+        val y = VirtualValueState(5.0)
         val bindings = mapOf(
             Symbol("x") to x,
             Symbol("y") to y
@@ -125,7 +125,7 @@ class ValueStateAlgebraTest {
 
     @Test
     fun testSubscriptionWithTime() = runTest {
-        val x = MutableValueState(1.0)
+        val x = VirtualValueState(1.0)
         val bindings = mapOf(Symbol("x") to x)
 
         val expr = ValueStateAlgebra.interpret("sin(x)", bindings)

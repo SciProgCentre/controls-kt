@@ -2,7 +2,6 @@
 package space.kscience.controls.demo.constructor
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumberState
@@ -30,7 +28,6 @@ import space.kscience.controls.models.continuous.*
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.context.Context
 import java.awt.Dimension
-import kotlin.math.exp
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
@@ -63,19 +60,26 @@ public class WetGasCleaningPlant(
 ) : ContinuousFlowModel(context) {
 
     // --- 1. Key Adjustable Input States (Runtime Parameters) ---
-    public val inletGasFlowRate: MutableValueState<Double> = MutableValueState(188.0) // t/h (nom. 188.0)
-    public val inletSo2Concentration: MutableValueState<Double> = MutableValueState(18.0) // % vol dry (nom. 18.0%)
-    public val inletSo3Fraction: MutableValueState<Double> = MutableValueState(0.15) // % vol dry (nom. 0.15%)
-    public val inletDustConcentration: MutableValueState<Double> = MutableValueState(0.20) // g/Nm3 (nom. 0.20)
-    public val dilutionAirFlowRate: MutableValueState<Double> = MutableValueState(58.5) // kNm3/h (nom. 58.5)
-    public val makeUpWaterFlowRate: MutableValueState<Double> = MutableValueState(5.89) // t/h (nom. 5.89)
-    public val condenserExitTemp: MutableValueState<Double> = MutableValueState(40.0) // °C (nom. 40.0)
+    public val inletGasFlowRate: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(188.0) // t/h (nom. 188.0)
+    public val inletSo2Concentration: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(18.0) // % vol dry (nom. 18.0%)
+    public val inletSo3Fraction: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(0.15) // % vol dry (nom. 0.15%)
+    public val inletDustConcentration: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(0.20) // g/Nm3 (nom. 0.20)
+    public val dilutionAirFlowRate: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(58.5) // kNm3/h (nom. 58.5)
+    public val makeUpWaterFlowRate: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(5.89) // t/h (nom. 5.89)
+    public val condenserExitTemp: MutableValueState<Double> =
+        this@WetGasCleaningPlant.VirtualValueState(40.0) // °C (nom. 40.0)
     public val wespOperationalState: MutableValueState<WespOperationalState> =
-        MutableValueState(WespOperationalState.BOTH_ACTIVE)
+        this@WetGasCleaningPlant.VirtualValueState(WespOperationalState.BOTH_ACTIVE)
 
     // Equipment availability toggles
-    public val p01RecirculationPumpActive: MutableValueState<Boolean> = MutableValueState(true)
-    public val p03RecirculationPumpActive: MutableValueState<Boolean> = MutableValueState(true)
+    public val p01RecirculationPumpActive: MutableValueState<Boolean> = this@WetGasCleaningPlant.VirtualValueState(true)
+    public val p03RecirculationPumpActive: MutableValueState<Boolean> = this@WetGasCleaningPlant.VirtualValueState(true)
 
     // --- 2. Gas Ingress & Utilities Producers ---
     public val gasInletProduction: ValueState<AmountPerSecond<Kilograms>> = inletGasFlowRate.map {

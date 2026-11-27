@@ -10,6 +10,7 @@ import space.kscience.dataforge.context.*
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.double
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import space.kscience.dataforge.names.last
@@ -134,7 +135,7 @@ class MathValueStateTest {
         }
         try {
             val constructor = context.request(ConstructorPlugin)
-            val mutableState = MutableValueState(2.0)
+            val mutableState = VirtualValueState(2.0)
             val source = DeviceConstructor(context).apply {
                 registerProperty(name = "x", converter = MetaConverter.double, state = mutableState)
             }

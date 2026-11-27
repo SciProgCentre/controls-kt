@@ -9,6 +9,8 @@ import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.ListValue
 import space.kscience.dataforge.meta.Meta
+import space.kscience.dataforge.meta.put
+import space.kscience.dataforge.meta.putIndexed
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 

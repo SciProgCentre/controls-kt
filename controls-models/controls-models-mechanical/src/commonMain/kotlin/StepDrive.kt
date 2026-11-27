@@ -23,18 +23,18 @@ import kotlin.time.DurationUnit
 public class StepDrive(
     context: Context,
     ticksPerSecond: Double,
-    position: MutableValueState<Long> = MutableValueState(0, clock = context.clock),
+    position: MutableValueState<Long> = VirtualValueState(0, clock = context.clock),
     private val writeTicks: suspend (ticks: Long, speed: Double) -> Unit = { _, _ -> },
 ) : DeviceConstructor(context) {
 
     public val target: MutableValueState<Long> by property(
         MetaConverter.long,
-        MutableValueState<Long>(position.value, clock)
+        space.kscience.controls.constructor.VirtualValueState<Long>(position.value, clock)
     )
 
     public val speed: MutableValueState<Double> by property(
         MetaConverter.double,
-        MutableValueState<Double>(ticksPerSecond, clock)
+        space.kscience.controls.constructor.VirtualValueState<Double>(ticksPerSecond, clock)
     )
 
     public val position: ValueState<Long> by property(MetaConverter.long, position)

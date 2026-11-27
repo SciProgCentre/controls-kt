@@ -1,5 +1,7 @@
 package space.kscience.controls.time
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import space.kscience.controls.InstantIOFormat
@@ -9,6 +11,7 @@ import space.kscience.dataforge.io.IOFormat
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
+import space.kscience.dataforge.meta.put
 import kotlin.time.Instant
 
 /**
@@ -35,6 +38,13 @@ public data class ValueWithTime<out T>(val value: T, val time: Instant) {
         public const val META_VALUE_KEY: String = "value"
     }
 }
+
+/**
+ * Filter out [ValueWithTime] with null value
+ */
+@Suppress("UNCHECKED_CAST")
+public fun <T: Any> Flow<ValueWithTime<T?>>.filterValueNotNull(): Flow<ValueWithTime<T>> =
+    filter { it.value != null } as Flow<ValueWithTime<T>>
 
 private class ValueWithTimeIOFormat<T>(val valueFormat: IOFormat<T>) : IOFormat<ValueWithTime<T>> {
 

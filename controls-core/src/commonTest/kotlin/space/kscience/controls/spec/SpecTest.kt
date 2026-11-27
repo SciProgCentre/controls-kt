@@ -3,6 +3,7 @@ package space.kscience.controls.spec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import space.kscience.controls.api.*
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
@@ -26,6 +27,7 @@ internal class SpecTest {
         override val context: Context get() = error("Not implemented")
         override val lifecycleState: LifecycleState get() = LifecycleState.STARTED
         override val messageFlow: Flow<DeviceMessage> get() = emptyFlow()
+        override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>>  = emptyFlow()
         override val clock: Clock get() = Clock.System
         override suspend fun readProperty(propertyName: String): Meta = Meta.EMPTY
         override suspend fun writeProperty(propertyName: String, value: Meta) {}

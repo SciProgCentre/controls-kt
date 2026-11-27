@@ -6,6 +6,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device.Companion.DEVICE_TARGET
 import space.kscience.controls.spec.InternalDeviceAPI
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.ContextAware
 import space.kscience.dataforge.context.info
 import space.kscience.dataforge.context.logger
@@ -51,6 +52,11 @@ public interface Device : ContextAware, WithLifeCycle, CoroutineScope, DeviceMes
      * In rare cases could suspend if the [Device] supports command queue, and it is full at the moment.
      */
     public suspend fun writeProperty(propertyName: String, value: Meta)
+
+    /**
+     * Subscribe to property [propertyName] raw values.
+     */
+    public fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>>
 
     /**
      * A subscription-based [Flow] of [DeviceMessage] provided by device. The flow is guaranteed to be readable
@@ -106,21 +112,11 @@ public interface CachingDevice : Device {
     public fun getCachedProperty(propertyName: String): Meta?
 
     /**
-     * Immediately (without waiting) set the cached (logical) state of a property to a specific value
-     * or remove cached value (if [value] is null).
-     *
-     * This method is not thread-safe and should be used with care. Preferably only for internal APIs
-     */
-    @InternalDeviceAPI
-    public fun setCachedProperty(propertyName: String, value: Meta?)
-
-    /**
      * Invalidate property (set logical state to invalid).
      *
      * This message is suspended to provide lock-free local property changes (they require coroutine context).
      */
-    @OptIn(InternalDeviceAPI::class)
-    public suspend fun invalidate(propertyName: String): Unit = setCachedProperty(propertyName, null)
+    public suspend fun invalidate(propertyName: String): Unit
 }
 
 /**
@@ -149,13 +145,6 @@ public fun Device.onPropertyChange(
     scope: CoroutineScope = this,
     callback: suspend PropertyChangedMessage.() -> Unit,
 ): Job = messageFlow.filterIsInstance<PropertyChangedMessage>().onEach(callback).launchIn(scope)
-
-/**
- * A [Flow] of property change messages for specific property.
- */
-public fun Device.propertyMessageFlow(propertyName: String): Flow<PropertyChangedMessage> = messageFlow
-    .filterIsInstance<PropertyChangedMessage>()
-    .filter { it.property == propertyName }
 
 /**
  * React on device lifecycle events

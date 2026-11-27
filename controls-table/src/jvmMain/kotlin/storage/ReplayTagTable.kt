@@ -4,14 +4,13 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.instant
 import space.kscience.controls.storage.ControlsStoragePlugin
-import space.kscience.controls.storage.DeviceMessageStorage
 import space.kscience.controls.storage.FileEnvelopeOperations
 import space.kscience.controls.storage.NativeFileEnvelopeOperations
 import space.kscience.controls.tagtable.TagState
 import space.kscience.controls.tagtable.TagTable
-import space.kscience.controls.tagtable.TagTableValueState
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
@@ -48,7 +47,7 @@ import kotlin.time.Instant
 public class ReplayTagTable(
     private val storageIndex: TableStorageIndex,
     override val tags: Map<String, MetaDescriptor>,
-    private val scope: CoroutineScope = storageIndex.context,
+    scope: CoroutineScope = storageIndex.context,
     override val clock: Clock = storageIndex.context.clock
 ) : TagTable, ReplayMessageSource {
 
@@ -60,24 +59,37 @@ public class ReplayTagTable(
     override val coroutineContext: CoroutineContext =
         context.coroutineContext + SupervisorJob(scope.coroutineContext[Job])
 
-    private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
-    private val tagStates = ConcurrentHashMap<String, TagState>()
-
+    private val values: Map<String, VirtualValueState<Meta>> = buildMap {
+        tags.forEach { (tag, descriptor) ->
+            put(tag, VirtualValueState(Meta.EMPTY, clock))
+            put(tag + TagState.TAG_QUALITY_SUFFIX, VirtualValueState(Meta.EMPTY, clock))
+        }
+    }
 
     override fun readTagWithTime(tag: String): ValueWithTime<Meta> =
-        values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
+        (values[tag] ?: error("Tag $tag not found")).valueWithTime
 
     /**
      * Read a value of a single column in the table
      */
     override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
-    override suspend fun readTagQuality(tag: String): TagState = tagStates[tag] ?: TagState.EMPTY
+    override suspend fun readTagQuality(tag: String): TagState = TagState((values[tag + TagState.TAG_QUALITY_SUFFIX] ?: error("Tag $tag not found")).value)
+
+
+    override fun getCachedProperty(propertyName: String): Meta? = values[propertyName]?.value
+
+    override suspend fun invalidate(propertyName: String) {
+        // does nothing
+    }
+
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
+        values[propertyName]?.subscribeWithTime() ?: error("Property $propertyName not found")
 
     /**
      * Read current values of all tags
      */
-    override fun readAllValues(): Map<String, Meta> = values.mapValues { it.value.value }
+    override fun readAllValues(): Map<String, Meta> = values.filter { !it.key.endsWith(TagState.TAG_QUALITY_SUFFIX) }.mapValues { it.value.value }
 
     /**
      * Starts generating a flow of rows for the current data platform with a specified interval.
@@ -146,7 +158,7 @@ public class ReplayTagTable(
             tags.keys.forEach { tag ->
                 val value = row.getOrNull(tag)
                 if (value != null) {
-                    values[tag] = ValueWithTime(value, time)
+                    values[tag]?.valueWithTime = ValueWithTime(value, time)
                     messageFlow.emit(
                         PropertyChangedMessage(
                             time = time,
@@ -155,9 +167,10 @@ public class ReplayTagTable(
                         )
                     )
                 }
-                val tagState = row.getOrNull(tag + TagState.TAG_QUALITY_SUFFIX)
+                val tagStateName =tag + TagState.TAG_QUALITY_SUFFIX
+                val tagState = row.getOrNull(tagStateName)
                 if (tagState != null) {
-                    tagStates[tag] = TagState(tagState)
+                    values[tagStateName]?.valueWithTime = ValueWithTime(tagState, time)
                 }
 
             }
@@ -212,8 +225,8 @@ public class ReplayTagTable(
 
     override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
         tags.forEach { (name, descriptor) ->
-            PropertyDescriptor(name, metaDescriptor = descriptor)
-            PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor)
+            add(PropertyDescriptor(name, metaDescriptor = descriptor))
+            add(PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor))
         }
     }
 
@@ -279,11 +292,7 @@ public class ReplayTagTable(
     }
 
 
-    private val stateCache = mutableMapOf<String, ValueState<Meta>>()
-
-    override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
-        TagTableValueState(this, tag)
-    }
+    override fun subscribe(tag: String): ValueState<Meta> = values[tag] ?: error("Tag $tag not found")
 
     override suspend fun start() {
         setLifecycleState(LifecycleState.STARTING)

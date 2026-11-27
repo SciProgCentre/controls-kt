@@ -15,6 +15,7 @@ import space.kscience.dataforge.context.error
 import space.kscience.dataforge.context.logger
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.string
 
 /**

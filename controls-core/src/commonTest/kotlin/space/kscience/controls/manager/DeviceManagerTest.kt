@@ -8,6 +8,7 @@ import space.kscience.dataforge.context.PluginTag
 import space.kscience.dataforge.context.request
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.names.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals

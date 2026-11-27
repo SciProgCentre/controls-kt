@@ -15,7 +15,7 @@ import org.jetbrains.compose.splitpane.ExperimentalSplitPaneApi
 import org.jetbrains.compose.splitpane.HorizontalSplitPane
 import space.kscience.controls.compose.letsplot.PlotNumericState
 import space.kscience.controls.compose.letsplot.TimeSeriesPlot
-import space.kscience.controls.constructor.MutableValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.map
 import space.kscience.controls.constructor.units.*
@@ -35,7 +35,7 @@ private class EnrichmentFacility(
 
     val mixture = MixtureAlgebra(Kilograms, one)
 
-    val productionValue = MutableValueState(AmountPerSecond<Kilograms>(1.0))
+    val productionValue = VirtualValueState(AmountPerSecond<Kilograms>(1.0))
 
     val production = productionValue.map {
         mixture.valueOf(it.value).perSecond
@@ -103,7 +103,7 @@ private class EnrichmentFacility(
         connectProducer(separator.asProducer(discardKey))
     }
 
-    val consumption = MutableValueState(AmountPerSecond<Kilograms>(2.0))
+    val consumption = VirtualValueState(AmountPerSecond<Kilograms>(2.0))
     val consumer = consumer(mixture, consumption).apply {
         connectProducer(separator.asProducer(productionKey))
     }

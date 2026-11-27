@@ -3,6 +3,7 @@ package space.kscience.controls.constructor.units
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.isEmpty
+import space.kscience.dataforge.meta.put
 import kotlin.jvm.JvmInline
 
 /**

@@ -35,6 +35,7 @@ import space.kscience.controls.client.*
 import space.kscience.controls.compose.conditional
 import space.kscience.controls.constructor.useValue
 import space.kscience.controls.manager.DeviceManager
+import space.kscience.controls.spec.propertyFlow
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.ContextBuilder
 import space.kscience.dataforge.meta.MetaConverter

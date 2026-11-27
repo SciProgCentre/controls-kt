@@ -27,6 +27,8 @@ dependencies {
 
     implementation(spclibs.logback.classic)
 
+
+    implementation(spclibs.kotlinx.coroutines.debug)
     testImplementation(kotlin("test"))
 }
 

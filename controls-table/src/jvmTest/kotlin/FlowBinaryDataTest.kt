@@ -15,6 +15,7 @@ import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.MetaConverter
 import space.kscience.dataforge.meta.get
 import space.kscience.dataforge.meta.int
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.names.Name
 import space.kscience.tables.SimpleColumnHeader
 import kotlin.reflect.typeOf

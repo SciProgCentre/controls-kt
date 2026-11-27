@@ -4,9 +4,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
-import org.slf4j.LoggerFactory
 import space.kscience.controls.api.*
 import space.kscience.controls.constructor.ValueState
+import space.kscience.controls.constructor.VirtualValueState
 import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.opcua.server.Opc
 import space.kscience.controls.storage.ControlsStoragePlugin
@@ -18,16 +18,10 @@ import space.kscience.controls.tagtable.timeseries.TimeSeriesRows
 import space.kscience.controls.tagtable.timeseries.TimeSeriesRowsFlow
 import space.kscience.controls.tagtable.timeseries.TimeSeriesValues
 import space.kscience.controls.time.ClockManager
-import space.kscience.controls.time.ValueHistory
 import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.controls.time.timeZone
-import space.kscience.dataforge.context.Context
-import space.kscience.dataforge.context.debug
-import space.kscience.dataforge.context.error
-import space.kscience.dataforge.context.info
-import space.kscience.dataforge.context.logger
-import space.kscience.dataforge.context.request
+import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.io
 import space.kscience.dataforge.meta.*
 import space.kscience.dataforge.meta.descriptors.MetaDescriptor
@@ -37,8 +31,6 @@ import space.kscience.dataforge.names.startsWith
 import space.kscience.tables.ColumnHeader
 import space.kscience.tables.SimpleColumnHeader
 import space.kscience.tables.TableHeader
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.map
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.Path
 import kotlin.math.abs
@@ -46,6 +38,7 @@ import kotlin.reflect.typeOf
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
+import kotlin.time.measureTime
 
 /**
  * The [PlcTagTable] is responsible for managing connections to various data source clients including OPC UA, PLC, and Modbus.
@@ -64,21 +57,38 @@ public class PlcTagTable(
 ) : TagTable, CoroutineScope {
 
     override val coroutineContext: CoroutineContext =
-        context.coroutineContext + SupervisorJob(context.coroutineContext[Job.Key])
+        context.coroutineContext + Dispatchers.Default + SupervisorJob(context.coroutineContext[Job.Key])
 
+    override val tags: Map<String, MetaDescriptor> = configuration.tags.mapValues { MetaDescriptor() }
 
-    private val values = ConcurrentHashMap<String, ValueWithTime<Meta>>()
+    override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
+        tags.forEach { (name, descriptor) ->
+            add(PropertyDescriptor(name, metaDescriptor = descriptor))
+            add(PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor))
+        }
+    }
+
+    override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
+
+    /**
+     * Contains both tag values and tag states
+     */
+    private val values: Map<String, VirtualValueState<Meta>> = buildMap {
+        tags.forEach { (tag, descriptor) ->
+            put(tag, VirtualValueState(Meta.EMPTY, clock))
+            put(tag + TagState.TAG_QUALITY_SUFFIX, VirtualValueState(Meta.EMPTY, clock))
+        }
+    }
 
     override val messageFlow: SharedFlow<DeviceMessage>
         field = MutableSharedFlow<DeviceMessage>(
-            extraBufferCapacity = configuration.tags.size * 10,
+            extraBufferCapacity = configuration.tags.size,
             onBufferOverflow = BufferOverflow.DROP_OLDEST
         )
 
-    private val tagStates = ConcurrentHashMap<String, TagState>()
-
     private suspend fun updateTagState(tag: String, tagState: TagState) {
-        tagStates[tag] = tagState
+        val valueState = values[tag + TagState.TAG_QUALITY_SUFFIX] ?: error("Tag $tag not found")
+        valueState.value = tagState.value
     }
 
     private suspend fun updateTagState(
@@ -106,7 +116,6 @@ public class PlcTagTable(
         rawValue: ValueWithTime<Meta>
     ): ValueWithTime<Meta> {
         val tagQualityValue = MutableMeta()
-
 
         tagQualityValue[TagState.quality] = TagState.GOOD_QUALITY
 
@@ -200,13 +209,22 @@ public class PlcTagTable(
     override suspend fun readTag(tag: String): Meta = readTagWithTime(tag).value
 
     override fun readTagWithTime(tag: String): ValueWithTime<Meta> {
-        if (tag !in configuration.tags.keys) error("Tag $tag not found")
-        return values[tag] ?: ValueWithTime(Meta.EMPTY, Instant.DISTANT_PAST)
+        val state = values[tag] ?: error("Tag $tag not found")
+        return state.valueWithTime
     }
 
+    override fun getCachedProperty(propertyName: String): Meta? = values[propertyName]?.value
+
+    override suspend fun invalidate(propertyName: String) {
+        // does nothing
+    }
+
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>> =
+        values[propertyName]?.subscribeWithTime() ?: error("Property $propertyName not found")
+
     override suspend fun readTagQuality(tag: String): TagState {
-        if (tag !in configuration.tags.keys) error("Tag $tag not found")
-        return tagStates[tag] ?: TagState.EMPTY
+        val valueState = values[tag + TagState.TAG_QUALITY_SUFFIX] ?: error("Tag $tag not found")
+        return TagState(valueState.value)
     }
 
     override var lifecycleState: LifecycleState = LifecycleState.STOPPED
@@ -229,67 +247,71 @@ public class PlcTagTable(
     /**
      * Read all properties on trigger
      */
-    private suspend fun readAllProperties(properties: List<Map.Entry<String, TagTableColumn>>): Unit =
-        supervisorScope {
-            properties.groupBy { it.value.source }.forEach { (source, entries) ->
-                //launch reading process for each separate source
-                launch {
-                    val timeout = entries.maxOf { it.value.timeout }
+    private suspend fun readAllProperties(
+        properties: List<Map.Entry<String, TagTableColumn>>
+    ): Unit = supervisorScope {
+        properties.groupBy { it.value.source }.forEach { (source, entries) ->
+            //launch reading process for each separate source
+            launch {
+                val timeout = entries.maxOf { it.value.timeout }
 
-                    var lastTime = Instant.DISTANT_PAST
+                var lastTime = Instant.DISTANT_PAST
 
-                    try {
-                        withTimeout(timeout) {
-                            val source = getSource(source)
+                try {
+                    withTimeout(timeout) {
+                        val source = getSource(source)
 
-                            val result = source.readMultipleTags(entries.map { it.key to it.value.config })
-                            if (result != null) {
-                                result.forEach { (tag, value) ->
-                                    value.getOrNull()?.let { rawValue ->
-                                        val column = configuration.tags[tag]
-                                            ?: error("Configuration for tag $tag not found")
+                        val result = source.readMultipleTags(entries.map { it.key to it.value.config })
+                        if (result != null) {
+                            result.forEach { (tag, value) ->
+                                value.getOrNull()?.let { rawValue ->
+                                    val column = configuration.tags[tag]
+                                        ?: error("Configuration for tag $tag not found")
+                                    val valueState = values[tag] ?: error("Tag $tag not found")
 
-                                        val newValue = processTag(tag, column, values[tag], rawValue)
-                                        values[tag] = newValue
+                                    val newValue = processTag(tag, column, valueState.valueWithTime, rawValue)
+                                    valueState.valueWithTime = newValue
 
-                                        lastTime = if (newValue.time > lastTime) newValue.time else lastTime
-                                        messageFlow.emit(
-                                            PropertyChangedMessage(
-                                                time = newValue.time,
-                                                property = tag,
-                                                value = newValue.value,
-                                            )
+                                    lastTime = if (newValue.time > lastTime) newValue.time else lastTime
+                                    messageFlow.emit(
+                                        PropertyChangedMessage(
+                                            time = newValue.time,
+                                            property = tag,
+                                            value = newValue.value,
                                         )
-                                    } ?: run {
-                                        updateTagState(tag, TagState.READ_FAILED_QUALITY)
-                                    }
-                                }
-                            } else {
-                                entries.forEach { (propertyName, _) ->
-                                    updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
+                                    )
+                                } ?: run {
+                                    updateTagState(tag, TagState.READ_FAILED_QUALITY)
                                 }
                             }
-                        }
-                    } catch (ex: Exception) {
-                        entries.forEach { (propertyName, _) ->
-                            updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
-                                ex.message?.let { set("error", it) }
+                        } else {
+                            entries.forEach { (propertyName, _) ->
+                                updateTagState(propertyName, TagState.NOT_CONNECTED_QUALITY)
                             }
                         }
-                        messageFlow.emit(
-                            DeviceErrorMessage(
-                                time = clock.now(),
-                                errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
-                                errorType = ex::class.simpleName,
-                                errorStackTrace = ex.stackTraceToString()
-                            )
-                        )
-                        logger.error(ex) { "Failed to read multiple properties ${entries.map { it.key }}" }
                     }
-
+                } catch (ex: Exception) {
+                    if (ex is CancellationException) {
+                        ensureActive()
+                    }
+                    entries.forEach { (propertyName, _) ->
+                        updateTagState(propertyName, TagState.READ_FAILED_QUALITY) {
+                            ex.message?.let { set("error", it) }
+                        }
+                    }
+                    messageFlow.emit(
+                        DeviceErrorMessage(
+                            time = clock.now(),
+                            errorMessage = "Failed to read multiple OPC properties: ${entries.map { it.key }}",
+                            errorType = ex::class.simpleName,
+                            errorStackTrace = ex.stackTraceToString()
+                        )
+                    )
+                    logger.error(ex) { "Failed to read multiple properties from source $source: ${entries.map { it.key }}" }
                 }
             }
         }
+    }
 
 
     override suspend fun start() {
@@ -300,14 +322,20 @@ public class PlcTagTable(
 
         //start read job
         readJob = launch {
-            configuration.tags.entries.groupBy { it.value.timer }
-                .forEach { (timerName, properties: List<Map.Entry<String, TagTableColumn>>) ->
-                    val timer = configuration.timers[timerName]?.createTimerState(clockManager)
-                        ?: error("Timer $timerName not found")
-                    timer.subscribe().onEach {
+            configuration.tags.entries.groupBy {
+                it.value.timer
+            }.forEach { (timerName, properties: List<Map.Entry<String, TagTableColumn>>) ->
+                val timer = configuration.timers[timerName]?.createTimerState(clockManager)
+                    ?: error("Timer $timerName not found")
+
+                timer.subscribe().buffer(0).onEach { time ->
+                    measureTime {
                         readAllProperties(properties)
-                    }.launchIn(this)
-                }
+                    }.let {
+                        logger.info { "Reading properties for timer $timerName at $time took $it" }
+                    }
+                }.launchIn(this)
+            }
         }
 
         //start storage job
@@ -361,7 +389,7 @@ public class PlcTagTable(
                 clock = clock
             )
             messageStorageJob = messageFlow.onEach {
-                if(it.sourceDevice?.startsWith(SOURCE_DEVICE_KEY) == true){
+                if (it.sourceDevice?.startsWith(SOURCE_DEVICE_KEY) == true) {
                     storage.write(it)
                 }
             }.launchIn(this)
@@ -377,10 +405,6 @@ public class PlcTagTable(
         sources.values.forEach { it.stop() }
     }
 
-    override val tags: Map<String, MetaDescriptor> by lazy {
-        configuration.tags.mapValues { MetaDescriptor() }
-    }
-
     private val propertyColumnHeaders: List<ColumnHeader<Meta>> = configuration.tags.map { (name, property) ->
         SimpleColumnHeader(name, typeOf<Meta>(), property.meta)
     }
@@ -390,20 +414,13 @@ public class PlcTagTable(
         addAll(propertyColumnHeaders)
     }
 
-    override val propertyDescriptors: Collection<PropertyDescriptor> = buildList {
-        tags.forEach { (name, descriptor) ->
-            PropertyDescriptor(name, metaDescriptor = descriptor)
-            PropertyDescriptor(name + TagState.TAG_QUALITY_SUFFIX, metaDescriptor = TagState.descriptor)
+
+    override suspend fun readProperty(propertyName: String): Meta =
+        if (propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
+            readTagQuality(propertyName.removeSuffix(TagState.TAG_QUALITY_SUFFIX)).value
+        } else {
+            readTag(propertyName)
         }
-    }
-
-    override val actionDescriptors: Collection<ActionDescriptor> = emptyList()
-
-    override suspend fun readProperty(propertyName: String): Meta = if(propertyName.endsWith(TagState.TAG_QUALITY_SUFFIX)) {
-        readTagQuality(propertyName.removeSuffix(TagState.TAG_QUALITY_SUFFIX)).value
-    } else {
-        readTag(propertyName)
-    }
 
     override suspend fun writeProperty(propertyName: String, value: Meta) {
         error("Write is not supported")
@@ -419,7 +436,7 @@ public class PlcTagTable(
     /**
      * Read current values of all properties
      */
-    override fun readAllValues(): Map<String, Meta> = values.mapValues { it.value.value }
+    override fun readAllValues(): Map<String, Meta> =  values.filter { !it.key.endsWith(TagState.TAG_QUALITY_SUFFIX) }.mapValues { it.value.value }
 
 
     public override fun readTimeSeries(
@@ -457,19 +474,15 @@ public class PlcTagTable(
         return TimeSeriesRowsFlow(headers, rowFlow)
     }
 
-    private val stateCache = mutableMapOf<String, ValueState<Meta>>()
-
     /**
      * Create or get cached [ValueState] for a property of a [TagTable]. Only one [ValueState] with a given tag exists for the table
      */
-    override fun subscribe(tag: String): ValueState<Meta> = stateCache.getOrPut(tag) {
-        TagTableValueState(this, tag)
-    }
+    override fun subscribe(tag: String): ValueState<Meta> = values[tag] ?: error("Tag $tag not found")
 
-    public companion object{
+    public companion object {
         /**
          * A prefix name for device messages describing sources behavior
          */
         public const val SOURCE_DEVICE_KEY: String = "source"
-        }
+    }
 }

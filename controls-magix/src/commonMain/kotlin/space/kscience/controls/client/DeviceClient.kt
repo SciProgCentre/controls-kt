@@ -9,6 +9,7 @@ import space.kscience.controls.manager.DeviceManager
 import space.kscience.controls.spec.DevicePropertySpec
 import space.kscience.controls.spec.InternalDeviceAPI
 import space.kscience.controls.spec.name
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
 import space.kscience.dataforge.context.error
@@ -56,22 +57,22 @@ public class DeviceClient internal constructor(
 
     private val propertyCache = HashMap<String, Meta>()
 
-    private val flowInternal = incomingFlow.filter {
-        it.sourceDevice == deviceName
-    }.map { message ->
-        when (message) {
-            is PropertyChangedMessage -> mutex.withLock {
-                propertyCache[message.property] = message.value
-            }
+    //ignore
+    override val messageFlow: Flow<DeviceMessage>
+        field = incomingFlow.filter {
+            it.sourceDevice == deviceName
+        }.map { message ->
+            when (message) {
+                is PropertyChangedMessage -> mutex.withLock {
+                    propertyCache[message.property] = message.value
+                }
 
-            else -> {
-                //ignore
-            }
-        }
-        if (deviceName.isEmpty()) message else message.changeSource { Name.EMPTY }
-    }.shareIn(this, started = SharingStarted.Eagerly)
+                else -> {
 
-    override val messageFlow: Flow<DeviceMessage> get() = flowInternal
+                }
+            }
+            if (deviceName.isEmpty()) message else message.changeSource { Name.EMPTY }
+        }.shareIn(this, started = SharingStarted.Eagerly)
 
 
     override suspend fun readProperty(propertyName: String): Meta {
@@ -85,13 +86,10 @@ public class DeviceClient internal constructor(
 
     override fun getCachedProperty(propertyName: String): Meta? = propertyCache[propertyName]
 
-    @InternalDeviceAPI
-    override fun setCachedProperty(propertyName: String, value: Meta?) {
-        if (value == null) {
-            propertyCache.remove(propertyName)
-        } else {
-            propertyCache[propertyName] = value
-        }
+    override fun subscribeToProperty(propertyName: String): Flow<ValueWithTime<Meta>>  = messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
+        it.property == propertyName && it.sourceDevice == deviceName
+    }.map {
+        ValueWithTime(it.value, it.time)
     }
 
     override suspend fun invalidate(propertyName: String) {

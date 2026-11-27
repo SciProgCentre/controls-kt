@@ -108,7 +108,7 @@ private fun LazyListScope.renderDeviceNode(
                         isSelected = selectedProperties.contains(ExportColumn(name, descriptor.name)),
                         onSelect = { onSelectProperty(name, descriptor.name, it) },
                         level = level + 1,
-                        descriptor.metadata ?: Meta.EMPTY
+                        propertyMetadata = descriptor.metadata
                     )
                 }
             }

@@ -60,7 +60,7 @@ public class MutableRangeState<T : Comparable<T>>(
 public fun <T : Comparable<T>> MutableRangeState(
     initialValue: T,
     range: ClosedRange<T>,
-): MutableRangeState<T> = MutableRangeState<T>(MutableValueState(initialValue), range)
+): MutableRangeState<T> = MutableRangeState<T>(space.kscience.controls.constructor.VirtualValueState(initialValue), range)
 
 public fun <U : UnitsOfMeasurement> MutableRangeState(
     initialValue: Double,

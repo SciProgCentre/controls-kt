@@ -35,33 +35,6 @@ public fun <T : Any> MetaConverter<T>.nullable(): MetaConverter<T?> = object : M
     override fun read(source: Meta): T? = if (source.value == Null || source.isEmpty()) null else this@nullable.read(source)
 }
 
-//TODO to be moved to DF
-private object DurationConverter : MetaConverter<Duration> {
-    override fun readOrNull(source: Meta): Duration = when (source.value?.type) {
-        null -> {
-            val unit: DurationUnit = source["unit"].enum<DurationUnit>() ?: DurationUnit.SECONDS
-            val value = source[Meta.VALUE_KEY].double ?: error("No value present for Duration")
-            value.toDuration(unit)
-        }
-        ValueType.NUMBER -> source.double!!.toDuration(DurationUnit.SECONDS)
-
-        ValueType.STRING -> Duration.parse(source.string!!)
-        else -> error("Unsupported type for Duration: ${source.value?.type}")
-    }
-
-    override fun convert(obj: Duration): Meta = obj.toDouble(DurationUnit.SECONDS).asMeta()
-}
-
-public val MetaConverter.Companion.duration: MetaConverter<Duration> get() = DurationConverter
-
-
-private object InstantConverter : MetaConverter<Instant> {
-    override fun readOrNull(source: Meta): Instant? = source.string?.let { Instant.parse(it) }
-    override fun convert(obj: Instant): Meta = Meta(obj.toString())
-}
-
-public val MetaConverter.Companion.instant: MetaConverter<Instant> get() = InstantConverter
-
 public fun Instant.toMeta(): Meta = Meta(toString())
 
 public val Meta?.instant: Instant? get() = this?.value?.string?.let { Instant.parse(it) }

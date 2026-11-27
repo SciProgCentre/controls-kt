@@ -42,7 +42,7 @@ public class ContinuousBuffer<U : UnitsOfMatter, T : Amount<U>>(
 
     override val producerAlgebra: AmountAlgebra<U, T> get() = consumerAlgebra
 
-    private val _content: MutableValueState<T> = MutableValueState(initialLevel)
+    private val _content: MutableValueState<T> = this@ContinuousBuffer.VirtualValueState(initialLevel)
 
     public val content: ValueState<T> get() = _content
 

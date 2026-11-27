@@ -121,9 +121,8 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         channel.send(value)
     }
 
-    private val _consumation = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
-
-    override val consumation: ValueState<Amount<U>> get() = _consumation
+    override val consumation: ValueState<Amount<U>>
+        field = space.kscience.controls.constructor.VirtualValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
     init {
         registerState(consumation, Name.of("consumation"))
@@ -134,7 +133,7 @@ public class DiscreteConsumer<U : UnitsOfMeasurement>(
         .limitFlow(clock) { capacity.value }
         .measureFlow(
             clock = clock,
-            target = _consumation
+            target = consumation
         ).onEach {
             //try emitting package down the line if target is defined
             target?.emit(it)
@@ -158,9 +157,8 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
 
     public val producerId: Name = NameToken("producer", hashCode().toHexString()).asName()
 
-    private val _production = MutableValueState<Amount<U>>(NumericAmount(0.0), context.clock)
-
-    public val production: ValueState<Amount<U>> get() = _production
+    public val production: ValueState<Amount<U>>
+        field = space.kscience.controls.constructor.VirtualValueState<Amount<U>>(NumericAmount(0.0), context.clock)
 
     init {
         registerState(production, Name.of("production"))
@@ -177,7 +175,7 @@ public class DiscreateProducer<U : UnitsOfMeasurement>(
         target.emit(it)
     }.measureFlow(
         clock = clock,
-        target = _production
+        target = production
     ).launchIn(this)
 }
 

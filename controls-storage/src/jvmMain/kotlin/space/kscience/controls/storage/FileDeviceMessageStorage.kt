@@ -14,7 +14,6 @@ import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import space.kscience.controls.api.DeviceErrorMessage
 import space.kscience.controls.api.DeviceMessage
-import space.kscience.controls.duration
 import space.kscience.controls.nullable
 import space.kscience.controls.time.clock
 import space.kscience.dataforge.context.Context
@@ -143,13 +142,13 @@ public class FileDeviceMessageStorage(
         }
     }
 
-    override suspend fun write(event: DeviceMessage): Unit {
+    override suspend fun write(event: DeviceMessage): Unit = withContext(Dispatchers.IO) {
         val messageType = DeviceMessage.serialNameFor(event)
         //TODO add buffering
 
-        val file = getOrCreateCurrentFileForEvent(messageType)
-        logger.trace("Writing event {} to file {}", event, file)
         writerMutex.withLock {
+            val file = getOrCreateCurrentFileForEvent(messageType)
+            logger.trace("Writing event {} to file {}", event, file)
             file.append {
                 writeString(Json.encodeToString(event))
                 writeString("\n")

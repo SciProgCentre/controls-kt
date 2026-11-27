@@ -13,8 +13,6 @@ import org.jetbrains.letsPlot.letsPlot
 import org.jetbrains.letsPlot.scale.scaleXTime
 import org.slf4j.LoggerFactory
 import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.api.propertyMessageFlow
 import space.kscience.controls.constructor.ValueState
 import space.kscience.controls.constructor.units.Amount
 import space.kscience.controls.constructor.values
@@ -239,7 +237,7 @@ public fun TimeSeriesPlotState.PlotDeviceProperty(
             }?.toList()
             ?: emptyList()
 
-        device.propertyMessageFlow(propertyName)
+        device.subscribeToProperty(propertyName)
             .mapNotNull { it.value.extractValue() }
             .repeatOrSample(clockManager, sampling)
             .collectAndTrim(maxAge, maxPoints, minPoints, device.clock, startingPoints)
@@ -353,9 +351,9 @@ public fun TimeSeriesPlotState.PlotAveragedDeviceProperty(
             removeSeries(seriesName)
         }
 
-        device.propertyMessageFlow(propertyName)
+        device.subscribeToProperty(propertyName)
             .chunkedByPeriod(averagingInterval)
-            .transform<List<PropertyChangedMessage>, ValueWithTime<Double>> { eventList ->
+            .transform<List<ValueWithTime<Meta>>, ValueWithTime<Double>> { eventList ->
                 if (eventList.isEmpty()) {
                     ValueWithTime(lastValue, clock.now())
                 } else {

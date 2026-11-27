@@ -112,7 +112,3 @@ fun main(args: Array<String>) {
         }
     }
 }
-
-fun main() {
-    main(emptyArray())
-}

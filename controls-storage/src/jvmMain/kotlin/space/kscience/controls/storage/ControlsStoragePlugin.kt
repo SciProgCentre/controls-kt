@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.*
 import space.kscience.controls.api.Device
 import space.kscience.controls.api.DeviceTree
 import space.kscience.controls.api.PropertyChangedMessage
-import space.kscience.controls.api.propertyMessageFlow
+import space.kscience.controls.time.ValueWithTime
 import space.kscience.dataforge.context.*
 import space.kscience.dataforge.io.IOPlugin
 import space.kscience.dataforge.meta.*
@@ -81,7 +81,7 @@ public class ControlsStoragePlugin : AbstractPlugin() {
  * Debounce property change message and leave all other messages unchanged
  */
 @OptIn(FlowPreview::class)
-private fun Flow<PropertyChangedMessage>.filterPropertyChanges(interval: Duration?): Flow<PropertyChangedMessage> =
+private fun Flow<ValueWithTime<Meta>>.filterPropertyChanges(interval: Duration?): Flow<ValueWithTime<Meta>> =
     if (interval == null) {
         //no debounce
         this
@@ -135,20 +135,23 @@ public fun CoroutineScope.launchStorageJob(
 
 
         propertyDescriptors.filter { it.readable }.forEach { descriptor ->
-            val storageMeta = Laminate(
-                descriptor.metadata,
-                meta
-            )[MessageStorageScheme.MESSAGE_STORAGE_KEY]
+            val storageMeta = Laminate(descriptor.metadata, meta)[MessageStorageScheme.MESSAGE_STORAGE_KEY]
 
             if (storageMeta != null && !storageMeta.isEmpty()) {
                 val storageConfiguration = MessageStorageScheme.read(storageMeta)
                 val storageName = storageConfiguration.storage
                 val storage = storageMap[storageName] ?: error("Storage with name $storageName is not defined")
 
-                propertyMessageFlow(descriptor.name).filterPropertyChanges(storageConfiguration.sampleInterval)
-                    .onEach { message ->
+                subscribeToProperty(descriptor.name).filterPropertyChanges(storageConfiguration.sampleInterval)
+                    .onEach { (value, time) ->
                         try {
-                            storage.write(message.changeSource { deviceName + it })
+                            val message = PropertyChangedMessage(
+                                time = time,
+                                property = descriptor.name,
+                                value = value,
+                                sourceDevice = deviceName
+                            )
+                            storage.write(message)
                         } catch (e: Exception) {
                             if (e is CancellationException) {
                                 currentCoroutineContext().ensureActive()

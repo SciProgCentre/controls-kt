@@ -196,7 +196,7 @@ class DeviceConstructorTest {
                 val virtual by virtualProperty(MetaConverter.double, 1.0)
             }
             device.registerProperty("readOnly", MetaConverter.double, ValueState(1.0))
-            device.registerMutableProperty("mutable", MetaConverter.double, MutableValueState(1.0))
+            device.registerMutableProperty("mutable", MetaConverter.double, VirtualValueState(1.0))
 
             for (name in listOf("readOnly", "mutable", "virtual")) {
                 val descriptor = device.propertyDescriptors.single { it.name == name }
@@ -223,7 +223,7 @@ class DeviceConstructorTest {
             device.registerProperty("readOnly", MetaConverter.double, ValueState(1.0)) {
                 valueType(ValueType.STRING)
             }
-            device.registerMutableProperty("mutable", MetaConverter.double, MutableValueState(1.0)) {
+            device.registerMutableProperty("mutable", MetaConverter.double, VirtualValueState(1.0)) {
                 valueType(ValueType.STRING)
             }
 

@@ -1,12 +1,14 @@
 package space.kscience.controls.constructor
 
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import space.kscience.controls.api.CachingDevice
 import space.kscience.controls.api.Device
-import space.kscience.controls.api.PropertyChangedMessage
 import space.kscience.controls.api.getOrReadProperty
 import space.kscience.controls.api.id
 import space.kscience.controls.spec.DevicePropertySpec
@@ -26,9 +28,7 @@ private open class PropertyValueState<T>(
 ) : ValueState<T> {
 
     val valueFlowWithTime: StateFlow<ValueWithTime<T>> =
-        device.messageFlow.filterIsInstance<PropertyChangedMessage>().filter {
-            it.property == propertyName
-        }.mapNotNull {
+        device.subscribeToProperty(propertyName).mapNotNull {
             val value = converter.read(it.value) ?: return@mapNotNull null
             ValueWithTime(value, it.time)
         }.stateIn(device.context, SharingStarted.Eagerly, ValueWithTime(initialValue, device.clock.now()))

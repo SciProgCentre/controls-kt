@@ -11,6 +11,7 @@ import space.kscience.controls.tagtable.storage.DataPlatformFileSplit
 import space.kscience.controls.time.ClockManager
 import space.kscience.dataforge.meta.Meta
 import space.kscience.dataforge.meta.asValue
+import space.kscience.dataforge.meta.put
 import space.kscience.dataforge.meta.set
 import space.kscience.dataforge.names.Name
 import kotlin.time.Duration
