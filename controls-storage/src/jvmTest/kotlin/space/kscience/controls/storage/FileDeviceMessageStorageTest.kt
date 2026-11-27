@@ -401,9 +401,11 @@ class FileDeviceMessageStorageTest {
         var dfFiles = tempDir.listDirectoryEntries("*.df")
         val deadline = System.currentTimeMillis() + 5000
         while (dfFiles.isEmpty() && System.currentTimeMillis() < deadline) {
-            delay(100.milliseconds)
+            delay(50.milliseconds)
             dfFiles = tempDir.listDirectoryEntries("*.df")
         }
+        //wait for rotation to finish
+        delay(100.milliseconds)
 
         assertEquals(1, dfFiles.size, "Expected 1 compressed .df envelope file")
         val jsonlFiles = tempDir.listDirectoryEntries("*.jsonl")
